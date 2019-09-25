@@ -49,6 +49,7 @@ model.setDevice = pyo.Set()
 model.setTerminal = pyo.Set(initialize=['in','out'])
 
 # Parameters (input data)
+model.paramNode = pyo.Param(model.setNode)
 model.paramEdge = pyo.Param(model.setEdge)
 model.paramDevice = pyo.Param(model.setDevice)
 model.paramDeviceDispatchIn = pyo.Param(model.setDevice)
@@ -82,9 +83,9 @@ def rule_nodeEnergyBalance(model,carrier,node,terminal):
         (model.paramNodeNontrivial[node][carrier])):
             # (carrier,node) is non-trivial
         terminalOut = (terminal=='out')
-        print("Non-trivial node: ({},{})".format(node,carrier))
+        #print("Non-trivial node: ({},{})".format(node,carrier))
     else:
-        print("Trivial node: ({},{})".format(node,carrier))
+        #print("Trivial node: ({},{})".format(node,carrier))
         # trivial node
         # add constraint only for 'in' terminal, include all devices
         # and edges in single constraint
@@ -135,16 +136,17 @@ def rule_gasPressureAndFlow(model,edge):
     p_from = model.varGasPressure[(n_from,'out')]
     p_to = model.varGasPressure[(n_to,'in')]
     exp_s = 1 # elevation factor
-    p0_from = model.paramEdge[edge]['pressureFrom']
-    p0_to = model.paramEdge[edge]['pressureTo']
+    p0_from = model.paramNode[n_from]['gaspressure_out']
+    p0_to = model.paramNode[n_to]['gaspressure_in']
+    print(n_from,n_to,p0_from,p0_to)
     k = model.paramEdge[edge]['gasflow_k']
     eq_lhs = model.varEdgePower[edge]
     eq_rhs = k*(p0_from**2-exp_s*p0_to**2)**(-1/2)*(
             p0_from*p_from - exp_s*p0_to*p_to)
     expr = (eq_lhs==eq_rhs)
     return expr
-#model.constrGasPressureAndFlow = pyo.Constraint(model.setEdge,
-#                                                rule=rule_gasPressureAndFlow)
+model.constrGasPressureAndFlow = pyo.Constraint(model.setEdge,
+                                                rule=rule_gasPressureAndFlow)
 
 def rule_gasPressureAtNode(model,node):
     if not model.paramNodeNontrivial[node]['gas']:
@@ -163,6 +165,7 @@ def rule_gasPressureAtNode(model,node):
                 if (not(p_ratio_last is None) and (p_ratio != p_ratio_last)):
                     raise Exception("Inconsistent input data: Pressure ratio"
                                     " devie {}".format(d))
+                p_ratio_last = p_ratio
         if p_ratio is None:
             # There is no gas in-out device at this node
             expr = pyo.Constraint.Skip
@@ -173,6 +176,8 @@ def rule_gasPressureAtNode(model,node):
     
 model.constrGasPressureAtNode = pyo.Constraint(model.setNode,
                                                rule=rule_gasPressureAtNode)
+
+print("TODO: Gas pressure ratio constraint for gas devices")
 
 
 def rule_devicePmax(model,dev):
@@ -185,7 +190,6 @@ def rule_devicePmin(model,dev):
     return (model.varDevicePower[dev] >= model.paramDevice[dev]['Pmin'])
 model.constrDevicePmin = pyo.Constraint(model.setDevice,rule=rule_devicePmin)
 
-print("TODO: Infeasible if including devicePower max/min")
 
 
 
@@ -222,6 +226,7 @@ data['setEdge'] = {None: df_edge.index.tolist()}
 data['setDevice'] = {None:df_device.index.tolist()}
 data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
 data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
+data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
 data['paramNodeNontrivial'] = node_nontrivial.to_dict(orient='index') 
 data['paramNodeDevices'] = df_device.groupby('node').groups
 data['paramDevice'] = df_deviceR.to_dict(orient='index')
