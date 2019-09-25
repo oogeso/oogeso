@@ -1,4 +1,5 @@
 import pyomo.environ as pyo
+import pyomo.opt as pyopt
 import pandas as pd
 import networkx as nx
 import pydot
@@ -24,6 +25,7 @@ TODO:
         gas:...linearised Weymouth equation (pressure/flow)
         (see note)
 
+    natural pressure (well)
 
 '''
 
@@ -80,8 +82,11 @@ def rule_nodeEnergyBalance(model,carrier,node,terminal):
         (model.paramNodeNontrivial[node][carrier])):
             # (carrier,node) is non-trivial
         terminalOut = (terminal=='out')
+        print("Non-trivial node: ({},{})".format(node,carrier))
     else:
-        # add constraint only for in terminal, include all devices
+        print("Trivial node: ({},{})".format(node,carrier))
+        # trivial node
+        # add constraint only for 'in' terminal, include all devices
         # and edges in single constraint
         if (terminal=='out'):
             # single constraint associated with in-terminal, so skip this one
@@ -94,25 +99,25 @@ def rule_nodeEnergyBalance(model,carrier,node,terminal):
     if (node in model.paramNodeDevices):
         if (terminal=='in'):
             for dev in model.paramNodeDevices[node]:
-                # power into node (from device)
+                # pos dispatch= power out from grid, i.e .Pinj negative
                 Pinj -= (model.varDevicePower[dev]
                         *model.paramDeviceDispatchIn[dev][carrier])
         if terminalOut:
             for dev in model.paramNodeDevices[node]:
-                # power out from node (into device)
+                # pos dispatch=power into grid, i.e. Pinj positive
                 Pinj += (model.varDevicePower[dev]
                         *model.paramDeviceDispatchOut[dev][carrier])
     
             
     # edges:
-    if (carrier,node) in model.paramNodeEdgesFrom and (terminal=='in'):
-        for edg in model.paramNodeEdgesFrom[(carrier,node)]:
-            # power into node from edge
-            Pinj -= (model.varEdgePower[edg])
-    if (carrier,node) in model.paramNodeEdgesTo and terminalOut:
+    if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
         for edg in model.paramNodeEdgesTo[(carrier,node)]:
-            # power out of node into edge
+            # power into node from edge
             Pinj += (model.varEdgePower[edg])
+    if (carrier,node) in model.paramNodeEdgesFrom and terminalOut:
+        for edg in model.paramNodeEdgesFrom[(carrier,node)]:
+            # power out of node into edge
+            Pinj -= (model.varEdgePower[edg])
     
     if not(Pinj is 0):
         return (Pinj==0)
@@ -148,16 +153,22 @@ def rule_gasPressureAtNode(model,node):
                 == model.varGasPressure[(node,'in')] )
         return expr
     else:
+        p_ratio = None
         p_ratio_last = None
         for d in model.paramNodeDevices[node]:
             if ((model.paramDeviceDispatchIn[d]['gas']>0) and
                 (model.paramDeviceDispatchOut[d]['gas']>0)):
                 p_ratio = 1.5 
-                if ((not p_ratio_last is None) and (p_ratio != p_ratio_last)):
+                # pressure ratio must be the same for all devices at same node
+                if (not(p_ratio_last is None) and (p_ratio != p_ratio_last)):
                     raise Exception("Inconsistent input data: Pressure ratio"
                                     " devie {}".format(d))
-        expr  = (model.varGasPressure[(node,'out')]
-                == p_ratio*model.varGasPressure[(node,'in')] )
+        if p_ratio is None:
+            # There is no gas in-out device at this node
+            expr = pyo.Constraint.Skip
+        else:    
+            expr = (model.varGasPressure[(node,'out')]
+                    == p_ratio*model.varGasPressure[(node,'in')] )
         return expr
     
 model.constrGasPressureAtNode = pyo.Constraint(model.setNode,
@@ -168,11 +179,11 @@ def rule_devicePmax(model,dev):
     return (model.paramDevice[dev]['Pmin'] 
             <= model.varDevicePower[dev] 
             <= model.paramDevice[dev]['Pmax'])
-#model.constrDevicePmax = pyo.Constraint(model.setDevice,rule=rule_devicePmax)
+model.constrDevicePmax = pyo.Constraint(model.setDevice,rule=rule_devicePmax)
 
 def rule_devicePmin(model,dev):
     return (model.varDevicePower[dev] >= model.paramDevice[dev]['Pmin'])
-#model.constrDevicePmin = pyo.Constraint(model.setDevice,rule=rule_devicePmin)
+model.constrDevicePmin = pyo.Constraint(model.setDevice,rule=rule_devicePmin)
 
 print("TODO: Infeasible if including devicePower max/min")
 
@@ -223,11 +234,20 @@ instance = model.create_instance(data={None:data},name='MultiCarrier')
 instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 instance.pprint(filename='model.txt')
 
-opt = pyo.SolverFactory('gurobi')
+opt = pyo.SolverFactory('cbc')
 
 sol = opt.solve(instance) 
 
 sol.write_yaml()
+
+if ((sol.solver.status == pyopt.SolverStatus.ok) and 
+   (sol.solver.termination_condition == pyopt.TerminationCondition.optimal)):
+    print("Solved OK")
+elif (sol.solver.termination_condition == pyopt.TerminationCondition.infeasible):
+    raise Exception("Infeasible solution")
+else:
+    # Something else is wrong
+    print("Solver Status:{}".format(sol.solver.status))
 
 print("\nSOLUTION - devicePower:")
 for k in instance.varDevicePower.keys():
@@ -240,8 +260,8 @@ for k in instance.varEdgePower.keys():
     df_edge.loc[k,'edgePower'] = power
 
 print("\nSOLUTION - gasPressure:")
-for k,v in instance.varGasPressure.items():
-    pressure = pyo.value(v)
+for k,v in instance.varGasPressure.get_values().items():
+    pressure = v #pyo.value(v)
     print("  {}: {}".format(k,pressure))
     #df_edge.loc[k,'gasPressure'] = pressure
 
