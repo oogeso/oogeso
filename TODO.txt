@@ -1,0 +1,1 @@
+compressor/pump electrical demand depends on pressure increase (not on gas flow)

@@ -75,6 +75,19 @@ def rule_objective(model):
     return sumE
 model.objObjective = pyo.Objective(rule=rule_objective,sense=pyo.minimize)
 
+
+def dev_model_compressor_el(model,dev,carrier,node,terminal):
+    Pinj = 0
+    if (carrier=='gas') and (terminal=='in'):
+        Pinj = -model.varDevicePower[dev]
+    elif (carrier=='gas') and (terminal=='out'):
+        Pinj = model.varDevicePower[dev]
+    elif (carrier=='el') and (terminal=='in'):
+        Pinj = - 1*(model.varGasPressure[(node,'out')]
+                    -model.varGasPressure[(node,'out')])
+    return Pinj
+
+
 # Constraints
 def rule_nodeEnergyBalance(model,carrier,node,terminal):
     Pinj = 0
@@ -98,16 +111,23 @@ def rule_nodeEnergyBalance(model,carrier,node,terminal):
         
     # devices:
     if (node in model.paramNodeDevices):
-        if (terminal=='in'):
-            for dev in model.paramNodeDevices[node]:
-                # pos dispatch= power out from grid, i.e .Pinj negative
-                Pinj -= (model.varDevicePower[dev]
-                        *model.paramDeviceDispatchIn[dev][carrier])
-        if terminalOut:
-            for dev in model.paramNodeDevices[node]:
-                # pos dispatch=power into grid, i.e. Pinj positive
-                Pinj += (model.varDevicePower[dev]
-                        *model.paramDeviceDispatchOut[dev][carrier])
+        # TODO: different energy demand models
+        # e.g. pump el demand is proportional to pressure difference
+        for dev in model.paramNodeDevices[node]:
+            dev_model = model.paramDevice[dev]['model']
+            if dev_model=='compressor_el':
+                print("{}, Node:{}, Device model={}".format(carrier,node,dev_model))
+                Pinj += dev_model_compressor_el(model,dev,carrier,node,terminal)
+            else:
+                # standard dispatchmodel
+                if (terminal=='in'):
+                    # pos dispatch= power out from grid, i.e .Pinj negative
+                    Pinj -= (model.varDevicePower[dev]
+                            *model.paramDeviceDispatchIn[dev][carrier])
+                if terminalOut:
+                    # pos dispatch=power into grid, i.e. Pinj positive
+                    Pinj += (model.varDevicePower[dev]
+                            *model.paramDeviceDispatchOut[dev][carrier])
     
             
     # edges:
