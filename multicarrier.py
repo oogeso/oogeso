@@ -47,6 +47,7 @@ model.setEdge1= pyo.Set(within=model.setCarrier*model.setNode*model.setNode)
 model.setEdge= pyo.Set()
 model.setDevice = pyo.Set()
 model.setTerminal = pyo.Set(initialize=['in','out'])
+model.setDevicemodel = pyo.Set()
 
 # Parameters (input data)
 model.paramNode = pyo.Param(model.setNode)
@@ -58,6 +59,7 @@ model.paramNodeNontrivial = pyo.Param(model.setNode)
 model.paramNodeDevices = pyo.Param(model.setNode)
 model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
 model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
+model.paramDevicemodel = pyo.Param(model.setDevicemodel)
 
 # Variables
 #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
@@ -66,6 +68,8 @@ model.varEdgePower2 = pyo.Var(within=pyo.Reals)
 model.varDevicePower = pyo.Var(model.setDevice,within=pyo.NonNegativeReals)
 model.varGasPressure = pyo.Var(model.setNode,model.setTerminal, 
                                within=pyo.NonNegativeReals)
+model.varDeviceFlow = pyo.Var(model.setDevice,model.setCarrier,
+                              model.setTerminal,within=pyo.Reals)
 
 
 # Objective
@@ -89,6 +93,81 @@ def dev_model_compressor_el(model,dev,carrier,node,terminal):
 
 
 # Constraints
+
+def rule_deviceEnergyBalance(model,device):
+    # Energy balance at device - multicarrier input/output/loss etc.
+    # more general version of dispatchfactors in/out
+
+    # load consumption
+    #Pinj = model.varDevicePower[device]
+    
+    dev_model = model.paramDevice[dev]['model']
+    if dev_model=='compressor_el':
+        print("{}, Node:{}, Device model={}".format(carrier,node,dev_model))
+        Pinj += dev_model_compressor_el(model,dev,carrier,node,terminal)
+    else:
+        # standard dispatchmodel
+        if (terminal=='in'):
+            # pos dispatch= power out from grid, i.e .Pinj negative
+            Pinj -= (model.varDevicePower[dev]
+                    *model.paramDeviceDispatchIn[dev][carrier])
+        if (terminal=='out'):
+            # pos dispatch=power into grid, i.e. Pinj positive
+            Pinj += (model.varDevicePower[dev]
+                    *model.paramDeviceDispatchOut[dev][carrier])
+
+    return Pinj==0
+    
+def rule_trivialNode(model,node,carrier):
+    if model.paramNodeNontrivial[node][carrier]:
+        #non-trivial node/carrier, so device
+        return pyo.Constraint.Skip
+    else:
+
+
+
+def rule_terminalEnergyBalance(model,carrier,node,terminal):
+    Pinj = 0
+           
+    # devices:
+    if (node in model.paramNodeDevices):
+        for dev in model.paramNodeDevices[node]:
+            # Power into terminal:
+            dev_model = model.paramDevice[dev]['model']
+            if pd.isna(dev_model):
+                print("No device model specified - using dispatch factor")  
+            elif dev_model in model.paramDevicemodel:
+                if carrier in model.paramDevicemodel[dev_model][terminal]:
+                    Pinj -= model.varDeviceFlow[dev,carrier,terminal]
+            else:
+                raise Exception("Undefined device model ({})".format(dev_model))
+
+    # trivial connections
+    if not model.paramNodeNontrivial[node,carrier]:
+        #Pinj -= model.varTrivalFlow
+        #TODO need a variable...
+        pass
+
+            
+    # edges:
+    if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
+        for edg in model.paramNodeEdgesTo[(carrier,node)]:
+            # power into node from edge
+            Pinj += (model.varEdgePower[edg])
+    elif (carrier,node) in model.paramNodeEdgesFrom and (terminal=='out'):
+        for edg in model.paramNodeEdgesFrom[(carrier,node)]:
+            # power out of node into edge
+            Pinj -= (model.varEdgePower[edg])
+    
+    if not(Pinj is 0):
+        return (Pinj==0)
+    else:
+        return pyo.Constraint.Skip
+model.constrTerminalPowerBalance = pyo.Constraint(model.setCarrier,
+              model.setNode, model.setTerminal,
+              rule=rule_terminalEnergyBalance)
+
+
 def rule_nodeEnergyBalance(model,carrier,node,terminal):
     Pinj = 0
     
@@ -219,6 +298,10 @@ model.constrDevicePmin = pyo.Constraint(model.setDevice,rule=rule_devicePmin)
 df_node = pd.read_excel("data_example.xlsx",sheet_name="node")
 df_edge = pd.read_excel("data_example.xlsx",sheet_name="edge")
 df_device = pd.read_excel("data_example.xlsx",sheet_name="device")
+df_devicemodel = pd.read_excel("data_example.xlsx",sheet_name="devicemodel")
+
+df_devicemodel['in'] =df_devicemodel['in'].str.split(',')
+df_devicemodel['out'] =df_devicemodel['out'].str.split(',')
 
 df_edge = df_edge[df_edge['include']==1]
 df_device = df_device[df_device['include']==1]
@@ -244,6 +327,7 @@ data['setCarrier'] = {None:df_edge['type'].unique().tolist()}
 data['setNode'] = {None:df_node['id'].tolist()}
 data['setEdge'] = {None: df_edge.index.tolist()}
 data['setDevice'] = {None:df_device.index.tolist()}
+data['setDevicemodel'] = {None:df_devicemodel['id'].tolist()}
 data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
 data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
 data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
@@ -253,7 +337,7 @@ data['paramDevice'] = df_deviceR.to_dict(orient='index')
 data['paramEdge'] = df_edge.to_dict(orient='index')
 data['paramNodeEdgesFrom'] = df_edge.groupby(['type','nodeFrom']).groups
 data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups
-
+data['paramDevicemodel'] = df_devicemodel.set_index('id').to_dict(orient='index')
 
 instance = model.create_instance(data={None:data},name='MultiCarrier')
 instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
