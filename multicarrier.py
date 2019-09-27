@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 import pandas as pd
-import networkx as nx
+#import networkx as nx
 import pydot
 import matplotlib.pyplot as plt
 plt.close('all')
@@ -16,27 +16,14 @@ gas network
 (oil network)
 (crude oil/gas network)
 
-network consisting of nodes and edges
-devices: node_in, node_out, dispatch factors, power (var)
-
 TODO:
     physical flow equations
         el: power flow equations
         gas:...linearised Weymouth equation (pressure/flow)
         (see note)
 
-    natural pressure (well)
 
 '''
-
-
-
-
-
-
-
-
-
 
 model = pyo.AbstractModel()
 
@@ -55,7 +42,7 @@ model.paramEdge = pyo.Param(model.setEdge)
 model.paramDevice = pyo.Param(model.setDevice)
 model.paramDeviceDispatchIn = pyo.Param(model.setDevice)
 model.paramDeviceDispatchOut = pyo.Param(model.setDevice)
-model.paramNodeNontrivial = pyo.Param(model.setNode)
+model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
 model.paramNodeDevices = pyo.Param(model.setNode)
 model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
 model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
@@ -64,12 +51,13 @@ model.paramDevicemodel = pyo.Param(model.setDevicemodel)
 # Variables
 #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
 model.varEdgePower = pyo.Var(model.setEdge,within=pyo.Reals)
-model.varEdgePower2 = pyo.Var(within=pyo.Reals)
 model.varDevicePower = pyo.Var(model.setDevice,within=pyo.NonNegativeReals)
 model.varGasPressure = pyo.Var(model.setNode,model.setTerminal, 
                                within=pyo.NonNegativeReals)
 model.varDeviceFlow = pyo.Var(model.setDevice,model.setCarrier,
                               model.setTerminal,within=pyo.Reals)
+model.varTerminalFlow = pyo.Var(model.setNode,model.setCarrier,
+                                within=pyo.Reals)
 
 
 # Objective
@@ -80,53 +68,145 @@ def rule_objective(model):
 model.objObjective = pyo.Objective(rule=rule_objective,sense=pyo.minimize)
 
 
-def dev_model_compressor_el(model,dev,carrier,node,terminal):
-    Pinj = 0
-    if (carrier=='gas') and (terminal=='in'):
-        Pinj = -model.varDevicePower[dev]
-    elif (carrier=='gas') and (terminal=='out'):
-        Pinj = model.varDevicePower[dev]
-    elif (carrier=='el') and (terminal=='in'):
-        Pinj = - 1*(model.varGasPressure[(node,'out')]
-                    -model.varGasPressure[(node,'out')])
-    return Pinj
-
-
-# Constraints
-
-def rule_deviceEnergyBalance(model,device):
-    # Energy balance at device - multicarrier input/output/loss etc.
-    # more general version of dispatchfactors in/out
-
-    # load consumption
-    #Pinj = model.varDevicePower[device]
+def devicemodel_inout():
+    inout = {
+            'compressor_el':    {'in':['el','gas'],'out':['gas']},
+            'compressor_gas':   {'in':['gas'],'out':['gas']},
+            #'separator':        {'in':['el'],'out':[]},
+            'sink_gas':         {'in':['gas'],'out':[]},
+            'source_gas':       {'in':[],'out':['gas']},
+            'gasturbine':       {'in':['gas'],'out':['el']},
+            'gen_el':           {'in':[],'out':['el']},
+            'sink_el':          {'in':['el'],'out':[]},
+            }
+    return inout
     
-    dev_model = model.paramDevice[dev]['model']
-    if dev_model=='compressor_el':
-        print("{}, Node:{}, Device model={}".format(carrier,node,dev_model))
-        Pinj += dev_model_compressor_el(model,dev,carrier,node,terminal)
-    else:
-        # standard dispatchmodel
-        if (terminal=='in'):
-            # pos dispatch= power out from grid, i.e .Pinj negative
-            Pinj -= (model.varDevicePower[dev]
-                    *model.paramDeviceDispatchIn[dev][carrier])
-        if (terminal=='out'):
-            # pos dispatch=power into grid, i.e. Pinj positive
-            Pinj += (model.varDevicePower[dev]
-                    *model.paramDeviceDispatchOut[dev][carrier])
 
-    return Pinj==0
-    
-def rule_trivialNode(model,node,carrier):
-    if model.paramNodeNontrivial[node][carrier]:
-        #non-trivial node/carrier, so device
+def rule_devmodel_compressor_el(model,dev,i):
+    if model.paramDevice[dev]['model'] != 'compressor_el':
         return pyo.Constraint.Skip
-    else:
+    if i==1:
+        ''' power demand depends on gas pressure difference'''
+        node = model.paramDevice[dev]['node']
+        lhs = model.varDevicePower[dev]
+        k = model.paramDevice[dev]['eta']
+        rhs = k*(model.varGasPressure[(node,'out')]
+                        -model.varGasPressure[(node,'in')])
+        return (lhs==rhs)
+    elif i==2:
+        '''gas flow in equals gas flow out'''
+        lhs = model.varDeviceFlow[dev,'gas','in']
+        rhs = model.varDeviceFlow[dev,'gas','out']
+        return (lhs==rhs)
+    elif i==3:
+        '''el in equals power demand'''
+        lhs = model.varDeviceFlow[dev,'el','in']
+        rhs = model.varDevicePower[dev]
+        return (lhs==rhs)
+model.constrDevice_compressor_el = pyo.Constraint(model.setDevice,
+          pyo.RangeSet(1,3),
+          rule=rule_devmodel_compressor_el)
+
+def rule_devmodel_compressor_gas(model,dev,i):
+    if model.paramDevice[dev]['model'] != 'compressor_gas':
+        return pyo.Constraint.Skip
+    if i==1:
+        '''compressor gas demand related to pressure difference'''
+        node = model.paramDevice[dev]['node']
+        k = model.paramDevice[dev]['eta']
+        lhs = model.varDevicePower[dev]
+        rhs = (k*(model.varGasPressure[(node,'out')]
+                    -model.varGasPressure[(node,'in')]) )
+        return lhs==rhs
+    elif i==2:
+        '''matter conservation'''
+        node = model.paramDevice[dev]['node']
+        lhs = model.varDeviceFlow[dev,'gas','out']
+        rhs = model.varDeviceFlow[dev,'gas','in'] - model.varDevicePower[dev]
+        return lhs==rhs
+model.constrDevice_compressor_gas = pyo.Constraint(model.setDevice,
+          pyo.RangeSet(1,2),
+          rule=rule_devmodel_compressor_gas)
+        
+
+def rule_devmodel_sink_gas(model,dev):
+    if model.paramDevice[dev]['model'] != 'sink_gas':
+        return pyo.Constraint.Skip
+    lhs = model.varDeviceFlow[dev,'gas','in']
+    rhs = model.varDevicePower[dev]
+    return (lhs==rhs)
+model.constrDevice_sink_gas = pyo.Constraint(model.setDevice,
+          rule=rule_devmodel_sink_gas)
+
+def rule_devmodel_source_gas(model,dev,i):
+    if model.paramDevice[dev]['model'] != 'source_gas':
+        return pyo.Constraint.Skip
+    if i==1:
+        lhs = model.varDeviceFlow[dev,'gas','out']
+        rhs = model.varDevicePower[dev]
+        return (lhs==rhs)
+    elif i==2:
+        node = model.paramDevice[dev]['node']
+        lhs = model.varGasPressure[(node,'out')]
+        #TODO set source pressure from input data
+        rhs = 200
+        #return pyo.Constraint.Skip
+        return (lhs==rhs)
+model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
+          pyo.RangeSet(1,2),
+          rule=rule_devmodel_source_gas)
+
+
+print("TODO: gas turbine fuel usage dependent on loading")
+def rule_devmodel_gasturbine(model,dev,i):
+    if model.paramDevice[dev]['model'] != 'gasturbine':
+        return pyo.Constraint.Skip
+    if i==1:
+        '''turbine power vs gas fuel usage'''
+        #TODO gas turbine efficiency should depend on power
+        eta = model.paramDevice[dev]['eta']
+        # quadratic equality constraint is not convex; not supported
+        #eta = 0.3*model.varDevicePower[dev]/model.paramDevice[dev]['Pmax']+0.4
+        lhs = model.varDevicePower[dev]
+        rhs = eta*model.varDeviceFlow[dev,'gas','in']
+        return lhs==rhs
+    elif i==2:
+        '''turbine power = power infeed'''
+        lhs = model.varDeviceFlow[dev,'el','out']
+        rhs = model.varDevicePower[dev]
+        return lhs==rhs
+model.constrDevice_gasturbine = pyo.Constraint(model.setDevice,
+          pyo.RangeSet(1,2),
+          rule=rule_devmodel_gasturbine)
+
+def rule_devmodel_gen_el(model,dev):
+    if model.paramDevice[dev]['model'] != 'gen_el':
+        return pyo.Constraint.Skip
+    '''turbine power = power infeed'''
+    lhs = model.varDeviceFlow[dev,'el','out']
+    rhs = model.varDevicePower[dev]
+    return lhs==rhs
+model.constrDevice_gen_el = pyo.Constraint(model.setDevice,
+          rule=rule_devmodel_gen_el)
+
+def rule_devmodel_sink_el(model,dev):
+    if model.paramDevice[dev]['model'] != 'sink_el':
+        return pyo.Constraint.Skip
+    '''sink power = power out'''
+    lhs = model.varDeviceFlow[dev,'el','in']
+    rhs = model.varDevicePower[dev]
+    return lhs==rhs
+model.constrDevice_sink_el = pyo.Constraint(model.setDevice,
+          rule=rule_devmodel_sink_el)
 
 
 
 def rule_terminalEnergyBalance(model,carrier,node,terminal):
+    ''' energy balance at in and out terminals
+    "in" terminal: flow into terminal is positive
+    "out" terminal: flow out of terminal is positive
+    '''
+    
     Pinj = 0
            
     # devices:
@@ -137,16 +217,16 @@ def rule_terminalEnergyBalance(model,carrier,node,terminal):
             if pd.isna(dev_model):
                 print("No device model specified - using dispatch factor")  
             elif dev_model in model.paramDevicemodel:
+                #print("carrier:{},node:{},terminal:{},model:{}"
+                #      .format(carrier,node,terminal,dev_model))
                 if carrier in model.paramDevicemodel[dev_model][terminal]:
                     Pinj -= model.varDeviceFlow[dev,carrier,terminal]
             else:
                 raise Exception("Undefined device model ({})".format(dev_model))
 
-    # trivial connections
-    if not model.paramNodeNontrivial[node,carrier]:
-        #Pinj -= model.varTrivalFlow
-        #TODO need a variable...
-        pass
+    # connect terminals:
+    if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
+        Pinj -= model.varTerminalFlow[node,carrier]
 
             
     # edges:
@@ -157,75 +237,75 @@ def rule_terminalEnergyBalance(model,carrier,node,terminal):
     elif (carrier,node) in model.paramNodeEdgesFrom and (terminal=='out'):
         for edg in model.paramNodeEdgesFrom[(carrier,node)]:
             # power out of node into edge
-            Pinj -= (model.varEdgePower[edg])
+            Pinj += (model.varEdgePower[edg])
     
     if not(Pinj is 0):
         return (Pinj==0)
     else:
         return pyo.Constraint.Skip
-model.constrTerminalPowerBalance = pyo.Constraint(model.setCarrier,
+model.constrTerminalEnergyBalance = pyo.Constraint(model.setCarrier,
               model.setNode, model.setTerminal,
               rule=rule_terminalEnergyBalance)
 
 
-def rule_nodeEnergyBalance(model,carrier,node,terminal):
-    Pinj = 0
-    
-    if ((node in model.paramNodeNontrivial) and 
-        (model.paramNodeNontrivial[node][carrier])):
-            # (carrier,node) is non-trivial
-        terminalOut = (terminal=='out')
-        #print("Non-trivial node: ({},{})".format(node,carrier))
-    else:
-        #print("Trivial node: ({},{})".format(node,carrier))
-        # trivial node
-        # add constraint only for 'in' terminal, include all devices
-        # and edges in single constraint
-        if (terminal=='out'):
-            # single constraint associated with in-terminal, so skip this one
-            return pyo.Constraint.Skip
-        # setting this True ensures that out-terminal connected devices and
-        # edges are merged with in-terminal
-        terminalOut = True
-        
-    # devices:
-    if (node in model.paramNodeDevices):
-        # TODO: different energy demand models
-        # e.g. pump el demand is proportional to pressure difference
-        for dev in model.paramNodeDevices[node]:
-            dev_model = model.paramDevice[dev]['model']
-            if dev_model=='compressor_el':
-                print("{}, Node:{}, Device model={}".format(carrier,node,dev_model))
-                Pinj += dev_model_compressor_el(model,dev,carrier,node,terminal)
-            else:
-                # standard dispatchmodel
-                if (terminal=='in'):
-                    # pos dispatch= power out from grid, i.e .Pinj negative
-                    Pinj -= (model.varDevicePower[dev]
-                            *model.paramDeviceDispatchIn[dev][carrier])
-                if terminalOut:
-                    # pos dispatch=power into grid, i.e. Pinj positive
-                    Pinj += (model.varDevicePower[dev]
-                            *model.paramDeviceDispatchOut[dev][carrier])
-    
-            
-    # edges:
-    if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
-        for edg in model.paramNodeEdgesTo[(carrier,node)]:
-            # power into node from edge
-            Pinj += (model.varEdgePower[edg])
-    if (carrier,node) in model.paramNodeEdgesFrom and terminalOut:
-        for edg in model.paramNodeEdgesFrom[(carrier,node)]:
-            # power out of node into edge
-            Pinj -= (model.varEdgePower[edg])
-    
-    if not(Pinj is 0):
-        return (Pinj==0)
-    else:
-        return pyo.Constraint.Skip
-model.constrNodePowerBalance = pyo.Constraint(model.setCarrier,model.setNode,
-                                              model.setTerminal,
-                                              rule=rule_nodeEnergyBalance)
+#def rule_nodeEnergyBalance(model,carrier,node,terminal):
+#    Pinj = 0
+#    
+#    if ((node in model.paramNodeNontrivial) and 
+#        (model.paramNodeNontrivial[node][carrier])):
+#            # (carrier,node) is non-trivial
+#        terminalOut = (terminal=='out')
+#        #print("Non-trivial node: ({},{})".format(node,carrier))
+#    else:
+#        #print("Trivial node: ({},{})".format(node,carrier))
+#        # trivial node
+#        # add constraint only for 'in' terminal, include all devices
+#        # and edges in single constraint
+#        if (terminal=='out'):
+#            # single constraint associated with in-terminal, so skip this one
+#            return pyo.Constraint.Skip
+#        # setting this True ensures that out-terminal connected devices and
+#        # edges are merged with in-terminal
+#        terminalOut = True
+#        
+#    # devices:
+#    if (node in model.paramNodeDevices):
+#        # TODO: different energy demand models
+#        # e.g. pump el demand is proportional to pressure difference
+#        for dev in model.paramNodeDevices[node]:
+#            dev_model = model.paramDevice[dev]['model']
+#            if dev_model=='compressor_el':
+#                print("{}, Node:{}, Device model={}".format(carrier,node,dev_model))
+#                Pinj += dev_model_compressor_el(model,dev,carrier,node,terminal)
+#            else:
+#                # standard dispatchmodel
+#                if (terminal=='in'):
+#                    # pos dispatch= power out from grid, i.e .Pinj negative
+#                    Pinj -= (model.varDevicePower[dev]
+#                            *model.paramDeviceDispatchIn[dev][carrier])
+#                if terminalOut:
+#                    # pos dispatch=power into grid, i.e. Pinj positive
+#                    Pinj += (model.varDevicePower[dev]
+#                            *model.paramDeviceDispatchOut[dev][carrier])
+#    
+#            
+#    # edges:
+#    if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
+#        for edg in model.paramNodeEdgesTo[(carrier,node)]:
+#            # power into node from edge
+#            Pinj += (model.varEdgePower[edg])
+#    if (carrier,node) in model.paramNodeEdgesFrom and terminalOut:
+#        for edg in model.paramNodeEdgesFrom[(carrier,node)]:
+#            # power out of node into edge
+#            Pinj -= (model.varEdgePower[edg])
+#    
+#    if not(Pinj is 0):
+#        return (Pinj==0)
+#    else:
+#        return pyo.Constraint.Skip
+#model.constrNodePowerBalance = pyo.Constraint(model.setCarrier,model.setNode,
+#                                              model.setTerminal,
+#                                              rule=rule_nodeEnergyBalance)
 
 def rule_gasPressureAndFlow(model,edge):
     if model.paramEdge[edge]['type'] != 'gas':
@@ -237,47 +317,37 @@ def rule_gasPressureAndFlow(model,edge):
     exp_s = 1 # elevation factor
     p0_from = model.paramNode[n_from]['gaspressure_out']
     p0_to = model.paramNode[n_to]['gaspressure_in']
-    print(n_from,n_to,p0_from,p0_to)
     k = model.paramEdge[edge]['gasflow_k']
-    eq_lhs = model.varEdgePower[edge]
-    eq_rhs = k*(p0_from**2-exp_s*p0_to**2)**(-1/2)*(
-            p0_from*p_from - exp_s*p0_to*p_to)
-    expr = (eq_lhs==eq_rhs)
-    return expr
+    coeff = k*(p0_from**2-exp_s*p0_to**2)**(-1/2)
+    lhs = model.varEdgePower[edge]
+    rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
+    print(n_from,n_to,p0_from,p0_to,coeff)
+    return (lhs==rhs)
 model.constrGasPressureAndFlow = pyo.Constraint(model.setEdge,
                                                 rule=rule_gasPressureAndFlow)
 
 def rule_gasPressureAtNode(model,node):
-    if not model.paramNodeNontrivial[node]['gas']:
+    #if not model.paramNodeNontrivial[node]['gas']:
+    if not model.paramNodeCarrierHasSerialDevice[node]['gas']:
         # trivial connection. pressure out=pressure in
         expr = (model.varGasPressure[(node,'out')]
                 == model.varGasPressure[(node,'in')] )
         return expr
     else:
-        p_ratio = None
-        p_ratio_last = None
-        for d in model.paramNodeDevices[node]:
-            if ((model.paramDeviceDispatchIn[d]['gas']>0) and
-                (model.paramDeviceDispatchOut[d]['gas']>0)):
-                p_ratio = 1.5 
-                # pressure ratio must be the same for all devices at same node
-                if (not(p_ratio_last is None) and (p_ratio != p_ratio_last)):
-                    raise Exception("Inconsistent input data: Pressure ratio"
-                                    " devie {}".format(d))
-                p_ratio_last = p_ratio
-        if p_ratio is None:
-            # There is no gas in-out device at this node
-            expr = pyo.Constraint.Skip
-        else:    
-            expr = (model.varGasPressure[(node,'out')]
-                    == p_ratio*model.varGasPressure[(node,'in')] )
-        return expr
-    
+        return pyo.Constraint.Skip    
 model.constrGasPressureAtNode = pyo.Constraint(model.setNode,
                                                rule=rule_gasPressureAtNode)
 
-print("TODO: Gas pressure ratio constraint for gas devices")
-
+# TODO: Set bounds from input data
+def rule_gasPressureBounds(model,node,t):
+    col = 'gaspressure_{}'.format(t)
+    nom_p = model.paramNode[node][col]
+    lb = nom_p*0.8
+    ub = nom_p*1.2
+    return (lb,model.varGasPressure[(node,t)],ub)
+model.constrGasPressureBounds = pyo.Constraint(model.setNode,model.setTerminal,
+                                               rule=rule_gasPressureBounds)
+    
 
 def rule_devicePmax(model,dev):
     return (model.paramDevice[dev]['Pmin'] 
@@ -289,19 +359,31 @@ def rule_devicePmin(model,dev):
     return (model.varDevicePower[dev] >= model.paramDevice[dev]['Pmin'])
 model.constrDevicePmin = pyo.Constraint(model.setDevice,rule=rule_devicePmin)
 
+def rule_edgePmaxmin(model,edge):
+    return (-model.paramEdge[edge]['capacity'] 
+            <= model.varEdgePower[edge] 
+            <= model.paramEdge[edge]['capacity'])
+model.constrEdgeBounds = pyo.Constraint(model.setEdge,rule=rule_edgePmaxmin)
 
 
 
+
+#########################################################################
 
 
 # Input data
 df_node = pd.read_excel("data_example.xlsx",sheet_name="node")
 df_edge = pd.read_excel("data_example.xlsx",sheet_name="edge")
 df_device = pd.read_excel("data_example.xlsx",sheet_name="device")
-df_devicemodel = pd.read_excel("data_example.xlsx",sheet_name="devicemodel")
-
-df_devicemodel['in'] =df_devicemodel['in'].str.split(',')
-df_devicemodel['out'] =df_devicemodel['out'].str.split(',')
+#df_devicemodel = pd.read_excel("data_example.xlsx",sheet_name="devicemodel")
+#
+#df_devicemodel['in'] =df_devicemodel['in'].str.split(',')
+#df_devicemodel['out'] =df_devicemodel['out'].str.split(',')
+##replace nan by []:
+#for row in df_devicemodel.loc[df_devicemodel['in'].isnull(), 'in'].index:
+#    df_devicemodel.at[row, 'in'] = []
+#for row in df_devicemodel.loc[df_devicemodel['out'].isnull(), 'out'].index:
+#    df_devicemodel.at[row, 'out'] = []
 
 df_edge = df_edge[df_edge['include']==1]
 df_device = df_device[df_device['include']==1]
@@ -314,6 +396,7 @@ dispatch_in = df_device[list(cols_in.keys())].rename(columns=cols_in).fillna(0)
 cols_out = {col:col.split("out_")[1] 
            for col in df_device.columns if "out_" in col }
 dispatch_out = df_device[list(cols_out.keys())].rename(columns=cols_out).fillna(0)
+
 df_deviceR = df_device.drop(cols_in,axis=1).drop(cols_out,axis=1)
 
 # find nodes where no devices connect in-out terminals:
@@ -322,28 +405,49 @@ dev_nontrivial = ((dispatch_in!=0) & (dispatch_out!=0))
 node_nontrivial = pd.concat([df_device[['node']],
                              dev_nontrivial],axis=1).groupby('node').any()
 
+node_devices = df_device.groupby('node').groups
+devmodel_inout = devicemodel_inout()
+allCarriers = df_edge['type'].unique().tolist()
+node_carrier_has_serialdevice = {}
+for n,devs in node_devices.items():
+    node_carrier_has_serialdevice[n] = {}
+    for carrier in allCarriers:
+        num_series = 0
+        for dev_mod in df_device.loc[devs,'model']:
+            has_series = ((carrier in devmodel_inout[dev_mod]['in'])
+                            and (carrier in devmodel_inout[dev_mod]['out']))
+            if has_series:
+                num_series +=1
+                #print("series: {},{},{}".format(n,carrier,dev_mod))
+        #print(n,carrier,num_series)
+        node_carrier_has_serialdevice[n][carrier] = (num_series>0)
+        
+    
+    
 data = {}
-data['setCarrier'] = {None:df_edge['type'].unique().tolist()}
+data['setCarrier'] = {None:allCarriers}
 data['setNode'] = {None:df_node['id'].tolist()}
 data['setEdge'] = {None: df_edge.index.tolist()}
 data['setDevice'] = {None:df_device.index.tolist()}
-data['setDevicemodel'] = {None:df_devicemodel['id'].tolist()}
+data['setDevicemodel'] = {None:devmodel_inout.keys()}
 data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
 data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
 data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
-data['paramNodeNontrivial'] = node_nontrivial.to_dict(orient='index') 
+#data['paramNodeNontrivial'] = node_nontrivial.to_dict(orient='index') 
+data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
 data['paramNodeDevices'] = df_device.groupby('node').groups
 data['paramDevice'] = df_deviceR.to_dict(orient='index')
 data['paramEdge'] = df_edge.to_dict(orient='index')
 data['paramNodeEdgesFrom'] = df_edge.groupby(['type','nodeFrom']).groups
 data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups
-data['paramDevicemodel'] = df_devicemodel.set_index('id').to_dict(orient='index')
+#data['paramDevicemodel'] = df_devicemodel.set_index('id').to_dict(orient='index')
+data['paramDevicemodel'] = devmodel_inout
 
 instance = model.create_instance(data={None:data},name='MultiCarrier')
 instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 instance.pprint(filename='model.txt')
 
-opt = pyo.SolverFactory('cbc')
+opt = pyo.SolverFactory('gurobi')
 
 sol = opt.solve(instance) 
 
@@ -390,41 +494,8 @@ pos = fixedpos.copy()
 pos.update({v['id']+'_out':(v['coord_x'],v['coord_y']+0.1) for i,v in df_node.iterrows()})
 labels_edge = df_edge.set_index(['nodeFrom','nodeTo'])['edgePower'].to_dict()
 
-def plotNetwork(data,df_node,model):
-    for carrier in data['setCarrier'][None]:
-        cluster = {}
-        dotG = pydot.Dot(graph_type='digraph',overlap=False)
-        for i,n in df_node.iterrows():
-            n_id = n['id']
-            cluster[n_id] = pydot.Cluster(graph_name=n['id'],label=n['id'])
-            cluster[n_id].add_node(pydot.Node(name=n['id']+'_in',
-                                   pos='"{},{}"'.format(n['coord_x'],n['coord_y'])))
-            cluster[n_id].add_node(pydot.Node(name=n['id']+'_out'))
-            dotG.add_subgraph(cluster[n_id])
-        for i,e in data['paramEdge'].items():
-            if e['type']==carrier:
-                dotG.add_edge(pydot.Edge(src=e['nodeFrom']+'_out',
-                                 dst=e['nodeTo']+'_in',
-                                 color='red',
-                                 label=pyo.value(model.varEdgePower[i])))
-        for n,devs in data['paramNodeDevices'].items():
-            for d in devs:
-                f_in = data['paramDeviceDispatchIn'][d][carrier]
-                if f_in!=0:
-                    cluster[n].add_node(pydot.Node(d,color='blue'))
-                    dotG.add_edge(pydot.Edge(dst=d,src=n+'_in',color='blue',
-                       label=pyo.value(model.varDevicePower[d])*f_in))
-                f_out = data['paramDeviceDispatchOut'][d][carrier]
-                if f_out!=0:
-                    cluster[n].add_node(pydot.Node(d,color='blue'))
-                    dotG.add_edge(pydot.Edge(dst=n+'_out',src=d,color='blue',
-                         label=pyo.value(model.varDevicePower[d])*f_out))
-        for n,v in data['paramNodeNontrivial'].items():
-            if not v[carrier]:
-                dotG.add_edge(pydot.Edge(dst=n+'_out',src=n+'_in',
-                     color='"black:invis:black"',arrowhead='none'))
-                    
-        dotG.write_png('pydot_{}.png'.format(carrier),prog='dot')    
+
+
 
 def plotNetworkCombined(model):
     cluster = {}
@@ -433,6 +504,8 @@ def plotNetworkCombined(model):
            'd': 'orange'
            }
     dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
+    
+    # plot all node and terminals:
     for n_id in model.setNode:
         cluster[n_id] = pydot.Cluster(graph_name=n_id,label=n_id)
         nodes_in=pydot.Subgraph(rank='same')
@@ -451,6 +524,7 @@ def plotNetworkCombined(model):
         cluster[n_id].add_subgraph(nodes_out)
         dotG.add_subgraph(cluster[n_id])
     
+    # plot all edges (per carrier):
     for carrier in model.setCarrier:
         for i,e in model.paramEdge.items():
             if e['type']==carrier:
@@ -459,74 +533,46 @@ def plotNetworkCombined(model):
                                          color=col['e'][carrier],
                                          fontcolor=col['e'][carrier],
                                          label=pyo.value(model.varEdgePower[i])))
-        for n,devs in model.paramNodeDevices.items():
-            for d in devs:
-                cluster[n].add_node(pydot.Node(d,color=col['d'],style='filled',
-                       label='"{}:{}"'.format(d,model.paramDevice[d]['name'])))
-                f_in = model.paramDeviceDispatchIn[d][carrier]
-                if f_in!=0:
-                    dotG.add_edge(pydot.Edge(dst=d,src=n+'_'+carrier+'_in',
-                         color=col['e'][carrier],
-                         fontcolor=col['e'][carrier],
-                         label=pyo.value(model.varDevicePower[d])*f_in))
-                f_out = model.paramDeviceDispatchOut[d][carrier]
-                if f_out!=0:
-                    dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',src=d,
-                         color=col['e'][carrier],
-                         fontcolor=col['e'][carrier],
-                         label=pyo.value(model.varDevicePower[d])*f_out))
-        for n,v in model.paramNodeNontrivial.items():
-            if not v[carrier]:
+    
+    # plot devices and device connections:
+    for n,devs in model.paramNodeDevices.items():
+        for d in devs:
+            p_dev = pyo.value(model.varDevicePower[d])
+            cluster[n].add_node(pydot.Node(d,color=col['d'],style='filled',
+                   label='"{}:{}:{}"'
+                   .format(d,model.paramDevice[d]['name'],p_dev)))
+            dev_model = model.paramDevice[d]['model']
+            carriers_in = model.paramDevicemodel[dev_model]['in']
+            carriers_out = model.paramDevicemodel[dev_model]['out']
+            #print("carriers in/out:",d,carriers_in,carriers_out)
+            for carrier in carriers_in:
+                f_in = pyo.value(model.varDeviceFlow[d,carrier,'in'])
+                dotG.add_edge(pydot.Edge(dst=d,src=n+'_'+carrier+'_in',
+                     color=col['e'][carrier],
+                     fontcolor=col['e'][carrier],
+                     label="{}".format(f_in)))
+            for carrier in carriers_out:
+                f_out = pyo.value(model.varDeviceFlow[d,carrier,'out'])
+                dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',src=d,
+                     color=col['e'][carrier],
+                     fontcolor=col['e'][carrier],
+                     label="{}".format(f_out)))
+    
+    # plot terminal in-out links:
+    for n in model.setNode:
+        for carrier in model.setCarrier:
+             if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
+                flow = pyo.value(model.varTerminalFlow[n,carrier])
                 dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
                                          src=n+'_'+carrier+'_in',
                      color='"{0}:invis:{0}"'.format(col['e'][carrier]),
-                     arrowhead='none'))
-                
-    dotG.write_png('pydotCombined.png',prog='dot')    
+                     label=flow,fontcolor=col['e'][carrier]))
+                     #arrowhead='none'))
+
+    #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
+    dotG.write_png('pydotCombinedNEW.png',prog='dot')    
 
 
-plotNetwork(data,df_node,instance)
 plotNetworkCombined(instance)
-#
-#for carrier in data['setCarrier'][None]:
-#    edges=df_edge[df_edge['type']==carrier].copy()
-#    edges['node1'] = edges['node1']+'_in'
-#    edges['node2'] = edges['node2']+'_out'
-#    G = nx.from_pandas_edgelist(
-#            create_using=nx.DiGraph(),
-#            df=edges,
-#            source='node1',target='node2',edge_attr='edgePower')
-#    G.add_nodes_from(df_node['id']+'_in')
-#    G.add_nodes_from(df_node['id']+'_out')
-#    mask_dev = (df_device[['out_'+carrier,'in_'+carrier]
-#                           ].fillna(0)!=0).all(axis=1)
-#    devedges = df_device[mask_dev].copy()
-#    devedges['node_in'] = devedges['node']+'_in'
-#    devedges['node_out'] = devedges['node']+'_out'   
-#    Gdev = nx.from_pandas_edgelist(create_using=nx.DiGraph(),
-#                                             df=devedges,
-#                                             source="node_out",
-#                                             target="node_in")
-#    #G.add_edges_from(Gdev.edges)
-#    graph[carrier] = G
-#    lab= nx.get_edge_attributes(G,'edgePower')
-#    plt.figure()
-#    pos = nx.spring_layout(G, fixed = fixedpos.keys(), pos = pos,k=0.01)
-#    nx.draw_networkx(G,with_labels=True,pos=pos)
-#    #nx.draw_networkx_edges(G,pos, label = carrier)
-#    nx.draw_networkx_edge_labels(G, pos, alpha=0.5,edge_labels = lab)
-#    nx.draw_networkx_edges(Gdev,pos,edge_color="green")
-#    
-#    trivials=pd.DataFrame(columns=['node_out','node_in'])
-#    for n,v in data['paramNodeNontrivial'].items():
-#        if not v[carrier]:
-#            trivials= trivials.append({'node_out':n+'_out','node_in':n+'_in'},
-#                            ignore_index=True)
-#    Gtrivial = nx.from_pandas_edgelist(df=trivials,
-#                                       create_using=nx.DiGraph(),
-#                                       source='node_out',
-#                                       target='node_in')
-#    nx.draw_networkx_edges(Gtrivial,pos,edge_color="red")
-#    
-#    plt.title(carrier)
-    
+
+
