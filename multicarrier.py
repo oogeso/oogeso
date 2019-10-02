@@ -52,6 +52,7 @@ model.paramDevicemodel = pyo.Param(model.setDevicemodel)
 #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
 model.varEdgePower = pyo.Var(model.setEdge,within=pyo.Reals)
 model.varDevicePower = pyo.Var(model.setDevice,within=pyo.NonNegativeReals)
+model.varDeviceIsOn = pyo.Var(model.setDevice,within=pyo.Binary)
 model.varGasPressure = pyo.Var(model.setNode,model.setTerminal, 
                                within=pyo.NonNegativeReals)
 model.varDeviceFlow = pyo.Var(model.setDevice,model.setCarrier,
@@ -75,9 +76,12 @@ def devicemodel_inout():
             #'separator':        {'in':['el'],'out':[]},
             'sink_gas':         {'in':['gas'],'out':[]},
             'source_gas':       {'in':[],'out':['gas']},
-            'gasturbine':       {'in':['gas'],'out':['el']},
+            'gasturbine':       {'in':['gas'],'out':['el','heat']},
             'gen_el':           {'in':[],'out':['el']},
             'sink_el':          {'in':['el'],'out':[]},
+            'sink_heat':        {'in':['heat'],'out':[]},
+            'gasheater':        {'in':['gas'],'out':['heat']},
+            'heatpump':         {'in':['el'],'out':['heat']},
             }
     return inout
     
@@ -156,28 +160,96 @@ model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
           pyo.RangeSet(1,2),
           rule=rule_devmodel_source_gas)
 
+def rule_devmodel_gasheater(model,dev,i):
+    if model.paramDevice[dev]['model'] != 'gasheater':
+        return pyo.Constraint.Skip
+    if i==1:
+        # gas in = device power * efficiency
+        lhs = model.varDeviceFlow[dev,'gas','in']*model.paramDevice[dev]['eta']
+        rhs = model.varDevicePower[dev]
+        return (lhs==rhs)
+    elif i==2:
+        # heat out = device power
+        lhs = model.varDeviceFlow[dev,'heat','out']
+        rhs = model.varDevicePower[dev]
+        return (lhs==rhs)
+model.constrDevice_gasheater = pyo.Constraint(model.setDevice,
+          pyo.RangeSet(1,2),
+          rule=rule_devmodel_gasheater)
 
-print("TODO: gas turbine fuel usage dependent on loading")
+def rule_devmodel_heatpump(model,dev,i):
+    if model.paramDevice[dev]['model'] != 'heatpump':
+        return pyo.Constraint.Skip
+    if i==1:
+        # device power = el in * efficiency
+        lhs = model.varDevicePower[dev]
+        rhs = model.varDeviceFlow[dev,'el','in']*model.paramDevice[dev]['eta']
+        return (lhs==rhs)
+    elif i==2:
+        # heat out = device power
+        lhs = model.varDeviceFlow[dev,'heat','out']
+        rhs = model.varDevicePower[dev]
+        return (lhs==rhs)
+model.constrDevice_heatpump = pyo.Constraint(model.setDevice,
+          pyo.RangeSet(1,2),
+          rule=rule_devmodel_heatpump)
+
+
+print("TODO: gas turbine power vs heat output")
 def rule_devmodel_gasturbine(model,dev,i):
     if model.paramDevice[dev]['model'] != 'gasturbine':
         return pyo.Constraint.Skip
     if i==1:
-        '''turbine power vs gas fuel usage'''
-        #TODO gas turbine efficiency should depend on power
-        eta = model.paramDevice[dev]['eta']
-        # quadratic equality constraint is not convex; not supported
-        #eta = 0.3*model.varDevicePower[dev]/model.paramDevice[dev]['Pmax']+0.4
-        lhs = model.varDevicePower[dev]
-        rhs = eta*model.varDeviceFlow[dev,'gas','in']
+        '''turbine power vs gas fuel usage'''       
+        # fuel consumption is a linear function of power output
+        # fuel = A + B*power
+        # => efficiency = power/(A+B*power)
+        A = model.paramDevice[dev]['fuelA']
+        B = model.paramDevice[dev]['fuelB']
+        Pmax = model.paramDevice[dev]['Pmax']
+        lhs = model.varDeviceFlow[dev,'gas','in']/Pmax
+        rhs = A*model.varDeviceIsOn[dev] + B*model.varDevicePower[dev]/Pmax
         return lhs==rhs
     elif i==2:
-        '''turbine power = power infeed'''
+        '''turbine power = power output'''
         lhs = model.varDeviceFlow[dev,'el','out']
         rhs = model.varDevicePower[dev]
         return lhs==rhs
+    elif i==3:
+        '''power only if turbine is on'''
+        lhs = model.varDevicePower[dev]
+        rhs = model.varDeviceIsOn[dev]*model.paramDevice[dev]['Pmax']
+        return lhs <= rhs
+    elif i==4:
+        '''turbine power = heat output * heat fraction'''
+        lhs = model.varDeviceFlow[dev,'heat','out']
+        rhs = model.varDevicePower[dev]*model.paramDevice[dev]['heat']
+        return lhs==rhs
 model.constrDevice_gasturbine = pyo.Constraint(model.setDevice,
-          pyo.RangeSet(1,2),
+          pyo.RangeSet(1,4),
           rule=rule_devmodel_gasturbine)
+
+def plotGasTurbineEfficiency(model,dev):
+    fuelA = model.paramDevice[dev]['fuelA']
+    fuelB = model.paramDevice[dev]['fuelB']
+    x_pow = pd.np.linspace(0,1,50)
+    y_fuel = fuelA + fuelB*x_pow
+    plt.figure()
+    plt.subplot(3,1,1)
+    plt.ylabel("Fuel usage")
+    plt.plot(x_pow,y_fuel)
+    plt.ylim(bottom=0,top=20)
+    plt.subplot(3,1,2)
+    plt.ylabel("Specific fuel usage")
+    plt.xlabel("Power output")
+    plt.plot(x_pow,y_fuel/x_pow)
+    plt.subplot(3,1,3)
+    plt.ylabel("Efficiency")
+    plt.xlabel("Power output")
+    plt.plot(x_pow,x_pow/y_fuel)
+    
+    
+    
 
 def rule_devmodel_gen_el(model,dev):
     if model.paramDevice[dev]['model'] != 'gen_el':
@@ -198,6 +270,16 @@ def rule_devmodel_sink_el(model,dev):
     return lhs==rhs
 model.constrDevice_sink_el = pyo.Constraint(model.setDevice,
           rule=rule_devmodel_sink_el)
+
+def rule_devmodel_sink_heat(model,dev):
+    if model.paramDevice[dev]['model'] != 'sink_heat':
+        return pyo.Constraint.Skip
+    '''sink heat = heat out'''
+    lhs = model.varDeviceFlow[dev,'heat','in']
+    rhs = model.varDevicePower[dev]
+    return lhs==rhs
+model.constrDevice_sink_heat = pyo.Constraint(model.setDevice,
+          rule=rule_devmodel_sink_heat)
 
 
 
@@ -367,6 +449,95 @@ model.constrEdgeBounds = pyo.Constraint(model.setEdge,rule=rule_edgePmaxmin)
 
 
 
+def plotNetworkCombined(model,filename='pydotCombined.png',only_carrier=None):
+    cluster = {}
+    col = {'t': {'el':'red','gas':'blue','heat':'darkgreen'},
+           'e': {'el':'red','gas':'blue','heat':'darkgreen'},
+           'd': 'orange',
+           'cluster':'lightgray'
+           }
+    dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
+    
+    if only_carrier is None:
+        carriers = model.setCarrier
+    else:
+        carriers = [only_carrier]
+        fparts=filename.split('.')
+        fparts.insert(-1,only_carrier)
+        filename = '.'.join(fparts)
+    
+    # plot all node and terminals:
+    for n_id in model.setNode:
+        cluster[n_id] = pydot.Cluster(graph_name=n_id,label=n_id,
+               style='filled',color=col['cluster'])
+        nodes_in=pydot.Subgraph(rank='same')
+        nodes_out=pydot.Subgraph(rank='same')
+        for carrier in carriers:
+            label_in = carrier+'_in'
+            label_out= carrier+'_out'
+            if carrier=='gas':
+                label_in +=':{:3.1f}'.format(pyo.value(instance.varGasPressure[n_id,'in']))
+                label_out +=':{:3.1f}'.format(pyo.value(instance.varGasPressure[n_id,'out']))
+            nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
+                   color=col['t'][carrier],label=label_in,shape='box'))
+            nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
+                   color=col['t'][carrier],label=label_out,shape='box'))
+        cluster[n_id].add_subgraph(nodes_in)
+        cluster[n_id].add_subgraph(nodes_out)
+        dotG.add_subgraph(cluster[n_id])
+    
+    # plot all edges (per carrier):
+    for carrier in carriers:
+        for i,e in model.paramEdge.items():
+            if e['type']==carrier:
+                edgelabel = '{:.2f}'.format(pyo.value(model.varEdgePower[i]))
+                dotG.add_edge(pydot.Edge(src=e['nodeFrom']+'_'+carrier+'_out',
+                                         dst=e['nodeTo']+'_'+carrier+'_in',
+                                         color=col['e'][carrier],
+                                         fontcolor=col['e'][carrier],
+                                         label=edgelabel))
+    
+    # plot devices and device connections:
+    for n,devs in model.paramNodeDevices.items():
+        for d in devs:
+            dev_model = model.paramDevice[d]['model']
+            p_dev = pyo.value(model.varDevicePower[d])
+            carriers_in = model.paramDevicemodel[dev_model]['in']
+            carriers_out = model.paramDevicemodel[dev_model]['out']
+            carriers_in_lim = list(set(carriers_in)&set(carriers))
+            carriers_out_lim = list(set(carriers_out)&set(carriers))
+            if (carriers_in_lim!=[]) or (carriers_out_lim!=[]):
+                cluster[n].add_node(pydot.Node(d,color=col['d'],style='filled',
+                   label='"{}[{}]\n{:.2f}"'
+                   .format(d,model.paramDevice[d]['name'],p_dev)))
+            #print("carriers in/out:",d,carriers_in,carriers_out)
+            for carrier in carriers_in_lim:
+                f_in = pyo.value(model.varDeviceFlow[d,carrier,'in'])
+                dotG.add_edge(pydot.Edge(dst=d,src=n+'_'+carrier+'_in',
+                     color=col['e'][carrier],
+                     fontcolor=col['e'][carrier],
+                     label="{:.2f}".format(f_in)))
+            for carrier in carriers_out_lim:
+                f_out = pyo.value(model.varDeviceFlow[d,carrier,'out'])
+                dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',src=d,
+                     color=col['e'][carrier],
+                     fontcolor=col['e'][carrier],
+                     label="{:.2f}".format(f_out)))
+    
+    # plot terminal in-out links:
+    for n in model.setNode:
+        for carrier in carriers:
+             if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
+                flow = pyo.value(model.varTerminalFlow[n,carrier])
+                dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
+                                         src=n+'_'+carrier+'_in',
+                     color='"{0}:invis:{0}"'.format(col['e'][carrier]),
+                     label='{:.2f}'.format(flow),fontcolor=col['e'][carrier]))
+                     #arrowhead='none'))
+
+    #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
+    dotG.write_png(filename,prog='dot')    
+
 
 #########################################################################
 
@@ -399,15 +570,16 @@ dispatch_out = df_device[list(cols_out.keys())].rename(columns=cols_out).fillna(
 
 df_deviceR = df_device.drop(cols_in,axis=1).drop(cols_out,axis=1)
 
-# find nodes where no devices connect in-out terminals:
-# (node is non-trivial if any device connects both in and out)
-dev_nontrivial = ((dispatch_in!=0) & (dispatch_out!=0))
-node_nontrivial = pd.concat([df_device[['node']],
-                             dev_nontrivial],axis=1).groupby('node').any()
+## find nodes where no devices connect in-out terminals:
+## (node is non-trivial if any device connects both in and out)
+#dev_nontrivial = ((dispatch_in!=0) & (dispatch_out!=0))
+#node_nontrivial = pd.concat([df_device[['node']],
+#                             dev_nontrivial],axis=1).groupby('node').any()
 
 node_devices = df_device.groupby('node').groups
 devmodel_inout = devicemodel_inout()
-allCarriers = df_edge['type'].unique().tolist()
+#allCarriers = df_edge['type'].unique().tolist()
+allCarriers = ['el','gas','heat']
 node_carrier_has_serialdevice = {}
 for n,devs in node_devices.items():
     node_carrier_has_serialdevice[n] = {}
@@ -486,93 +658,21 @@ for k,v in instance.varGasPressure.get_values().items():
 #        print ("      ", index, instance.dual[c[index]])
 
 
-df_edge['edgePower']
-graph={}
-#pos = {v['id']:(v['coord_x'],v['coord_y']) for i,v in df_node.iterrows()}
-fixedpos = {v['id']+'_in':(v['coord_x'],v['coord_y']) for i,v in df_node.iterrows()}
-pos = fixedpos.copy()
-pos.update({v['id']+'_out':(v['coord_x'],v['coord_y']+0.1) for i,v in df_node.iterrows()})
-labels_edge = df_edge.set_index(['nodeFrom','nodeTo'])['edgePower'].to_dict()
-
-
-
-
-def plotNetworkCombined(model):
-    cluster = {}
-    col = {'t': {'el':'red','gas':'blue'},
-           'e': {'el':'red','gas':'blue'},
-           'd': 'orange'
-           }
-    dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
-    
-    # plot all node and terminals:
-    for n_id in model.setNode:
-        cluster[n_id] = pydot.Cluster(graph_name=n_id,label=n_id)
-        nodes_in=pydot.Subgraph(rank='same')
-        nodes_out=pydot.Subgraph(rank='same')
-        for carrier in model.setCarrier:
-            label_in = carrier+'_in'
-            label_out= carrier+'_out'
-            if carrier=='gas':
-                label_in +=':{:3.1f}'.format(pyo.value(instance.varGasPressure[n_id,'in']))
-                label_out +=':{:3.1f}'.format(pyo.value(instance.varGasPressure[n_id,'out']))
-            nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
-                   color=col['t'][carrier],label=label_in))
-            nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
-                   color=col['t'][carrier],label=label_out))
-        cluster[n_id].add_subgraph(nodes_in)
-        cluster[n_id].add_subgraph(nodes_out)
-        dotG.add_subgraph(cluster[n_id])
-    
-    # plot all edges (per carrier):
-    for carrier in model.setCarrier:
-        for i,e in model.paramEdge.items():
-            if e['type']==carrier:
-                dotG.add_edge(pydot.Edge(src=e['nodeFrom']+'_'+carrier+'_out',
-                                         dst=e['nodeTo']+'_'+carrier+'_in',
-                                         color=col['e'][carrier],
-                                         fontcolor=col['e'][carrier],
-                                         label=pyo.value(model.varEdgePower[i])))
-    
-    # plot devices and device connections:
-    for n,devs in model.paramNodeDevices.items():
-        for d in devs:
-            p_dev = pyo.value(model.varDevicePower[d])
-            cluster[n].add_node(pydot.Node(d,color=col['d'],style='filled',
-                   label='"{}:{}:{}"'
-                   .format(d,model.paramDevice[d]['name'],p_dev)))
-            dev_model = model.paramDevice[d]['model']
-            carriers_in = model.paramDevicemodel[dev_model]['in']
-            carriers_out = model.paramDevicemodel[dev_model]['out']
-            #print("carriers in/out:",d,carriers_in,carriers_out)
-            for carrier in carriers_in:
-                f_in = pyo.value(model.varDeviceFlow[d,carrier,'in'])
-                dotG.add_edge(pydot.Edge(dst=d,src=n+'_'+carrier+'_in',
-                     color=col['e'][carrier],
-                     fontcolor=col['e'][carrier],
-                     label="{}".format(f_in)))
-            for carrier in carriers_out:
-                f_out = pyo.value(model.varDeviceFlow[d,carrier,'out'])
-                dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',src=d,
-                     color=col['e'][carrier],
-                     fontcolor=col['e'][carrier],
-                     label="{}".format(f_out)))
-    
-    # plot terminal in-out links:
-    for n in model.setNode:
-        for carrier in model.setCarrier:
-             if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
-                flow = pyo.value(model.varTerminalFlow[n,carrier])
-                dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
-                                         src=n+'_'+carrier+'_in',
-                     color='"{0}:invis:{0}"'.format(col['e'][carrier]),
-                     label=flow,fontcolor=col['e'][carrier]))
-                     #arrowhead='none'))
-
-    #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
-    dotG.write_png('pydotCombinedNEW.png',prog='dot')    
-
-
 plotNetworkCombined(instance)
+plotNetworkCombined(instance,only_carrier='el')
+plotNetworkCombined(instance,only_carrier='gas')
+plotNetworkCombined(instance,only_carrier='heat')
+
+#
+#df_edge['edgePower']
+#graph={}
+##pos = {v['id']:(v['coord_x'],v['coord_y']) for i,v in df_node.iterrows()}
+#fixedpos = {v['id']+'_in':(v['coord_x'],v['coord_y']) for i,v in df_node.iterrows()}
+#pos = fixedpos.copy()
+#pos.update({v['id']+'_out':(v['coord_x'],v['coord_y']+0.1) for i,v in df_node.iterrows()})
+#labels_edge = df_edge.set_index(['nodeFrom','nodeTo'])['edgePower'].to_dict()
+#
+
+
 
 
