@@ -19,11 +19,38 @@ gas network
 TODO:
     physical flow equations
         el: power flow equations
-        gas:...linearised Weymouth equation (pressure/flow)
-        (see note)
 
+Energy carrier units are in J, or flow = J/s=W
 
+fuel transport is converted to energy transport via energy value (calorific 
+value) of the fuel, i.e. energy = volume * energy_value
+
+Device Pmax/Pmin refer to energy values
+
+1 Btu/ft^3 = 37258.9 J/m^3 
+(google search "1 btu/ft3 in j/m3")
+natural gas: 1000 Btu/ft3 = 37 MJ/m3
+
+See: https://en.wikipedia.org/wiki/Heat_of_combustion#Higher_heating_values_of_natural_gases_from_various_sources
+Norway energy_value = 39.24 MJ/m3
+https://www.norskpetroleum.no/en/calculator/about-energy-calculator/
+energy_value=40
+
+One of the largest gas fields:
+Åsgard July 2019: 0.824 bill m3 gas production per month
+=> 12.71 GW average (energy value)
 '''
+
+carrier_properties = {
+    'gas':{'energy_value':40e6,
+           'Tb_basetemp_K':273+15,
+           'Pb_basepressure_kPa':101,
+           'G_gravity':0.6,
+           'Z_compressibility':0.9},
+    'el':{'energy_value':1},
+    'heat':{},
+    }
+
 
 model = pyo.AbstractModel()
 
@@ -76,15 +103,14 @@ def devicemodel_inout():
             #'separator':        {'in':['el'],'out':[]},
             'sink_gas':         {'in':['gas'],'out':[]},
             'source_gas':       {'in':[],'out':['gas']},
+            'gasheater':        {'in':['gas'],'out':['heat']},
             'gasturbine':       {'in':['gas'],'out':['el','heat']},
             'gen_el':           {'in':[],'out':['el']},
             'sink_el':          {'in':['el'],'out':[]},
             'sink_heat':        {'in':['heat'],'out':[]},
-            'gasheater':        {'in':['gas'],'out':['heat']},
             'heatpump':         {'in':['el'],'out':['heat']},
             }
     return inout
-    
 
 def rule_devmodel_compressor_el(model,dev,i):
     if model.paramDevice[dev]['model'] != 'compressor_el':
@@ -152,8 +178,7 @@ def rule_devmodel_source_gas(model,dev,i):
     elif i==2:
         node = model.paramDevice[dev]['node']
         lhs = model.varGasPressure[(node,'out')]
-        #TODO set source pressure from input data
-        rhs = 200
+        rhs = model.paramDevice[dev]['naturalpressure']
         #return pyo.Constraint.Skip
         return (lhs==rhs)
 model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
@@ -200,20 +225,21 @@ def rule_devmodel_gasturbine(model,dev,i):
     if model.paramDevice[dev]['model'] != 'gasturbine':
         return pyo.Constraint.Skip
     if i==1:
-        '''turbine power vs gas fuel usage'''       
-        # fuel consumption is a linear function of power output
+        '''turbine power = fuel usage (should be minimised)'''
+        lhs = model.varDevicePower[dev]
+        rhs = model.varDeviceFlow[dev,'el','out']
+        return lhs==rhs
+    if i==2:
+        '''turbine el power out vs gas fuel in'''       
+        # fuel consumption (gas in) is a linear function of el power output
         # fuel = A + B*power
         # => efficiency = power/(A+B*power)
         A = model.paramDevice[dev]['fuelA']
         B = model.paramDevice[dev]['fuelB']
         Pmax = model.paramDevice[dev]['Pmax']
         lhs = model.varDeviceFlow[dev,'gas','in']/Pmax
-        rhs = A*model.varDeviceIsOn[dev] + B*model.varDevicePower[dev]/Pmax
-        return lhs==rhs
-    elif i==2:
-        '''turbine power = power output'''
-        lhs = model.varDeviceFlow[dev,'el','out']
-        rhs = model.varDevicePower[dev]
+        rhs = (A*model.varDeviceIsOn[dev] 
+                + B*model.varDeviceFlow[dev,'el','out']/Pmax)
         return lhs==rhs
     elif i==3:
         '''power only if turbine is on'''
@@ -228,29 +254,7 @@ def rule_devmodel_gasturbine(model,dev,i):
 model.constrDevice_gasturbine = pyo.Constraint(model.setDevice,
           pyo.RangeSet(1,4),
           rule=rule_devmodel_gasturbine)
-
-def plotGasTurbineEfficiency(model,dev):
-    fuelA = model.paramDevice[dev]['fuelA']
-    fuelB = model.paramDevice[dev]['fuelB']
-    x_pow = pd.np.linspace(0,1,50)
-    y_fuel = fuelA + fuelB*x_pow
-    plt.figure()
-    plt.subplot(3,1,1)
-    plt.ylabel("Fuel usage")
-    plt.plot(x_pow,y_fuel)
-    plt.ylim(bottom=0,top=20)
-    plt.subplot(3,1,2)
-    plt.ylabel("Specific fuel usage")
-    plt.xlabel("Power output")
-    plt.plot(x_pow,y_fuel/x_pow)
-    plt.subplot(3,1,3)
-    plt.ylabel("Efficiency")
-    plt.xlabel("Power output")
-    plt.plot(x_pow,x_pow/y_fuel)
     
-    
-    
-
 def rule_devmodel_gen_el(model,dev):
     if model.paramDevice[dev]['model'] != 'gen_el':
         return pyo.Constraint.Skip
@@ -280,8 +284,6 @@ def rule_devmodel_sink_heat(model,dev):
     return lhs==rhs
 model.constrDevice_sink_heat = pyo.Constraint(model.setDevice,
           rule=rule_devmodel_sink_heat)
-
-
 
 def rule_terminalEnergyBalance(model,carrier,node,terminal):
     ''' energy balance at in and out terminals
@@ -330,76 +332,41 @@ model.constrTerminalEnergyBalance = pyo.Constraint(model.setCarrier,
               rule=rule_terminalEnergyBalance)
 
 
-#def rule_nodeEnergyBalance(model,carrier,node,terminal):
-#    Pinj = 0
-#    
-#    if ((node in model.paramNodeNontrivial) and 
-#        (model.paramNodeNontrivial[node][carrier])):
-#            # (carrier,node) is non-trivial
-#        terminalOut = (terminal=='out')
-#        #print("Non-trivial node: ({},{})".format(node,carrier))
-#    else:
-#        #print("Trivial node: ({},{})".format(node,carrier))
-#        # trivial node
-#        # add constraint only for 'in' terminal, include all devices
-#        # and edges in single constraint
-#        if (terminal=='out'):
-#            # single constraint associated with in-terminal, so skip this one
-#            return pyo.Constraint.Skip
-#        # setting this True ensures that out-terminal connected devices and
-#        # edges are merged with in-terminal
-#        terminalOut = True
-#        
-#    # devices:
-#    if (node in model.paramNodeDevices):
-#        # TODO: different energy demand models
-#        # e.g. pump el demand is proportional to pressure difference
-#        for dev in model.paramNodeDevices[node]:
-#            dev_model = model.paramDevice[dev]['model']
-#            if dev_model=='compressor_el':
-#                print("{}, Node:{}, Device model={}".format(carrier,node,dev_model))
-#                Pinj += dev_model_compressor_el(model,dev,carrier,node,terminal)
-#            else:
-#                # standard dispatchmodel
-#                if (terminal=='in'):
-#                    # pos dispatch= power out from grid, i.e .Pinj negative
-#                    Pinj -= (model.varDevicePower[dev]
-#                            *model.paramDeviceDispatchIn[dev][carrier])
-#                if terminalOut:
-#                    # pos dispatch=power into grid, i.e. Pinj positive
-#                    Pinj += (model.varDevicePower[dev]
-#                            *model.paramDeviceDispatchOut[dev][carrier])
-#    
-#            
-#    # edges:
-#    if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
-#        for edg in model.paramNodeEdgesTo[(carrier,node)]:
-#            # power into node from edge
-#            Pinj += (model.varEdgePower[edg])
-#    if (carrier,node) in model.paramNodeEdgesFrom and terminalOut:
-#        for edg in model.paramNodeEdgesFrom[(carrier,node)]:
-#            # power out of node into edge
-#            Pinj -= (model.varEdgePower[edg])
-#    
-#    if not(Pinj is 0):
-#        return (Pinj==0)
-#    else:
-#        return pyo.Constraint.Skip
-#model.constrNodePowerBalance = pyo.Constraint(model.setCarrier,model.setNode,
-#                                              model.setTerminal,
-#                                              rule=rule_nodeEnergyBalance)
+
+#TODO: Electrical flow equations
+print("TODO: Electrical network power flow equations")
+def rule_elVoltageAndFlow(model,edge):
+    '''power flow equations'''
+    pass
+
+def rule_elVoltageReference(model,edge):
+    pass
+
+
 
 def rule_gasPressureAndFlow(model,edge):
+    '''Flow as a function of pressure difference and pipe properties
+    
+    Q = k*(Pin-Pout)
+    
+    REFERENCES:     
+    1) E Sashi Menon, Gas Pipeline Hydraulics, Taylor & Francis (2005), 
+    https://doi.org/10.1201/9781420038224     
+    2) A Tomasgard et al., Optimization  models  for  the  natural  gas  
+    value  chain, in: Geometric Modelling, Numerical Simulation and 
+    Optimization. Springer Verlag, New York (2007), 
+    https://doi.org/10.1007/978-3-540-68783-2_16
+    '''
     if model.paramEdge[edge]['type'] != 'gas':
         return pyo.Constraint.Skip
     n_from = model.paramEdge[edge]['nodeFrom']
     n_to = model.paramEdge[edge]['nodeTo']
     p_from = model.varGasPressure[(n_from,'out')]
     p_to = model.varGasPressure[(n_to,'in')]
-    exp_s = 1 # elevation factor
     p0_from = model.paramNode[n_from]['gaspressure_out']
     p0_to = model.paramNode[n_to]['gaspressure_in']
     k = model.paramEdge[edge]['gasflow_k']
+    exp_s = model.paramEdge[edge]['exp_s']
     coeff = k*(p0_from**2-exp_s*p0_to**2)**(-1/2)
     lhs = model.varEdgePower[edge]
     rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
@@ -421,11 +388,12 @@ model.constrGasPressureAtNode = pyo.Constraint(model.setNode,
                                                rule=rule_gasPressureAtNode)
 
 # TODO: Set bounds from input data
+print("TODO: gas pressure bounds set by input parameters")
 def rule_gasPressureBounds(model,node,t):
     col = 'gaspressure_{}'.format(t)
     nom_p = model.paramNode[node][col]
-    lb = nom_p*0.8
-    ub = nom_p*1.2
+    lb = nom_p*0.9
+    ub = nom_p*1.1
     return (lb,model.varGasPressure[(node,t)],ub)
 model.constrGasPressureBounds = pyo.Constraint(model.setNode,model.setTerminal,
                                                rule=rule_gasPressureBounds)
@@ -448,7 +416,28 @@ def rule_edgePmaxmin(model,edge):
 model.constrEdgeBounds = pyo.Constraint(model.setEdge,rule=rule_edgePmaxmin)
 
 
-
+def plotGasTurbineEfficiency(model,dev,filename=None):
+    fuelA = model.paramDevice[dev]['fuelA']
+    fuelB = model.paramDevice[dev]['fuelB']
+    x_pow = pd.np.linspace(0,1,50)
+    y_fuel = fuelA + fuelB*x_pow
+    plt.figure(figsize=(6,10))
+    plt.subplot(3,1,1)
+    plt.ylabel("Fuel usage")
+    plt.plot(x_pow,y_fuel)
+    plt.ylim(bottom=0)
+    plt.subplot(3,1,2)
+    plt.ylabel("Specific fuel usage")
+    #plt.xlabel("Power output")
+    plt.plot(x_pow,y_fuel/x_pow)
+    plt.subplot(3,1,3)
+    plt.ylabel("Efficiency")
+    plt.xlabel("Power output")
+    plt.plot(x_pow,x_pow/y_fuel)
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')        
+    
+    
 def plotNetworkCombined(model,filename='pydotCombined.png',only_carrier=None):
     cluster = {}
     col = {'t': {'el':'red','gas':'blue','heat':'darkgreen'},
@@ -539,6 +528,17 @@ def plotNetworkCombined(model,filename='pydotCombined.png',only_carrier=None):
     dotG.write_png(filename,prog='dot')    
 
 
+# CHECK that constraints are defined for all device models
+print("Checking existance of constraints for all device types")
+devmodels = devicemodel_inout()
+for i in devmodels.keys():
+    isdefined = hasattr(model,"constrDevice_{}".format(i))
+    if not isdefined:
+        raise Exception("Device model constraints for '{}' have"
+                        " not been defined".format(i))
+    print("....{} -> OK".format(i))
+
+
 #########################################################################
 
 
@@ -594,6 +594,25 @@ for n,devs in node_devices.items():
         #print(n,carrier,num_series)
         node_carrier_has_serialdevice[n][carrier] = (num_series>0)
         
+# gas pipeline parameters:
+ga=carrier_properties['gas']
+temp = df_edge['temperature_K']
+height_from = df_edge.merge(df_node,how='left',
+                        left_on='nodeFrom',right_on='id')['coord_z']*1000
+height_to = df_edge.merge(df_node,how='left',
+                        left_on='nodeTo',right_on='id')['coord_z']*1000
+s = 0.0684 * (ga['G_gravity']*(height_to-height_from)
+                /(temp*ga['Z_compressibility']))
+sfactor= (pd.np.exp(s)-1)/s
+sfactor.loc[s==0] = 1
+length = df_edge['length_km']*sfactor
+diameter = df_edge['diameter_mm']
+
+gas_edge_k = (4.3328e-8*ga['Tb_basetemp_K']/ga['Pb_basepressure_kPa']
+    *(ga['G_gravity']*temp*length*ga['Z_compressibility'])**(-1/2)
+    *diameter**(8/3))
+df_edge['gasflow_k'] = gas_edge_k
+df_edge['exp_s'] = pd.np.exp(s)
     
     
 data = {}
