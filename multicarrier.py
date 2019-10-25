@@ -18,6 +18,9 @@ gas network
 (crude oil/gas network)
 
 TODO:
+    def objective function(s)
+    -min operating cost, min co2, max oil/gas export...
+TODO:
     physical flow equations
         el: power flow equations
 
@@ -63,7 +66,8 @@ class Multicarrier:
         model.setTerminal = pyo.Set(initialize=['in','out'])
         model.setDevicemodel = pyo.Set()
         # time for rolling horizon optimisation:
-        #model.setTime = pyo.Set()
+        model.setHorizon = pyo.Set()
+        model.setParameters = pyo.Set()
         
         # Parameters (input data)
         model.paramNode = pyo.Param(model.setNode)
@@ -76,6 +80,7 @@ class Multicarrier:
         model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
         model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
         model.paramDevicemodel = pyo.Param(model.setDevicemodel)
+        model.paramParameters = pyo.Param(model.setParameters)
         
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
@@ -388,9 +393,9 @@ class Multicarrier:
             
         
         def rule_devicePmax(model,dev):
-            return (model.paramDevice[dev]['Pmin'] 
-                    <= model.varDevicePower[dev] 
-                    <= model.paramDevice[dev]['Pmax'])
+            return pyo.inequality(model.paramDevice[dev]['Pmin'],
+                    model.varDevicePower[dev], 
+                    model.paramDevice[dev]['Pmax'])
         model.constrDevicePmax = pyo.Constraint(model.setDevice,rule=rule_devicePmax)
         
         def rule_devicePmin(model,dev):
@@ -398,9 +403,9 @@ class Multicarrier:
         model.constrDevicePmin = pyo.Constraint(model.setDevice,rule=rule_devicePmin)
         
         def rule_edgePmaxmin(model,edge):
-            return (-model.paramEdge[edge]['capacity'] 
-                    <= model.varEdgePower[edge] 
-                    <= model.paramEdge[edge]['capacity'])
+            return pyo.inequality(-model.paramEdge[edge]['capacity'], 
+                    model.varEdgePower[edge], 
+                    model.paramEdge[edge]['capacity'])
         model.constrEdgeBounds = pyo.Constraint(model.setEdge,rule=rule_edgePmaxmin)
     
         return model
@@ -641,6 +646,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     df_node = pd.read_excel(filename,sheet_name="node")
     df_edge = pd.read_excel(filename,sheet_name="edge")
     df_device = pd.read_excel(filename,sheet_name="device")
+    df_parameters = pd.read_excel(filename,sheet_name="parameters",index_col=0)
 
     # discard edges and devices not to be included:    
     df_edge = df_edge[df_edge['include']==1]
@@ -681,7 +687,7 @@ def read_data_from_xlsx(filename,carrier_properties):
             #print(n,carrier,num_series)
             node_carrier_has_serialdevice[n][carrier] = (num_series>0)
             
-    # gas pipeline parameters:
+    # gas pipeline parameters - derive k and exp(s) parameters:
     ga=carrier_properties['gas']
     temp = df_edge['temperature_K']
     height_from = df_edge.merge(df_node,how='left',
@@ -708,18 +714,20 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['setEdge'] = {None: df_edge.index.tolist()}
     data['setDevice'] = {None:df_device.index.tolist()}
     data['setDevicemodel'] = {None:devmodel_inout.keys()}
+    data['setHorizon'] = {
+            None:range(df_parameters.loc['planning_horizon','value'])}
+    data['setParameters'] = {None:df_parameters.index.tolist()}
     data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
     data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
     data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
-    #data['paramNodeNontrivial'] = node_nontrivial.to_dict(orient='index') 
     data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
     data['paramNodeDevices'] = df_device.groupby('node').groups
     data['paramDevice'] = df_deviceR.to_dict(orient='index')
     data['paramEdge'] = df_edge.to_dict(orient='index')
     data['paramNodeEdgesFrom'] = df_edge.groupby(['type','nodeFrom']).groups
     data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups
-    #data['paramDevicemodel'] = df_devicemodel.set_index('id').to_dict(orient='index')
     data['paramDevicemodel'] = devmodel_inout
+    data['paramParameters'] = df_parameters['value'].to_dict()#orient='index')
     
     return data
 
