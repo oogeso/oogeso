@@ -68,6 +68,7 @@ class Multicarrier:
         # time for rolling horizon optimisation:
         model.setHorizon = pyo.Set()
         model.setParameters = pyo.Set()
+        model.setProfile = pyo.Set()
         
         # Parameters (input data)
         model.paramNode = pyo.Param(model.setNode)
@@ -81,6 +82,12 @@ class Multicarrier:
         model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
         model.paramDevicemodel = pyo.Param(model.setDevicemodel)
         model.paramParameters = pyo.Param(model.setParameters)
+        # Mutable parameters (will be modified between successive optimisations)
+        model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
+                                        mutable=True)
+        model.paramCarriers = pyo.Param(model.setCarrier)
+        #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
+        #                                 mutable=True)
         
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
@@ -100,15 +107,21 @@ class Multicarrier:
                 model.setNode,model.setCarrier,model.setHorizon,
                 within=pyo.Reals)
         
+
         
         # Objective
         #TODO update objective function
         logging.info("TODO: objective function definition")
-        def rule_objective(model):
+        def rule_objective_P(model):
             sumE = sum(model.varDevicePower[k,t]
                        for k in model.setDevice for t in model.setHorizon)
             return sumE
-        model.objObjective = pyo.Objective(rule=rule_objective,sense=pyo.minimize)
+        
+        def rule_objective_co2(model):
+            '''CO2 emissions'''
+            sumE = self.compute_CO2(model) #*model.paramParameters['CO2_price']
+            return sumE
+        model.objObjective = pyo.Objective(rule=rule_objective_co2,sense=pyo.minimize)
         
         
         
@@ -169,6 +182,16 @@ class Multicarrier:
         model.constrDevice_sink_gas = pyo.Constraint(model.setDevice,
                   model.setHorizon,
                   rule=rule_devmodel_sink_gas)
+
+        def rule_devmodel_export_gas(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'export_gas':
+                return pyo.Constraint.Skip
+            lhs = model.varDeviceFlow[dev,'gas','in',t]
+            rhs = model.varDevicePower[dev,t]
+            return (lhs==rhs)
+        model.constrDevice_export_gas = pyo.Constraint(model.setDevice,
+                  model.setHorizon,
+                  rule=rule_devmodel_export_gas)
         
         def rule_devmodel_source_gas(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'source_gas':
@@ -258,15 +281,17 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_gasturbine)
             
-        def rule_devmodel_gen_el(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'gen_el':
+        logging.info("TODO: el source: dieselgen, fuel, on-off variables")
+        #TODO: diesel gen fuel, onoff variables..
+        def rule_devmodel_source_el(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'source_el':
                 return pyo.Constraint.Skip
             '''turbine power = power infeed'''
             lhs = model.varDeviceFlow[dev,'el','out',t]
             rhs = model.varDevicePower[dev,t]
             return lhs==rhs
-        model.constrDevice_gen_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,rule=rule_devmodel_gen_el)
+        model.constrDevice_source_el = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_devmodel_source_el)
         
         def rule_devmodel_sink_el(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_el':
@@ -277,6 +302,16 @@ class Multicarrier:
             return lhs==rhs
         model.constrDevice_sink_el = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_sink_el)
+
+        def rule_devmodel_export_el(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'export_el':
+                return pyo.Constraint.Skip
+            '''sink power = power out'''
+            lhs = model.varDeviceFlow[dev,'el','in',t]
+            rhs = model.varDevicePower[dev,t]
+            return lhs==rhs
+        model.constrDevice_export_el = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_devmodel_export_el)
         
         def rule_devmodel_sink_heat(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_heat':
@@ -403,9 +438,16 @@ class Multicarrier:
             
         
         def rule_devicePmax(model,dev,t):
-            return pyo.inequality(model.paramDevice[dev]['Pmin'],
-                    model.varDevicePower[dev,t], 
-                    model.paramDevice[dev]['Pmax'])
+            minValue = model.paramDevice[dev]['Pmin']
+            maxValue = model.paramDevice[dev]['Pmax']
+            extprofile = model.paramDevice[dev]['external']
+            #if False:
+            if (not pd.isna(extprofile)):
+                #print(dev,t,extprofile)
+                maxValue = maxValue*self._df_profiles.loc[t,extprofile]
+                #print(dev,t,extprofile,maxValue)
+            expr = pyo.inequality(minValue,model.varDevicePower[dev,t], maxValue)
+            return expr                    
         model.constrDevicePmax = pyo.Constraint(
                 model.setDevice,model.setHorizon,rule=rule_devicePmax)
         
@@ -435,6 +477,50 @@ class Multicarrier:
                                 " not been defined".format(i))
             logging.debug("....{} -> OK".format(i))
     
+    # Helper functions
+    def compute_CO2(self,model,devices=None,timesteps=None):
+        '''compute CO2 emission
+        
+        model can be abstract model or model instance
+        '''
+        if devices is None:
+            devices = model.setDevice
+        if timesteps is None:
+            timesteps = model.setHorizon
+            
+        sumCO2 = 0
+        # GAS: co2 emission from consumed gas (e.g. in gas heater)
+        # EL: co2 emission from the generation of electricity
+        # HEAT: co2 emission from the generation of heat
+        for d in devices:
+            devmodel = pyo.value(model.paramDevice[d]['model'])
+            if devmodel in ['gasturbine','gasheater']:
+                sumCO2 = sumCO2 + sum(model.varDeviceFlow[d,'gas','in',t]
+                            *model.paramCarriers['gas']['CO2content']
+                            for t in timesteps)
+            elif devmodel=='compressor_gas':
+                sumCO2 = sumCO2 + sum((model.varDeviceFlow[d,'gas','in',t]
+                            -model.varDeviceFlow[d,'gas','out',t])
+                            *model.paramCarriers['gas']['CO2content']
+                            for t in timesteps)
+            elif devmodel in ['source_el']:
+                # co2 from co2 content in fuel usage
+                sumCO2 = sumCO2 + sum(model.varDeviceFlow[d,'el','out',t]
+                            *model.paramDevice[d]['co2em']
+                            for t in timesteps)
+            elif devmodel in ['compressor_el','sink_heat','sink_el',
+                              'heatpump','source_gas','export_gas',
+                              'export_el']:
+                # no CO2 emission contribution
+                pass
+            else:
+                raise NotImplementedError(
+                    "CO2 calculation for {} not implemented".format(devmodel))
+
+        # Average per timestep
+        sumCO2 = sumCO2/len(timesteps)
+        
+        return sumCO2
 
     def createModelInstance(self,data,filename=None):
         """Create concrete Pyomo model instance
@@ -442,12 +528,28 @@ class Multicarrier:
         data : dict of data
         filename : name of file to write model to (optional)
         """
+        self._df_profiles = data['profiles']
+        del data['profiles']
+        
         instance = self.model.create_instance(data={None:data},name='MultiCarrier')
         instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
         if filename is not None:
             instance.pprint(filename=filename)
         return instance
     
+    def updateModelInstance(self,instance,timestep,df_profiles):
+        """Update Pyomo model instance"""
+        
+        # Update max/min power based on profiles (sources and sinks)
+        for dev in instance.setDevice:
+            ext_profile = instance.paramDevice[dev]['external']
+            if (not pd.isna(ext_profile)):
+                for t in instance.setHorizon:
+                    #instance.constrDevice_gen_el.
+                    pass
+        
+        # Update startup/shutdown info
+        pass
 
     
     def devicemodel_inout():
@@ -455,11 +557,13 @@ class Multicarrier:
                 'compressor_el':    {'in':['el','gas'],'out':['gas']},
                 'compressor_gas':   {'in':['gas'],'out':['gas']},
                 #'separator':        {'in':['el'],'out':[]},
+                'export_gas':         {'in':['gas'],'out':[]},
                 'sink_gas':         {'in':['gas'],'out':[]},
                 'source_gas':       {'in':[],'out':['gas']},
                 'gasheater':        {'in':['gas'],'out':['heat']},
                 'gasturbine':       {'in':['gas'],'out':['el','heat']},
-                'gen_el':           {'in':[],'out':['el']},
+                'source_el':           {'in':[],'out':['el']},
+                'export_el':          {'in':['el'],'out':[]},
                 'sink_el':          {'in':['el'],'out':[]},
                 'sink_heat':        {'in':['heat'],'out':[]},
                 'heatpump':         {'in':['el'],'out':['heat']},
@@ -470,7 +574,7 @@ class Multicarrier:
         """Solve problem for planning horizon at a single timestep"""
         
         opt = pyo.SolverFactory(solver)
-        
+        logging.info("Solving...")
         sol = opt.solve(instance) 
         
         if write_yaml:
@@ -487,13 +591,16 @@ class Multicarrier:
         return sol
  
     def solveMany(self,instance,solver="gurobi",write_yaml=False):
-        """Solve problem over many timesteps"""
+        """Solve problem over many timesteps - rolling horizon"""
         
-        # 1. Update problem formulation
-        # 2. Solve for planning horizon
-        # 3. Save results
-        # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
-        # 4. repeat from 1
+        steps = range(0,5,2) # [0,2,4]
+        for step in steps:
+            # 1. Save present  power output and on/off status (for gas turbines)
+            # 2. Update problem formulation
+            # 3. Solve for planning horizon
+            # 4. Save results (for later analysis)
+            # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
+            pass
         
         raise NotImplementedError("Not implemented")
         
@@ -652,6 +759,30 @@ class Plots:
         #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
         dotG.write_png(filename,prog='dot')    
     
+    def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
+        """Plot power schedule over planning horizon (last optimisation)"""
+        if devices=='all':
+            devices = list(model.setDevice)
+        df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
+                                    orient="index")
+        df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
+        df = df[0].unstack(level=0)
+        df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
+
+        plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        df[devices].plot(ax=ax)
+        labels = (df_info.loc[devices].index.astype(str)
+                  +'_'+df_info.loc[devices,'name'])
+        plt.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+                   frameon=False)
+        plt.xlabel("Timestep")
+        plt.ylabel("Device power (MW)")
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+
+            
+
     
 
 #########################################################################
@@ -671,6 +802,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     df_edge = pd.read_excel(filename,sheet_name="edge")
     df_device = pd.read_excel(filename,sheet_name="device")
     df_parameters = pd.read_excel(filename,sheet_name="parameters",index_col=0)
+    df_profiles = pd.read_excel(filename,sheet_name="profiles",index_col=0)
 
     # discard edges and devices not to be included:    
     df_edge = df_edge[df_edge['include']==1]
@@ -741,6 +873,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['setHorizon'] = {
             None:range(df_parameters.loc['planning_horizon','value'])}
     data['setParameters'] = {None:df_parameters.index.tolist()}
+    data['setProfile'] = {None:df_device['external'].dropna().unique().tolist()}
     data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
     data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
     data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
@@ -752,6 +885,10 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups
     data['paramDevicemodel'] = devmodel_inout
     data['paramParameters'] = df_parameters['value'].to_dict()#orient='index')
+    #unordered set error - but is this needed - better use dataframe diretly instead?
+    #data['paramProfiles'] = df_profiles.T.stack().to_dict()
+    data['profiles'] = df_profiles
+    data['paramCarriers'] = carrier_properties
     
     return data
 

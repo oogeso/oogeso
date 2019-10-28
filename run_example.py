@@ -24,10 +24,13 @@ carrier_properties = {
            'Tb_basetemp_K':273+15,
            'Pb_basepressure_kPa':101,
            'G_gravity':0.6,
-           'Z_compressibility':0.9},
-    'el':{'energy_value':1},
-    'heat':{},
+           'Z_compressibility':0.9,
+           'CO2content':5}, #5 kg per MW
+    'el':{'energy_value':1,
+          'CO2content':0},
+    'heat':{'CO2content':0},
     }
+
 
 mc = multicarrier.Multicarrier(loglevel="INFO")
 
@@ -43,3 +46,9 @@ multicarrier.Plots.plotNetworkCombined(instance)
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='el')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='gas')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='heat')
+
+multicarrier.Plots.plotDevicePowerLastOptimisation(instance,
+                                                   filename="devoutput.png")
+multicarrier.Plots.plotNetworkCombined(instance,timestep=18,filename="t18.png")
+sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))
+print("CO2 emitted = {} kg".format(sumCO2))
