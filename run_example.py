@@ -25,7 +25,7 @@ carrier_properties = {
            'Pb_basepressure_kPa':101,
            'G_gravity':0.6,
            'Z_compressibility':0.9,
-           'CO2content':5}, #5 kg per MW
+           'CO2content':5}, #5 kg per MWh
     'el':{'energy_value':1,
           'CO2content':0},
     'heat':{'CO2content':0},
@@ -39,7 +39,7 @@ data = multicarrier.read_data_from_xlsx("data_example.xlsx",carrier_properties)
 instance = mc.createModelInstance(data,filename="model.txt")
 
 
-sol = mc.solve(instance,solver="gurobi",write_yaml=False)
+sol = mc.solve(instance,solver="cbc",write_yaml=False)
 
 
 multicarrier.Plots.plotNetworkCombined(instance)
@@ -47,8 +47,15 @@ multicarrier.Plots.plotNetworkCombined(instance,only_carrier='el')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='gas')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='heat')
 
-multicarrier.Plots.plotDevicePowerLastOptimisation(instance,
-                                                   filename="devoutput.png")
+#multicarrier.Plots.plotDevicePowerLastOptimisation(instance,
+#                                                   filename="devoutput.png")
+multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
+                                                      filename="devsum_el.png")
+multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,carrier="gas",
+                                                      filename="devsum_gas.png")
+multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename="co2out.png")
 multicarrier.Plots.plotNetworkCombined(instance,timestep=18,filename="t18.png")
+
+
 sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))
 print("CO2 emitted = {} kg".format(sumCO2))

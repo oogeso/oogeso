@@ -121,7 +121,8 @@ class Multicarrier:
             '''CO2 emissions'''
             sumE = self.compute_CO2(model) #*model.paramParameters['CO2_price']
             return sumE
-        model.objObjective = pyo.Objective(rule=rule_objective_co2,sense=pyo.minimize)
+        model.objObjective = pyo.Objective(rule=rule_objective_co2,
+                                           sense=pyo.minimize)
         
         
         
@@ -478,8 +479,9 @@ class Multicarrier:
             logging.debug("....{} -> OK".format(i))
     
     # Helper functions
-    def compute_CO2(self,model,devices=None,timesteps=None):
-        '''compute CO2 emission
+    @staticmethod
+    def compute_CO2(model,devices=None,timesteps=None):
+        '''compute CO2 emission (kgCO2 per hour)
         
         model can be abstract model or model instance
         '''
@@ -487,7 +489,9 @@ class Multicarrier:
             devices = model.setDevice
         if timesteps is None:
             timesteps = model.setHorizon
-            
+        deltaT = model.paramParameters['time_delta_minutes']/60
+        sumHours = len(timesteps)*deltaT
+        
         sumCO2 = 0
         # GAS: co2 emission from consumed gas (e.g. in gas heater)
         # EL: co2 emission from the generation of electricity
@@ -495,30 +499,31 @@ class Multicarrier:
         for d in devices:
             devmodel = pyo.value(model.paramDevice[d]['model'])
             if devmodel in ['gasturbine','gasheater']:
-                sumCO2 = sumCO2 + sum(model.varDeviceFlow[d,'gas','in',t]
+                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]
                             *model.paramCarriers['gas']['CO2content']
                             for t in timesteps)
             elif devmodel=='compressor_gas':
-                sumCO2 = sumCO2 + sum((model.varDeviceFlow[d,'gas','in',t]
+                thisCO2 = sum((model.varDeviceFlow[d,'gas','in',t]
                             -model.varDeviceFlow[d,'gas','out',t])
                             *model.paramCarriers['gas']['CO2content']
                             for t in timesteps)
             elif devmodel in ['source_el']:
                 # co2 from co2 content in fuel usage
-                sumCO2 = sumCO2 + sum(model.varDeviceFlow[d,'el','out',t]
+                thisCO2 = sum(model.varDeviceFlow[d,'el','out',t]
                             *model.paramDevice[d]['co2em']
                             for t in timesteps)
             elif devmodel in ['compressor_el','sink_heat','sink_el',
                               'heatpump','source_gas','export_gas',
                               'export_el']:
                 # no CO2 emission contribution
-                pass
+                thisCO2 = 0
             else:
                 raise NotImplementedError(
                     "CO2 calculation for {} not implemented".format(devmodel))
-
-        # Average per timestep
-        sumCO2 = sumCO2/len(timesteps)
+            sumCO2 = sumCO2 + thisCO2*deltaT
+            
+        # Average per hour
+        sumCO2 = sumCO2/sumHours
         
         return sumCO2
 
@@ -781,8 +786,69 @@ class Plots:
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
 
-            
 
+    def plotDeviceSumPowerLastOptimisation(model,carrier='el',filename=None):
+        """Plot power schedule over planning horizon (last optimisation)"""
+        
+        df = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(),
+                                    orient="index")
+        df.index = pd.MultiIndex.from_tuples(df.index,
+                     names=('device','carrier','inout','time'))
+        
+        # separate out in out
+        df = df[0].unstack(level=2)
+        df = df.fillna(0)
+        df = df['out']-df['in']
+        dfprod = df[df>=0].unstack(level=1)[carrier]
+        dfprod = dfprod[dfprod>0]
+        dfcons = df[df<0].unstack(level=1)[carrier]
+        dfcons = dfcons[dfcons<0]
+        
+        df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
+        labels = (df_info.index.astype(str) +'_'+df_info['name'])
+
+        #plt.figure(figsize=(12,4))
+        fig,axes = plt.subplots(nrows=2,ncols=1,figsize=(12,8))
+        dfprod.unstack(level=0).rename(columns=labels).plot.area(ax=axes[0],linewidth=0)
+        # reverse axes to match stack order
+        handles, lgnds = axes[0].get_legend_handles_labels()
+        axes[0].legend(handles[::-1], lgnds[::-1],
+                        loc='lower left', bbox_to_anchor =(1.01,0),
+                   frameon=False)
+        axes[0].set_ylabel("Produced power (MW)")
+        axes[0].set_xlabel("")
+
+        dfcons.unstack(level=0).rename(columns=labels).plot.area(ax=axes[1])      
+        axes[1].legend(loc='lower left', bbox_to_anchor =(1.01,0),
+                   frameon=False)
+        axes[1].set_ylabel("Consumed power (MW)")
+        
+        axes[1].set_xlabel("Timestep")
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+            
+    def plotEmissionRateLastOptimisation(model,filename=None):
+        devices = model.setDevice
+        timesteps = model.setHorizon
+        df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
+        labels = (df_info.index.astype(str) +'_'+df_info['name'])
+
+        df = pd.DataFrame(index=timesteps,columns=devices)
+        for d in devices:
+            for t in timesteps:
+                co2 = Multicarrier.compute_CO2(model,devices=[d],timesteps=[t])
+                df.loc[t,d] = pyo.value(co2)
+        plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        df.loc[:,~(df==0).all()].rename(columns=labels).plot.area(ax=ax)
+        plt.xlabel("Timestep")
+        plt.ylabel("Emission rate (kgCO2/hour)")
+        ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),
+                  frameon=False)
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+        
+    
     
 
 #########################################################################
