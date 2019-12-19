@@ -20,7 +20,7 @@ One of the largest gas fields:
 import multicarrier
 
 carrier_properties = {
-    'gas':{'energy_value':40e6,
+    'gas':{'energy_value':40,
            'Tb_basetemp_K':273+15,
            'Pb_basepressure_kPa':101,
            'G_gravity':0.6,

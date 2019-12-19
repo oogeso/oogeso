@@ -60,7 +60,7 @@ class Multicarrier:
         # Sets
         model.setCarrier = pyo.Set(doc="energy carrier")
         model.setNode = pyo.Set()
-        model.setEdge1= pyo.Set(within=model.setCarrier*model.setNode*model.setNode)
+        #model.setEdge1= pyo.Set(within=model.setCarrier*model.setNode*model.setNode)
         model.setEdge= pyo.Set()
         model.setDevice = pyo.Set()
         model.setTerminal = pyo.Set(initialize=['in','out'])
@@ -386,6 +386,10 @@ class Multicarrier:
             
             Q = k*(Pin-Pout)
             
+            Here, a linearised Weynmouth equation is implemented
+            Q: m3/s, P: J/s=W
+            P = Q*energy_value
+            
             REFERENCES:     
             1) E Sashi Menon, Gas Pipeline Hydraulics, Taylor & Francis (2005), 
             https://doi.org/10.1201/9781420038224     
@@ -405,7 +409,7 @@ class Multicarrier:
             k = model.paramEdge[edge]['gasflow_k']
             exp_s = model.paramEdge[edge]['exp_s']
             coeff = k*(p0_from**2-exp_s*p0_to**2)**(-1/2)
-            lhs = model.varEdgePower[edge,t]
+            lhs = model.varEdgePower[edge,t]/model.paramCarriers['gas']['energy_value']
             rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
             logging.debug("constr gas pressure vs flow: {}-{},{},{},{}".format(
                               n_from,n_to,p0_from,p0_to,coeff))
@@ -634,6 +638,25 @@ class Multicarrier:
             for index in c:
                 print ("      ", index, instance.dual[c[index]])
 
+    def nodeIsNonTrivial(model,node,carrier):
+        '''returns True if edges or devices are connected to node for this carrier
+        '''
+        isNontrivial = False
+        if (((carrier,node) in model.paramNodeEdgesFrom) or
+                ((carrier,node) in model.paramNodeEdgesTo)):
+            isNontrivial = True
+            return isNontrivial
+        if node in model.paramNodeDevices:
+            mydevs = model.paramNodeDevices[node]
+            devmodels = [model.paramDevice[d]['model'] for d in mydevs]
+            for dev_model in devmodels:
+                carriers_used = [item for sublist in 
+                     list(model.paramDevicemodel[dev_model].values()) 
+                     for item in sublist]
+                if(carrier in carriers_used):
+                    isNontrivial = True
+                    return isNontrivial
+        return isNontrivial
     
 class Plots:  
       
@@ -664,6 +687,7 @@ class Plots:
         plt.plot(x_pow,x_pow/y_fuel)
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')        
+
        
     def plotNetworkCombined(model,timestep=0,filename='pydotCombined.png',
                             only_carrier=None):
@@ -692,6 +716,7 @@ class Plots:
             fparts.insert(-1,only_carrier)
             filename = '.'.join(fparts)
         
+        
         # plot all node and terminals:
         for n_id in model.setNode:
             cluster[n_id] = pydot.Cluster(graph_name=n_id,label=n_id,
@@ -704,10 +729,12 @@ class Plots:
                 if carrier=='gas':
                     label_in +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'in',timestep]))
                     label_out +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'out',timestep]))
-                nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
-                       color=col['t'][carrier],label=label_in,shape='box'))
-                nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
-                       color=col['t'][carrier],label=label_out,shape='box'))
+                #add only terminals that are connected to something
+                if Multicarrier.nodeIsNonTrivial(model,n_id,carrier):
+                    nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
+                           color=col['t'][carrier],label=label_in,shape='box'))
+                    nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
+                           color=col['t'][carrier],label=label_out,shape='box'))
             cluster[n_id].add_subgraph(nodes_in)
             cluster[n_id].add_subgraph(nodes_out)
             dotG.add_subgraph(cluster[n_id])
@@ -719,7 +746,7 @@ class Plots:
                     edgelabel = '{:.2f}'.format(pyo.value(model.varEdgePower[i,timestep]))
                     dotG.add_edge(pydot.Edge(src=e['nodeFrom']+'_'+carrier+'_out',
                                              dst=e['nodeTo']+'_'+carrier+'_in',
-                                             color=col['e'][carrier],
+                                             color='"{0}:invis:{0}"'.format(col['e'][carrier]),
                                              fontcolor=col['e'][carrier],
                                              label=edgelabel))
         
@@ -754,12 +781,13 @@ class Plots:
         for n in model.setNode:
             for carrier in carriers:
                  if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
-                    flow = pyo.value(model.varTerminalFlow[n,carrier,timestep])
-                    dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
-                                             src=n+'_'+carrier+'_in',
-                         color='"{0}:invis:{0}"'.format(col['e'][carrier]),
-                         label='{:.2f}'.format(flow),fontcolor=col['e'][carrier]))
-                         #arrowhead='none'))
+                     if Multicarrier.nodeIsNonTrivial(model,n,carrier):    
+                        flow = pyo.value(model.varTerminalFlow[n,carrier,timestep])
+                        dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
+                                                 src=n+'_'+carrier+'_in',
+                             color=col['e'][carrier],
+                             label='{:.2f}'.format(flow),fontcolor=col['e'][carrier]))
+                             #arrowhead='none'))
     
         #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
         dotG.write_png(filename,prog='dot')    
@@ -799,10 +827,13 @@ class Plots:
         df = df[0].unstack(level=2)
         df = df.fillna(0)
         df = df['out']-df['in']
-        dfprod = df[df>=0].unstack(level=1)[carrier]
-        dfprod = dfprod[dfprod>0]
-        dfcons = df[df<0].unstack(level=1)[carrier]
-        dfcons = dfcons[dfcons<0]
+        df = df.unstack(level=1)
+        dfprod = df[df>0][carrier].dropna()
+        dfcons = df[df<0][carrier].dropna()
+#        dfprod = df[df>=0].unstack(level=1)[carrier]
+#        dfprod = dfprod[dfprod>0]
+#        dfcons = df[df<0].unstack(level=1)[carrier]
+#        dfcons = dfcons[dfcons<0]
         
         df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
         labels = (df_info.index.astype(str) +'_'+df_info['name'])
@@ -885,18 +916,20 @@ def read_data_from_xlsx(filename,carrier_properties):
     
     df_deviceR = df_device.drop(cols_in,axis=1).drop(cols_out,axis=1)
     
+    allCarriers = list(carrier_properties.keys())
+
     ## find nodes where no devices connect in-out terminals:
     ## (node is non-trivial if any device connects both in and out)
     #dev_nontrivial = ((dispatch_in!=0) & (dispatch_out!=0))
     #node_nontrivial = pd.concat([df_device[['node']],
     #                             dev_nontrivial],axis=1).groupby('node').any()
-    
     node_devices = df_device.groupby('node').groups
     devmodel_inout = Multicarrier.devicemodel_inout()
-    allCarriers = list(carrier_properties.keys())
-    
     node_carrier_has_serialdevice = {}
-    for n,devs in node_devices.items():
+    for n in df_node['id']:
+        devs=[]
+        if n in node_devices:
+            devs = node_devices[n]
         node_carrier_has_serialdevice[n] = {}
         for carrier in allCarriers:
             num_series = 0
@@ -905,17 +938,19 @@ def read_data_from_xlsx(filename,carrier_properties):
                                 and (carrier in devmodel_inout[dev_mod]['out']))
                 if has_series:
                     num_series +=1
-                    #print("series: {},{},{}".format(n,carrier,dev_mod))
+                #print("series: {},{},{}".format(n,carrier,dev_mod))
             #print(n,carrier,num_series)
             node_carrier_has_serialdevice[n][carrier] = (num_series>0)
             
     # gas pipeline parameters - derive k and exp(s) parameters:
     ga=carrier_properties['gas']
     temp = df_edge['temperature_K']
-    height_from = df_edge.merge(df_node,how='left',
-                            left_on='nodeFrom',right_on='id')['coord_z']*1000
-    height_to = df_edge.merge(df_node,how='left',
-                            left_on='nodeTo',right_on='id')['coord_z']*1000
+    height_from = (df_edge.reset_index()
+                    .merge(df_node,how='left',left_on='nodeFrom',right_on='id')
+                    .set_index('index')['coord_z']*1000)
+    height_to = (df_edge.reset_index()
+                    .merge(df_node,how='left',left_on='nodeTo',right_on='id')
+                    .set_index('index')['coord_z']*1000)
     s = 0.0684 * (ga['G_gravity']*(height_to-height_from)
                     /(temp*ga['Z_compressibility']))
     sfactor= (pd.np.exp(s)-1)/s
