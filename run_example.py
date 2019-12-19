@@ -54,7 +54,7 @@ multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,carrier="gas",
                                                       filename="devsum_gas.png")
 multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename="co2out.png")
-multicarrier.Plots.plotNetworkCombined(instance,timestep=18,filename="t18.png")
+#multicarrier.Plots.plotNetworkCombined(instance,timestep=18,filename="t18.png")
 
 
 sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))

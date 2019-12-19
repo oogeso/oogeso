@@ -1,7 +1,8 @@
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 import pandas as pd
-#import networkx as nx
+import networkx as nx
+import scipy
 import pydot
 import matplotlib.pyplot as plt
 import logging
@@ -53,6 +54,9 @@ class Multicarrier:
         logging.debug("Initialising Multicarrier")
         self.model = self._createPyomoModel()
         self._check_constraints_complete()
+        self.elbase = {
+                'baseMVA':100,
+                'baseAngle':1}
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -74,8 +78,8 @@ class Multicarrier:
         model.paramNode = pyo.Param(model.setNode)
         model.paramEdge = pyo.Param(model.setEdge)
         model.paramDevice = pyo.Param(model.setDevice)
-        model.paramDeviceDispatchIn = pyo.Param(model.setDevice)
-        model.paramDeviceDispatchOut = pyo.Param(model.setDevice)
+#        model.paramDeviceDispatchIn = pyo.Param(model.setDevice)
+#        model.paramDeviceDispatchOut = pyo.Param(model.setDevice)
         model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
         model.paramNodeDevices = pyo.Param(model.setNode)
         model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
@@ -88,6 +92,8 @@ class Multicarrier:
         model.paramCarriers = pyo.Param(model.setCarrier)
         #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
         #                                 mutable=True)
+        model.paramCoeffB = pyo.Param(model.setNode,model.setNode,within=pyo.Reals)
+        model.paramCoeffDA = pyo.Param(model.setEdge,model.setNode,within=pyo.Reals)
         
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
@@ -100,6 +106,9 @@ class Multicarrier:
         model.varGasPressure = pyo.Var(
                 model.setNode,model.setTerminal,model.setHorizon, 
                 within=pyo.NonNegativeReals)
+        model.varElVoltageAngle = pyo.Var(
+                model.setNode,model.setHorizon, 
+                within=pyo.Reals)
         model.varDeviceFlow = pyo.Var(
                 model.setDevice,model.setCarrier,model.setTerminal,
                 model.setHorizon,within=pyo.Reals)
@@ -329,6 +338,11 @@ class Multicarrier:
             "in" terminal: flow into terminal is positive
             "out" terminal: flow out of terminal is positive
             '''
+            
+            #if carrier=='el':
+            #    return pyo.Constraint.Skip
+            
+            # Pinj = power injected into terminal
             Pinj = 0
             # devices:
             if (node in model.paramNodeDevices):
@@ -360,24 +374,80 @@ class Multicarrier:
                     # power out of node into edge
                     Pinj += (model.varEdgePower[edg,t])
             
-            if not(Pinj is 0):
-                return (Pinj==0)
-            else:
-                return pyo.Constraint.Skip
+            
+            expr = (Pinj==0)
+            if ((type(expr) is bool) and (expr==True)):
+                expr = pyo.Constraint.Skip
+            return expr
         model.constrTerminalEnergyBalance = pyo.Constraint(model.setCarrier,
                       model.setNode, model.setTerminal,model.setHorizon,
                       rule=rule_terminalEnergyBalance)
         
+        logging.info("TODO: el power balance constraint redundant?")
+        def rule_terminalElPowerBalance(model,node,t):
+            ''' electric power balance at in and out terminals
+            '''
+            # Pinj = power injected into terminal
+            Pinj = 0
+            rhs = 0
+            carrier='el'
+            # devices:
+            if (node in model.paramNodeDevices):
+                for dev in model.paramNodeDevices[node]:
+                    # Power into terminal:
+                    dev_model = model.paramDevice[dev]['model']
+                    if dev_model in model.paramDevicemodel:
+                        if carrier in model.paramDevicemodel[dev_model]['in']:
+                            Pinj -= model.varDeviceFlow[dev,carrier,'in',t]
+                        if carrier in model.paramDevicemodel[dev_model]['out']:
+                            Pinj += model.varDeviceFlow[dev,carrier,'out',t]
+                    else:
+                        raise Exception("Undefined device model ({})".format(dev_model))
+                   
+            # edges:
+            # El linearised power flow equations:
+            # Pinj = B theta
+            n2s = [k[1]  for k in model.paramCoeffB.keys() if k[0]==node]
+            for n2 in n2s:
+                rhs -= model.paramCoeffB[node,n2]*(
+                        model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
+            rhs = rhs*self.elbase['baseMVA']
+            
+            expr = (Pinj==rhs)
+            if ((type(expr) is bool) and (expr==True)):
+                expr = pyo.Constraint.Skip
+            return expr
+        model.constrElPowerBalance = pyo.Constraint(model.setNode,
+                    model.setHorizon, rule=rule_terminalElPowerBalance)
         
         
-        #TODO: Electrical flow equations
-        logging.info("TODO: Electrical network power flow equations")
-        def rule_elVoltageAndFlow(model,edge):
-            '''power flow equations'''
-            pass
+        #Electrical flow equations
+        #logging.info("TODO: Electrical network power flow equations")
+        def rule_elVoltageAndFlow(model,edge,t):
+            '''power flow equations - power flow vs voltage angle difference'''
+            if model.paramEdge[edge]['type'] !='el':
+                return pyo.Constraint.Skip
+            
+            lhs = model.varEdgePower[edge,t]
+            lhs = lhs/self.elbase['baseMVA']
+            rhs = 0
+            #TODO speed up - remove for loop
+            n2s = [k[1]  for k in model.paramCoeffDA.keys() if k[0]==edge]
+            for n2 in n2s:
+                rhs += model.paramCoeffDA[edge,n2]*(
+                        model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
+            expr = (lhs==rhs)
+            return expr
+        model.constrFlowAngle = pyo.Constraint(model.setEdge, model.setHorizon,
+                                               rule=rule_elVoltageAndFlow)
+
         
-        def rule_elVoltageReference(model,edge):
-            pass
+        def rule_elVoltageReference(model,t):
+            n = model.paramParameters['reference_node']
+            expr = (model.varElVoltageAngle[n,t] == 0)
+            return expr
+        model.constrElVoltageReference = pyo.Constraint(model.setHorizon,
+                                              rule=rule_elVoltageReference)
         
         
         
@@ -481,6 +551,9 @@ class Multicarrier:
                 raise Exception("Device model constraints for '{}' have"
                                 " not been defined".format(i))
             logging.debug("....{} -> OK".format(i))
+
+
+
     
     # Helper functions
     @staticmethod
@@ -724,13 +797,16 @@ class Plots:
             nodes_in=pydot.Subgraph(rank='same')
             nodes_out=pydot.Subgraph(rank='same')
             for carrier in carriers:
-                label_in = carrier+'_in'
-                label_out= carrier+'_out'
-                if carrier=='gas':
-                    label_in +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'in',timestep]))
-                    label_out +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'out',timestep]))
                 #add only terminals that are connected to something
                 if Multicarrier.nodeIsNonTrivial(model,n_id,carrier):
+                    label_in = carrier+'_in'
+                    label_out= carrier+'_out'
+                    if carrier=='gas':
+                        label_in +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'in',timestep]))
+                        label_out +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'out',timestep]))
+                    elif carrier=='el':
+                        label_in +=':{:3.2g}'.format(pyo.value(model.varElVoltageAngle[n_id,timestep]))
+                        label_out +=':{:3.2g}'.format(pyo.value(model.varElVoltageAngle[n_id,timestep]))
                     nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
                            color=col['t'][carrier],label=label_in,shape='box'))
                     nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
@@ -964,6 +1040,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     df_edge['gasflow_k'] = gas_edge_k
     df_edge['exp_s'] = pd.np.exp(s)
         
+    coeffB,coeffDA = computePowerFlowMatrices(df_node,df_edge,baseZ=1)
         
     data = {}
     data['setCarrier'] = {None:allCarriers}
@@ -975,8 +1052,8 @@ def read_data_from_xlsx(filename,carrier_properties):
             None:range(df_parameters.loc['planning_horizon','value'])}
     data['setParameters'] = {None:df_parameters.index.tolist()}
     data['setProfile'] = {None:df_device['external'].dropna().unique().tolist()}
-    data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
-    data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
+#    data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
+#    data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
     data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
     data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
     data['paramNodeDevices'] = df_device.groupby('node').groups
@@ -990,9 +1067,86 @@ def read_data_from_xlsx(filename,carrier_properties):
     #data['paramProfiles'] = df_profiles.T.stack().to_dict()
     data['profiles'] = df_profiles
     data['paramCarriers'] = carrier_properties
+    data['paramCoeffB'] = coeffB
+    data['paramCoeffDA'] = coeffDA
     
     return data
 
+
+#def _susceptancePu(df_edge,baseOhm=1):
+#    '''If impedance is already given in pu, baseOhm should be 1
+#    If not, well... baseOhm depends on the voltage level, so need to know
+#    the nominal voltage at the bus to convert from ohm to pu.
+#    '''
+#    #return [-1/self.branch['reactance'][i]*baseOhm 
+#    #        for i in self.branch.index.tolist()]
+#    return 1/df_edge['reactance']*baseOhm
+
+def computePowerFlowMatrices(df_node,df_edge,baseZ=1):
+    """
+    Compute and return dc power flow matrices B' and DA
+    
+    Parameters
+    ==========
+    baseZ : float (impedance should already be in pu.)
+            base value for impedance        
+    
+    Returns 
+    =======
+    (Bprime, DA) : compressed sparse row matrix 
+          
+    """
+    
+    df_branch = df_edge[df_edge['type']=='el']
+    #el_edges = df_edge[df_edge['type']=='el'].index
+    
+    b = (1/df_branch['reactance']*baseZ)
+    #b0 = pd.np.asarray(_susceptancePu(baseZ))
+
+    # MultiDiGraph to allow parallel lines
+    G = nx.MultiDiGraph()
+    edges = [(df_branch['nodeFrom'][i],
+              df_branch['nodeTo'][i],
+              i,{'i':i,'b':b[i]})
+              for i in df_branch.index]
+    G.add_nodes_from(df_node['id'])
+    G.add_edges_from(edges)   
+    A_incidence_matrix = -nx.incidence_matrix(G,oriented=True,
+                                             nodelist=df_node['id'],
+                                             edgelist=edges).T
+    # Diagonal matrix
+    D = scipy.sparse.diags(-b,offsets=0)
+    DA = D*A_incidence_matrix
+    
+    # Bf constructed from incidence matrix with branch susceptance
+    # used as weight (this is quite fast)
+    Bf = -nx.incidence_matrix(G,oriented=True,
+                             nodelist=df_node['id'],
+                             edgelist=edges,
+                             weight='b').T
+    Bbus = A_incidence_matrix.T * Bf
+
+    #return Bbus, DA, el_edges
+
+    logging.info("Creating B and DA coefficients...")
+    #n_i = di['NODE'][None]
+    #b_i = di['BRANCH_AC'][None]
+    #di['coeff_B'] = dict()
+    #di['coeff_DA'] = dict()
+    n_i = df_node['id']
+    b_i = df_edge[df_edge['type']=='el'].index
+    coeff_B = dict()
+    coeff_DA = dict()
+
+    cx = scipy.sparse.coo_matrix(Bbus)
+    for i,j,v in zip(cx.row, cx.col, cx.data):
+        coeff_B[(n_i[i],n_i[j])] = v
+
+    cx = scipy.sparse.coo_matrix(DA)
+    for i,j,v in zip(cx.row, cx.col, cx.data):
+        coeff_DA[(b_i[i],n_i[j])] = v
+    
+    return coeff_B,coeff_DA
 
 
 
