@@ -57,6 +57,7 @@ class Multicarrier:
         self.elbase = {
                 'baseMVA':100,
                 'baseAngle':1}
+        self._df_profiles = None
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -78,22 +79,21 @@ class Multicarrier:
         model.paramNode = pyo.Param(model.setNode)
         model.paramEdge = pyo.Param(model.setEdge)
         model.paramDevice = pyo.Param(model.setDevice)
-#        model.paramDeviceDispatchIn = pyo.Param(model.setDevice)
-#        model.paramDeviceDispatchOut = pyo.Param(model.setDevice)
         model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
         model.paramNodeDevices = pyo.Param(model.setNode)
         model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
         model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
         model.paramDevicemodel = pyo.Param(model.setDevicemodel)
         model.paramParameters = pyo.Param(model.setParameters)
-        # Mutable parameters (will be modified between successive optimisations)
-        model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
-                                        mutable=True)
         model.paramCarriers = pyo.Param(model.setCarrier)
-        #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
-        #                                 mutable=True)
         model.paramCoeffB = pyo.Param(model.setNode,model.setNode,within=pyo.Reals)
         model.paramCoeffDA = pyo.Param(model.setEdge,model.setNode,within=pyo.Reals)
+        # Mutable parameters (will be modified between successive optimisations)
+        # using self._df_profiles rather than opt parameter for profiles
+        #model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
+        #                                mutable=True)
+        #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
+        #                                 mutable=True)
         
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
@@ -622,6 +622,9 @@ class Multicarrier:
     def updateModelInstance(self,instance,timestep,df_profiles):
         """Update Pyomo model instance"""
         
+        # record present status (e.g. on/off, power level, storage)
+        #TODO: save present status
+        
         # Update max/min power based on profiles (sources and sinks)
         for dev in instance.setDevice:
             ext_profile = instance.paramDevice[dev]['external']
@@ -1093,7 +1096,7 @@ def computePowerFlowMatrices(df_node,df_edge,baseZ=1):
     
     Returns 
     =======
-    (Bprime, DA) : compressed sparse row matrix 
+    (coeff_B, coeff_DA) : dictionary of matrix values
           
     """
     
@@ -1126,18 +1129,12 @@ def computePowerFlowMatrices(df_node,df_edge,baseZ=1):
                              weight='b').T
     Bbus = A_incidence_matrix.T * Bf
 
-    #return Bbus, DA, el_edges
-
-    logging.info("Creating B and DA coefficients...")
-    #n_i = di['NODE'][None]
-    #b_i = di['BRANCH_AC'][None]
-    #di['coeff_B'] = dict()
-    #di['coeff_DA'] = dict()
     n_i = df_node['id']
     b_i = df_edge[df_edge['type']=='el'].index
     coeff_B = dict()
     coeff_DA = dict()
 
+    #logging.info("Creating B and DA coefficients...")
     cx = scipy.sparse.coo_matrix(Bbus)
     for i,j,v in zip(cx.row, cx.col, cx.data):
         coeff_B[(n_i[i],n_i[j])] = v

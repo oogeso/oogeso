@@ -1,4 +1,5 @@
--electrical network flow: 
-	edge flow vs voltage angle (power flow equations)
+-updating LP problem
+-solving again (loop over time)
 -ramp limits (gas turbine)
-
+-battery and other storage
+-flexible loads

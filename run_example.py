@@ -39,7 +39,7 @@ data = multicarrier.read_data_from_xlsx("data_example.xlsx",carrier_properties)
 instance = mc.createModelInstance(data,filename="model.txt")
 
 
-sol = mc.solve(instance,solver="cbc",write_yaml=False)
+sol = mc.solve(instance,solver="gurobi",write_yaml=False)
 
 
 multicarrier.Plots.plotNetworkCombined(instance)
