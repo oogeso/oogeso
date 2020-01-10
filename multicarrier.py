@@ -60,7 +60,7 @@ class Multicarrier:
         self.elbase = {
                 'baseMVA':100,
                 'baseAngle':1}
-        self._df_profiles = None
+        #self._df_profiles = None
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -75,7 +75,6 @@ class Multicarrier:
         model.setDevicemodel = pyo.Set()
         # time for rolling horizon optimisation:
         model.setHorizon = pyo.Set(ordered=True)
-        #model.setHorizon = pyo.RangeSet()
         model.setParameters = pyo.Set()
         model.setProfile = pyo.Set()
         
@@ -97,9 +96,8 @@ class Multicarrier:
         model.paramCoeffB = pyo.Param(model.setNode,model.setNode,within=pyo.Reals)
         model.paramCoeffDA = pyo.Param(model.setEdge,model.setNode,within=pyo.Reals)
         # Mutable parameters (will be modified between successive optimisations)
-        # using self._df_profiles rather than opt parameter for profiles
-        #model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
-        #                                mutable=True)
+        model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
+                                        within=pyo.Reals, mutable=True)
         #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
         #                                 mutable=True)
         
@@ -563,10 +561,9 @@ class Multicarrier:
             minValue = model.paramDevice[dev]['Pmin']
             maxValue = model.paramDevice[dev]['Pmax']
             extprofile = model.paramDevice[dev]['external']
-            #if False:
             if (not pd.isna(extprofile)):
-                #print(dev,t,extprofile)
-                maxValue = maxValue*self._df_profiles.loc[t,extprofile]
+                #maxValue = maxValue*self._df_profiles.loc[t,extprofile]
+                maxValue = maxValue*model.paramProfiles[extprofile,t]
                 #print(dev,t,extprofile,maxValue)
             expr = pyo.inequality(minValue,model.varDevicePower[dev,t], maxValue)
             return expr                    
@@ -651,17 +648,22 @@ class Multicarrier:
         
         return sumCO2
 
-    def createModelInstance(self,data,filename=None):
+        
+
+    def createModelInstance(self,data,profiles,filename=None):
         """Create concrete Pyomo model instance
         
         data : dict of data
         filename : name of file to write model to (optional)
         """
-        self._df_profiles = data['profiles']
-        del data['profiles']
+        self._df_profiles_actual = profiles['actual']
+        self._df_profiles_forecast = profiles['forecast']
+        #self._df_profiles = self._df_profiles_forecast.loc[
+        #        data['setHorizon'][None]]
         
         instance = self.model.create_instance(data={None:data},name='MultiCarrier')
         instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+
         if filename is not None:
             instance.pprint(filename=filename)
         self.instance = instance
@@ -669,32 +671,31 @@ class Multicarrier:
     
     def updateModelInstance(self,timestep,df_profiles,filename=None):
         """Update Pyomo model instance"""
-        
-        # record present status (e.g. on/off, power level, storage)
-        #TODO: save present status
-        
-        # Update max/min power based on profiles (sources and sinks)
-        for dev in self.instance.setDevice:
-            ext_profile = self.instance.paramDevice[dev]['external']
-            if (not pd.isna(ext_profile)):
-                for t in self.instance.setHorizon:
-                    #instance.constrDevice_gen_el.
-                    pass
-        
+               
+        opt_timesteps = self.instance.paramParameters['optimisation_timesteps']
+        horizon = self.instance.paramParameters['planning_horizon']
+
+        # Update profile (using actual for first 4 timesteps, forecast for rest)
+        for prof in self.instance.setProfile:
+            for t in range(opt_timesteps):
+                self.instance.paramProfiles[prof,t] = (
+                        self._df_profiles_actual.loc[timestep+t,prof])
+            for t in range(opt_timesteps+1,horizon):
+                self.instance.paramProfiles[prof,t] = (
+                        self._df_profiles_forecast.loc[timestep+t,prof])
+                   
         # Update startup/shutdown info
-        # pick the last value from previous optimistion prior to the prese
-        t_prev = self.instance.paramParameters['optimisation_timesteps']-1
+        # pick the last value from previous optimistion prior to the present time
+        t_prev = opt_timesteps-1
         for dev in self.instance.setDevice:
             self.instance.paramDeviceIsOnInitially[dev] = (
                     self.instance.varDeviceIsOn[dev,t_prev])
             self.instance.paramDevicePowerInitially[dev] = (
                     self.instance.varDevicePower[dev,t_prev])
-
+        
+        return
     
 
-    
-
-    
     def devicemodel_inout():
         inout = {
                 'compressor_el':    {'in':['el','gas'],'out':['gas']},
@@ -733,25 +734,29 @@ class Multicarrier:
             logging.info("Solver Status:{}".format(sol.solver.status))
         return sol
  
-    def solveMany(self,solver="gurobi",write_yaml=False):
+    def solveMany(self,solver="gurobi",time_end=None,write_yaml=False):
         """Solve problem over many timesteps - rolling horizon"""
         
         logging.info("TODO: solve many data missing")
-        steps = range(0,5,2) # [0,2,4]
+        steps = self.instance.paramParameters['optimisation_timesteps']
+        horizon = self.instance.paramParameters['planning_horizon']
+        if time_end is None:
+            time_end = self._df_profiles_forecast.index.max()+1-horizon
+        #steps = range(0,5,2) # [0,2,4]
         df_profiles = pd.DataFrame()
         
-        for step in steps:
+        for step in range(0,time_end,steps):
             logging.info("Solving timestep={}".format(step))
             # 1. Save present  power output and on/off status (for gas turbines)
+            #TODO: save state for later analysis
             # 2. Update problem formulation
             self.updateModelInstance(step,df_profiles)
             # 3. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml)
             # 4. Save results (for later analysis)
             # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
-            pass
+            
         
-        #raise NotImplementedError("Not implemented")
         
         
     def printSolution(self,instance):
@@ -801,7 +806,12 @@ class Multicarrier:
     def getProfiles(self,names):
         if not type(names) is list:
             names = [names]
-        return self._df_profiles[names]
+        #return self._df_profiles[names]
+        df=pd.DataFrame.from_dict(
+                self.instance.paramProfiles.extract_values(),orient='index')
+        df.index=pd.MultiIndex.from_tuples(df.index)
+        df = df[0].unstack(level=0)
+        return df
     
 class Plots:  
       
@@ -1077,21 +1087,24 @@ def read_data_from_xlsx(filename,carrier_properties):
     df_device = pd.read_excel(filename,sheet_name="device")
     df_parameters = pd.read_excel(filename,sheet_name="parameters",index_col=0)
     df_profiles = pd.read_excel(filename,sheet_name="profiles",index_col=0)
-
+    df_profiles_forecast = pd.read_excel(filename,
+                                         sheet_name="profiles_forecast",index_col=0)
+    profiles = {'actual':df_profiles,'forecast':df_profiles_forecast}
+    
     # discard edges and devices not to be included:    
     df_edge = df_edge[df_edge['include']==1]
     df_device = df_device[df_device['include']==1]
     
-    #into node:
-    cols_in = {col:col.split("in_")[1] 
-               for col in df_device.columns if "in_" in col }
-    dispatch_in = df_device[list(cols_in.keys())].rename(columns=cols_in).fillna(0)
-    #out of node:
-    cols_out = {col:col.split("out_")[1] 
-               for col in df_device.columns if "out_" in col }
-    dispatch_out = df_device[list(cols_out.keys())].rename(columns=cols_out).fillna(0)
-    
-    df_deviceR = df_device.drop(cols_in,axis=1).drop(cols_out,axis=1)
+#    #into node:
+#    cols_in = {col:col.split("in_")[1] 
+#               for col in df_device.columns if "in_" in col }
+#    dispatch_in = df_device[list(cols_in.keys())].rename(columns=cols_in).fillna(0)
+#    #out of node:
+#    cols_out = {col:col.split("out_")[1] 
+#               for col in df_device.columns if "out_" in col }
+#    dispatch_out = df_device[list(cols_out.keys())].rename(columns=cols_out).fillna(0)
+#    
+#    df_deviceR = df_device.drop(cols_in,axis=1).drop(cols_out,axis=1)
     
     allCarriers = list(carrier_properties.keys())
 
@@ -1142,7 +1155,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     df_edge['exp_s'] = pd.np.exp(s)
         
     coeffB,coeffDA = computePowerFlowMatrices(df_node,df_edge,baseZ=1)
-        
+    planning_horizon = df_parameters.loc['planning_horizon','value']
     data = {}
     data['setCarrier'] = {None:allCarriers}
     data['setNode'] = {None:df_node['id'].tolist()}
@@ -1150,7 +1163,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['setDevice'] = {None:df_device.index.tolist()}
     data['setDevicemodel'] = {None:devmodel_inout.keys()}
     data['setHorizon'] = {
-            None:range(df_parameters.loc['planning_horizon','value'])}
+            None:range(planning_horizon)}
     data['setParameters'] = {None:df_parameters.index.tolist()}
     data['setProfile'] = {None:df_device['external'].dropna().unique().tolist()}
 #    data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
@@ -1158,7 +1171,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
     data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
     data['paramNodeDevices'] = df_device.groupby('node').groups
-    data['paramDevice'] = df_deviceR.to_dict(orient='index')
+    data['paramDevice'] = df_device.to_dict(orient='index')
     data['paramDeviceIsOnInitially'] = {k:0 for k in df_device.index.tolist()}
     data['paramDevicePowerInitially'] = {k:0 for k in df_device.index.tolist()}
     data['paramEdge'] = df_edge.to_dict(orient='index')
@@ -1167,13 +1180,14 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramDevicemodel'] = devmodel_inout
     data['paramParameters'] = df_parameters['value'].to_dict()#orient='index')
     #unordered set error - but is this needed - better use dataframe diretly instead?
-    #data['paramProfiles'] = df_profiles.T.stack().to_dict()
-    data['profiles'] = df_profiles
+    data['paramProfiles'] = df_profiles_forecast.loc[
+            range(planning_horizon),data['setProfile'][None]
+            ].T.stack().to_dict()
     data['paramCarriers'] = carrier_properties
     data['paramCoeffB'] = coeffB
     data['paramCoeffDA'] = coeffDA
     
-    return data
+    return data,profiles
 
 
 #def _susceptancePu(df_edge,baseOhm=1):

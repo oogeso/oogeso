@@ -18,6 +18,7 @@ One of the largest gas fields:
 '''
 
 import multicarrier
+import pandas as pd
 
 carrier_properties = {
     'gas':{'energy_value':40,
@@ -33,18 +34,17 @@ carrier_properties = {
 
 
 mc = multicarrier.Multicarrier(loglevel="INFO")
+datafile = "data_example.xlsx"
+data,profiles = multicarrier.read_data_from_xlsx(datafile,carrier_properties)
 
-data = multicarrier.read_data_from_xlsx("data_example.xlsx",carrier_properties)
-
-instance = mc.createModelInstance(data,filename="model0.txt")
-
+instance = mc.createModelInstance(data,profiles,filename="model0.txt")
 
 sol = mc.solve(solver="cbc",write_yaml=False)
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
                                                       filename="devsum_el0.png")
 
 # Not working yet, but testing:
-status = mc.solveMany(solver="cbc",write_yaml=False)
+status = mc.solveMany(solver="cbc",time_end=12,write_yaml=False)
 mc.instance.pprint(filename="model.txt")
 
 multicarrier.Plots.plotNetworkCombined(instance)
@@ -52,16 +52,16 @@ multicarrier.Plots.plotNetworkCombined(instance,only_carrier='el')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='gas')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='heat')
 
-multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=7,
-                                                      filename="wind.png")
-#multicarrier.Plots.plotDevicePowerLastOptimisation(instance,
-#                                                   filename="devoutput.png")
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
                                                       filename="devsum_el.png")
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,carrier="gas",
                                                       filename="devsum_gas.png")
 multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename="co2out.png")
 #multicarrier.Plots.plotNetworkCombined(instance,timestep=18,filename="t18.png")
+
+# Show device output vs available power for wind turbine:
+multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=7,
+                                                      filename="wind.png")
 
 
 sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))
