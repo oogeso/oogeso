@@ -52,8 +52,11 @@ class Multicarrier:
                             format='%(asctime)s %(levelname)s: %(message)s', 
                             datefmt='%Y-%m-%d %H:%M:%S')
         logging.debug("Initialising Multicarrier")
+        # Abstract model:
         self.model = self._createPyomoModel()
         self._check_constraints_complete()
+        # Concrete model instance:
+        self.instance = None
         self.elbase = {
                 'baseMVA':100,
                 'baseAngle':1}
@@ -71,7 +74,8 @@ class Multicarrier:
         model.setTerminal = pyo.Set(initialize=['in','out'])
         model.setDevicemodel = pyo.Set()
         # time for rolling horizon optimisation:
-        model.setHorizon = pyo.Set()
+        model.setHorizon = pyo.Set(ordered=True)
+        #model.setHorizon = pyo.RangeSet()
         model.setParameters = pyo.Set()
         model.setProfile = pyo.Set()
         
@@ -79,6 +83,10 @@ class Multicarrier:
         model.paramNode = pyo.Param(model.setNode)
         model.paramEdge = pyo.Param(model.setEdge)
         model.paramDevice = pyo.Param(model.setDevice)
+        model.paramDeviceIsOnInitially = pyo.Param(model.setDevice,
+                                               mutable=True,within=pyo.Binary)
+        model.paramDevicePowerInitially = pyo.Param(model.setDevice,
+                                               mutable=True,within=pyo.Reals)
         model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
         model.paramNodeDevices = pyo.Param(model.setNode)
         model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
@@ -102,6 +110,10 @@ class Multicarrier:
         model.varDevicePower = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.NonNegativeReals)
         model.varDeviceIsOn = pyo.Var(
+                model.setDevice,model.setHorizon,within=pyo.Binary)
+        model.varDeviceStarting = pyo.Var(
+                model.setDevice,model.setHorizon,within=pyo.Binary)
+        model.varDeviceStopping = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.Binary)
         model.varGasPressure = pyo.Var(
                 model.setNode,model.setTerminal,model.setHorizon, 
@@ -256,7 +268,7 @@ class Multicarrier:
         
         
         logging.info("TODO: gas turbine power vs heat output")
-        logging.info("TODO: startup cost, ramp rate, time interdependence")
+        logging.info("TODO: startup cost")
         def rule_devmodel_gasturbine(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'gasturbine':
                 return pyo.Constraint.Skip
@@ -290,6 +302,41 @@ class Multicarrier:
         model.constrDevice_gasturbine = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_gasturbine)
+        
+        def rule_startup_shutdown(model,dev,t):
+            '''startup/shutdown constraint - for devices with startup costs'''
+            # setHorizon is a rangeset [0,1,2,...,max]
+            if (t>0):
+                ison_prev = model.varDeviceIsOn[dev,t-1]
+            else:
+                ison_prev = model.paramDeviceIsOnInitially[dev]         
+            rhs = (model.varDeviceIsOn[dev,t] - ison_prev)
+            lhs = (model.varDeviceStarting[dev,t]
+                    -model.varDeviceStopping[dev,t])
+            return (lhs==rhs)
+        model.constrDevice_startup_shutdown = pyo.Constraint(model.setDevice,
+                  model.setHorizon,
+                  rule=rule_startup_shutdown)
+        
+        def rule_ramprate(model,dev,t):
+            '''ramp rate limit'''
+
+            # If no ramp limits have been specified, skip constraint
+            if pd.isna(model.paramDevice[dev]['maxRampUp']):
+                return pyo.Constraint.Skip
+            if (t>0):
+                p_prev = model.varDevicePower[dev,t-1]
+            else:
+                p_prev = model.paramDevicePowerInitially[dev]         
+            deltaP = (model.varDevicePower[dev,t]- p_prev)
+            delta_t = model.paramParameters['time_delta_minutes']
+            maxP = model.paramDevice[dev]['Pmax']
+            max_neg = -model.paramDevice[dev]['maxRampDown']*maxP*delta_t
+            max_pos = model.paramDevice[dev]['maxRampUp']*maxP*delta_t
+            return pyo.inequality(max_neg, deltaP, max_pos)
+        model.constrDevice_ramprate = pyo.Constraint(model.setDevice,
+                 model.setHorizon, rule=rule_ramprate)
+            
             
         logging.info("TODO: el source: dieselgen, fuel, on-off variables")
         #TODO: diesel gen fuel, onoff variables..
@@ -617,24 +664,35 @@ class Multicarrier:
         instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
         if filename is not None:
             instance.pprint(filename=filename)
+        self.instance = instance
         return instance
     
-    def updateModelInstance(self,instance,timestep,df_profiles):
+    def updateModelInstance(self,timestep,df_profiles,filename=None):
         """Update Pyomo model instance"""
         
         # record present status (e.g. on/off, power level, storage)
         #TODO: save present status
         
         # Update max/min power based on profiles (sources and sinks)
-        for dev in instance.setDevice:
-            ext_profile = instance.paramDevice[dev]['external']
+        for dev in self.instance.setDevice:
+            ext_profile = self.instance.paramDevice[dev]['external']
             if (not pd.isna(ext_profile)):
-                for t in instance.setHorizon:
+                for t in self.instance.setHorizon:
                     #instance.constrDevice_gen_el.
                     pass
         
         # Update startup/shutdown info
-        pass
+        # pick the last value from previous optimistion prior to the prese
+        t_prev = self.instance.paramParameters['optimisation_timesteps']-1
+        for dev in self.instance.setDevice:
+            self.instance.paramDeviceIsOnInitially[dev] = (
+                    self.instance.varDeviceIsOn[dev,t_prev])
+            self.instance.paramDevicePowerInitially[dev] = (
+                    self.instance.varDevicePower[dev,t_prev])
+
+    
+
+    
 
     
     def devicemodel_inout():
@@ -655,12 +713,12 @@ class Multicarrier:
                 }
         return inout
     
-    def solve(self,instance,solver="gurobi",write_yaml=False):
+    def solve(self,solver="gurobi",write_yaml=False):
         """Solve problem for planning horizon at a single timestep"""
         
         opt = pyo.SolverFactory(solver)
         logging.info("Solving...")
-        sol = opt.solve(instance) 
+        sol = opt.solve(self.instance) 
         
         if write_yaml:
             sol.write_yaml()
@@ -675,19 +733,25 @@ class Multicarrier:
             logging.info("Solver Status:{}".format(sol.solver.status))
         return sol
  
-    def solveMany(self,instance,solver="gurobi",write_yaml=False):
+    def solveMany(self,solver="gurobi",write_yaml=False):
         """Solve problem over many timesteps - rolling horizon"""
         
+        logging.info("TODO: solve many data missing")
         steps = range(0,5,2) # [0,2,4]
+        df_profiles = pd.DataFrame()
+        
         for step in steps:
+            logging.info("Solving timestep={}".format(step))
             # 1. Save present  power output and on/off status (for gas turbines)
             # 2. Update problem formulation
+            self.updateModelInstance(step,df_profiles)
             # 3. Solve for planning horizon
+            self.solve(solver=solver,write_yaml=write_yaml)
             # 4. Save results (for later analysis)
             # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
             pass
         
-        raise NotImplementedError("Not implemented")
+        #raise NotImplementedError("Not implemented")
         
         
     def printSolution(self,instance):
@@ -733,6 +797,11 @@ class Multicarrier:
                     isNontrivial = True
                     return isNontrivial
         return isNontrivial
+    
+    def getProfiles(self,names):
+        if not type(names) is list:
+            names = [names]
+        return self._df_profiles[names]
     
 class Plots:  
       
@@ -870,6 +939,35 @@ class Plots:
     
         #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
         dotG.write_png(filename,prog='dot')    
+
+    def plotDevicePowerLastOptimisation1(mc,device,filename=None):
+        model = mc.instance
+        profile = model.paramDevice[device]['external']
+        devname = model.paramDevice[device]['name']
+        maxP = model.paramDevice[device]['Pmax']
+        plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        label_profile=""
+        if not pd.isna(profile):
+            dfa = mc.getProfiles(profile)
+            dfa = dfa*maxP
+            dfa[profile].plot(ax=ax,label='available')
+            label_profile="({})".format(profile)
+
+        df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
+                                    orient="index")
+        df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
+        df = df[0].unstack(level=0)
+        df[device].plot(ax=ax,label='actual')
+
+        plt.legend(loc='lower left', bbox_to_anchor =(1.01,0),
+                   frameon=False)
+        plt.xlabel("Timestep")
+        plt.ylabel("Device power (MW)")
+        plt.title("{}:{} {}".format(device,devname,label_profile))
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+        
     
     def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
         """Plot power schedule over planning horizon (last optimisation)"""
@@ -1061,6 +1159,8 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
     data['paramNodeDevices'] = df_device.groupby('node').groups
     data['paramDevice'] = df_deviceR.to_dict(orient='index')
+    data['paramDeviceIsOnInitially'] = {k:0 for k in df_device.index.tolist()}
+    data['paramDevicePowerInitially'] = {k:0 for k in df_device.index.tolist()}
     data['paramEdge'] = df_edge.to_dict(orient='index')
     data['paramNodeEdgesFrom'] = df_edge.groupby(['type','nodeFrom']).groups
     data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups

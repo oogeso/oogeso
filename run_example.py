@@ -36,17 +36,24 @@ mc = multicarrier.Multicarrier(loglevel="INFO")
 
 data = multicarrier.read_data_from_xlsx("data_example.xlsx",carrier_properties)
 
-instance = mc.createModelInstance(data,filename="model.txt")
+instance = mc.createModelInstance(data,filename="model0.txt")
 
 
-sol = mc.solve(instance,solver="gurobi",write_yaml=False)
+sol = mc.solve(solver="cbc",write_yaml=False)
+multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
+                                                      filename="devsum_el0.png")
 
+# Not working yet, but testing:
+status = mc.solveMany(solver="cbc",write_yaml=False)
+mc.instance.pprint(filename="model.txt")
 
 multicarrier.Plots.plotNetworkCombined(instance)
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='el')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='gas')
 multicarrier.Plots.plotNetworkCombined(instance,only_carrier='heat')
 
+multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=7,
+                                                      filename="wind.png")
 #multicarrier.Plots.plotDevicePowerLastOptimisation(instance,
 #                                                   filename="devoutput.png")
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
