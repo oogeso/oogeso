@@ -18,7 +18,10 @@ One of the largest gas fields:
 '''
 
 import multicarrier
-import pandas as pd
+import plots
+#import pandas as pd
+import matplotlib.pyplot as plt
+plt.close("all")
 
 carrier_properties = {
     'gas':{'energy_value':40,
@@ -63,6 +66,12 @@ multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename="co2out.pn
 multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=7,
                                                       filename="wind.png")
 
+multicarrier.Plots.plotProfiles(profiles,filename="profiles.png")
 
 sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))
 print("CO2 emitted = {} kg".format(sumCO2))
+
+plots.plot_df(mc._dfDevicePower,id_var="device",filename="plotly.html",
+              title="Device Power",ylabel="Power (MW)")
+
+plots.plot_deviceprofile(mc,dev=7,profiles=profiles)

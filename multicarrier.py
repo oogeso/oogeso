@@ -62,6 +62,16 @@ class Multicarrier:
                 'baseAngle':1}
         #self._df_profiles = None
         
+        self._dfDeviceFlow = None
+        self._dfDeviceIsOn = None
+        self._dfDevicePower = None
+        self._dfDeviceStarting = None
+        self._dfDeviceStopping = None
+        self._dfEdgePower = None
+        self._dfElVoltageAngle = None
+        self._dfGasPressure = None
+        self._dfTerminalFlow = None
+        
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
         
@@ -469,14 +479,16 @@ class Multicarrier:
         #Electrical flow equations
         #logging.info("TODO: Electrical network power flow equations")
         def rule_elVoltageAndFlow(model,edge,t):
-            '''power flow equations - power flow vs voltage angle difference'''
+            '''power flow equations - power flow vs voltage angle difference
+            
+            Linearised power flow equations (DC power flow)'''
             if model.paramEdge[edge]['type'] !='el':
                 return pyo.Constraint.Skip
             
             lhs = model.varEdgePower[edge,t]
             lhs = lhs/self.elbase['baseMVA']
             rhs = 0
-            #TODO speed up - remove for loop
+            #TODO speed up creatioin of constraints - remove for loop
             n2s = [k[1]  for k in model.paramCoeffDA.keys() if k[0]==edge]
             for n2 in n2s:
                 rhs += model.paramCoeffDA[edge,n2]*(
@@ -694,7 +706,86 @@ class Multicarrier:
                     self.instance.varDevicePower[dev,t_prev])
         
         return
-    
+
+    def getVarValues(self,variable,names,unstack=None):
+        df = pd.DataFrame.from_dict(variable.get_values(),orient="index")
+        df.index = pd.MultiIndex.from_tuples(df.index,names=names)
+        return df[0]
+        if unstack is None:
+            df = df[0]
+        else:
+            df = df[0].unstack(level=unstack)            
+        df = df.dropna()
+        return df
+
+    def _keep_decision(self,df,timelimit,timeshift):
+        '''extract decision variables (first timesteps) from dataframe'''
+        level = df.index.names.index('time')
+        df = df[df.index.get_level_values(level)<timelimit]
+        df.index.set_levels(df.index.levels[level]+timeshift,level=level,
+                            inplace=True)
+        return df
+        
+
+    def saveOptimisationResult(self,timestep):
+        '''save results of optimisation for later analysis'''
+        
+        #TODO: Implement result storage
+        
+        timelimit = self.instance.paramParameters['optimisation_timesteps']
+        timeshift = timestep
+        
+        # Retrieve variable values
+        varDeviceFlow = self.getVarValues(self.instance.varDeviceFlow,
+              names=('device','carrier','terminal','time'))
+        varDeviceIsOn = self.getVarValues(self.instance.varDeviceIsOn,
+              names=('device','time'))
+        varDevicePower = self.getVarValues(self.instance.varDevicePower,
+              names=('device','time'))
+        varDeviceStarting = self.getVarValues(self.instance.varDeviceStarting,
+              names=('device','time'))
+        varDeviceStopping = self.getVarValues(self.instance.varDeviceStopping,
+              names=('device','time'))
+        varEdgePower = self.getVarValues(self.instance.varEdgePower,
+              names=('edge','time'))
+        varElVoltageAngle = self.getVarValues(self.instance.varElVoltageAngle,
+              names=('node','time'))
+        varGasPressure = self.getVarValues(self.instance.varGasPressure,
+              names=('node','terminal','time'))
+        varTerminalFlow = self.getVarValues(self.instance.varTerminalFlow,
+              names=('node','carrier','time'))
+        
+        # Set correct timestep info (global timestep, relative to horizon)
+#        varDeviceFlow = self._keep_decision(varDeviceFlow,dt,timestep)
+#        varDeviceIsOn = self._keep_decision(varDeviceIsOn,dt,timestep)
+#        varDevicePower = self._keep_decision(varDevicePower,dt,timestep)
+#        varDeviceStarting = self._keep_decision(varDeviceStarting,dt,timestep)
+#        varDeviceStopping = self._keep_decision(varDeviceStopping,dt,timestep)
+#        varEdgePower = self._keep_decision(varEdgePower,dt,timestep)
+#        varElVoltageAngle = self._keep_decision(varElVoltageAngle,dt,timestep)
+#        varGasPressure = self._keep_decision(varGasPressure,dt,timestep)
+#        varTerminalFlow = self._keep_decision(varTerminalFlow,dt,timestep)
+        
+        def _addToDf(df_prev,df_new):
+            level = df_new.index.names.index('time')
+            df_new = df_new[df_new.index.get_level_values(level)<timelimit]
+            df_new.index.set_levels(df_new.index.levels[level]+timeshift,
+                                    level=level, inplace=True)
+            df = pd.concat([df_prev,df_new])
+            df.sort_index(inplace=True)
+            return df
+        
+        # Add to dataframes storing results (only the decision variables)
+        self._dfDeviceFlow = _addToDf(self._dfDeviceFlow,varDeviceFlow)
+        self._dfDeviceIsOn = _addToDf(self._dfDeviceIsOn,varDeviceIsOn)
+        self._dfDevicePower = _addToDf(self._dfDevicePower,varDevicePower)
+        self._dfDeviceStarting = _addToDf(self._dfDeviceStarting,varDeviceStarting)
+        self._dfDeviceStopping = _addToDf(self._dfDeviceStopping,varDeviceStopping)
+        self._dfEdgePower = _addToDf(self._dfEdgePower,varEdgePower)
+        self._dfElVoltageAngle = _addToDf(self._dfElVoltageAngle,varElVoltageAngle)
+        self._dfGasPressure = _addToDf(self._dfGasPressure,varGasPressure)
+        self._dfTerminalFlow = _addToDf(self._dfTerminalFlow,varTerminalFlow)
+        return    
 
     def devicemodel_inout():
         inout = {
@@ -711,6 +802,7 @@ class Multicarrier:
                 'sink_el':          {'in':['el'],'out':[]},
                 'sink_heat':        {'in':['heat'],'out':[]},
                 'heatpump':         {'in':['el'],'out':['heat']},
+                #'storage_el':       {'in':['el'], 'out':['el']},
                 }
         return inout
     
@@ -718,7 +810,7 @@ class Multicarrier:
         """Solve problem for planning horizon at a single timestep"""
         
         opt = pyo.SolverFactory(solver)
-        logging.info("Solving...")
+        logging.debug("Solving...")
         sol = opt.solve(self.instance) 
         
         if write_yaml:
@@ -726,7 +818,7 @@ class Multicarrier:
         
         if ((sol.solver.status == pyopt.SolverStatus.ok) and 
            (sol.solver.termination_condition == pyopt.TerminationCondition.optimal)):
-            logging.info("Solved OK")
+            logging.debug("Solved OK")
         elif (sol.solver.termination_condition == pyopt.TerminationCondition.infeasible):
             raise Exception("Infeasible solution")
         else:
@@ -754,6 +846,7 @@ class Multicarrier:
             # 3. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml)
             # 4. Save results (for later analysis)
+            self.saveOptimisationResult(step)
             # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
             
         
@@ -1067,6 +1160,26 @@ class Plots:
             plt.savefig(filename,bbox_inches = 'tight')
         
     
+    def plotProfiles(profiles,curves=None,filename=None):
+        '''Plot profiles (forecast and actual)'''
+        
+        plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        if curves is None:
+            curves = profiles['actual'].columns
+        profiles['actual'][curves].plot(ax=ax)
+        ax.set_prop_cycle(None)
+        profiles['forecast'][curves].plot(ax=ax,linestyle=":")
+
+        labels = curves
+        ax.legend(labels=labels,loc='lower left', bbox_to_anchor =(1.01,0),
+                  frameon=False)
+        plt.xlabel("Timestep")
+        plt.ylabel("Relative value")
+        plt.title("Actual vs forecast profile (actual=sold line)")
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+        
     
 
 #########################################################################
