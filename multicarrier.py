@@ -96,6 +96,8 @@ class Multicarrier:
                                                mutable=True,within=pyo.Binary)
         model.paramDevicePowerInitially = pyo.Param(model.setDevice,
                                                mutable=True,within=pyo.Reals)
+        model.paramDeviceEnergyInitially = pyo.Param(model.setDevice,
+                                               mutable=True,within=pyo.NonNegativeReals)
         model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
         model.paramNodeDevices = pyo.Param(model.setNode)
         model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
@@ -123,6 +125,8 @@ class Multicarrier:
                 model.setDevice,model.setHorizon,within=pyo.Binary)
         model.varDeviceStopping = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.Binary)
+        model.varDeviceEnergy = pyo.Var(model.setDevice,model.setHorizon,
+                                        within=pyo.NonNegativeReals)
         model.varGasPressure = pyo.Var(
                 model.setNode,model.setTerminal,model.setHorizon, 
                 within=pyo.NonNegativeReals)
@@ -310,7 +314,45 @@ class Multicarrier:
         model.constrDevice_gasturbine = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_gasturbine)
+
         
+        print("TODO: electrical storage objective")
+        #TODO: electrical storage equations
+        def rule_devmodel_storage_el(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'storage_el':
+                return pyo.Constraint.Skip
+            if i==1:
+                #energy balance
+                # (el out)*dt = -delta storage
+                # eta = efficiency charging  (discharging assumed lossless)
+                delta_t = model.paramParameters['time_delta_minutes']/60 #hours
+                lhs = model.varDeviceFlow[dev,'el','out',t]*delta_t                        
+                if t>0:
+                    Eprev = model.varDeviceEnergy[dev,t-1]
+                else:
+                    Eprev = model.paramDeviceEnergyInitially[dev]
+                rhs = -(model.varDeviceEnergy[dev,t]-Eprev)
+                return (lhs==rhs)
+            elif i==2:
+                # energy storage limit
+                ub = model.paramDevice[dev]['Emax']
+                return pyo.inequality(0,model.varDeviceEnergy[dev,t],ub)
+            elif i==3:
+                #charging/discharging power limit
+                ub = model.paramDevice[dev]['Pmax']                
+                return pyo.inequality(
+                        -ub,model.varDeviceFlow[dev,'el','out',t],ub)
+            elif i==4:
+                # device power = el out
+                lhs = model.varDevicePower[dev,t]
+                #rhs = model.varDeviceFlow[dev,'el','out',t]
+                rhs = 0
+                return (lhs==rhs)
+        model.constrDevice_storage_el = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,3),
+                  rule=rule_devmodel_storage_el)
+
+
         def rule_startup_shutdown(model,dev,t):
             '''startup/shutdown constraint - for devices with startup costs'''
             # setHorizon is a rangeset [0,1,2,...,max]
@@ -647,7 +689,7 @@ class Multicarrier:
                             for t in timesteps)
             elif devmodel in ['compressor_el','sink_heat','sink_el',
                               'heatpump','source_gas','export_gas',
-                              'export_el']:
+                              'export_el','storage_el']:
                 # no CO2 emission contribution
                 thisCO2 = 0
             else:
@@ -704,7 +746,9 @@ class Multicarrier:
                     self.instance.varDeviceIsOn[dev,t_prev])
             self.instance.paramDevicePowerInitially[dev] = (
                     self.instance.varDevicePower[dev,t_prev])
-        
+            if self.instance.paramDevice[dev]['model'] in ['storage_el']:
+                self.instance.paramDeviceEnergyInitially[dev] = (
+                        self.instance.varDeviceEnergy[dev,t_prev])
         return
 
     def getVarValues(self,variable,names,unstack=None):
@@ -802,7 +846,7 @@ class Multicarrier:
                 'sink_el':          {'in':['el'],'out':[]},
                 'sink_heat':        {'in':['heat'],'out':[]},
                 'heatpump':         {'in':['el'],'out':['heat']},
-                #'storage_el':       {'in':['el'], 'out':['el']},
+                'storage_el':       {'in':[], 'out':['el']},
                 }
         return inout
     
@@ -842,7 +886,8 @@ class Multicarrier:
             # 1. Save present  power output and on/off status (for gas turbines)
             #TODO: save state for later analysis
             # 2. Update problem formulation
-            self.updateModelInstance(step,df_profiles)
+            if step>0:
+                self.updateModelInstance(step,df_profiles)
             # 3. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml)
             # 4. Save results (for later analysis)
@@ -1050,6 +1095,8 @@ class Plots:
         maxP = model.paramDevice[device]['Pmax']
         plt.figure(figsize=(12,4))
         ax=plt.gca()
+        plt.xlabel("Timestep")
+        plt.ylabel("Device power (MW)")
         label_profile=""
         if not pd.isna(profile):
             dfa = mc.getProfiles(profile)
@@ -1057,16 +1104,42 @@ class Plots:
             dfa[profile].plot(ax=ax,label='available')
             label_profile="({})".format(profile)
 
-        df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
+#        df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
+#                                    orient="index")
+#        df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
+#        df = df[0].unstack(level=0)
+#        df[device].plot(ax=ax,label='actual')
+        
+        dfIn = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(),
                                     orient="index")
-        df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
-        df = df[0].unstack(level=0)
-        df[device].plot(ax=ax,label='actual')
+        dfIn.index = pd.MultiIndex.from_tuples(dfIn.index,
+                               names=('device','carrier','terminal','time'))
+        dfIn = dfIn[0].dropna()
+        for carr in dfIn.index.levels[1]:
+            for term in dfIn.index.levels[2]:
+                mask = ((dfIn.index.get_level_values(1)==carr) &
+                        (dfIn.index.get_level_values(2)==term))
+                df_this = dfIn[mask].unstack(0).reset_index()
+                if device in df_this:
+                    df_this[device].plot(ax=ax,linestyle='-',
+                           label="actual ({} {})".format(carr,term))
+        ax.legend(loc='upper left')#, bbox_to_anchor =(1.01,0),frameon=False)
 
-        plt.legend(loc='lower left', bbox_to_anchor =(1.01,0),
-                   frameon=False)
-        plt.xlabel("Timestep")
-        plt.ylabel("Device power (MW)")
+        dfE = pd.DataFrame.from_dict(model.varDeviceEnergy.get_values(),
+                                    orient="index")
+        dfE.index = pd.MultiIndex.from_tuples(dfE.index,
+                               names=('device','time'))
+        dfE = dfE[0].dropna()
+        df_this = dfE.unstack(0)
+        if device in df_this:
+            ax2=ax.twinx()
+            ax2.set_ylabel("Energy (MWh)",color="red")
+            ax2.tick_params(axis='y', labelcolor="red")
+            df_this[device].plot(ax=ax2,linestyle='--',color='red',
+                   label="storage".format(carr,term))
+            ax2.legend(loc='upper right',)
+
+
         plt.title("{}:{} {}".format(device,devname,label_profile))
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
@@ -1287,6 +1360,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramDevice'] = df_device.to_dict(orient='index')
     data['paramDeviceIsOnInitially'] = {k:0 for k in df_device.index.tolist()}
     data['paramDevicePowerInitially'] = {k:0 for k in df_device.index.tolist()}
+    data['paramDeviceEnergyInitially'] = {k:0 for k in df_device.index.tolist()}
     data['paramEdge'] = df_edge.to_dict(orient='index')
     data['paramNodeEdgesFrom'] = df_edge.groupby(['type','nodeFrom']).groups
     data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups
