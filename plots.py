@@ -71,7 +71,7 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
     ax.set_ylabel("Power (MW)")
     tmin = dfF.index.get_level_values('time').min()
     tmax = dfF.index.get_level_values('time').max()+1
-    #ax.set_ylim(-dev_param['Pmax'],dev_param['Pmax'])
+    ax.set_ylim(0,dev_param['Pmax'])
     ax.legend(loc='upper left')#, bbox_to_anchor =(1.01,0),frameon=False)
 
     # Energy stored:
@@ -102,3 +102,68 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
 
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
+
+def plot_SumPowerMix(mc,carrier,filename=None):
+    fig,axes = plt.subplots(nrows=2,ncols=1,figsize=(12,8))
+    #plt.figure(figsize=(12,4))
+    plt.suptitle("Sum power ({})".format(carrier))
+    
+    # Power flow in/out
+    dfF = mc._dfDeviceFlow
+    tmin = dfF.index.get_level_values('time').min()
+    tmax = dfF.index.get_level_values('time').max()+1
+    mask_carrier = (dfF.index.get_level_values('carrier')==carrier)
+    mask_in = (dfF.index.get_level_values('terminal')=='in')
+    mask_out = (dfF.index.get_level_values('terminal')=='out')
+    dfF_out = dfF[mask_carrier&mask_out]
+    dfF_out.index = dfF_out.index.droplevel(level=("carrier","terminal"))
+    dfF_out = dfF_out.unstack(0)
+    dfF_in = dfF[mask_carrier&mask_in]
+    dfF_in.index = dfF_in.index.droplevel(level=("carrier","terminal"))
+    dfF_in = dfF_in.unstack(0)
+    dfF_in.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name']) 
+        for d in dfF_in.columns},inplace=True)
+    dfF_out.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name']) 
+        for d in dfF_out.columns},inplace=True)
+    dfF_out.plot.area(ax=axes[0],linewidth=0)
+    dfF_in.plot.area(ax=axes[1],linewidth=0)
+    axes[0].set_ylabel("Power supply (MW)")
+    axes[1].set_ylabel("Power consumption (MW)")
+    axes[0].set_xlabel("")
+    axes[1].set_xlabel("Timestep")
+    for ax in axes:
+        #ax.set_xlabel("Timestep")
+        #ax.set_ylabel("Power (MW)")
+        ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+        ax.set_xlim(tmin,tmax)
+
+    # Energy stored:
+    #dfE = mc._dfDeviceEnergy
+    #if not dfE.empty:
+    if False:
+        ax2=axes[0].twinx()
+        ax2.grid(None)
+        # Shift time by one, since the dfDeviceEnergy[t] is the energy _after_
+        # timestep t:
+        dfE = dfE.unstack().T.sum(axis=1)
+        dfE.index = dfE.index+1
+        dfE.name = "storage"
+        dfE.plot(ax=ax2,
+                  linestyle=":",color="black")
+        ax2.set_ylabel("Energy (MWh)")#,color="red")
+        ax2.legend(loc='upper right')
+    
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+
+def plot_CO2(mc,filename=None):
+    plt.figure(figsize=(12,4))
+    plt.title("CO2 emission rate (kgCO2/hour)")
+    ax=plt.gca()
+    ax.set_ylabel("kgCO2/hour")
+    ax.set_xlabel("Timestep")
+    mc._dfCO2.plot()
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+   
+ 

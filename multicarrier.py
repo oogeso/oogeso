@@ -61,6 +61,7 @@ class Multicarrier:
                 'baseMVA':100,
                 'baseAngle':1}
         #self._df_profiles = None
+        self._devmodels = Multicarrier.devicemodel_inout()
         
         self._dfDeviceFlow = None
         self._dfDeviceIsOn = None
@@ -72,6 +73,7 @@ class Multicarrier:
         self._dfElVoltageAngle = None
         self._dfGasPressure = None
         self._dfTerminalFlow = None
+        self._dfCO2 = None
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -79,11 +81,10 @@ class Multicarrier:
         # Sets
         model.setCarrier = pyo.Set(doc="energy carrier")
         model.setNode = pyo.Set()
-        #model.setEdge1= pyo.Set(within=model.setCarrier*model.setNode*model.setNode)
         model.setEdge= pyo.Set()
         model.setDevice = pyo.Set()
         model.setTerminal = pyo.Set(initialize=['in','out'])
-        model.setDevicemodel = pyo.Set()
+        #model.setDevicemodel = pyo.Set()
         # time for rolling horizon optimisation:
         model.setHorizon = pyo.Set(ordered=True)
         model.setParameters = pyo.Set()
@@ -93,17 +94,11 @@ class Multicarrier:
         model.paramNode = pyo.Param(model.setNode)
         model.paramEdge = pyo.Param(model.setEdge)
         model.paramDevice = pyo.Param(model.setDevice)
-        model.paramDeviceIsOnInitially = pyo.Param(model.setDevice,
-                                               mutable=True,within=pyo.Binary)
-        model.paramDevicePowerInitially = pyo.Param(model.setDevice,
-                                               mutable=True,within=pyo.Reals)
-        model.paramDeviceEnergyInitially = pyo.Param(model.setDevice,
-                                               mutable=True,within=pyo.NonNegativeReals)
         model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
         model.paramNodeDevices = pyo.Param(model.setNode)
         model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
         model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
-        model.paramDevicemodel = pyo.Param(model.setDevicemodel)
+        #model.paramDevicemodel = pyo.Param(model.setDevicemodel)
         model.paramParameters = pyo.Param(model.setParameters)
         model.paramCarriers = pyo.Param(model.setCarrier)
         model.paramCoeffB = pyo.Param(model.setNode,model.setNode,within=pyo.Reals)
@@ -111,6 +106,12 @@ class Multicarrier:
         # Mutable parameters (will be modified between successive optimisations)
         model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
                                         within=pyo.Reals, mutable=True)
+        model.paramDeviceIsOnInitially = pyo.Param(model.setDevice,
+                                               mutable=True,within=pyo.Binary)
+        model.paramDevicePowerInitially = pyo.Param(model.setDevice,
+                                               mutable=True,within=pyo.Reals)
+        model.paramDeviceEnergyInitially = pyo.Param(model.setDevice,
+                                               mutable=True,within=pyo.NonNegativeReals)
         #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
         #                                 mutable=True)
         
@@ -136,7 +137,7 @@ class Multicarrier:
                 within=pyo.Reals)
         model.varDeviceFlow = pyo.Var(
                 model.setDevice,model.setCarrier,model.setTerminal,
-                model.setHorizon,within=pyo.Reals)
+                model.setHorizon,within=pyo.NonNegativeReals)
         model.varTerminalFlow = pyo.Var(
                 model.setNode,model.setCarrier,model.setHorizon,
                 within=pyo.Reals)
@@ -324,10 +325,13 @@ class Multicarrier:
                 return pyo.Constraint.Skip
             if i==1:
                 #energy balance
-                # (el out)*dt = -delta storage
+                # (el_in*eta - el_out/eta)*dt = delta storage
                 # eta = efficiency charging  (discharging assumed lossless)
                 delta_t = model.paramParameters['time_delta_minutes']/60 #hours
-                lhs = model.varDeviceFlow[dev,'el','out',t]*delta_t                        
+                lhs = (model.varDeviceFlow[dev,'el','in',t]
+                        *model.paramDevice[17]['eta']
+                       -model.varDeviceFlow[dev,'el','out',t]
+                        /model.paramDevice[17]['eta'] )*delta_t                        
                 if t>0:
                     Eprev = model.varDeviceEnergy[dev,t-1]
                 else:
@@ -339,18 +343,21 @@ class Multicarrier:
                 ub = model.paramDevice[dev]['Emax']
                 return pyo.inequality(0,model.varDeviceEnergy[dev,t],ub)
             elif i==3:
-                #charging/discharging power limit
+                #charging power limit
                 ub = model.paramDevice[dev]['Pmax']                
-                return pyo.inequality(
-                        -ub,model.varDeviceFlow[dev,'el','out',t],ub)
+                return (model.varDeviceFlow[dev,'el','out',t]<=ub)
             elif i==4:
+                #discharging power limit
+                ub = model.paramDevice[dev]['Pmax']                
+                return (model.varDeviceFlow[dev,'el','in',t]<=ub)
+            elif i==5:
                 # device power = el out
                 lhs = model.varDevicePower[dev,t]
                 #rhs = model.varDeviceFlow[dev,'el','out',t]
                 rhs = 0
                 return (lhs==rhs)
         model.constrDevice_storage_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,3),
+                  model.setHorizon,pyo.RangeSet(1,5),
                   rule=rule_devmodel_storage_el)
 
 
@@ -432,14 +439,16 @@ class Multicarrier:
                   model.setHorizon,rule=rule_devmodel_sink_heat)
         
         def rule_terminalEnergyBalance(model,carrier,node,terminal,t):
-            ''' energy balance at in and out terminals
-            "in" terminal: flow into terminal is positive
-            "out" terminal: flow out of terminal is positive
+            ''' node energy balance (at in and out terminals)
+            "in" terminal: flow into terminal is positive (Pinj>0)
+            "out" terminal: flow out of terminal is positive (Pinj>0)
+            
+            distinguishing between the case (1) where node/carrier has a 
+            single terminal or (2) with an "in" and one "out" terminal 
+            (with device in series) that may have different properties 
+            (such as gas pressure)
             '''
-            
-            #if carrier=='el':
-            #    return pyo.Constraint.Skip
-            
+                       
             # Pinj = power injected into terminal
             Pinj = 0
             # devices:
@@ -447,21 +456,18 @@ class Multicarrier:
                 for dev in model.paramNodeDevices[node]:
                     # Power into terminal:
                     dev_model = model.paramDevice[dev]['model']
-                    if pd.isna(dev_model):
-                        logging.info("No device model specified - using dispatch factor")  
-                    elif dev_model in model.paramDevicemodel:
+                    if dev_model in self._devmodels:#model.paramDevicemodel:
                         #print("carrier:{},node:{},terminal:{},model:{}"
                         #      .format(carrier,node,terminal,dev_model))
-                        if carrier in model.paramDevicemodel[dev_model][terminal]:
+                        if carrier in self._devmodels[dev_model][terminal]:
                             Pinj -= model.varDeviceFlow[dev,carrier,terminal,t]
                     else:
                         raise Exception("Undefined device model ({})".format(dev_model))
         
-            # connect terminals:
+            # connect terminals (i.e. treat as one):
             if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
                 Pinj -= model.varTerminalFlow[node,carrier,t]
         
-                    
             # edges:
             if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
                 for edg in model.paramNodeEdgesTo[(carrier,node)]:
@@ -494,10 +500,10 @@ class Multicarrier:
                 for dev in model.paramNodeDevices[node]:
                     # Power into terminal:
                     dev_model = model.paramDevice[dev]['model']
-                    if dev_model in model.paramDevicemodel:
-                        if carrier in model.paramDevicemodel[dev_model]['in']:
+                    if dev_model in self._devmodels:#model.paramDevicemodel:
+                        if carrier in self._devmodels[dev_model]['in']:
                             Pinj -= model.varDeviceFlow[dev,carrier,'in',t]
-                        if carrier in model.paramDevicemodel[dev_model]['out']:
+                        if carrier in self._devmodels[dev_model]['out']:
                             Pinj += model.varDeviceFlow[dev,carrier,'out',t]
                     else:
                         raise Exception("Undefined device model ({})".format(dev_model))
@@ -804,6 +810,11 @@ class Multicarrier:
               names=('node','terminal','time'))
         varTerminalFlow = self.getVarValues(self.instance.varTerminalFlow,
               names=('node','carrier','time'))
+    
+        
+        co2 = [pyo.value(self.compute_CO2(self.instance,timesteps=[t])) 
+                for t in range(timelimit)]
+        
                
         # Add to dataframes storing results (only the decision variables)
         def _addToDf(df_prev,df_new):
@@ -824,12 +835,15 @@ class Multicarrier:
         self._dfElVoltageAngle = _addToDf(self._dfElVoltageAngle,varElVoltageAngle)
         self._dfGasPressure = _addToDf(self._dfGasPressure,varGasPressure)
         self._dfTerminalFlow = _addToDf(self._dfTerminalFlow,varTerminalFlow)
+        self._dfCO2 = pd.concat(
+                [self._dfCO2, 
+                 pd.Series(data=co2,index=range(timestep,timestep+timelimit))])
         return    
 
     def devicemodel_inout():
         inout = {
-                'compressor_el':    {'in':['el','gas'],'out':['gas']},
-                'compressor_gas':   {'in':['gas'],'out':['gas']},
+                'compressor_el':    {'in':['el','gas'],'out':['gas'],'serial':['gas']},
+                'compressor_gas':   {'in':['gas'],'out':['gas'],'serial':['gas']},
                 #'separator':        {'in':['el'],'out':[]},
                 'export_gas':         {'in':['gas'],'out':[]},
                 'sink_gas':         {'in':['gas'],'out':[]},
@@ -841,7 +855,7 @@ class Multicarrier:
                 'sink_el':          {'in':['el'],'out':[]},
                 'sink_heat':        {'in':['heat'],'out':[]},
                 'heatpump':         {'in':['el'],'out':['heat']},
-                'storage_el':       {'in':[], 'out':['el']},
+                'storage_el':       {'in':['el'], 'out':['el']},
                 }
         return inout
     
@@ -918,20 +932,24 @@ class Multicarrier:
             for index in c:
                 print ("      ", index, instance.dual[c[index]])
 
-    def nodeIsNonTrivial(model,node,carrier):
+    def nodeIsNonTrivial(self,node,carrier):
         '''returns True if edges or devices are connected to node for this carrier
         '''
+        model = self.instance
         isNontrivial = False
+        # edges connected?
         if (((carrier,node) in model.paramNodeEdgesFrom) or
                 ((carrier,node) in model.paramNodeEdgesTo)):
             isNontrivial = True
             return isNontrivial
+        # devices connected?
         if node in model.paramNodeDevices:
             mydevs = model.paramNodeDevices[node]
             devmodels = [model.paramDevice[d]['model'] for d in mydevs]
             for dev_model in devmodels:
                 carriers_used = [item for sublist in 
-                     list(model.paramDevicemodel[dev_model].values()) 
+                     #list(model.paramDevicemodel[dev_model].values())
+                     list(self._devmodels[dev_model].values())
                      for item in sublist]
                 if(carrier in carriers_used):
                     isNontrivial = True
@@ -979,12 +997,12 @@ class Plots:
             plt.savefig(filename,bbox_inches = 'tight')        
 
        
-    def plotNetworkCombined(model,timestep=0,filename='pydotCombined.png',
+    def plotNetworkCombined(mc,timestep=0,filename='pydotCombined.png',
                             only_carrier=None):
         """Plot energy network
         
-        model : object
-            Multicarrier Pyomo instance
+        mc : object
+            Multicarrier object
         filename : string
             Name of file
         only_carrier : list
@@ -997,7 +1015,7 @@ class Plots:
                'cluster':'lightgray'
                }
         dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
-        
+        model = mc.instance
         if only_carrier is None:
             carriers = model.setCarrier
         else:
@@ -1015,19 +1033,28 @@ class Plots:
             nodes_out=pydot.Subgraph(rank='same')
             for carrier in carriers:
                 #add only terminals that are connected to something
-                if Multicarrier.nodeIsNonTrivial(model,n_id,carrier):
+                if mc.nodeIsNonTrivial(n_id,carrier):
+                    supp=""
+                    if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
+                        supp = '_out'
                     label_in = carrier+'_in'
-                    label_out= carrier+'_out'
+                    label_out= carrier+supp
                     if carrier=='gas':
                         label_in +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'in',timestep]))
                         label_out +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'out',timestep]))
                     elif carrier=='el':
                         label_in +=':{:3.2g}'.format(pyo.value(model.varElVoltageAngle[n_id,timestep]))
                         label_out +=':{:3.2g}'.format(pyo.value(model.varElVoltageAngle[n_id,timestep]))
-                    nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
-                           color=col['t'][carrier],label=label_in,shape='box'))
-                    nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
-                           color=col['t'][carrier],label=label_out,shape='box'))
+                    # Add two terminals if there are serial devices, otherwise one:
+                    if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:                        
+                        nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
+                               color=col['t'][carrier],label=label_in,shape='box'))
+                        nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
+                               color=col['t'][carrier],label=label_out,shape='box'))
+                    else:
+                        nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier,
+                               color=col['t'][carrier],label=label_out,shape='box'))
+                        
             cluster[n_id].add_subgraph(nodes_in)
             cluster[n_id].add_subgraph(nodes_out)
             dotG.add_subgraph(cluster[n_id])
@@ -1037,19 +1064,31 @@ class Plots:
             for i,e in model.paramEdge.items():
                 if e['type']==carrier:
                     edgelabel = '{:.2f}'.format(pyo.value(model.varEdgePower[i,timestep]))
-                    dotG.add_edge(pydot.Edge(src=e['nodeFrom']+'_'+carrier+'_out',
-                                             dst=e['nodeTo']+'_'+carrier+'_in',
+                    n_from = e['nodeFrom']
+                    n_to = e['nodeTo']
+                    # name of terminal depends on whether it serial or single
+                    if model.paramNodeCarrierHasSerialDevice[n_from][carrier]:
+                        t_out = n_from+'_'+carrier+'_out'
+                    else:
+                        t_out = n_from+'_'+carrier
+                    if model.paramNodeCarrierHasSerialDevice[n_to][carrier]:
+                        t_in = n_to+'_'+carrier+'_in'
+                    else:
+                        t_in = n_to+'_'+carrier
+                        
+                    dotG.add_edge(pydot.Edge(src=t_out,dst=t_in,
                                              color='"{0}:invis:{0}"'.format(col['e'][carrier]),
                                              fontcolor=col['e'][carrier],
                                              label=edgelabel))
         
         # plot devices and device connections:
+        devicemodels = Multicarrier.devicemodel_inout()
         for n,devs in model.paramNodeDevices.items():
             for d in devs:
                 dev_model = model.paramDevice[d]['model']
                 p_dev = pyo.value(model.varDevicePower[d,timestep])
-                carriers_in = model.paramDevicemodel[dev_model]['in']
-                carriers_out = model.paramDevicemodel[dev_model]['out']
+                carriers_in = devicemodels[dev_model]['in']
+                carriers_out = devicemodels[dev_model]['out']
                 carriers_in_lim = list(set(carriers_in)&set(carriers))
                 carriers_out_lim = list(set(carriers_out)&set(carriers))
                 if (carriers_in_lim!=[]) or (carriers_out_lim!=[]):
@@ -1059,28 +1098,36 @@ class Plots:
                 #print("carriers in/out:",d,carriers_in,carriers_out)
                 for carrier in carriers_in_lim:
                     f_in = pyo.value(model.varDeviceFlow[d,carrier,'in',timestep])
-                    dotG.add_edge(pydot.Edge(dst=d,src=n+'_'+carrier+'_in',
+                    if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
+                        n_in = n+'_'+carrier+'_in'
+                    else:
+                        n_in = n+'_'+carrier                        
+                    dotG.add_edge(pydot.Edge(dst=d,src=n_in,
                          color=col['e'][carrier],
                          fontcolor=col['e'][carrier],
                          label="{:.2f}".format(f_in)))
                 for carrier in carriers_out_lim:
                     f_out = pyo.value(model.varDeviceFlow[d,carrier,'out',timestep])
-                    dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',src=d,
+                    if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
+                        n_out = n+'_'+carrier+'_out'
+                    else:
+                        n_out = n+'_'+carrier                        
+                    dotG.add_edge(pydot.Edge(dst=n_out,src=d,
                          color=col['e'][carrier],
                          fontcolor=col['e'][carrier],
                          label="{:.2f}".format(f_out)))
         
-        # plot terminal in-out links:
-        for n in model.setNode:
-            for carrier in carriers:
-                 if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
-                     if Multicarrier.nodeIsNonTrivial(model,n,carrier):    
-                        flow = pyo.value(model.varTerminalFlow[n,carrier,timestep])
-                        dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
-                                                 src=n+'_'+carrier+'_in',
-                             color=col['e'][carrier],
-                             label='{:.2f}'.format(flow),fontcolor=col['e'][carrier]))
-                             #arrowhead='none'))
+#        # plot terminal in-out links:
+#        for n in model.setNode:
+#            for carrier in carriers:
+#                 if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
+#                     if mc.nodeIsNonTrivial(n,carrier):    
+#                        flow = pyo.value(model.varTerminalFlow[n,carrier,timestep])
+#                        dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
+#                                                 src=n+'_'+carrier+'_in',
+#                             color=col['e'][carrier],
+#                             label='{:.2f}'.format(flow),fontcolor=col['e'][carrier]))
+#                             #arrowhead='none'))
     
         #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
         dotG.write_png(filename,prog='dot')    
@@ -1092,7 +1139,8 @@ class Plots:
         maxP = model.paramDevice[device]['Pmax']
         plt.figure(figsize=(12,4))
         ax=plt.gca()
-        plt.xlabel("Timestep")
+        plt.title("Results from last optimisation")
+        plt.xlabel("Timestep in planning horizon")
         plt.ylabel("Device power (MW)")
         label_profile=""
         if not pd.isna(profile):
@@ -1204,7 +1252,8 @@ class Plots:
                    frameon=False)
         axes[1].set_ylabel("Consumed power (MW)")
         
-        axes[1].set_xlabel("Timestep")
+        axes[1].set_xlabel("Timestep in planning horizon")
+        plt.suptitle("Result from last optimisation")
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
             
@@ -1254,6 +1303,32 @@ class Plots:
 
 #########################################################################
 
+def _nodeCarrierHasSerialDevice(df_node,df_device):
+    devmodel_inout = Multicarrier.devicemodel_inout()
+    node_devices = df_device.groupby('node').groups
+    
+    # extract carriers (from defined device models)
+    sublist = [v['in']+v['out'] for k,v in devmodel_inout.items()]
+    flatlist = [item for sublist2 in sublist for item in sublist2]
+    allCarriers = set(flatlist)
+    node_carrier_has_serialdevice = {}
+    for n in df_node['id']:
+        devs_at_node=[]
+        if n in node_devices:
+            devs_at_node = node_devices[n]
+        node_carrier_has_serialdevice[n] = {}
+        for carrier in allCarriers:
+            # default to false:
+            node_carrier_has_serialdevice[n][carrier] = False
+            for dev_mod in df_device.loc[devs_at_node,'model']:
+                #has_series = ((carrier in devmodel_inout[dev_mod]['in'])
+                #                and (carrier in devmodel_inout[dev_mod]['out']))
+                if (('serial' in devmodel_inout[dev_mod]) and 
+                            (carrier in devmodel_inout[dev_mod]['serial'])):
+                    node_carrier_has_serialdevice[n][carrier] = True
+                    break
+    return node_carrier_has_serialdevice
+
 def read_data_from_xlsx(filename,carrier_properties):
     """Read input data from spreadsheet.
     
@@ -1277,44 +1352,11 @@ def read_data_from_xlsx(filename,carrier_properties):
     # discard edges and devices not to be included:    
     df_edge = df_edge[df_edge['include']==1]
     df_device = df_device[df_device['include']==1]
-    
-#    #into node:
-#    cols_in = {col:col.split("in_")[1] 
-#               for col in df_device.columns if "in_" in col }
-#    dispatch_in = df_device[list(cols_in.keys())].rename(columns=cols_in).fillna(0)
-#    #out of node:
-#    cols_out = {col:col.split("out_")[1] 
-#               for col in df_device.columns if "out_" in col }
-#    dispatch_out = df_device[list(cols_out.keys())].rename(columns=cols_out).fillna(0)
-#    
-#    df_deviceR = df_device.drop(cols_in,axis=1).drop(cols_out,axis=1)
-    
+       
     allCarriers = list(carrier_properties.keys())
 
-    ## find nodes where no devices connect in-out terminals:
-    ## (node is non-trivial if any device connects both in and out)
-    #dev_nontrivial = ((dispatch_in!=0) & (dispatch_out!=0))
-    #node_nontrivial = pd.concat([df_device[['node']],
-    #                             dev_nontrivial],axis=1).groupby('node').any()
-    node_devices = df_device.groupby('node').groups
-    devmodel_inout = Multicarrier.devicemodel_inout()
-    node_carrier_has_serialdevice = {}
-    for n in df_node['id']:
-        devs=[]
-        if n in node_devices:
-            devs = node_devices[n]
-        node_carrier_has_serialdevice[n] = {}
-        for carrier in allCarriers:
-            num_series = 0
-            for dev_mod in df_device.loc[devs,'model']:
-                has_series = ((carrier in devmodel_inout[dev_mod]['in'])
-                                and (carrier in devmodel_inout[dev_mod]['out']))
-                if has_series:
-                    num_series +=1
-                #print("series: {},{},{}".format(n,carrier,dev_mod))
-            #print(n,carrier,num_series)
-            node_carrier_has_serialdevice[n][carrier] = (num_series>0)
-            
+    node_carrier_has_serialdevice = _nodeCarrierHasSerialDevice(df_node,df_device)
+    
     # gas pipeline parameters - derive k and exp(s) parameters:
     ga=carrier_properties['gas']
     temp = df_edge['temperature_K']
@@ -1342,15 +1384,12 @@ def read_data_from_xlsx(filename,carrier_properties):
     data = {}
     data['setCarrier'] = {None:allCarriers}
     data['setNode'] = {None:df_node['id'].tolist()}
-    data['setEdge'] = {None: df_edge.index.tolist()}
+    data['setEdge'] = {None:df_edge.index.tolist()}
     data['setDevice'] = {None:df_device.index.tolist()}
-    data['setDevicemodel'] = {None:devmodel_inout.keys()}
-    data['setHorizon'] = {
-            None:range(planning_horizon)}
+    #data['setDevicemodel'] = {None:Multicarrier.devicemodel_inout().keys()}
+    data['setHorizon'] = {None:range(planning_horizon)}
     data['setParameters'] = {None:df_parameters.index.tolist()}
     data['setProfile'] = {None:df_device['external'].dropna().unique().tolist()}
-#    data['paramDeviceDispatchIn'] = dispatch_in.to_dict(orient='index') 
-#    data['paramDeviceDispatchOut'] = dispatch_out.to_dict(orient='index') 
     data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
     data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
     data['paramNodeDevices'] = df_device.groupby('node').groups
@@ -1361,7 +1400,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramEdge'] = df_edge.to_dict(orient='index')
     data['paramNodeEdgesFrom'] = df_edge.groupby(['type','nodeFrom']).groups
     data['paramNodeEdgesTo'] = df_edge.groupby(['type','nodeTo']).groups
-    data['paramDevicemodel'] = devmodel_inout
+    #data['paramDevicemodel'] = devmodel_inout
     data['paramParameters'] = df_parameters['value'].to_dict()#orient='index')
     #unordered set error - but is this needed - better use dataframe diretly instead?
     data['paramProfiles'] = df_profiles_forecast.loc[
