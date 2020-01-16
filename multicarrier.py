@@ -65,6 +65,7 @@ class Multicarrier:
         self._dfDeviceFlow = None
         self._dfDeviceIsOn = None
         self._dfDevicePower = None
+        self._dfDeviceEnergy = None
         self._dfDeviceStarting = None
         self._dfDeviceStopping = None
         self._dfEdgePower = None
@@ -723,9 +724,11 @@ class Multicarrier:
         self.instance = instance
         return instance
     
-    def updateModelInstance(self,timestep,df_profiles,filename=None):
-        """Update Pyomo model instance"""
-               
+    def updateModelInstance(self,timestep,df_profiles,first=False,filename=None):
+        """Update Pyomo model instance
+        
+        first : True if it is the first timestep
+        """
         opt_timesteps = self.instance.paramParameters['optimisation_timesteps']
         horizon = self.instance.paramParameters['planning_horizon']
 
@@ -740,27 +743,28 @@ class Multicarrier:
                    
         # Update startup/shutdown info
         # pick the last value from previous optimistion prior to the present time
-        t_prev = opt_timesteps-1
-        for dev in self.instance.setDevice:
-            self.instance.paramDeviceIsOnInitially[dev] = (
-                    self.instance.varDeviceIsOn[dev,t_prev])
-            self.instance.paramDevicePowerInitially[dev] = (
-                    self.instance.varDevicePower[dev,t_prev])
-            if self.instance.paramDevice[dev]['model'] in ['storage_el']:
-                self.instance.paramDeviceEnergyInitially[dev] = (
-                        self.instance.varDeviceEnergy[dev,t_prev])
+        if not first:
+            t_prev = opt_timesteps-1
+            for dev in self.instance.setDevice:
+                self.instance.paramDeviceIsOnInitially[dev] = (
+                        self.instance.varDeviceIsOn[dev,t_prev])
+                self.instance.paramDevicePowerInitially[dev] = (
+                        self.instance.varDevicePower[dev,t_prev])
+                if self.instance.paramDevice[dev]['model'] in ['storage_el']:
+                    self.instance.paramDeviceEnergyInitially[dev] = (
+                            self.instance.varDeviceEnergy[dev,t_prev])
         return
 
-    def getVarValues(self,variable,names,unstack=None):
+    def getVarValues(self,variable,names):
         df = pd.DataFrame.from_dict(variable.get_values(),orient="index")
         df.index = pd.MultiIndex.from_tuples(df.index,names=names)
-        return df[0]
-        if unstack is None:
-            df = df[0]
-        else:
-            df = df[0].unstack(level=unstack)            
-        df = df.dropna()
-        return df
+        return df[0].dropna()
+#        if unstack is None:
+#            df = df[0]
+#        else:
+#            df = df[0].unstack(level=unstack)            
+#        df = df.dropna()
+#        return df
 
     def _keep_decision(self,df,timelimit,timeshift):
         '''extract decision variables (first timesteps) from dataframe'''
@@ -786,6 +790,8 @@ class Multicarrier:
               names=('device','time'))
         varDevicePower = self.getVarValues(self.instance.varDevicePower,
               names=('device','time'))
+        varDeviceEnergy = self.getVarValues(self.instance.varDeviceEnergy,
+              names=('device','time'))
         varDeviceStarting = self.getVarValues(self.instance.varDeviceStarting,
               names=('device','time'))
         varDeviceStopping = self.getVarValues(self.instance.varDeviceStopping,
@@ -798,18 +804,8 @@ class Multicarrier:
               names=('node','terminal','time'))
         varTerminalFlow = self.getVarValues(self.instance.varTerminalFlow,
               names=('node','carrier','time'))
-        
-        # Set correct timestep info (global timestep, relative to horizon)
-#        varDeviceFlow = self._keep_decision(varDeviceFlow,dt,timestep)
-#        varDeviceIsOn = self._keep_decision(varDeviceIsOn,dt,timestep)
-#        varDevicePower = self._keep_decision(varDevicePower,dt,timestep)
-#        varDeviceStarting = self._keep_decision(varDeviceStarting,dt,timestep)
-#        varDeviceStopping = self._keep_decision(varDeviceStopping,dt,timestep)
-#        varEdgePower = self._keep_decision(varEdgePower,dt,timestep)
-#        varElVoltageAngle = self._keep_decision(varElVoltageAngle,dt,timestep)
-#        varGasPressure = self._keep_decision(varGasPressure,dt,timestep)
-#        varTerminalFlow = self._keep_decision(varTerminalFlow,dt,timestep)
-        
+               
+        # Add to dataframes storing results (only the decision variables)
         def _addToDf(df_prev,df_new):
             level = df_new.index.names.index('time')
             df_new = df_new[df_new.index.get_level_values(level)<timelimit]
@@ -817,12 +813,11 @@ class Multicarrier:
                                     level=level, inplace=True)
             df = pd.concat([df_prev,df_new])
             df.sort_index(inplace=True)
-            return df
-        
-        # Add to dataframes storing results (only the decision variables)
+            return df        
         self._dfDeviceFlow = _addToDf(self._dfDeviceFlow,varDeviceFlow)
         self._dfDeviceIsOn = _addToDf(self._dfDeviceIsOn,varDeviceIsOn)
         self._dfDevicePower = _addToDf(self._dfDevicePower,varDevicePower)
+        self._dfDeviceEnergy = _addToDf(self._dfDeviceEnergy,varDeviceEnergy)
         self._dfDeviceStarting = _addToDf(self._dfDeviceStarting,varDeviceStarting)
         self._dfDeviceStopping = _addToDf(self._dfDeviceStopping,varDeviceStopping)
         self._dfEdgePower = _addToDf(self._dfEdgePower,varEdgePower)
@@ -886,8 +881,10 @@ class Multicarrier:
             # 1. Save present  power output and on/off status (for gas turbines)
             #TODO: save state for later analysis
             # 2. Update problem formulation
-            if step>0:
-                self.updateModelInstance(step,df_profiles)
+            first = False
+            if step==0:
+                first=True
+            self.updateModelInstance(step,df_profiles,first=first)
             # 3. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml)
             # 4. Save results (for later analysis)
@@ -1224,7 +1221,7 @@ class Plots:
                 df.loc[t,d] = pyo.value(co2)
         plt.figure(figsize=(12,4))
         ax=plt.gca()
-        df.loc[:,~(df==0).all()].rename(columns=labels).plot.area(ax=ax)
+        df.loc[:,~(df==0).all()].rename(columns=labels).plot.area(ax=ax,linewidth=0)
         plt.xlabel("Timestep")
         plt.ylabel("Emission rate (kgCO2/hour)")
         ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),
