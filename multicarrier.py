@@ -73,7 +73,8 @@ class Multicarrier:
         self._dfElVoltageAngle = None
         self._dfGasPressure = None
         self._dfTerminalFlow = None
-        self._dfCO2 = None
+        self._dfCO2 = None #co2 emission sum per timestep
+        self._dfCO2dev = None # co2 emission per device per timestep
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -336,7 +337,7 @@ class Multicarrier:
                     Eprev = model.varDeviceEnergy[dev,t-1]
                 else:
                     Eprev = model.paramDeviceEnergyInitially[dev]
-                rhs = -(model.varDeviceEnergy[dev,t]-Eprev)
+                rhs = (model.varDeviceEnergy[dev,t]-Eprev)
                 return (lhs==rhs)
             elif i==2:
                 # energy storage limit
@@ -351,11 +352,21 @@ class Multicarrier:
                 ub = model.paramDevice[dev]['Pmax']                
                 return (model.varDeviceFlow[dev,'el','in',t]<=ub)
             elif i==5:
-                # device power = el out
+                # device power = el out + el in (only one is non-zero)
                 lhs = model.varDevicePower[dev,t]
-                #rhs = model.varDeviceFlow[dev,'el','out',t]
-                rhs = 0
+                rhs = (model.varDeviceFlow[dev,'el','out',t]
+                        +model.varDeviceFlow[dev,'el','in',t])
+                #rhs = 0
                 return (lhs==rhs)
+#            elif i==6:
+#                # constraint on storage end vs start
+#                if t==model.setHorizon[-1]:
+#                    lhs = model.varDeviceEnergy[dev,t]
+#                    rhs = model.varDeviceEnergy[dev,0] # end=start
+#                    #rhs = 0.5*model.paramDevice[dev]['Emax'] # 50% full
+#                    return (lhs==rhs)
+#                else:
+#                    return pyo.Constraint.Skip
         model.constrDevice_storage_el = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,5),
                   rule=rule_devmodel_storage_el)
@@ -447,9 +458,17 @@ class Multicarrier:
             single terminal or (2) with an "in" and one "out" terminal 
             (with device in series) that may have different properties 
             (such as gas pressure)
+            
+            edge1 \                                     / edge3
+                   \      devFlow_in    devFlow_out    /
+                    [term in]-->--device-->--[term out]
+                   /      \                       /    \ 
+            edge2 /        \......termFlow......./      \ edge4
+
+            
             '''
                        
-            # Pinj = power injected into terminal
+            # Pinj = power injected into in terminal /out of out terminal
             Pinj = 0
             # devices:
             if (node in model.paramNodeDevices):
@@ -785,6 +804,7 @@ class Multicarrier:
         '''save results of optimisation for later analysis'''
         
         #TODO: Implement result storage
+        # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
         
         timelimit = self.instance.paramParameters['optimisation_timesteps']
         timeshift = timestep
@@ -814,6 +834,14 @@ class Multicarrier:
         
         co2 = [pyo.value(self.compute_CO2(self.instance,timesteps=[t])) 
                 for t in range(timelimit)]
+        # CO2 contribution per device:
+        df_co2=pd.DataFrame()
+        for d in self.instance.setDevice:
+            for t in range(timelimit):
+                co2_dev = self.compute_CO2(self.instance,devices=[d],timesteps=[t])
+                df_co2.loc[t+timestep,d] = pyo.value(co2_dev)
+        self._dfCO2dev = pd.concat([self._dfCO2dev,df_co2])
+        #self._dfCO2dev.sort_index(inplace=True)
         
                
         # Add to dataframes storing results (only the decision variables)
@@ -892,18 +920,15 @@ class Multicarrier:
         
         for step in range(0,time_end,steps):
             logging.info("Solving timestep={}".format(step))
-            # 1. Save present  power output and on/off status (for gas turbines)
-            #TODO: save state for later analysis
-            # 2. Update problem formulation
+            # 1. Update problem formulation
             first = False
             if step==0:
                 first=True
             self.updateModelInstance(step,df_profiles,first=first)
-            # 3. Solve for planning horizon
+            # 2. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml)
-            # 4. Save results (for later analysis)
+            # 3. Save results (for later analysis)
             self.saveOptimisationResult(step)
-            # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
             
         
         
@@ -1139,7 +1164,7 @@ class Plots:
         maxP = model.paramDevice[device]['Pmax']
         plt.figure(figsize=(12,4))
         ax=plt.gca()
-        plt.title("Results from last optimisation")
+        #plt.title("Results from last optimisation")
         plt.xlabel("Timestep in planning horizon")
         plt.ylabel("Device power (MW)")
         label_profile=""
@@ -1166,7 +1191,7 @@ class Plots:
                         (dfIn.index.get_level_values(2)==term))
                 df_this = dfIn[mask].unstack(0).reset_index()
                 if device in df_this:
-                    df_this[device].plot(ax=ax,linestyle='-',
+                    df_this[device].plot(ax=ax,linestyle='-',drawstyle="steps-post",marker=".",
                            label="actual ({} {})".format(carr,term))
         ax.legend(loc='upper left')#, bbox_to_anchor =(1.01,0),frameon=False)
 
@@ -1176,6 +1201,9 @@ class Plots:
                                names=('device','time'))
         dfE = dfE[0].dropna()
         df_this = dfE.unstack(0)
+        # shift by one because storage at t is storage value _after_ t
+        # (just before t+1)
+        df_this.index = df_this.index+1
         if device in df_this:
             ax2=ax.twinx()
             ax2.set_ylabel("Energy (MWh)",color="red")
@@ -1183,6 +1211,7 @@ class Plots:
             df_this[device].plot(ax=ax2,linestyle='--',color='red',
                    label="storage".format(carr,term))
             ax2.legend(loc='upper right',)
+        ax.set_xlim(left=0)
 
 
         plt.title("{}:{} {}".format(device,devname,label_profile))

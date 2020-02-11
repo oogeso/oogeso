@@ -27,7 +27,7 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     
     return fig
 
-def plot_deviceprofile(mc,dev,profiles=None):
+def plot_deviceprofile(mc,dev,profiles=None,filename=None):
     '''plot forecast and actual profile (available power), and device output'''
     dev_param = mc.instance.paramDevice[dev]
     curve = dev_param['external']
@@ -48,6 +48,8 @@ def plot_deviceprofile(mc,dev,profiles=None):
     plt.xlim(df.index.min(),df.index.max())
     ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
               frameon=False)
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
 
 def plot_devicePowerEnergy(mc,dev,filename=None):
     model = mc.instance
@@ -98,12 +100,10 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
         ax2.legend(loc='upper right')
     ax.set_xlim(tmin,tmax)
 
-    
-
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
-def plot_SumPowerMix(mc,carrier,filename=None):
+def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
     fig,axes = plt.subplots(nrows=2,ncols=1,figsize=(12,8))
     #plt.figure(figsize=(12,4))
     plt.suptitle("Sum power ({})".format(carrier))
@@ -132,37 +132,44 @@ def plot_SumPowerMix(mc,carrier,filename=None):
     axes[0].set_xlabel("")
     axes[1].set_xlabel("Timestep")
     for ax in axes:
-        #ax.set_xlabel("Timestep")
-        #ax.set_ylabel("Power (MW)")
-        ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+        if reverseLegend:
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles[::-1], labels[::-1],
+                      loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+        else:
+            ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
         ax.set_xlim(tmin,tmax)
-
-    # Energy stored:
-    #dfE = mc._dfDeviceEnergy
-    #if not dfE.empty:
-    if False:
-        ax2=axes[0].twinx()
-        ax2.grid(None)
-        # Shift time by one, since the dfDeviceEnergy[t] is the energy _after_
-        # timestep t:
-        dfE = dfE.unstack().T.sum(axis=1)
-        dfE.index = dfE.index+1
-        dfE.name = "storage"
-        dfE.plot(ax=ax2,
-                  linestyle=":",color="black")
-        ax2.set_ylabel("Energy (MWh)")#,color="red")
-        ax2.legend(loc='upper right')
     
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
-def plot_CO2(mc,filename=None):
+def plot_CO2_rate_sum(mc,filename=None):
     plt.figure(figsize=(12,4))
     plt.title("CO2 emission rate (kgCO2/hour)")
     ax=plt.gca()
     ax.set_ylabel("kgCO2/hour")
     ax.set_xlabel("Timestep")
     mc._dfCO2.plot()
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+
+def plot_CO2_rate(mc,filename=None,reverseLegend=False):
+    df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
+    labels = (df_info.index.astype(str) +'_'+df_info['name'])
+
+    plt.figure(figsize=(12,4))
+    ax=plt.gca()
+    ax.set_ylabel("Emission rate (kgCO2/hour)")
+    ax.set_xlabel("Timestep")
+    mc._dfCO2dev.loc[:,~(mc._dfCO2dev==0).all()].rename(columns=labels).plot.area(ax=ax,linewidth=0)
+    
+    if reverseLegend:
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[::-1], labels[::-1],
+                  loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+    else:
+        ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+        
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
    

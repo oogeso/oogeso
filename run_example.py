@@ -23,7 +23,13 @@ import plots
 import matplotlib.pyplot as plt
 plt.close("all")
 
-
+doProfile = False
+if doProfile:
+    import cProfile, pstats, io
+    import pstats
+    pr = cProfile.Profile()
+    pr.enable()
+    
 carrier_properties = {
     'gas':{'energy_value':40,
            'Tb_basetemp_K':273+15,
@@ -41,11 +47,24 @@ mc = multicarrier.Multicarrier(loglevel="INFO")
 datafile = "data_example.xlsx"
 data,profiles = multicarrier.read_data_from_xlsx(datafile,carrier_properties)
 
-#data['paramDeviceEnergyInitially'][17]=2.5 # MWh - battery
+data['paramDeviceEnergyInitially'][17]=2.5 # MWh - battery
 instance = mc.createModelInstance(data,profiles)
 
 status = mc.solveMany(solver="cbc",time_end=48,write_yaml=False)
 
+if doProfile:
+    pr.disable()
+    sortby = pstats.SortKey.CUMULATIVE
+    with open('stats.txt', 'w') as stream:
+        stats = pstats.Stats(pr, stream=stream)
+        stats =stats.sort_stats(sortby)
+        stats.print_stats()
+    #s = io.StringIO()
+    #ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    #ps.print_stats()
+    #print(s.getvalue())
+    #pr.dump_stats("stats.txt")
+    
 
 # Analyse results:
 
@@ -64,6 +83,8 @@ multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename="co2out.pn
 # Show device output vs available power for wind turbine:
 #multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=7,
 #                                                      filename="wind.png")
+multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=17,
+                                                    filename="lastopt_battery.png")
 
 multicarrier.Plots.plotProfiles(profiles,filename="profiles.png")
 
@@ -74,7 +95,7 @@ print("last optimisation: CO2 emitted = {} kg".format(sumCO2))
 #              title="Device Power",ylabel="Power (MW)")
 
 plots.plot_SumPowerMix(mc,carrier="el",filename="el_sum_opt.png")
-plots.plot_deviceprofile(mc,dev=7,profiles=profiles) # wind
+plots.plot_deviceprofile(mc,dev=7,profiles=profiles,filename="wind_opt.png")
 #plots.plot_deviceprofile(mc,dev=17,profiles=profiles) # battery
-plots.plot_CO2(mc,filename="co2rate_opt.png")
+plots.plot_CO2_rate(mc,filename="co2rate_opt.png",reverseLegend=True)
 plots.plot_devicePowerEnergy(mc,17,filename="battery_opt.png")
