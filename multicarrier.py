@@ -3,7 +3,6 @@ import pyomo.opt as pyopt
 import pandas as pd
 import networkx as nx
 import scipy
-import pydot
 import matplotlib.pyplot as plt
 import logging
 plt.close('all')
@@ -47,6 +46,33 @@ Device Pmax/Pmin refer to energy values
 class Multicarrier:
     """Multicarrier energy system"""
     
+    @staticmethod
+    def devicemodel_inout():
+        inout = {
+                'compressor_el':    {'in':['el','gas'],'out':['gas'],
+                                     'serial':['gas']},
+                'compressor_gas':   {'in':['gas'],'out':['gas'],
+                                     'serial':['gas']},
+                'separator':        {'in':['petroleum','el','heat'],
+                                     'out':['oil','gas','water']},
+                'well_production':  {'in':[],'out':['petroleum']},
+                'sink_gas':         {'in':['gas'],'out':[]},
+                'sink_oil':         {'in':['oil'], 'out':[]},
+                'sink_el':          {'in':['el'],'out':[]},
+                'sink_heat':        {'in':['heat'],'out':[]},
+                'sink_water':        {'in':['water'],'out':[]},
+                'source_gas':       {'in':[],'out':['gas']},
+                'gasheater':        {'in':['gas'],'out':['heat']},
+                'gasturbine':       {'in':['gas'],'out':['el','heat']},
+                'source_el':           {'in':[],'out':['el']},
+                'heatpump':         {'in':['el'],'out':['heat']},
+                'storage_el':       {'in':['el'], 'out':['el']},
+                'pump_oil':         {'in':['oil','el'], 'out':['oil'],
+                                     'serial':['oil']},
+                }
+        return inout
+
+
     def __init__(self,loglevel=logging.DEBUG,logfile=None):
         logging.basicConfig(filename=logfile,level=loglevel,
                             format='%(asctime)s %(levelname)s: %(message)s', 
@@ -71,10 +97,10 @@ class Multicarrier:
         self._dfDeviceStopping = None
         self._dfEdgePower = None
         self._dfElVoltageAngle = None
-        self._dfGasPressure = None
+        self._dfTerminalPressure = None
         self._dfTerminalFlow = None
-        self._dfCO2 = None #co2 emission sum per timestep
-        self._dfCO2dev = None # co2 emission per device per timestep
+        self._dfCO2rate = None #co2 emission sum per timestep
+        self._dfCO2rate_per_dev = None # co2 emission per device per timestep
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -130,9 +156,13 @@ class Multicarrier:
                 model.setDevice,model.setHorizon,within=pyo.Binary)
         model.varDeviceEnergy = pyo.Var(model.setDevice,model.setHorizon,
                                         within=pyo.NonNegativeReals)
-        model.varGasPressure = pyo.Var(
-                model.setNode,model.setTerminal,model.setHorizon, 
-                within=pyo.NonNegativeReals)
+        model.varPressure = pyo.Var(
+                model.setNode,model.setCarrier,model.setTerminal,
+                model.setHorizon, within=pyo.NonNegativeReals,initialize=0)
+#        # TODO replace varGasPressure by varPressure(carrier)
+#        model.varGasPressure = pyo.Var(
+#                model.setNode,model.setTerminal,model.setHorizon, 
+#                within=pyo.NonNegativeReals)
         model.varElVoltageAngle = pyo.Var(
                 model.setNode,model.setHorizon, 
                 within=pyo.Reals)
@@ -161,7 +191,8 @@ class Multicarrier:
                                            sense=pyo.minimize)
         
         
-        
+        logging.info("TODO: Compressor power demand dependence on flow rate")
+        #TODO: What about flow rate?
         def rule_devmodel_compressor_el(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'compressor_el':
                 return pyo.Constraint.Skip
@@ -170,8 +201,8 @@ class Multicarrier:
                 node = model.paramDevice[dev]['node']
                 lhs = model.varDevicePower[dev,t]
                 k = model.paramDevice[dev]['eta']
-                rhs = k*(model.varGasPressure[(node,'out',t)]
-                                -model.varGasPressure[(node,'in',t)])
+                rhs = k*(model.varPressure[(node,'gas','out',t)]
+                                -model.varPressure[(node,'gas','in',t)])
                 return (lhs==rhs)
             elif i==2:
                 '''gas flow in equals gas flow out'''
@@ -195,8 +226,8 @@ class Multicarrier:
                 node = model.paramDevice[dev]['node']
                 k = model.paramDevice[dev]['eta']
                 lhs = model.varDevicePower[dev,t]
-                rhs = (k*(model.varGasPressure[(node,'out',t)]
-                            -model.varGasPressure[(node,'in',t)]) )
+                rhs = (k*(model.varPressure[(node,'gas','out',t)]
+                            -model.varPressure[(node,'gas','in',t)]) )
                 return lhs==rhs
             elif i==2:
                 '''matter conservation'''
@@ -220,16 +251,26 @@ class Multicarrier:
                   model.setHorizon,
                   rule=rule_devmodel_sink_gas)
 
-        def rule_devmodel_export_gas(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'export_gas':
+#        def rule_devmodel_export_gas(model,dev,t):
+#            if model.paramDevice[dev]['model'] != 'export_gas':
+#                return pyo.Constraint.Skip
+#            lhs = model.varDeviceFlow[dev,'gas','in',t]
+#            rhs = model.varDevicePower[dev,t]
+#            return (lhs==rhs)
+#        model.constrDevice_export_gas = pyo.Constraint(model.setDevice,
+#                  model.setHorizon,
+#                  rule=rule_devmodel_export_gas)
+        
+        def rule_devmodel_sink_oil(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'sink_oil':
                 return pyo.Constraint.Skip
-            lhs = model.varDeviceFlow[dev,'gas','in',t]
+            lhs = model.varDeviceFlow[dev,'oil','in',t]
             rhs = model.varDevicePower[dev,t]
             return (lhs==rhs)
-        model.constrDevice_export_gas = pyo.Constraint(model.setDevice,
+        model.constrDevice_sink_oil = pyo.Constraint(model.setDevice,
                   model.setHorizon,
-                  rule=rule_devmodel_export_gas)
-        
+                  rule=rule_devmodel_sink_oil)
+
         def rule_devmodel_source_gas(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'source_gas':
                 return pyo.Constraint.Skip
@@ -239,13 +280,30 @@ class Multicarrier:
                 return (lhs==rhs)
             elif i==2:
                 node = model.paramDevice[dev]['node']
-                lhs = model.varGasPressure[(node,'out',t)]
+                lhs = model.varPressure[(node,'gas','out',t)]
                 rhs = model.paramDevice[dev]['naturalpressure']
                 #return pyo.Constraint.Skip
                 return (lhs==rhs)
         model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_source_gas)
+
+        def rule_devmodel_well_production(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'well_production':
+                return pyo.Constraint.Skip
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'petroleum','out',t]
+                rhs = model.varDevicePower[dev,t]
+                return (lhs==rhs)
+            elif i==2:
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'petroleum','out',t)]
+                rhs = model.paramDevice[dev]['naturalpressure']
+                #return pyo.Constraint.Skip
+                return (lhs==rhs)
+        model.constrDevice_well_production = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_well_production)
         
         def rule_devmodel_gasheater(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'gasheater':
@@ -319,8 +377,6 @@ class Multicarrier:
                   rule=rule_devmodel_gasturbine)
 
         
-        print("TODO: electrical storage objective")
-        #TODO: electrical storage equations
         def rule_devmodel_storage_el(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'storage_el':
                 return pyo.Constraint.Skip
@@ -360,6 +416,7 @@ class Multicarrier:
                 return (lhs==rhs)
 #            elif i==6:
 #                # constraint on storage end vs start
+#                # Adding this does not seem to improve result (not lower CO2)
 #                if t==model.setHorizon[-1]:
 #                    lhs = model.varDeviceEnergy[dev,t]
 #                    rhs = model.varDeviceEnergy[dev,0] # end=start
@@ -371,40 +428,6 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,5),
                   rule=rule_devmodel_storage_el)
 
-
-        def rule_startup_shutdown(model,dev,t):
-            '''startup/shutdown constraint - for devices with startup costs'''
-            # setHorizon is a rangeset [0,1,2,...,max]
-            if (t>0):
-                ison_prev = model.varDeviceIsOn[dev,t-1]
-            else:
-                ison_prev = model.paramDeviceIsOnInitially[dev]         
-            rhs = (model.varDeviceIsOn[dev,t] - ison_prev)
-            lhs = (model.varDeviceStarting[dev,t]
-                    -model.varDeviceStopping[dev,t])
-            return (lhs==rhs)
-        model.constrDevice_startup_shutdown = pyo.Constraint(model.setDevice,
-                  model.setHorizon,
-                  rule=rule_startup_shutdown)
-        
-        def rule_ramprate(model,dev,t):
-            '''ramp rate limit'''
-
-            # If no ramp limits have been specified, skip constraint
-            if pd.isna(model.paramDevice[dev]['maxRampUp']):
-                return pyo.Constraint.Skip
-            if (t>0):
-                p_prev = model.varDevicePower[dev,t-1]
-            else:
-                p_prev = model.paramDevicePowerInitially[dev]         
-            deltaP = (model.varDevicePower[dev,t]- p_prev)
-            delta_t = model.paramParameters['time_delta_minutes']
-            maxP = model.paramDevice[dev]['Pmax']
-            max_neg = -model.paramDevice[dev]['maxRampDown']*maxP*delta_t
-            max_pos = model.paramDevice[dev]['maxRampUp']*maxP*delta_t
-            return pyo.inequality(max_neg, deltaP, max_pos)
-        model.constrDevice_ramprate = pyo.Constraint(model.setDevice,
-                 model.setHorizon, rule=rule_ramprate)
             
             
         logging.info("TODO: el source: dieselgen, fuel, on-off variables")
@@ -429,15 +452,15 @@ class Multicarrier:
         model.constrDevice_sink_el = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_sink_el)
 
-        def rule_devmodel_export_el(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'export_el':
-                return pyo.Constraint.Skip
-            '''sink power = power out'''
-            lhs = model.varDeviceFlow[dev,'el','in',t]
-            rhs = model.varDevicePower[dev,t]
-            return lhs==rhs
-        model.constrDevice_export_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,rule=rule_devmodel_export_el)
+#        def rule_devmodel_export_el(model,dev,t):
+#            if model.paramDevice[dev]['model'] != 'export_el':
+#                return pyo.Constraint.Skip
+#            '''sink power = power out'''
+#            lhs = model.varDeviceFlow[dev,'el','in',t]
+#            rhs = model.varDevicePower[dev,t]
+#            return lhs==rhs
+#        model.constrDevice_export_el = pyo.Constraint(model.setDevice,
+#                  model.setHorizon,rule=rule_devmodel_export_el)
         
         def rule_devmodel_sink_heat(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_heat':
@@ -448,6 +471,136 @@ class Multicarrier:
             return lhs==rhs
         model.constrDevice_sink_heat = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_sink_heat)
+
+        def rule_devmodel_sink_water(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'sink_water':
+                return pyo.Constraint.Skip
+            '''sink heat = heat out'''
+            lhs = model.varDeviceFlow[dev,'water','in',t]
+            rhs = model.varDevicePower[dev,t]
+            return lhs==rhs
+        model.constrDevice_sink_water = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_devmodel_sink_water)
+
+        #TODO: separator equations
+        logging.info("TODO: separator model constraints pressure in/out vs power demand")
+        def rule_devmodel_separator(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'separator':
+                return pyo.Constraint.Skip
+            '''petroleum in = device power
+            gas out = device power'''
+            composition = model.paramCarriers['petroleum']['composition']
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'petroleum','in',t]
+                rhs = model.varDevicePower[dev,t]
+                return lhs==rhs
+            elif i==2:
+                lhs = model.varDeviceFlow[dev,'gas','out',t]
+                rhs = model.varDevicePower[dev,t]*composition['gas']
+                return lhs==rhs
+            elif i==3:
+                lhs = model.varDeviceFlow[dev,'oil','out',t]
+                rhs = model.varDevicePower[dev,t]*composition['oil']
+                return lhs==rhs
+            elif i==4:
+                #return pyo.Constraint.Skip
+                lhs = model.varDeviceFlow[dev,'water','out',t]
+                rhs = model.varDevicePower[dev,t]*composition['water']
+                return lhs==rhs
+            elif i==5:
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = model.varDevicePower[dev,t]*0.01
+                return lhs==rhs
+            elif i==6:
+                lhs = model.varDeviceFlow[dev,'heat','in',t]
+                rhs = model.varDevicePower[dev,t]*0.005
+                return lhs==rhs
+            elif i==7:
+                '''pressure out = nominal'''
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'gas','out',t)]
+                rhs = model.paramNode[node]['pressure.gas.out']
+                return lhs==rhs
+            elif i==8:
+                '''pressure out = nominal'''
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'oil','out',t)]
+                rhs = model.paramNode[node]['pressure.oil.out']
+                return lhs==rhs
+            elif i==9:
+                '''pressure out = nominal'''
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'water','out',t)]
+                rhs = model.paramNode[node]['pressure.water.out']
+                return lhs==rhs
+                
+        model.constrDevice_separator = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,9),
+                  rule=rule_devmodel_separator)
+
+
+        def rule_devmodel_pump_oil(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'pump_oil':
+                return pyo.Constraint.Skip
+            if i==1:
+                '''sink heat = heat out'''
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = model.varDevicePower[dev,t]
+                return lhs==rhs
+            elif i==2:
+                # oil out = oil in
+                lhs = model.varDeviceFlow[dev,'oil','out',t]
+                rhs = model.varDeviceFlow[dev,'oil','in',t]
+                return lhs==rhs
+            elif i==3:
+                # power demand vs pressure difference
+                node = model.paramDevice[dev]['node']
+                lhs = model.varDevicePower[dev,t]
+                k = model.paramDevice[dev]['eta']
+                rhs = k*(model.varPressure[(node,'oil','out',t)]
+                                -model.varPressure[(node,'oil','in',t)])
+                return (lhs==rhs)
+                
+        model.constrDevice_pump_oil = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,3),
+                  rule=rule_devmodel_pump_oil)
+
+
+        def rule_startup_shutdown(model,dev,t):
+            '''startup/shutdown constraint - for devices with startup costs'''
+            # setHorizon is a rangeset [0,1,2,...,max]
+            if (t>0):
+                ison_prev = model.varDeviceIsOn[dev,t-1]
+            else:
+                ison_prev = model.paramDeviceIsOnInitially[dev]         
+            rhs = (model.varDeviceIsOn[dev,t] - ison_prev)
+            lhs = (model.varDeviceStarting[dev,t]
+                    -model.varDeviceStopping[dev,t])
+            return (lhs==rhs)
+        model.constrDevice_startup_shutdown = pyo.Constraint(model.setDevice,
+                  model.setHorizon,
+                  rule=rule_startup_shutdown)
+
+        
+        def rule_ramprate(model,dev,t):
+            '''ramp rate limit'''
+
+            # If no ramp limits have been specified, skip constraint
+            if pd.isna(model.paramDevice[dev]['maxRampUp']):
+                return pyo.Constraint.Skip
+            if (t>0):
+                p_prev = model.varDevicePower[dev,t-1]
+            else:
+                p_prev = model.paramDevicePowerInitially[dev]         
+            deltaP = (model.varDevicePower[dev,t]- p_prev)
+            delta_t = model.paramParameters['time_delta_minutes']
+            maxP = model.paramDevice[dev]['Pmax']
+            max_neg = -model.paramDevice[dev]['maxRampDown']*maxP*delta_t
+            max_pos = model.paramDevice[dev]['maxRampUp']*maxP*delta_t
+            return pyo.inequality(max_neg, deltaP, max_pos)
+        model.constrDevice_ramprate = pyo.Constraint(model.setDevice,
+                 model.setHorizon, rule=rule_ramprate)
+
         
         def rule_terminalEnergyBalance(model,carrier,node,terminal,t):
             ''' node energy balance (at in and out terminals)
@@ -576,7 +729,8 @@ class Multicarrier:
         
         
         
-        def rule_gasPressureAndFlow(model,edge,t):
+        logging.info("TODO: flow vs pressure equations for liquid flows")
+        def rule_pressureAndFlow(model,edge,t):
             '''Flow as a function of pressure difference and pipe properties
             
             Q = k*(Pin-Pout)
@@ -593,48 +747,74 @@ class Multicarrier:
             Optimization. Springer Verlag, New York (2007), 
             https://doi.org/10.1007/978-3-540-68783-2_16
             '''
-            if model.paramEdge[edge]['type'] != 'gas':
-                return pyo.Constraint.Skip
+            carrier = model.paramEdge[edge]['type']
             n_from = model.paramEdge[edge]['nodeFrom']
             n_to = model.paramEdge[edge]['nodeTo']
-            p_from = model.varGasPressure[(n_from,'out',t)]
-            p_to = model.varGasPressure[(n_to,'in',t)]
-            p0_from = model.paramNode[n_from]['gaspressure_out']
-            p0_to = model.paramNode[n_to]['gaspressure_in']
-            k = model.paramEdge[edge]['gasflow_k']
-            exp_s = model.paramEdge[edge]['exp_s']
-            coeff = k*(p0_from**2-exp_s*p0_to**2)**(-1/2)
-            lhs = model.varEdgePower[edge,t]/model.paramCarriers['gas']['energy_value']
-            rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
-            logging.debug("constr gas pressure vs flow: {}-{},{},{},{}".format(
-                              n_from,n_to,p0_from,p0_to,coeff))
-            return (lhs==rhs)
-        model.constrGasPressureAndFlow = pyo.Constraint(
-                model.setEdge,model.setHorizon,rule=rule_gasPressureAndFlow)
+            if carrier == 'gas':
+                p_from = model.varPressure[(n_from,'gas','out',t)]
+                p_to = model.varPressure[(n_to,'gas','in',t)]
+                p0_from = model.paramNode[n_from]['pressure.gas.out']
+                p0_to = model.paramNode[n_to]['pressure.gas.in']
+                if (p0_from==p0_to):
+                    logging.debug("Gas pipe without nominal pressure drop - no constraint")
+                    # no pressure drop, i.e. no friction - no contraint
+                    return pyo.Constraint.Skip
+                k = model.paramEdge[edge]['gasflow_k']
+                exp_s = model.paramEdge[edge]['exp_s']
+                X0 = p0_from**2-exp_s*p0_to**2
+                logging.debug("edge {}-{}: X0={}.".format(n_from,n_to,X0))
+                coeff = k*(X0)**(-1/2)
+                lhs = model.varEdgePower[edge,t]/model.paramCarriers['gas']['energy_value']
+                rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
+                logging.debug("constr gas pressure vs flow: {}-{},{},{},exp_s={},coeff={}".format(
+                                  n_from,n_to,p0_from,p0_to,exp_s,coeff))
+                return (lhs==rhs)
+            elif carrier in ['petroleum','oil','water']:
+                #TODO: implement flow equation for liquids
+                # For now - no pressure drop
+                lhs = model.varPressure[(n_from,carrier,'out',t)]
+                rhs = model.varPressure[(n_to,carrier,'in',t)]
+                return (lhs==rhs)
+                #return pyo.Constraint.Skip                
+            else:
+                return pyo.Constraint.Skip                
+        model.constrPressureAndFlow = pyo.Constraint(
+                model.setEdge,model.setHorizon,rule=rule_pressureAndFlow)
         
-        def rule_gasPressureAtNode(model,node,t):
-            #if not model.paramNodeNontrivial[node]['gas']:
-            if not model.paramNodeCarrierHasSerialDevice[node]['gas']:
+        logging.info("TODO: node pressure for other carriers than gas")
+        def rule_pressureAtNode(model,node,carrier,t):
+            #if carrier != 'gas':
+            #    return pyo.Constraint.Skip
+            if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
+                #logging.info("in=out {}_{}_{}".format(node,carrier,t))
                 # trivial connection. pressure out=pressure in
-                expr = (model.varGasPressure[(node,'out',t)]
-                        == model.varGasPressure[(node,'in',t)] )
+                expr = (model.varPressure[(node,carrier,'out',t)]
+                        == model.varPressure[(node,carrier,'in',t)] )
                 return expr
             else:
+                #logging.info("in!=out {}_{}_{}".format(node,carrier,t))
+                # pressure in and out are related via device equations for 
+                # device connected between in and out terminals
                 return pyo.Constraint.Skip    
-        model.constrGasPressureAtNode = pyo.Constraint(
-                model.setNode,model.setHorizon,rule=rule_gasPressureAtNode)
+        model.constrPressureAtNode = pyo.Constraint(
+                model.setNode,model.setCarrier,model.setHorizon,
+                rule=rule_pressureAtNode)
         
-        # TODO: Set bounds from input data
-        logging.info("TODO: gas pressure bounds set by input parameters")
-        def rule_gasPressureBounds(model,node,term,t):
-            col = 'gaspressure_{}'.format(term)
+        def rule_pressureBounds(model,node,term,carrier,t):
+            col = 'pressure.{}.{}'.format(carrier,term)
+            if not col in model.paramNode[node]:
+                # no pressure data relevant for this node/carrier
+                return pyo.Constraint.Skip
             nom_p = model.paramNode[node][col]
-            lb = nom_p*0.9
-            ub = nom_p*1.1
-            return (lb,model.varGasPressure[(node,term,t)],ub)
-        model.constrGasPressureBounds = pyo.Constraint(
-                model.setNode,model.setTerminal,model.setHorizon,
-                rule=rule_gasPressureBounds)
+            if pd.isna(nom_p):
+                # no pressure data specified for this node/carrier
+                return pyo.Constraint.Skip
+            lb = nom_p*(1 - model.paramParameters['max_pressure_deviation'])
+            ub = nom_p*(1 + model.paramParameters['max_pressure_deviation'])
+            return (lb,model.varPressure[(node,carrier,term,t)],ub)
+        model.constrPressureBounds = pyo.Constraint(
+                model.setNode,model.setTerminal,model.setCarrier,
+                model.setHorizon,rule=rule_pressureBounds)
             
         
         def rule_devicePmax(model,dev,t):
@@ -714,8 +894,10 @@ class Multicarrier:
                             *model.paramDevice[d]['co2em']
                             for t in timesteps)
             elif devmodel in ['compressor_el','sink_heat','sink_el',
-                              'heatpump','source_gas','export_gas',
-                              'export_el','storage_el']:
+                              'heatpump','source_gas','sink_gas',
+                              'sink_oil','sink_water',
+                              'storage_el','separator',
+                              'well_production','pump_oil']:
                 # no CO2 emission contribution
                 thisCO2 = 0
             else:
@@ -826,8 +1008,8 @@ class Multicarrier:
               names=('edge','time'))
         varElVoltageAngle = self.getVarValues(self.instance.varElVoltageAngle,
               names=('node','time'))
-        varGasPressure = self.getVarValues(self.instance.varGasPressure,
-              names=('node','terminal','time'))
+        varPressure = self.getVarValues(self.instance.varPressure,
+              names=('node','carrier','terminal','time'))
         varTerminalFlow = self.getVarValues(self.instance.varTerminalFlow,
               names=('node','carrier','time'))
     
@@ -840,7 +1022,7 @@ class Multicarrier:
             for t in range(timelimit):
                 co2_dev = self.compute_CO2(self.instance,devices=[d],timesteps=[t])
                 df_co2.loc[t+timestep,d] = pyo.value(co2_dev)
-        self._dfCO2dev = pd.concat([self._dfCO2dev,df_co2])
+        self._dfCO2rate_per_dev = pd.concat([self._dfCO2rate_per_dev,df_co2])
         #self._dfCO2dev.sort_index(inplace=True)
         
                
@@ -861,31 +1043,13 @@ class Multicarrier:
         self._dfDeviceStopping = _addToDf(self._dfDeviceStopping,varDeviceStopping)
         self._dfEdgePower = _addToDf(self._dfEdgePower,varEdgePower)
         self._dfElVoltageAngle = _addToDf(self._dfElVoltageAngle,varElVoltageAngle)
-        self._dfGasPressure = _addToDf(self._dfGasPressure,varGasPressure)
+        self._dfTerminalPressure = _addToDf(self._dfTerminalPressure,varPressure)
         self._dfTerminalFlow = _addToDf(self._dfTerminalFlow,varTerminalFlow)
-        self._dfCO2 = pd.concat(
-                [self._dfCO2, 
+        self._dfCO2rate = pd.concat(
+                [self._dfCO2rate, 
                  pd.Series(data=co2,index=range(timestep,timestep+timelimit))])
         return    
 
-    def devicemodel_inout():
-        inout = {
-                'compressor_el':    {'in':['el','gas'],'out':['gas'],'serial':['gas']},
-                'compressor_gas':   {'in':['gas'],'out':['gas'],'serial':['gas']},
-                #'separator':        {'in':['el'],'out':[]},
-                'export_gas':         {'in':['gas'],'out':[]},
-                'sink_gas':         {'in':['gas'],'out':[]},
-                'source_gas':       {'in':[],'out':['gas']},
-                'gasheater':        {'in':['gas'],'out':['heat']},
-                'gasturbine':       {'in':['gas'],'out':['el','heat']},
-                'source_el':           {'in':[],'out':['el']},
-                'export_el':          {'in':['el'],'out':[]},
-                'sink_el':          {'in':['el'],'out':[]},
-                'sink_heat':        {'in':['heat'],'out':[]},
-                'heatpump':         {'in':['el'],'out':['heat']},
-                'storage_el':       {'in':['el'], 'out':['el']},
-                }
-        return inout
     
     def solve(self,solver="gurobi",write_yaml=False):
         """Solve problem for planning horizon at a single timestep"""
@@ -944,8 +1108,8 @@ class Multicarrier:
             print("  {}: {}".format(k,power))
             #df_edge.loc[k,'edgePower'] = power
         
-        print("\nSOLUTION - gasPressure:")
-        for k,v in instance.varGasPressure.get_values().items():
+        print("\nSOLUTION - Pressure:")
+        for k,v in instance.varPressure.get_values().items():
             pressure = v #pyo.value(v)
             print("  {}: {}".format(k,pressure))
             #df_edge.loc[k,'gasPressure'] = pressure
@@ -991,6 +1155,28 @@ class Multicarrier:
         df = df[0].unstack(level=0)
         return df
     
+    def computeEdgePressureDropAtFullPower(self,P=None):
+        model = self.instance
+        for k,edge in model.paramEdge.items():
+            if edge['type']== 'gas':
+                # Q = k*(p_in^2-exp(s)*p_out^2)^(1/2)
+                # => p_out = exp(-s)*sqrt(p_in^2 - Q^2/k^2)
+                exp_s = edge['exp_s']
+                gasflow_k = edge['gasflow_k']
+                Pmax = edge['capacity']
+                node_from = edge['nodeFrom']
+                node_to = edge['nodeTo']
+                p_in = model.paramNode[node_from]['pressure.gas.out']
+                p_out = model.paramNode[node_to]['pressure.gas.in']
+                if P is None:
+                    P=Pmax
+                Q = P/model.paramCarriers['gas']['energy_value']
+                p_out_comp = 1/exp_s*(p_in**2-Q**2/gasflow_k**2)**(1/2)
+                
+                print("{}-{}:\n\tpin={} pout={}, computed (P={}) pout={}".format(
+                        node_from,node_to,p_in,p_out,P,p_out_comp))
+                
+    
 class Plots:  
       
     def plotGasTurbineEfficiency(fuelA=1,fuelB=1, filename=None):
@@ -1022,140 +1208,6 @@ class Plots:
             plt.savefig(filename,bbox_inches = 'tight')        
 
        
-    def plotNetworkCombined(mc,timestep=0,filename='pydotCombined.png',
-                            only_carrier=None):
-        """Plot energy network
-        
-        mc : object
-            Multicarrier object
-        filename : string
-            Name of file
-        only_carrier : list
-            Restrict energy carriers to these types (None=plot all)
-        """
-        cluster = {}
-        col = {'t': {'el':'red','gas':'blue','heat':'darkgreen'},
-               'e': {'el':'red','gas':'blue','heat':'darkgreen'},
-               'd': 'orange',
-               'cluster':'lightgray'
-               }
-        dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
-        model = mc.instance
-        if only_carrier is None:
-            carriers = model.setCarrier
-        else:
-            carriers = [only_carrier]
-            fparts=filename.split('.')
-            fparts.insert(-1,only_carrier)
-            filename = '.'.join(fparts)
-        
-        
-        # plot all node and terminals:
-        for n_id in model.setNode:
-            cluster[n_id] = pydot.Cluster(graph_name=n_id,label=n_id,
-                   style='filled',color=col['cluster'])
-            nodes_in=pydot.Subgraph(rank='same')
-            nodes_out=pydot.Subgraph(rank='same')
-            for carrier in carriers:
-                #add only terminals that are connected to something
-                if mc.nodeIsNonTrivial(n_id,carrier):
-                    supp=""
-                    if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
-                        supp = '_out'
-                    label_in = carrier+'_in'
-                    label_out= carrier+supp
-                    if carrier=='gas':
-                        label_in +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'in',timestep]))
-                        label_out +=':{:3.1f}'.format(pyo.value(model.varGasPressure[n_id,'out',timestep]))
-                    elif carrier=='el':
-                        label_in +=':{:3.2g}'.format(pyo.value(model.varElVoltageAngle[n_id,timestep]))
-                        label_out +=':{:3.2g}'.format(pyo.value(model.varElVoltageAngle[n_id,timestep]))
-                    # Add two terminals if there are serial devices, otherwise one:
-                    if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:                        
-                        nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
-                               color=col['t'][carrier],label=label_in,shape='box'))
-                        nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
-                               color=col['t'][carrier],label=label_out,shape='box'))
-                    else:
-                        nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier,
-                               color=col['t'][carrier],label=label_out,shape='box'))
-                        
-            cluster[n_id].add_subgraph(nodes_in)
-            cluster[n_id].add_subgraph(nodes_out)
-            dotG.add_subgraph(cluster[n_id])
-        
-        # plot all edges (per carrier):
-        for carrier in carriers:
-            for i,e in model.paramEdge.items():
-                if e['type']==carrier:
-                    edgelabel = '{:.2f}'.format(pyo.value(model.varEdgePower[i,timestep]))
-                    n_from = e['nodeFrom']
-                    n_to = e['nodeTo']
-                    # name of terminal depends on whether it serial or single
-                    if model.paramNodeCarrierHasSerialDevice[n_from][carrier]:
-                        t_out = n_from+'_'+carrier+'_out'
-                    else:
-                        t_out = n_from+'_'+carrier
-                    if model.paramNodeCarrierHasSerialDevice[n_to][carrier]:
-                        t_in = n_to+'_'+carrier+'_in'
-                    else:
-                        t_in = n_to+'_'+carrier
-                        
-                    dotG.add_edge(pydot.Edge(src=t_out,dst=t_in,
-                                             color='"{0}:invis:{0}"'.format(col['e'][carrier]),
-                                             fontcolor=col['e'][carrier],
-                                             label=edgelabel))
-        
-        # plot devices and device connections:
-        devicemodels = Multicarrier.devicemodel_inout()
-        for n,devs in model.paramNodeDevices.items():
-            for d in devs:
-                dev_model = model.paramDevice[d]['model']
-                p_dev = pyo.value(model.varDevicePower[d,timestep])
-                carriers_in = devicemodels[dev_model]['in']
-                carriers_out = devicemodels[dev_model]['out']
-                carriers_in_lim = list(set(carriers_in)&set(carriers))
-                carriers_out_lim = list(set(carriers_out)&set(carriers))
-                if (carriers_in_lim!=[]) or (carriers_out_lim!=[]):
-                    cluster[n].add_node(pydot.Node(d,color=col['d'],style='filled',
-                       label='"{}[{}]\n{:.2f}"'
-                       .format(d,model.paramDevice[d]['name'],p_dev)))
-                #print("carriers in/out:",d,carriers_in,carriers_out)
-                for carrier in carriers_in_lim:
-                    f_in = pyo.value(model.varDeviceFlow[d,carrier,'in',timestep])
-                    if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
-                        n_in = n+'_'+carrier+'_in'
-                    else:
-                        n_in = n+'_'+carrier                        
-                    dotG.add_edge(pydot.Edge(dst=d,src=n_in,
-                         color=col['e'][carrier],
-                         fontcolor=col['e'][carrier],
-                         label="{:.2f}".format(f_in)))
-                for carrier in carriers_out_lim:
-                    f_out = pyo.value(model.varDeviceFlow[d,carrier,'out',timestep])
-                    if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
-                        n_out = n+'_'+carrier+'_out'
-                    else:
-                        n_out = n+'_'+carrier                        
-                    dotG.add_edge(pydot.Edge(dst=n_out,src=d,
-                         color=col['e'][carrier],
-                         fontcolor=col['e'][carrier],
-                         label="{:.2f}".format(f_out)))
-        
-#        # plot terminal in-out links:
-#        for n in model.setNode:
-#            for carrier in carriers:
-#                 if not model.paramNodeCarrierHasSerialDevice[n][carrier]:
-#                     if mc.nodeIsNonTrivial(n,carrier):    
-#                        flow = pyo.value(model.varTerminalFlow[n,carrier,timestep])
-#                        dotG.add_edge(pydot.Edge(dst=n+'_'+carrier+'_out',
-#                                                 src=n+'_'+carrier+'_in',
-#                             color=col['e'][carrier],
-#                             label='{:.2f}'.format(flow),fontcolor=col['e'][carrier]))
-#                             #arrowhead='none'))
-    
-        #dotG.write_dot('pydotCombinedNEW.dot',prog='dot')                
-        dotG.write_png(filename,prog='dot')    
 
     def plotDevicePowerLastOptimisation1(mc,device,filename=None):
         model = mc.instance
@@ -1308,26 +1360,6 @@ class Plots:
             plt.savefig(filename,bbox_inches = 'tight')
         
     
-    def plotProfiles(profiles,curves=None,filename=None):
-        '''Plot profiles (forecast and actual)'''
-        
-        plt.figure(figsize=(12,4))
-        ax=plt.gca()
-        if curves is None:
-            curves = profiles['actual'].columns
-        profiles['actual'][curves].plot(ax=ax)
-        ax.set_prop_cycle(None)
-        profiles['forecast'][curves].plot(ax=ax,linestyle=":")
-
-        labels = curves
-        ax.legend(labels=labels,loc='lower left', bbox_to_anchor =(1.01,0),
-                  frameon=False)
-        plt.xlabel("Timestep")
-        plt.ylabel("Relative value")
-        plt.title("Actual vs forecast profile (actual=sold line)")
-        if filename is not None:
-            plt.savefig(filename,bbox_inches = 'tight')
-        
     
 
 #########################################################################

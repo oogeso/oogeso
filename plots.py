@@ -4,6 +4,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import pydot
 
 sns.set_style("whitegrid")
 sns.set_palette("dark")
@@ -143,17 +144,17 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
-def plot_CO2_rate_sum(mc,filename=None):
+def plot_CO2_rate(mc,filename=None):
     plt.figure(figsize=(12,4))
     plt.title("CO2 emission rate (kgCO2/hour)")
     ax=plt.gca()
     ax.set_ylabel("kgCO2/hour")
     ax.set_xlabel("Timestep")
-    mc._dfCO2.plot()
+    mc._dfCO2rate.plot()
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
-def plot_CO2_rate(mc,filename=None,reverseLegend=False):
+def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
     df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
     labels = (df_info.index.astype(str) +'_'+df_info['name'])
 
@@ -161,7 +162,9 @@ def plot_CO2_rate(mc,filename=None,reverseLegend=False):
     ax=plt.gca()
     ax.set_ylabel("Emission rate (kgCO2/hour)")
     ax.set_xlabel("Timestep")
-    mc._dfCO2dev.loc[:,~(mc._dfCO2dev==0).all()].rename(columns=labels).plot.area(ax=ax,linewidth=0)
+    mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()
+                    ].rename(columns=labels
+                    ).plot.area(ax=ax,linewidth=0)
     
     if reverseLegend:
         handles, labels = ax.get_legend_handles_labels()
@@ -173,4 +176,170 @@ def plot_CO2_rate(mc,filename=None,reverseLegend=False):
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
    
+
+def plotProfiles(profiles,curves=None,filename=None):
+    '''Plot profiles (forecast and actual)'''
+    
+    plt.figure(figsize=(12,4))
+    ax=plt.gca()
+    if curves is None:
+        curves = profiles['actual'].columns
+    profiles['actual'][curves].plot(ax=ax)
+    ax.set_prop_cycle(None)
+    profiles['forecast'][curves].plot(ax=ax,linestyle=":")
+
+    labels = curves
+    ax.legend(labels=labels,loc='lower left', bbox_to_anchor =(1.01,0),
+              frameon=False)
+    plt.xlabel("Timestep")
+    plt.ylabel("Relative value")
+    plt.title("Actual vs forecast profile (actual=sold line)")
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+        
+
+def plotNetwork(mc,timestep=0,filename=None,
+                        only_carrier=None):
+    """Plot energy network
+    
+    mc : object
+        Multicarrier object
+    timestep : int
+        which timestep to show values for
+    filename : string
+        Name of file
+    only_carrier : list
+        Restrict energy carriers to these types (None=plot all)
+    """
+    cluster = {}
+    col = {'t': {'el':'red','gas':'orange','heat':'darkgreen',
+                 'petroleum':'brown','oil':'black','water':'blue'},
+           'e': {'el':'red','gas':'orange','heat':'darkgreen',
+                 'petroleum':'brown','oil':'black','water':'blue'},
+           'd': 'white',
+           'cluster':'lightgray'
+           }
+    dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
+    model = mc.instance
+    if only_carrier is None:
+        carriers = model.setCarrier
+    else:
+        carriers = [only_carrier]
+        #fparts=filename.split('.')
+        #fparts.insert(-1,only_carrier)
+        #filename = '.'.join(fparts)
+    
+    
+    # plot all node and terminals:
+    for n_id in model.setNode:
+        cluster[n_id] = pydot.Cluster(graph_name=n_id,label=n_id,
+               style='filled',color=col['cluster'])
+        nodes_in=pydot.Subgraph(rank='same')
+        nodes_out=pydot.Subgraph(rank='same')
+        for carrier in carriers:
+            #add only terminals that are connected to something
+            if mc.nodeIsNonTrivial(n_id,carrier):
+                supp=""
+                if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
+                    supp = '_out'
+                label_in = carrier+'_in'
+                label_out= carrier+supp
+                if timestep is None:
+                    pass
+                elif carrier in ['gas','petroleum','oil','water']:
+                    label_in +=':{:3.1f}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
+                    label_out +=':{:3.1f}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
+                elif carrier=='el':
+                    label_in +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
+                    label_out +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
+                # Add two terminals if there are serial devices, otherwise one:
+                if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:                        
+                    nodes_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
+                           color=col['t'][carrier],label=label_in,shape='box'))
+                    nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
+                           color=col['t'][carrier],label=label_out,shape='box'))
+                else:
+                    nodes_out.add_node(pydot.Node(name=n_id+'_'+carrier,
+                           color=col['t'][carrier],label=label_out,shape='box'))
+                    
+        cluster[n_id].add_subgraph(nodes_in)
+        cluster[n_id].add_subgraph(nodes_out)
+        dotG.add_subgraph(cluster[n_id])
+    
+    # plot all edges (per carrier):
+    for carrier in carriers:
+        for i,e in model.paramEdge.items():
+            if e['type']==carrier:
+                if timestep is None:
+                    edgelabel=''
+                else:
+                    #edgelabel = '{:.2f}'.format(pyo.value(model.varEdgePower[i,timestep]))
+                    edgelabel = '{:.2f}'.format(mc._dfEdgePower[(i,timestep)])
+                n_from = e['nodeFrom']
+                n_to = e['nodeTo']
+                # name of terminal depends on whether it serial or single
+                if model.paramNodeCarrierHasSerialDevice[n_from][carrier]:
+                    t_out = n_from+'_'+carrier+'_out'
+                else:
+                    t_out = n_from+'_'+carrier
+                if model.paramNodeCarrierHasSerialDevice[n_to][carrier]:
+                    t_in = n_to+'_'+carrier+'_in'
+                else:
+                    t_in = n_to+'_'+carrier
+                    
+                dotG.add_edge(pydot.Edge(src=t_out,dst=t_in,
+                                         color='"{0}:invis:{0}"'.format(col['e'][carrier]),
+                                         fontcolor=col['e'][carrier],
+                                         label=edgelabel))
+    
+    # plot devices and device connections:
+    devicemodels = mc.devicemodel_inout()
+    for n,devs in model.paramNodeDevices.items():
+        for d in devs:
+            dev_model = model.paramDevice[d]['model']
+            nodelabel = "{} {}".format(d,model.paramDevice[d]['name'])
+            if timestep is not None:
+                #p_dev = pyo.value(model.varDevicePower[d,timestep])
+                p_dev = mc._dfDevicePower[(d,timestep)]
+                nodelabel = "{}\n{:.2f}".format(nodelabel,p_dev)
+            carriers_in = devicemodels[dev_model]['in']
+            carriers_out = devicemodels[dev_model]['out']
+            carriers_in_lim = list(set(carriers_in)&set(carriers))
+            carriers_out_lim = list(set(carriers_out)&set(carriers))
+            if (carriers_in_lim!=[]) or (carriers_out_lim!=[]):
+                cluster[n].add_node(pydot.Node(d,color=col['d'],style='filled',
+                   label=nodelabel))
+            #print("carriers in/out:",d,carriers_in,carriers_out)
+            for carrier in carriers_in_lim:
+                if timestep is None:
+                    devlabel=''
+                else:
+                    #f_in = pyo.value(model.varDeviceFlow[d,carrier,'in',timestep])
+                    f_in = mc._dfDeviceFlow[(d,carrier,'in',timestep)]
+                    devlabel = "{:.2f}".format(f_in)
+                if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
+                    n_in = n+'_'+carrier+'_in'
+                else:
+                    n_in = n+'_'+carrier                        
+                dotG.add_edge(pydot.Edge(dst=d,src=n_in,
+                     color=col['e'][carrier],
+                     fontcolor=col['e'][carrier],
+                     label=devlabel))
+            for carrier in carriers_out_lim:
+                if timestep is None:
+                    devlabel = ''
+                else:
+                    #f_out = pyo.value(model.varDeviceFlow[d,carrier,'out',timestep])
+                    f_out = mc._dfDeviceFlow[(d,carrier,'out',timestep)]
+                    devlabel = "{:.2f}".format(f_out)
+                if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
+                    n_out = n+'_'+carrier+'_out'
+                else:
+                    n_out = n+'_'+carrier                        
+                dotG.add_edge(pydot.Edge(dst=n_out,src=d,
+                     color=col['e'][carrier],
+                     fontcolor=col['e'][carrier],
+                     label=devlabel))
+    if filename is not None:
+        dotG.write_png(filename,prog='dot')    
  

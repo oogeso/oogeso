@@ -22,6 +22,7 @@ import plots
 #import pandas as pd
 import matplotlib.pyplot as plt
 plt.close("all")
+outpath = "result/"
 
 doProfile = False
 if doProfile:
@@ -68,34 +69,39 @@ if doProfile:
 
 # Analyse results:
 
-multicarrier.Plots.plotNetworkCombined(mc)
-multicarrier.Plots.plotNetworkCombined(mc,only_carrier='el')
-multicarrier.Plots.plotNetworkCombined(mc,only_carrier='gas')
-multicarrier.Plots.plotNetworkCombined(mc,only_carrier='heat')
+#sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))
+sumCO2 = mc._dfCO2rate.mean()
+print("Mean CO2 emission rate = {} kgCO2/hour".format(sumCO2))
+
+
+plots.plotNetwork(mc,timestep=0,filename=outpath+"network_combined.png")
+plots.plotNetwork(mc,timestep=0,only_carrier='el',
+                  filename=outpath+"network_el.png")
+plots.plotNetwork(mc,timestep=0,only_carrier='gas',
+                  filename=outpath+"network_gas.png")
+plots.plotNetwork(mc,timestep=0,only_carrier='heat',
+                  filename=outpath+"network_heat.png")
 
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
-                                                      filename="devsum_el.png")
+                                                      filename=outpath+"devsum_el.png")
 #multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,carrier="gas",
 #                                                      filename="devsum_gas.png")
-multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename="co2out.png")
+multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename=outpath+"co2out.png")
 #multicarrier.Plots.plotNetworkCombined(instance,timestep=18,filename="t18.png")
 
 # Show device output vs available power for wind turbine:
 #multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=7,
 #                                                      filename="wind.png")
 multicarrier.Plots.plotDevicePowerLastOptimisation1(mc,device=17,
-                                                    filename="lastopt_battery.png")
+                                                    filename=outpath+"lastopt_battery.png")
 
-multicarrier.Plots.plotProfiles(profiles,filename="profiles.png")
+plots.plotProfiles(profiles,filename=outpath+"profiles.png")
 
-sumCO2 = multicarrier.pyo.value(mc.compute_CO2(instance))
-print("last optimisation: CO2 emitted = {} kg".format(sumCO2))
 
 #plots.plot_df(mc._dfDevicePower,id_var="device",filename="plotly.html",
 #              title="Device Power",ylabel="Power (MW)")
 
-plots.plot_SumPowerMix(mc,carrier="el",filename="el_sum_opt.png")
-plots.plot_deviceprofile(mc,dev=7,profiles=profiles,filename="wind_opt.png")
-#plots.plot_deviceprofile(mc,dev=17,profiles=profiles) # battery
-plots.plot_CO2_rate(mc,filename="co2rate_opt.png",reverseLegend=True)
-plots.plot_devicePowerEnergy(mc,17,filename="battery_opt.png")
+plots.plot_SumPowerMix(mc,carrier="el",filename=outpath+"el_sum_opt.png")
+plots.plot_deviceprofile(mc,dev=7,profiles=profiles,filename=outpath+"wind_opt.png")
+plots.plot_CO2rate_per_dev(mc,filename=outpath+"co2rate_opt.png",reverseLegend=True)
+plots.plot_devicePowerEnergy(mc,17,filename=outpath+"battery_opt.png")
