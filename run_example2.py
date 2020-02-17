@@ -5,7 +5,7 @@ plt.close("all")
 outpath = "result_example2/"
 
 carrier_properties = {
-    'petroleum': {
+    'wellstream': {
             'composition': {'gas':0.5, 'oil':0.25, 'water':0.25}
             },
     'water': {},
@@ -42,10 +42,14 @@ print("Mean CO2 emission rate = {} kgCO2/hour".format(sumCO2))
 plots.plotNetwork(mc,timestep=0,filename=outpath+"network_combined.png")
 plots.plotNetwork(mc,timestep=0,only_carrier='el',
                   filename=outpath+"network_el.png")
-plots.plotNetwork(mc,timestep=0,only_carrier='gas',
-                  filename=outpath+"network_gas.png")
 plots.plotNetwork(mc,timestep=0,only_carrier='heat',
                   filename=outpath+"network_heat.png")
+plots.plotNetwork(mc,timestep=0,only_carrier='gas',
+                  filename=outpath+"network_gas.png")
+plots.plotNetwork(mc,timestep=0,only_carrier='oil',
+                  filename=outpath+"network_oil.png")
+plots.plotNetwork(mc,timestep=0,only_carrier='water',
+                  filename=outpath+"network_water.png")
 multicarrier.Plots.plotDeviceSumPowerLastOptimisation(instance,
                                                       filename=outpath+"lastopt_devsum_el.png")
 #multicarrier.Plots.plotEmissionRateLastOptimisation(instance,filename=outpath+"lastopt_co2out.png")

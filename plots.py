@@ -213,9 +213,9 @@ def plotNetwork(mc,timestep=0,filename=None,
     """
     cluster = {}
     col = {'t': {'el':'red','gas':'orange','heat':'darkgreen',
-                 'petroleum':'brown','oil':'black','water':'blue'},
+                 'wellstream':'brown','oil':'black','water':'blue'},
            'e': {'el':'red','gas':'orange','heat':'darkgreen',
-                 'petroleum':'brown','oil':'black','water':'blue'},
+                 'wellstream':'brown','oil':'black','water':'blue'},
            'd': 'white',
            'cluster':'lightgray'
            }
@@ -246,7 +246,7 @@ def plotNetwork(mc,timestep=0,filename=None,
                 label_out= carrier+supp
                 if timestep is None:
                     pass
-                elif carrier in ['gas','petroleum','oil','water']:
+                elif carrier in ['gas','wellstream','oil','water']:
                     label_in +=':{:3.1f}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
                     label_out +=':{:3.1f}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
                 elif carrier=='el':

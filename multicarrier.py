@@ -53,9 +53,10 @@ class Multicarrier:
                                      'serial':['gas']},
                 'compressor_gas':   {'in':['gas'],'out':['gas'],
                                      'serial':['gas']},
-                'separator':        {'in':['petroleum','el','heat'],
+                'separator':        {'in':['wellstream','el','heat'],
                                      'out':['oil','gas','water']},
-                'well_production':  {'in':[],'out':['petroleum']},
+                'well_production':  {'in':[],'out':['wellstream']},
+                'well_injection':   {'in':['water','el'],'out':[]},
                 'sink_gas':         {'in':['gas'],'out':[]},
                 'sink_oil':         {'in':['oil'], 'out':[]},
                 'sink_el':          {'in':['el'],'out':[]},
@@ -191,6 +192,131 @@ class Multicarrier:
                                            sense=pyo.minimize)
         
         
+        
+
+        def rule_devmodel_source_gas(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'source_gas':
+                return pyo.Constraint.Skip
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'gas','out',t]
+                rhs = model.varDevicePower[dev,t]
+                return (lhs==rhs)
+            elif i==2:
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'gas','out',t)]
+                rhs = model.paramDevice[dev]['naturalpressure']
+                #return pyo.Constraint.Skip
+                return (lhs==rhs)
+        model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_source_gas)
+
+
+        logging.info("TODO: el source: dieselgen, fuel, on-off variables")
+        #TODO: diesel gen fuel, onoff variables..
+        def rule_devmodel_source_el(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'source_el':
+                return pyo.Constraint.Skip
+            '''turbine power = power infeed'''
+            lhs = model.varDeviceFlow[dev,'el','out',t]
+            rhs = model.varDevicePower[dev,t]
+            return lhs==rhs
+        model.constrDevice_source_el = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_devmodel_source_el)
+
+
+        def rule_devmodel_well_production(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'well_production':
+                return pyo.Constraint.Skip
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'wellstream','out',t]
+                rhs = model.varDevicePower[dev,t]
+                return (lhs==rhs)
+            elif i==2:
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'wellstream','out',t)]
+                rhs = model.paramDevice[dev]['naturalpressure']
+                #return pyo.Constraint.Skip
+                return (lhs==rhs)
+        model.constrDevice_well_production = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_well_production)
+        
+        def rule_devmodel_well_injection(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'well_injection':
+                return pyo.Constraint.Skip
+            if i==1:
+                # needed for the Pmax/Pmin constraints
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = model.varDevicePower[dev,t]
+                return (lhs==rhs)
+            elif i==2:
+                Pdemand = (model.paramDevice[dev]['eta']
+                            *model.varDeviceFlow[dev,'water','in',t])
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = Pdemand
+                return (lhs==rhs)
+        model.constrDevice_well_injection = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_well_injection)
+
+        #TODO: separator equations
+        logging.info("TODO: separator model constraints pressure in/out vs power demand")
+        def rule_devmodel_separator(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'separator':
+                return pyo.Constraint.Skip
+            '''wellstream in = device power
+            gas out = device power'''
+            composition = model.paramCarriers['wellstream']['composition']
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'wellstream','in',t]
+                rhs = model.varDevicePower[dev,t]
+                return lhs==rhs
+            elif i==2:
+                lhs = model.varDeviceFlow[dev,'gas','out',t]
+                rhs = model.varDevicePower[dev,t]*composition['gas']
+                return lhs==rhs
+            elif i==3:
+                lhs = model.varDeviceFlow[dev,'oil','out',t]
+                rhs = model.varDevicePower[dev,t]*composition['oil']
+                return lhs==rhs
+            elif i==4:
+                #return pyo.Constraint.Skip
+                lhs = model.varDeviceFlow[dev,'water','out',t]
+                rhs = model.varDevicePower[dev,t]*composition['water']
+                return lhs==rhs
+            elif i==5:
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = model.varDevicePower[dev,t]*0.01
+                return lhs==rhs
+            elif i==6:
+                lhs = model.varDeviceFlow[dev,'heat','in',t]
+                rhs = model.varDevicePower[dev,t]*0.005
+                return lhs==rhs
+            elif i==7:
+                '''pressure out = nominal'''
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'gas','out',t)]
+                rhs = model.paramNode[node]['pressure.gas.out']
+                return lhs==rhs
+            elif i==8:
+                '''pressure out = nominal'''
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'oil','out',t)]
+                rhs = model.paramNode[node]['pressure.oil.out']
+                return lhs==rhs
+            elif i==9:
+                '''pressure out = nominal'''
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'water','out',t)]
+                rhs = model.paramNode[node]['pressure.water.out']
+                return lhs==rhs
+                
+        model.constrDevice_separator = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,9),
+                  rule=rule_devmodel_separator)
+
+
         logging.info("TODO: Compressor power demand dependence on flow rate")
         #TODO: What about flow rate?
         def rule_devmodel_compressor_el(model,dev,t,i):
@@ -240,71 +366,7 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_compressor_gas)
                 
-        
-        def rule_devmodel_sink_gas(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'sink_gas':
-                return pyo.Constraint.Skip
-            lhs = model.varDeviceFlow[dev,'gas','in',t]
-            rhs = model.varDevicePower[dev,t]
-            return (lhs==rhs)
-        model.constrDevice_sink_gas = pyo.Constraint(model.setDevice,
-                  model.setHorizon,
-                  rule=rule_devmodel_sink_gas)
 
-#        def rule_devmodel_export_gas(model,dev,t):
-#            if model.paramDevice[dev]['model'] != 'export_gas':
-#                return pyo.Constraint.Skip
-#            lhs = model.varDeviceFlow[dev,'gas','in',t]
-#            rhs = model.varDevicePower[dev,t]
-#            return (lhs==rhs)
-#        model.constrDevice_export_gas = pyo.Constraint(model.setDevice,
-#                  model.setHorizon,
-#                  rule=rule_devmodel_export_gas)
-        
-        def rule_devmodel_sink_oil(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'sink_oil':
-                return pyo.Constraint.Skip
-            lhs = model.varDeviceFlow[dev,'oil','in',t]
-            rhs = model.varDevicePower[dev,t]
-            return (lhs==rhs)
-        model.constrDevice_sink_oil = pyo.Constraint(model.setDevice,
-                  model.setHorizon,
-                  rule=rule_devmodel_sink_oil)
-
-        def rule_devmodel_source_gas(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'source_gas':
-                return pyo.Constraint.Skip
-            if i==1:
-                lhs = model.varDeviceFlow[dev,'gas','out',t]
-                rhs = model.varDevicePower[dev,t]
-                return (lhs==rhs)
-            elif i==2:
-                node = model.paramDevice[dev]['node']
-                lhs = model.varPressure[(node,'gas','out',t)]
-                rhs = model.paramDevice[dev]['naturalpressure']
-                #return pyo.Constraint.Skip
-                return (lhs==rhs)
-        model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,2),
-                  rule=rule_devmodel_source_gas)
-
-        def rule_devmodel_well_production(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'well_production':
-                return pyo.Constraint.Skip
-            if i==1:
-                lhs = model.varDeviceFlow[dev,'petroleum','out',t]
-                rhs = model.varDevicePower[dev,t]
-                return (lhs==rhs)
-            elif i==2:
-                node = model.paramDevice[dev]['node']
-                lhs = model.varPressure[(node,'petroleum','out',t)]
-                rhs = model.paramDevice[dev]['naturalpressure']
-                #return pyo.Constraint.Skip
-                return (lhs==rhs)
-        model.constrDevice_well_production = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,2),
-                  rule=rule_devmodel_well_production)
-        
         def rule_devmodel_gasheater(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'gasheater':
                 return pyo.Constraint.Skip
@@ -428,19 +490,65 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,5),
                   rule=rule_devmodel_storage_el)
 
-            
-            
-        logging.info("TODO: el source: dieselgen, fuel, on-off variables")
-        #TODO: diesel gen fuel, onoff variables..
-        def rule_devmodel_source_el(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'source_el':
+
+
+        def rule_devmodel_pump_oil(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'pump_oil':
                 return pyo.Constraint.Skip
-            '''turbine power = power infeed'''
-            lhs = model.varDeviceFlow[dev,'el','out',t]
+            if i==1:
+                '''sink heat = heat out'''
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = model.varDevicePower[dev,t]
+                return lhs==rhs
+            elif i==2:
+                # oil out = oil in
+                lhs = model.varDeviceFlow[dev,'oil','out',t]
+                rhs = model.varDeviceFlow[dev,'oil','in',t]
+                return lhs==rhs
+            elif i==3:
+                # power demand vs pressure difference
+                node = model.paramDevice[dev]['node']
+                lhs = model.varDevicePower[dev,t]
+                k = model.paramDevice[dev]['eta']
+                rhs = k*(model.varPressure[(node,'oil','out',t)]
+                                -model.varPressure[(node,'oil','in',t)])
+                return (lhs==rhs)               
+        model.constrDevice_pump_oil = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,3),
+                  rule=rule_devmodel_pump_oil)
+
+
+        def rule_devmodel_sink_gas(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'sink_gas':
+                return pyo.Constraint.Skip
+            lhs = model.varDeviceFlow[dev,'gas','in',t]
             rhs = model.varDevicePower[dev,t]
-            return lhs==rhs
-        model.constrDevice_source_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,rule=rule_devmodel_source_el)
+            return (lhs==rhs)
+        model.constrDevice_sink_gas = pyo.Constraint(model.setDevice,
+                  model.setHorizon,
+                  rule=rule_devmodel_sink_gas)
+
+#        def rule_devmodel_export_gas(model,dev,t):
+#            if model.paramDevice[dev]['model'] != 'export_gas':
+#                return pyo.Constraint.Skip
+#            lhs = model.varDeviceFlow[dev,'gas','in',t]
+#            rhs = model.varDevicePower[dev,t]
+#            return (lhs==rhs)
+#        model.constrDevice_export_gas = pyo.Constraint(model.setDevice,
+#                  model.setHorizon,
+#                  rule=rule_devmodel_export_gas)
+        
+        def rule_devmodel_sink_oil(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'sink_oil':
+                return pyo.Constraint.Skip
+            lhs = model.varDeviceFlow[dev,'oil','in',t]
+            rhs = model.varDevicePower[dev,t]
+            return (lhs==rhs)
+        model.constrDevice_sink_oil = pyo.Constraint(model.setDevice,
+                  model.setHorizon,
+                  rule=rule_devmodel_sink_oil)
+            
+            
         
         def rule_devmodel_sink_el(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_el':
@@ -482,88 +590,6 @@ class Multicarrier:
         model.constrDevice_sink_water = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_sink_water)
 
-        #TODO: separator equations
-        logging.info("TODO: separator model constraints pressure in/out vs power demand")
-        def rule_devmodel_separator(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'separator':
-                return pyo.Constraint.Skip
-            '''petroleum in = device power
-            gas out = device power'''
-            composition = model.paramCarriers['petroleum']['composition']
-            if i==1:
-                lhs = model.varDeviceFlow[dev,'petroleum','in',t]
-                rhs = model.varDevicePower[dev,t]
-                return lhs==rhs
-            elif i==2:
-                lhs = model.varDeviceFlow[dev,'gas','out',t]
-                rhs = model.varDevicePower[dev,t]*composition['gas']
-                return lhs==rhs
-            elif i==3:
-                lhs = model.varDeviceFlow[dev,'oil','out',t]
-                rhs = model.varDevicePower[dev,t]*composition['oil']
-                return lhs==rhs
-            elif i==4:
-                #return pyo.Constraint.Skip
-                lhs = model.varDeviceFlow[dev,'water','out',t]
-                rhs = model.varDevicePower[dev,t]*composition['water']
-                return lhs==rhs
-            elif i==5:
-                lhs = model.varDeviceFlow[dev,'el','in',t]
-                rhs = model.varDevicePower[dev,t]*0.01
-                return lhs==rhs
-            elif i==6:
-                lhs = model.varDeviceFlow[dev,'heat','in',t]
-                rhs = model.varDevicePower[dev,t]*0.005
-                return lhs==rhs
-            elif i==7:
-                '''pressure out = nominal'''
-                node = model.paramDevice[dev]['node']
-                lhs = model.varPressure[(node,'gas','out',t)]
-                rhs = model.paramNode[node]['pressure.gas.out']
-                return lhs==rhs
-            elif i==8:
-                '''pressure out = nominal'''
-                node = model.paramDevice[dev]['node']
-                lhs = model.varPressure[(node,'oil','out',t)]
-                rhs = model.paramNode[node]['pressure.oil.out']
-                return lhs==rhs
-            elif i==9:
-                '''pressure out = nominal'''
-                node = model.paramDevice[dev]['node']
-                lhs = model.varPressure[(node,'water','out',t)]
-                rhs = model.paramNode[node]['pressure.water.out']
-                return lhs==rhs
-                
-        model.constrDevice_separator = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,9),
-                  rule=rule_devmodel_separator)
-
-
-        def rule_devmodel_pump_oil(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'pump_oil':
-                return pyo.Constraint.Skip
-            if i==1:
-                '''sink heat = heat out'''
-                lhs = model.varDeviceFlow[dev,'el','in',t]
-                rhs = model.varDevicePower[dev,t]
-                return lhs==rhs
-            elif i==2:
-                # oil out = oil in
-                lhs = model.varDeviceFlow[dev,'oil','out',t]
-                rhs = model.varDeviceFlow[dev,'oil','in',t]
-                return lhs==rhs
-            elif i==3:
-                # power demand vs pressure difference
-                node = model.paramDevice[dev]['node']
-                lhs = model.varDevicePower[dev,t]
-                k = model.paramDevice[dev]['eta']
-                rhs = k*(model.varPressure[(node,'oil','out',t)]
-                                -model.varPressure[(node,'oil','in',t)])
-                return (lhs==rhs)
-                
-        model.constrDevice_pump_oil = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,3),
-                  rule=rule_devmodel_pump_oil)
 
 
         def rule_startup_shutdown(model,dev,t):
@@ -769,7 +795,7 @@ class Multicarrier:
                 logging.debug("constr gas pressure vs flow: {}-{},{},{},exp_s={},coeff={}".format(
                                   n_from,n_to,p0_from,p0_to,exp_s,coeff))
                 return (lhs==rhs)
-            elif carrier in ['petroleum','oil','water']:
+            elif carrier in ['wellstream','oil','water']:
                 #TODO: implement flow equation for liquids
                 # For now - no pressure drop
                 lhs = model.varPressure[(n_from,carrier,'out',t)]
@@ -781,18 +807,13 @@ class Multicarrier:
         model.constrPressureAndFlow = pyo.Constraint(
                 model.setEdge,model.setHorizon,rule=rule_pressureAndFlow)
         
-        logging.info("TODO: node pressure for other carriers than gas")
         def rule_pressureAtNode(model,node,carrier,t):
-            #if carrier != 'gas':
-            #    return pyo.Constraint.Skip
             if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
-                #logging.info("in=out {}_{}_{}".format(node,carrier,t))
-                # trivial connection. pressure out=pressure in
+                # single terminal. (pressure out=pressure in)
                 expr = (model.varPressure[(node,carrier,'out',t)]
                         == model.varPressure[(node,carrier,'in',t)] )
                 return expr
             else:
-                #logging.info("in!=out {}_{}_{}".format(node,carrier,t))
                 # pressure in and out are related via device equations for 
                 # device connected between in and out terminals
                 return pyo.Constraint.Skip    
@@ -897,7 +918,8 @@ class Multicarrier:
                               'heatpump','source_gas','sink_gas',
                               'sink_oil','sink_water',
                               'storage_el','separator',
-                              'well_production','pump_oil']:
+                              'well_production','well_injection',
+                              'pump_oil']:
                 # no CO2 emission contribution
                 thisCO2 = 0
             else:
