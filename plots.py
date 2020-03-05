@@ -28,29 +28,33 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     
     return fig
 
-def plot_deviceprofile(mc,dev,profiles=None,filename=None):
+def plot_deviceprofile(mc,devs,profiles=None,filename=None):
     '''plot forecast and actual profile (available power), and device output'''
-    dev_param = mc.instance.paramDevice[dev]
-    curve = dev_param['external']
-    devname = "{}:{}".format(dev,dev_param["name"])
-    devPmax = dev_param['Pmax']
+    if type(devs) is not list:
+        devs = [devs]
     plt.figure(figsize=(12,4))
     ax=plt.gca()
-    df= mc._dfDevicePower.unstack(0)[dev]
-    df.name = devname
-    #plt.plot(df,label=devname,ax=ax)
-    df.plot(ax=ax)
-    labels=[devname]
-    if ((not profiles is None) and (not pd.isna(curve))):
-        (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
-        ax.set_prop_cycle(None)
-        (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
-        labels = labels+['actual','forecast']
+    labels=[]
+    for dev in devs:
+        dev_param = mc.instance.paramDevice[dev]
+        curve = dev_param['external']
+        devname = "{}:{}".format(dev,dev_param["name"])
+        devPmax = dev_param['Pmax']
+        df= mc._dfDevicePower.unstack(0)[dev]
+        df.name = devname
+        df.plot(ax=ax)
+        labels=labels+[devname]
+        if ((not profiles is None) and (not pd.isna(curve))):
+            (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
+            ax.set_prop_cycle(None)
+            (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
+            labels = labels+['--actual','--forecast']
     plt.xlim(df.index.min(),df.index.max())
     ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
               frameon=False)
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
+    return ax
 
 def plot_devicePowerEnergy(mc,dev,filename=None):
     model = mc.instance
@@ -96,7 +100,10 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
         dfE.rename(columns={0:"storage"}).plot(ax=ax2,
                   linestyle=":",color="black")
         ax2.set_ylabel("Energy (MWh)")#,color="red")
-        ax2.set_ylim(0,dev_param['Emax'])
+        if dev_param['model'] in ['storage_el']:
+            ax2.set_ylim(0,dev_param['Emax'])
+        elif dev_param['model'] in ['well_injection']:
+            ax2.set_ylim(-dev_param['Emax']/2,dev_param['Emax']/2)
         #ax2.tick_params(axis='y', labelcolor="red")
         ax2.legend(loc='upper right')
     ax.set_xlim(tmin,tmax)
@@ -175,6 +182,16 @@ def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
         
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
+
+def plot_CO2_intensity(mc,filename=None):
+    plt.figure(figsize=(12,4))
+    plt.title("CO2 intensity (kgCO2/Sm3oe)")
+    ax=plt.gca()
+    ax.set_ylabel("kgCO2/Sm3oe")
+    ax.set_xlabel("Timestep")
+    mc._dfCO2intensity.plot()
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
    
 
 def plotProfiles(profiles,curves=None,filename=None):
@@ -196,10 +213,47 @@ def plotProfiles(profiles,curves=None,filename=None):
     plt.title("Actual vs forecast profile (actual=sold line)")
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
-        
+
+def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
+    model = mc.instance
+    dev_param = model.paramDevice[dev]
+    model = dev_param["model"]
+    node = dev_param["node"]
+    devname = "{}:{}".format(dev,dev_param["name"])
+    #linecycler = itertools.cycle(['-','--',':','-.']*10)
+    if carriers_inout is None:
+        carriers_inout = mc.devicemodel_inout()[model]
+    if 'serial' in carriers_inout:
+        del carriers_inout['serial']
+
+    plt.figure(figsize=(12,4))
+    ax=plt.gca()
+    ax.plot(mc._dfDevicePower.unstack(0)[dev],'-.',label="DevicePower")
+    for inout,carriers in carriers_inout.items():
+        if inout=='in':
+            ls='--'
+        else:
+            ls=':'
+        for carr in carriers:
+            ax.plot(mc._dfDeviceFlow.unstack([0,1,2])[(dev,carr,inout)],
+                     ls,label="DeviceFlow ({},{})".format(carr,inout)) 
+    #Pressure
+    for inout,carriers in carriers_inout.items():
+        for carr in carriers:
+            if carr!='el':
+                ax.plot(mc._dfTerminalPressure.unstack(0)[node].unstack([0,1])
+                    [(carr,inout)],label="TerminalPressure ({},{})"
+                    .format(carr,inout))
+    plt.title(devname)
+    plt.xlabel("Timestep")
+    plt.ylabel("Value")
+    plt.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+    
 
 def plotNetwork(mc,timestep=0,filename=None,
-                        only_carrier=None):
+                        only_carrier=None,rankdir='LR'):
     """Plot energy network
     
     mc : object
@@ -210,6 +264,8 @@ def plotNetwork(mc,timestep=0,filename=None,
         Name of file
     only_carrier : list
         Restrict energy carriers to these types (None=plot all)
+    rankdir : str
+        Plotting direction TB=top to bottom, LR=left to right
     """
     cluster = {}
     col = {'t': {'el':'red','gas':'orange','heat':'darkgreen',
@@ -219,7 +275,8 @@ def plotNetwork(mc,timestep=0,filename=None,
            'd': 'white',
            'cluster':'lightgray'
            }
-    dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
+    #dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
+    dotG = pydot.Dot(graph_type='digraph',rankdir=rankdir,newrank='false')
     model = mc.instance
     if only_carrier is None:
         carriers = model.setCarrier
@@ -247,8 +304,8 @@ def plotNetwork(mc,timestep=0,filename=None,
                 if timestep is None:
                     pass
                 elif carrier in ['gas','wellstream','oil','water']:
-                    label_in +=':{:3.1f}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
-                    label_out +=':{:3.1f}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
+                    label_in +=':{:3.2f}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
+                    label_out +=':{:3.2f}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
                 elif carrier=='el':
                     label_in +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
                     label_out +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
@@ -273,8 +330,7 @@ def plotNetwork(mc,timestep=0,filename=None,
                 if timestep is None:
                     edgelabel=''
                 else:
-                    #edgelabel = '{:.2f}'.format(pyo.value(model.varEdgePower[i,timestep]))
-                    edgelabel = '{:.2f}'.format(mc._dfEdgePower[(i,timestep)])
+                    edgelabel = '{:.2f}'.format(mc._dfEdgeFlow[(i,timestep)])
                 n_from = e['nodeFrom']
                 n_to = e['nodeTo']
                 # name of terminal depends on whether it serial or single
@@ -341,5 +397,6 @@ def plotNetwork(mc,timestep=0,filename=None,
                      fontcolor=col['e'][carrier],
                      label=devlabel))
     if filename is not None:
+        #prog='dot' gives the best layout.  
         dotG.write_png(filename,prog='dot')    
  

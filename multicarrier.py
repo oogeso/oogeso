@@ -17,28 +17,24 @@ gas network
 (oil network)
 (crude oil/gas network)
 
-TODO:
-    def objective function(s)
+TODO: def objective function(s)
     -min operating cost, min co2, max oil/gas export...
-TODO:
-    physical flow equations
-        el: power flow equations
-
-TODO: Rolling optimisation (time-step by time-step)
-    with variable energy availability and demand (device Pmax,Pmin)
     
-TODO: Rolling horizon optimisation
-    optimize for 12 hour period, using forecasts that change with time
-    -start/stop of gas turbines (startup cost and ramp rate limits)
-    -water injection and other flexible demand
-    -> expand problem with a time dimension (pyomo set)
-    
+TODO:well start/stop? (or continuous regulation of wellstream Pmax/Pmin)
 
+TODO: flexible demand (water injection)
+
+TODO: eliminate model.varDevicePower[dev,t], add Pmax/min constraint to device
+model ?
+
+TODO: weymouth equation linearisation improvement:
+-> closing well -> flow rate much less -> pressure drop much less ->
+linearisation points no longer good -> error
 
 fuel transport is converted to energy transport via energy value (calorific 
 value) of the fuel, i.e. energy = volume * energy_value
 
-Device Pmax/Pmin refer to energy values
+Device Pmax/Pmin usually refer to energy values (DevicePower)
 
 '''
 
@@ -63,6 +59,7 @@ class Multicarrier:
                 'sink_heat':        {'in':['heat'],'out':[]},
                 'sink_water':        {'in':['water'],'out':[]},
                 'source_gas':       {'in':[],'out':['gas']},
+                'source_water':       {'in':[],'out':['water']},
                 'gasheater':        {'in':['gas'],'out':['heat']},
                 'gasturbine':       {'in':['gas'],'out':['el','heat']},
                 'source_el':           {'in':[],'out':['el']},
@@ -73,13 +70,16 @@ class Multicarrier:
                 }
         return inout
 
+    models_with_storage = ['storage_el','well_injection']
 
-    def __init__(self,loglevel=logging.DEBUG,logfile=None):
+    def __init__(self,loglevel=logging.DEBUG,logfile=None,
+                 quadraticConstraints=True):
         logging.basicConfig(filename=logfile,level=loglevel,
                             format='%(asctime)s %(levelname)s: %(message)s', 
                             datefmt='%Y-%m-%d %H:%M:%S')
         logging.debug("Initialising Multicarrier")
         # Abstract model:
+        self._quadraticConstraints = quadraticConstraints
         self.model = self._createPyomoModel()
         self._check_constraints_complete()
         # Concrete model instance:
@@ -96,12 +96,14 @@ class Multicarrier:
         self._dfDeviceEnergy = None
         self._dfDeviceStarting = None
         self._dfDeviceStopping = None
-        self._dfEdgePower = None
+        self._dfEdgeFlow = None
         self._dfElVoltageAngle = None
         self._dfTerminalPressure = None
         self._dfTerminalFlow = None
         self._dfCO2rate = None #co2 emission sum per timestep
         self._dfCO2rate_per_dev = None # co2 emission per device per timestep
+        self._dfExportRevenue = None #revenue from exported energy
+        self._dfCO2intensity = None
         
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -139,13 +141,13 @@ class Multicarrier:
         model.paramDevicePowerInitially = pyo.Param(model.setDevice,
                                                mutable=True,within=pyo.Reals)
         model.paramDeviceEnergyInitially = pyo.Param(model.setDevice,
-                                               mutable=True,within=pyo.NonNegativeReals)
+                                               mutable=True,within=pyo.Reals)
         #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
         #                                 mutable=True)
         
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
-        model.varEdgePower = pyo.Var(
+        model.varEdgeFlow = pyo.Var(
                 model.setEdge,model.setHorizon,within=pyo.Reals)
         model.varDevicePower = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.NonNegativeReals)
@@ -156,14 +158,10 @@ class Multicarrier:
         model.varDeviceStopping = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.Binary)
         model.varDeviceEnergy = pyo.Var(model.setDevice,model.setHorizon,
-                                        within=pyo.NonNegativeReals)
+                                        within=pyo.Reals)
         model.varPressure = pyo.Var(
                 model.setNode,model.setCarrier,model.setTerminal,
                 model.setHorizon, within=pyo.NonNegativeReals,initialize=0)
-#        # TODO replace varGasPressure by varPressure(carrier)
-#        model.varGasPressure = pyo.Var(
-#                model.setNode,model.setTerminal,model.setHorizon, 
-#                within=pyo.NonNegativeReals)
         model.varElVoltageAngle = pyo.Var(
                 model.setNode,model.setHorizon, 
                 within=pyo.Reals)
@@ -188,41 +186,42 @@ class Multicarrier:
             '''CO2 emissions'''
             sumE = self.compute_CO2(model) #*model.paramParameters['CO2_price']
             return sumE
-        model.objObjective = pyo.Objective(rule=rule_objective_co2,
+        
+        
+        def rule_objective_co2intensity(model):
+            '''CO2 emission intensity (CO2 per exported oil/gas)
+            DOES NOT WORK - NONLINEAR (ratio)'''
+            sumE = self.compute_CO2_intensity(model)
+            return sumE
+        
+        def rule_objective_exportRevenue(model):
+            '''revenue from exported oil and gas'''           
+            sumRevenue = self.compute_exportRevenue(model)
+            co2 = self.compute_CO2(model)
+            co2_tax = model.paramParameters['co2_tax']
+            return -sumRevenue +co2*co2_tax
+
+        def rule_objective(model):
+            obj = model.paramParameters['objective']
+            if obj=='co2':
+                rule = rule_objective_co2(model)
+            elif obj=='exportRevenue':
+                rule = rule_objective_exportRevenue(model)
+            elif obj=='co2intensity':
+                rule = rule_objective_co2intensity(model)
+            else:
+                raise Exception("Objective '{}' has not been implemented"
+                                .format(obj))
+            return rule
+            
+        
+        model.objObjective = pyo.Objective(rule=rule_objective,
                                            sense=pyo.minimize)
+#        model.objObjective = pyo.Objective(rule=rule_objective_exportRevenue,
+#                                           sense=pyo.minimize)
         
         
         
-
-        def rule_devmodel_source_gas(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'source_gas':
-                return pyo.Constraint.Skip
-            if i==1:
-                lhs = model.varDeviceFlow[dev,'gas','out',t]
-                rhs = model.varDevicePower[dev,t]
-                return (lhs==rhs)
-            elif i==2:
-                node = model.paramDevice[dev]['node']
-                lhs = model.varPressure[(node,'gas','out',t)]
-                rhs = model.paramDevice[dev]['naturalpressure']
-                #return pyo.Constraint.Skip
-                return (lhs==rhs)
-        model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,2),
-                  rule=rule_devmodel_source_gas)
-
-
-        logging.info("TODO: el source: dieselgen, fuel, on-off variables")
-        #TODO: diesel gen fuel, onoff variables..
-        def rule_devmodel_source_el(model,dev,t):
-            if model.paramDevice[dev]['model'] != 'source_el':
-                return pyo.Constraint.Skip
-            '''turbine power = power infeed'''
-            lhs = model.varDeviceFlow[dev,'el','out',t]
-            rhs = model.varDevicePower[dev,t]
-            return lhs==rhs
-        model.constrDevice_source_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,rule=rule_devmodel_source_el)
 
 
         def rule_devmodel_well_production(model,dev,t,i):
@@ -236,39 +235,67 @@ class Multicarrier:
                 node = model.paramDevice[dev]['node']
                 lhs = model.varPressure[(node,'wellstream','out',t)]
                 rhs = model.paramDevice[dev]['naturalpressure']
-                #return pyo.Constraint.Skip
                 return (lhs==rhs)
         model.constrDevice_well_production = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_well_production)
+
         
         def rule_devmodel_well_injection(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'well_injection':
                 return pyo.Constraint.Skip
             if i==1:
+                # def device power as water flow
                 # needed for the Pmax/Pmin constraints
-                lhs = model.varDeviceFlow[dev,'el','in',t]
-                rhs = model.varDevicePower[dev,t]
+                lhs = model.varDevicePower[dev,t]
+#                rhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = model.varDeviceFlow[dev,'water','in',t]
                 return (lhs==rhs)
             elif i==2:
-                Pdemand = (model.paramDevice[dev]['eta']
-                            *model.varDeviceFlow[dev,'water','in',t])
+                # injection pump energy demand
+                # el demand vs water injection flow and pressure
+                node = model.paramDevice[dev]['node']
+                Q = model.varDeviceFlow[dev,'water','in',t]
+                p10 = model.paramNode[node]['pressure.water.in']
+                p20 = model.paramDevice[dev]['injectionpressure']
+                delta_p = p20 - p10
+                if self._quadraticConstraints:
+                    # Quadratic constraint... does not work...
+                    delta_p = (p20-model.varPressure[(node,'water','in',t)])
+                eta = model.paramDevice[dev]['eta']
+                Pdemand = Q*delta_p/eta
                 lhs = model.varDeviceFlow[dev,'el','in',t]
                 rhs = Pdemand
                 return (lhs==rhs)
+            elif i==3:
+                # FLEXIBILITY
+                # (water_in-water_avg)*dt = delta buffer
+                delta_t = model.paramParameters['time_delta_minutes']/60 #hours
+                lhs = (model.varDevicePower[dev,t]
+                       -model.paramDevice[dev]['Pavg'])*delta_t                        
+                if t>0:
+                    Eprev = model.varDeviceEnergy[dev,t-1]
+                else:
+                    Eprev = model.paramDeviceEnergyInitially[dev]
+                rhs = (model.varDeviceEnergy[dev,t]-Eprev)
+                return (lhs==rhs)
+            elif i==4:
+                # energy buffer limit
+                Emax = model.paramDevice[dev]['Emax']
+                return pyo.inequality(
+                        -Emax/2,model.varDeviceEnergy[dev,t],Emax/2)
         model.constrDevice_well_injection = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,2),
+                  model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_well_injection)
 
         #TODO: separator equations
-        logging.info("TODO: separator model constraints pressure in/out vs power demand")
+        logging.info("TODO: separator power (eta) and heat (eta2) demand")
         def rule_devmodel_separator(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'separator':
                 return pyo.Constraint.Skip
-            '''wellstream in = device power
-            gas out = device power'''
             composition = model.paramCarriers['wellstream']['composition']
             if i==1:
+                # wellstream in = device power
                 lhs = model.varDeviceFlow[dev,'wellstream','in',t]
                 rhs = model.varDevicePower[dev,t]
                 return lhs==rhs
@@ -286,12 +313,13 @@ class Multicarrier:
                 rhs = model.varDevicePower[dev,t]*composition['water']
                 return lhs==rhs
             elif i==5:
+                # electricity demand
                 lhs = model.varDeviceFlow[dev,'el','in',t]
-                rhs = model.varDevicePower[dev,t]*0.01
+                rhs = model.varDevicePower[dev,t]*model.paramDevice[dev]['eta']
                 return lhs==rhs
             elif i==6:
                 lhs = model.varDeviceFlow[dev,'heat','in',t]
-                rhs = model.varDevicePower[dev,t]*0.005
+                rhs = model.varDevicePower[dev,t]*model.paramDevice[dev]['eta2']
                 return lhs==rhs
             elif i==7:
                 '''pressure out = nominal'''
@@ -317,50 +345,51 @@ class Multicarrier:
                   rule=rule_devmodel_separator)
 
 
-        logging.info("TODO: Compressor power demand dependence on flow rate")
-        #TODO: What about flow rate?
+        logging.info("Compressor - output pressure fixed at nominal value?")
         def rule_devmodel_compressor_el(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'compressor_el':
                 return pyo.Constraint.Skip
             if i==1:
-                ''' power demand depends on gas pressure difference'''
-                node = model.paramDevice[dev]['node']
+                # Power demand vs pressure and flow
                 lhs = model.varDevicePower[dev,t]
-                k = model.paramDevice[dev]['eta']
-                rhs = k*(model.varPressure[(node,'gas','out',t)]
-                                -model.varPressure[(node,'gas','in',t)])
+                rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)                
                 return (lhs==rhs)
             elif i==2:
-                '''gas flow in equals gas flow out'''
+                '''gas flow in equals gas flow out (mass flow)'''
                 lhs = model.varDeviceFlow[dev,'gas','in',t]
                 rhs = model.varDeviceFlow[dev,'gas','out',t]
                 return (lhs==rhs)
             elif i==3:
-                '''el in equals power demand'''
+                '''Device power equals el demand'''
                 lhs = model.varDeviceFlow[dev,'el','in',t]
                 rhs = model.varDevicePower[dev,t]
                 return (lhs==rhs)
+            elif i==4:
+                return pyo.Constraint.Skip
+#                '''Output pressure equals nominal value'''
+#                node = model.paramDevice[dev]['node']
+#                lhs = model.varPressure[(node,'gas','out',t)]
+#                rhs = model.paramNode[node]['pressure.gas.out']
+#                return (lhs==rhs)
         model.constrDevice_compressor_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,3),
+                  model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_compressor_el)
         
         def rule_devmodel_compressor_gas(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'compressor_gas':
                 return pyo.Constraint.Skip
+            # device power is defined as gas demand in MW (rather than Sm3)
             if i==1:
-                '''compressor gas demand related to pressure difference'''
-                node = model.paramDevice[dev]['node']
-                k = model.paramDevice[dev]['eta']
+                # Power demand vs pressure and flow
                 lhs = model.varDevicePower[dev,t]
-                rhs = (k*(model.varPressure[(node,'gas','out',t)]
-                            -model.varPressure[(node,'gas','in',t)]) )
-                return lhs==rhs
+                rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)                
+                return (lhs==rhs)
             elif i==2:
                 '''matter conservation'''
-                node = model.paramDevice[dev]['node']
+                gas_energy_content=model.paramCarriers['gas']['energy_value'] #MJ/Sm3
                 lhs = model.varDeviceFlow[dev,'gas','out',t]
                 rhs = (model.varDeviceFlow[dev,'gas','in',t] 
-                        - model.varDevicePower[dev,t])
+                        - model.varDevicePower[dev,t]/gas_energy_content)
                 return lhs==rhs
         model.constrDevice_compressor_gas = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
@@ -371,8 +400,10 @@ class Multicarrier:
             if model.paramDevice[dev]['model'] != 'gasheater':
                 return pyo.Constraint.Skip
             if i==1:
-                # gas in = device power * efficiency
-                lhs = model.varDeviceFlow[dev,'gas','in',t]*model.paramDevice[dev]['eta']
+                # gas energy demand = gas input * energy content * efficiency
+                gas_energy_content=model.paramCarriers['gas']['energy_value'] #MJ/Sm3
+                lhs = (model.varDeviceFlow[dev,'gas','in',t]
+                        * gas_energy_content * model.paramDevice[dev]['eta'])
                 rhs = model.varDevicePower[dev,t]
                 return (lhs==rhs)
             elif i==2:
@@ -417,10 +448,11 @@ class Multicarrier:
                 # fuel consumption (gas in) is a linear function of el power output
                 # fuel = A + B*power
                 # => efficiency = power/(A+B*power)
+                gas_energy_content=model.paramCarriers['gas']['energy_value'] #MJ/Sm3
                 A = model.paramDevice[dev]['fuelA']
                 B = model.paramDevice[dev]['fuelB']
                 Pmax = model.paramDevice[dev]['Pmax']
-                lhs = model.varDeviceFlow[dev,'gas','in',t]/Pmax
+                lhs = model.varDeviceFlow[dev,'gas','in',t]*gas_energy_content/Pmax
                 rhs = (A*model.varDeviceIsOn[dev,t] 
                         + B*model.varDeviceFlow[dev,'el','out',t]/Pmax)
                 return lhs==rhs
@@ -438,6 +470,52 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_gasturbine)
 
+        def rule_devmodel_source_gas(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'source_gas':
+                return pyo.Constraint.Skip
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'gas','out',t]
+                rhs = model.varDevicePower[dev,t]
+                return (lhs==rhs)
+            elif i==2:
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'gas','out',t)]
+                rhs = model.paramDevice[dev]['naturalpressure']
+                #return pyo.Constraint.Skip
+                return (lhs==rhs)
+        model.constrDevice_source_gas = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_source_gas)
+
+        def rule_devmodel_source_water(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'source_water':
+                return pyo.Constraint.Skip
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'water','out',t]
+                rhs = model.varDevicePower[dev,t]
+                return (lhs==rhs)
+            elif i==2:
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,'water','out',t)]
+                rhs = model.paramDevice[dev]['naturalpressure']
+                return (lhs==rhs)
+        model.constrDevice_source_water = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_source_water)
+
+
+        logging.info("TODO: el source: dieselgen, fuel, on-off variables")
+        #TODO: diesel gen fuel, onoff variables..
+        def rule_devmodel_source_el(model,dev,t):
+            if model.paramDevice[dev]['model'] != 'source_el':
+                return pyo.Constraint.Skip
+            '''turbine power = power infeed'''
+            lhs = model.varDeviceFlow[dev,'el','out',t]
+            rhs = model.varDevicePower[dev,t]
+            return lhs==rhs
+        model.constrDevice_source_el = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_devmodel_source_el)
+
         
         def rule_devmodel_storage_el(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'storage_el':
@@ -448,9 +526,9 @@ class Multicarrier:
                 # eta = efficiency charging  (discharging assumed lossless)
                 delta_t = model.paramParameters['time_delta_minutes']/60 #hours
                 lhs = (model.varDeviceFlow[dev,'el','in',t]
-                        *model.paramDevice[17]['eta']
+                        *model.paramDevice[dev]['eta']
                        -model.varDeviceFlow[dev,'el','out',t]
-                        /model.paramDevice[17]['eta'] )*delta_t                        
+                        /model.paramDevice[dev]['eta'] )*delta_t                        
                 if t>0:
                     Eprev = model.varDeviceEnergy[dev,t-1]
                 else:
@@ -491,12 +569,12 @@ class Multicarrier:
                   rule=rule_devmodel_storage_el)
 
 
-
+        logging.info("TODO: oil pump pressure difference approximation ok?")
         def rule_devmodel_pump_oil(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'pump_oil':
                 return pyo.Constraint.Skip
             if i==1:
-                '''sink heat = heat out'''
+                '''device power is electrical demand'''
                 lhs = model.varDeviceFlow[dev,'el','in',t]
                 rhs = model.varDevicePower[dev,t]
                 return lhs==rhs
@@ -506,12 +584,28 @@ class Multicarrier:
                 rhs = model.varDeviceFlow[dev,'oil','in',t]
                 return lhs==rhs
             elif i==3:
-                # power demand vs pressure difference
+                # power demand vs flow rate and pressure difference
+                # see eg. doi:10.1016/S0262-1762(07)70434-0
+                # P = Q*(p_out-p_in)/eta
+                # units: m3/s*MPa = MW
+                #
+                # Incompressible fluid, so can assume flow rate m3/s=Sm3/s
+
                 node = model.paramDevice[dev]['node']
-                lhs = model.varDevicePower[dev,t]
-                k = model.paramDevice[dev]['eta']
-                rhs = k*(model.varPressure[(node,'oil','out',t)]
+                eta = model.paramDevice[dev]['eta']
+                flowrate = model.varDeviceFlow[dev,'oil','in',t]
+                # use nominal pressure and keep only flow rate dependence
+                #TODO: Better linearisation?
+                p_in = model.paramNode[node]['pressure.oil.in']
+                p_out = model.paramNode[node]['pressure.oil.out']
+                delta_p = p_out - p_in
+                if self._quadraticConstraints:
+                    # Quadratic constraint...
+                    delta_p = (model.varPressure[(node,'oil','out',t)]
                                 -model.varPressure[(node,'oil','in',t)])
+                lhs = model.varDevicePower[dev,t]
+                rhs = flowrate*delta_p/eta
+                #rhs = eta*model.varDeviceFlow[dev,'oil','in',t]
                 return (lhs==rhs)               
         model.constrDevice_pump_oil = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,3),
@@ -670,11 +764,11 @@ class Multicarrier:
             if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
                 for edg in model.paramNodeEdgesTo[(carrier,node)]:
                     # power into node from edge
-                    Pinj += (model.varEdgePower[edg,t])
+                    Pinj += (model.varEdgeFlow[edg,t])
             elif (carrier,node) in model.paramNodeEdgesFrom and (terminal=='out'):
                 for edg in model.paramNodeEdgesFrom[(carrier,node)]:
                     # power out of node into edge
-                    Pinj += (model.varEdgePower[edg,t])
+                    Pinj += (model.varEdgeFlow[edg,t])
             
             
             expr = (Pinj==0)
@@ -685,67 +779,44 @@ class Multicarrier:
                       model.setNode, model.setTerminal,model.setHorizon,
                       rule=rule_terminalEnergyBalance)
         
-        logging.info("TODO: el power balance constraint redundant?")
-        def rule_terminalElPowerBalance(model,node,t):
-            ''' electric power balance at in and out terminals
-            '''
-            # Pinj = power injected into terminal
-            Pinj = 0
-            rhs = 0
-            carrier='el'
-            # devices:
-            if (node in model.paramNodeDevices):
-                for dev in model.paramNodeDevices[node]:
-                    # Power into terminal:
-                    dev_model = model.paramDevice[dev]['model']
-                    if dev_model in self._devmodels:#model.paramDevicemodel:
-                        if carrier in self._devmodels[dev_model]['in']:
-                            Pinj -= model.varDeviceFlow[dev,carrier,'in',t]
-                        if carrier in self._devmodels[dev_model]['out']:
-                            Pinj += model.varDeviceFlow[dev,carrier,'out',t]
-                    else:
-                        raise Exception("Undefined device model ({})".format(dev_model))
-                   
-            # edges:
-            # El linearised power flow equations:
-            # Pinj = B theta
-            n2s = [k[1]  for k in model.paramCoeffB.keys() if k[0]==node]
-            for n2 in n2s:
-                rhs -= model.paramCoeffB[node,n2]*(
-                        model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
-            rhs = rhs*self.elbase['baseMVA']
-            
-            expr = (Pinj==rhs)
-            if ((type(expr) is bool) and (expr==True)):
-                expr = pyo.Constraint.Skip
-            return expr
-        model.constrElPowerBalance = pyo.Constraint(model.setNode,
-                    model.setHorizon, rule=rule_terminalElPowerBalance)
+#        logging.info("TODO: el power balance constraint redundant?")
+#        def rule_terminalElPowerBalance(model,node,t):
+#            ''' electric power balance at in and out terminals
+#            '''
+#            # Pinj = power injected into terminal
+#            Pinj = 0
+#            rhs = 0
+#            carrier='el'
+#            # devices:
+#            if (node in model.paramNodeDevices):
+#                for dev in model.paramNodeDevices[node]:
+#                    # Power into terminal:
+#                    dev_model = model.paramDevice[dev]['model']
+#                    if dev_model in self._devmodels:#model.paramDevicemodel:
+#                        if carrier in self._devmodels[dev_model]['in']:
+#                            Pinj -= model.varDeviceFlow[dev,carrier,'in',t]
+#                        if carrier in self._devmodels[dev_model]['out']:
+#                            Pinj += model.varDeviceFlow[dev,carrier,'out',t]
+#                    else:
+#                        raise Exception("Undefined device model ({})".format(dev_model))
+#                   
+#            # edges:
+#            # El linearised power flow equations:
+#            # Pinj = B theta
+#            n2s = [k[1]  for k in model.paramCoeffB.keys() if k[0]==node]
+#            for n2 in n2s:
+#                rhs -= model.paramCoeffB[node,n2]*(
+#                        model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
+#            rhs = rhs*self.elbase['baseMVA']
+#            
+#            expr = (Pinj==rhs)
+#            if ((type(expr) is bool) and (expr==True)):
+#                expr = pyo.Constraint.Skip
+#            return expr
+#        model.constrElPowerBalance = pyo.Constraint(model.setNode,
+#                    model.setHorizon, rule=rule_terminalElPowerBalance)
         
-        
-        #Electrical flow equations
-        #logging.info("TODO: Electrical network power flow equations")
-        def rule_elVoltageAndFlow(model,edge,t):
-            '''power flow equations - power flow vs voltage angle difference
-            
-            Linearised power flow equations (DC power flow)'''
-            if model.paramEdge[edge]['type'] !='el':
-                return pyo.Constraint.Skip
-            
-            lhs = model.varEdgePower[edge,t]
-            lhs = lhs/self.elbase['baseMVA']
-            rhs = 0
-            #TODO speed up creatioin of constraints - remove for loop
-            n2s = [k[1]  for k in model.paramCoeffDA.keys() if k[0]==edge]
-            for n2 in n2s:
-                rhs += model.paramCoeffDA[edge,n2]*(
-                        model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
-            expr = (lhs==rhs)
-            return expr
-        model.constrFlowAngle = pyo.Constraint(model.setEdge, model.setHorizon,
-                                               rule=rule_elVoltageAndFlow)
-
-        
+                
         def rule_elVoltageReference(model,t):
             n = model.paramParameters['reference_node']
             expr = (model.varElVoltageAngle[n,t] == 0)
@@ -756,56 +827,82 @@ class Multicarrier:
         
         
         logging.info("TODO: flow vs pressure equations for liquid flows")
-        def rule_pressureAndFlow(model,edge,t):
-            '''Flow as a function of pressure difference and pipe properties
-            
-            Q = k*(Pin-Pout)
-            
-            Here, a linearised Weynmouth equation is implemented
-            Q: m3/s, P: J/s=W
-            P = Q*energy_value
-            
-            REFERENCES:     
-            1) E Sashi Menon, Gas Pipeline Hydraulics, Taylor & Francis (2005), 
-            https://doi.org/10.1201/9781420038224     
-            2) A Tomasgard et al., Optimization  models  for  the  natural  gas  
-            value  chain, in: Geometric Modelling, Numerical Simulation and 
-            Optimization. Springer Verlag, New York (2007), 
-            https://doi.org/10.1007/978-3-540-68783-2_16
-            '''
+        def rule_edgeFlowEquations(model,edge,t):
+            '''Flow as a function of node values (voltage/pressure)'''
             carrier = model.paramEdge[edge]['type']
             n_from = model.paramEdge[edge]['nodeFrom']
             n_to = model.paramEdge[edge]['nodeTo']
-            if carrier == 'gas':
+            
+            if carrier == 'el':
+                '''power flow vs voltage angle difference
+                Linearised power flow equations (DC power flow)'''
+                
+                lhs = model.varEdgeFlow[edge,t]
+                lhs = lhs/self.elbase['baseMVA']
+                rhs = 0
+                #TODO speed up creatioin of constraints - remove for loop
+                n2s = [k[1]  for k in model.paramCoeffDA.keys() if k[0]==edge]
+                for n2 in n2s:
+                    rhs += model.paramCoeffDA[edge,n2]*(
+                            model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
+                return (lhs==rhs) 
+              
+            elif carrier == 'gas':
+                '''
+                Q = k * sqrt( Pin^2 - e^s Pout^2 )
+                Q = c * (Pin_0 Pin - e^s Pout0 Pout) [linearised version]
+                c = k/sqrt(Pin0^2 - e^s Pout0^2)
+                
+                Here, a linearised Weynmouth equation is implemented
+                Q: m3/s, P: J/s=W
+                P = Q*energy_value
+                
+                REFERENCES:     
+                1) E Sashi Menon, Gas Pipeline Hydraulics, Taylor & Francis (2005), 
+                https://doi.org/10.1201/9781420038224     
+                2) A Tomasgard et al., Optimization  models  for  the  natural  gas  
+                value  chain, in: Geometric Modelling, Numerical Simulation and 
+                Optimization. Springer Verlag, New York (2007), 
+                https://doi.org/10.1007/978-3-540-68783-2_16
+                '''
                 p_from = model.varPressure[(n_from,'gas','out',t)]
                 p_to = model.varPressure[(n_to,'gas','in',t)]
                 p0_from = model.paramNode[n_from]['pressure.gas.out']
                 p0_to = model.paramNode[n_to]['pressure.gas.in']
                 if (p0_from==p0_to):
-                    logging.debug("Gas pipe without nominal pressure drop - no constraint")
-                    # no pressure drop, i.e. no friction - no contraint
-                    return pyo.Constraint.Skip
-                k = model.paramEdge[edge]['gasflow_k']
-                exp_s = model.paramEdge[edge]['exp_s']
-                X0 = p0_from**2-exp_s*p0_to**2
-                logging.debug("edge {}-{}: X0={}.".format(n_from,n_to,X0))
-                coeff = k*(X0)**(-1/2)
-                lhs = model.varEdgePower[edge,t]/model.paramCarriers['gas']['energy_value']
-                rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
-                logging.debug("constr gas pressure vs flow: {}-{},{},{},exp_s={},coeff={}".format(
-                                  n_from,n_to,p0_from,p0_to,exp_s,coeff))
+                    # nominal pressure drop is zero
+                    # i.e. no friction - no contraint
+                    logging.debug("{}-{}: Gas pipe without nominal pressure drop".format(n_from,n_to))
+                    lhs = p_to
+                    rhs = p_from
+                else:
+                    k = model.paramEdge[edge]['gasflow_k']
+                    exp_s = model.paramEdge[edge]['exp_s']
+                    X0 = p0_from**2-exp_s*p0_to**2
+                    logging.debug("edge {}-{}: X0={}.".format(n_from,n_to,X0))
+                    #logging.info("edge {}-{},{},{},exp_s={},X0={}".format(
+                    #                n_from,n_to,p0_from,p0_to,exp_s,X0))
+                    coeff = k*(X0)**(-1/2)
+                    # Q = P/CV
+#                    lhs = model.varEdgeFlow[edge,t]/model.paramCarriers['gas']['energy_value']
+                    lhs = model.varEdgeFlow[edge,t]
+                    rhs = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
+                    logging.debug("constr gas pressure vs flow: {}-{},{},{},exp_s={},coeff={}".format(
+                                    n_from,n_to,p0_from,p0_to,exp_s,coeff))
                 return (lhs==rhs)
+            
             elif carrier in ['wellstream','oil','water']:
                 #TODO: implement flow equation for liquids
                 # For now - no pressure drop
                 lhs = model.varPressure[(n_from,carrier,'out',t)]
                 rhs = model.varPressure[(n_to,carrier,'in',t)]
                 return (lhs==rhs)
-                #return pyo.Constraint.Skip                
+            
             else:
+                #Other types of edges - no constraints other than max/min flow
                 return pyo.Constraint.Skip                
-        model.constrPressureAndFlow = pyo.Constraint(
-                model.setEdge,model.setHorizon,rule=rule_pressureAndFlow)
+        model.constrEdgeFlowEquations = pyo.Constraint(
+                model.setEdge,model.setHorizon,rule=rule_edgeFlowEquations)
         
         def rule_pressureAtNode(model,node,carrier,t):
             if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
@@ -858,12 +955,39 @@ class Multicarrier:
         
         def rule_edgePmaxmin(model,edge,t):
             return pyo.inequality(-model.paramEdge[edge]['capacity'], 
-                    model.varEdgePower[edge,t], 
+                    model.varEdgeFlow[edge,t], 
                     model.paramEdge[edge]['capacity'])
         model.constrEdgeBounds = pyo.Constraint(
                 model.setEdge,model.setHorizon,rule=rule_edgePmaxmin)
     
-        return model
+        def rule_emissionRateLimit(model,t):
+            '''Upper limit on CO2 emission rate'''
+            emissionRateMax = model.paramParameters['emissionRateMax']
+            if emissionRateMax < 0:
+                # don't include constraint if parameter is set to negative value
+                return pyo.Constraint.Skip
+            else:
+                lhs = self.compute_CO2(model,timesteps=[t])
+                rhs = emissionRateMax
+                return (lhs<=rhs)
+        model.constrEmissionRateLimit = pyo.Constraint(model.setHorizon,
+                                               rule=rule_emissionRateLimit)
+
+        def rule_emissionIntensityLimit(model,t):
+            '''Upper limit on CO2 emission intensity'''
+            emissionIntensityMax = model.paramParameters['emissionIntensityMax']
+            if emissionIntensityMax < 0:
+                # don't include constraint if parameter is set to negative value
+                return pyo.Constraint.Skip
+            else:
+                lhs = self.compute_CO2(model,timesteps=[t])
+                rhs = emissionIntensityMax * self.compute_oilgas_export(
+                        model,timesteps=[t])
+                return (lhs<=rhs)
+        model.constrEmissionIntensityLimit = pyo.Constraint(model.setHorizon,
+                                               rule=rule_emissionIntensityLimit)
+    
+        return model    
         # END class init.
 
     def _check_constraints_complete(self):
@@ -898,16 +1022,23 @@ class Multicarrier:
         # GAS: co2 emission from consumed gas (e.g. in gas heater)
         # EL: co2 emission from the generation of electricity
         # HEAT: co2 emission from the generation of heat
+        
+        # MJ = MW*s=MWh*1/3600
+        # co2 = flow [m3/s] * CV [MJ/m3] * co2content [kg/MWh]
+        #     = flow*CV*co2content [m3/s * MWs/m3 * kg/MWh= kg/h]
+        gasflow_co2 = (model.paramCarriers['gas']['CO2content'] #kg/MWh
+                        *model.paramCarriers['gas']['energy_value'] #MJ/m3
+                        ) #kg/m3*s/h
+        
         for d in devices:
             devmodel = pyo.value(model.paramDevice[d]['model'])
             if devmodel in ['gasturbine','gasheater']:
-                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]
-                            *model.paramCarriers['gas']['CO2content']
-                            for t in timesteps)
+                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]*gasflow_co2 
+                              for t in timesteps)
             elif devmodel=='compressor_gas':
                 thisCO2 = sum((model.varDeviceFlow[d,'gas','in',t]
                             -model.varDeviceFlow[d,'gas','out',t])
-                            *model.paramCarriers['gas']['CO2content']
+                            *gasflow_co2
                             for t in timesteps)
             elif devmodel in ['source_el']:
                 # co2 from co2 content in fuel usage
@@ -919,7 +1050,7 @@ class Multicarrier:
                               'sink_oil','sink_water',
                               'storage_el','separator',
                               'well_production','well_injection',
-                              'pump_oil']:
+                              'pump_oil','source_water']:
                 # no CO2 emission contribution
                 thisCO2 = 0
             else:
@@ -928,10 +1059,159 @@ class Multicarrier:
             sumCO2 = sumCO2 + thisCO2*deltaT
             
         # Average per hour
-        sumCO2 = sumCO2/sumHours
-        
+        sumCO2 = sumCO2/sumHours    
         return sumCO2
+    
+    @staticmethod
+    def compute_exportRevenue(model,carriers=None,timesteps=None):
+        '''revenue from exported oil and gas, average per hour'''
+        if carriers is None:
+            carriers = model.setCarrier
+        if timesteps is None:
+            timesteps = model.setHorizon
 
+        export_node = model.paramParameters['export_node']
+        export_devs = model.paramNodeDevices[export_node]
+        inouts = Multicarrier.devicemodel_inout()
+        sumRevenue = 0
+        for dev in export_devs:
+            devmodel = model.paramDevice[dev]['model']
+            carriers_in = inouts[devmodel]['in']
+            carriers_incl = [v for v in carriers if v in carriers_in]
+            for c in carriers_incl:
+                # flow in m3/s, price in $/m3
+                inflow = sum(model.varDeviceFlow[dev,c,'in',t] 
+                                for t in model.setHorizon)
+                sumRevenue += inflow*model.paramCarriers[c]['export_price'] 
+        # average revenue, expressed in $/hour
+        sumRevenue = sumRevenue/len(timesteps)*3600
+        return sumRevenue 
+
+
+    @staticmethod
+    def compute_oilgas_export(model,timesteps=None):
+        '''CO2 emission per exported oil/gas (kgCO2/Sm3oe)'''
+        if timesteps is None:
+            timesteps = model.setHorizon
+
+        carriers = model.setCarrier
+        export_node = model.paramParameters['export_node']
+        export_devs = model.paramNodeDevices[export_node]
+        inouts = Multicarrier.devicemodel_inout()
+        flow_oilequivalents_m3_per_hour = 0
+        for dev in export_devs:
+            devmodel = model.paramDevice[dev]['model']
+            carriers_in = inouts[devmodel]['in']
+            carriers_incl = [v for v in carriers if v in carriers_in]
+            for c in carriers_incl:
+                inflow = sum(model.varDeviceFlow[dev,c,'in',t] 
+                                for t in timesteps)
+                # average flow, expressed in m3/hour
+                inflow = inflow/len(timesteps)*3600
+                # Convert from Sm3 to Sm3 oil equivalents:
+                # REF https://www.norskpetroleum.no/kalkulator/om-kalkulatoren/
+                if c=='oil':
+                    flow_oilequivalents_m3_per_hour += inflow
+                elif c=='gas':
+                    # 1 Sm3 gas = 1/1000 Sm3 o.e.
+                    flow_oilequivalents_m3_per_hour += inflow/1000
+                else:
+                    pass
+        return flow_oilequivalents_m3_per_hour 
+        
+
+    @staticmethod
+    def compute_CO2_intensity(model,timesteps=None):
+        '''CO2 emission per exported oil/gas (kgCO2/Sm3oe)'''
+        if timesteps is None:
+            timesteps = model.setHorizon
+                        
+        co2_kg_per_hour = Multicarrier.compute_CO2(
+                model,devices=None,timesteps=timesteps)
+        flow_oilequivalents_m3_per_hour = Multicarrier.compute_oilgas_export(
+                model,timesteps)
+        if pyo.value(flow_oilequivalents_m3_per_hour)!=0:
+            co2intensity = co2_kg_per_hour/flow_oilequivalents_m3_per_hour
+        if pyo.value(flow_oilequivalents_m3_per_hour)==0:
+            logging.warning("zero export, so co2 intensity set to NAN")
+            co2intensity = pd.np.nan
+       
+        return co2intensity 
+        
+    @staticmethod
+    def compute_compressor_demand(model,dev,linear=False,
+                                  Q=None,p1=None,p2=None,t=None):
+        # power demand depends on gas pressure ratio and flow
+        # See LowEmission report DSP5_2020_04 for description
+        if model.paramDevice[dev]['model'] not in ['compressor_el',
+                            'compressor_gas']:
+            print("{} is not a compressor".format(dev))
+            return
+        k = model.paramCarriers['gas']['k_heat_capacity_ratio']
+        Z = model.paramCarriers['gas']['Z_compressibility']
+        # factor 1e-6 converts R units from J/kgK to MJ/kgK:
+        R = model.paramCarriers['gas']['R_individual_gas_constant']*1e-6
+        rho = model.paramCarriers['gas']['rho_density']
+        T1 = model.paramDevice[dev]['temp_in'] #inlet temperature
+        eta = model.paramDevice[dev]['eta'] #isentropic efficiency
+        a = (k-1)/k
+        c = rho/eta*1/(k-1)*Z*R*T1
+        node = model.paramDevice[dev]['node']
+        if t is None:
+            t=0
+        if Q is None:
+            Q = model.varDeviceFlow[dev,'gas','out',t]
+        if p1 is None:
+            p1 = model.varPressure[node,'gas','in',t]
+        if p2 is None:
+            p2 = model.varPressure[node,'gas','out',t]
+        if linear:
+            # linearised equations around operating point
+            # p1=p10, p2=p20, Q=Q0
+            p10 = model.paramNode[node]['pressure.gas.in']
+            p20 = model.paramNode[node]['pressure.gas.out']
+            Q0 = model.paramDevice[dev]['Q0']    
+            P = c*(a*(p20/p10)**a * Q0*(p2/p20-p1/p10) 
+                     +((p20/p10)**a-1)*Q )
+        else:
+            P = c*((p2/p1)**a-1)*Q
+        return P
+        
+    @staticmethod
+    #TODO not completed
+    def compute_pump_demand(model,dev,linear=False,
+                            Q=None,p1=None,p2=None,t=None,carrier='water'):
+        devmodel = model.paramDevice[dev]['model']
+        if devmodel=='pump_oil':
+            carrier='oil'
+        elif devmodel=='well_injection':
+            carrier='water'
+        else:
+            print("{} is not a compressor".format(dev))
+            return
+            
+        eta = model.paramDevice[dev]['eta'] # efficiency
+        node = model.paramDevice[dev]['node']
+        if t is None:
+            t=0
+        if Q is None:
+            Q = model.varDeviceFlow[dev,carrier,'out',t]
+        if p1 is None:
+            p1 = model.varPressure[node,carrier,'in',t]
+        if p2 is None:
+            p2 = model.varPressure[node,carrier,'out',t]
+        if linear:
+            # linearised equations around operating point
+            # p1=p10, p2=p20, Q=Q0
+            p10 = model.paramNode[node]['pressure.{}.in'.format(carrier)]
+            p20 = model.paramNode[node]['pressure.{}.out'.format(carrier)]
+            Q0 = model.paramDevice[dev]['Q0']    
+            #P = eta*(Q*(p20-p10)+Q0*(p10-p1))
+            P = eta*Q*(p20-p10)
+        else:
+            P = eta*Q*(p2-p1)
+            
+        return P
         
 
     def createModelInstance(self,data,profiles,filename=None):
@@ -979,7 +1259,7 @@ class Multicarrier:
                         self.instance.varDeviceIsOn[dev,t_prev])
                 self.instance.paramDevicePowerInitially[dev] = (
                         self.instance.varDevicePower[dev,t_prev])
-                if self.instance.paramDevice[dev]['model'] in ['storage_el']:
+                if self.instance.paramDevice[dev]['model'] in self.models_with_storage:
                     self.instance.paramDeviceEnergyInitially[dev] = (
                             self.instance.varDeviceEnergy[dev,t_prev])
         return
@@ -1026,7 +1306,7 @@ class Multicarrier:
               names=('device','time'))
         varDeviceStopping = self.getVarValues(self.instance.varDeviceStopping,
               names=('device','time'))
-        varEdgePower = self.getVarValues(self.instance.varEdgePower,
+        varEdgeFlow = self.getVarValues(self.instance.varEdgeFlow,
               names=('edge','time'))
         varElVoltageAngle = self.getVarValues(self.instance.varElVoltageAngle,
               names=('node','time'))
@@ -1036,9 +1316,14 @@ class Multicarrier:
               names=('node','carrier','time'))
     
         
+        # CO2 emission rate (sum all emissions)
         co2 = [pyo.value(self.compute_CO2(self.instance,timesteps=[t])) 
                 for t in range(timelimit)]
-        # CO2 contribution per device:
+        self._dfCO2rate = pd.concat(
+                [self._dfCO2rate, 
+                 pd.Series(data=co2,index=range(timestep,timestep+timelimit))])
+
+        # CO2 emission rate per device:
         df_co2=pd.DataFrame()
         for d in self.instance.setDevice:
             for t in range(timelimit):
@@ -1047,7 +1332,23 @@ class Multicarrier:
         self._dfCO2rate_per_dev = pd.concat([self._dfCO2rate_per_dev,df_co2])
         #self._dfCO2dev.sort_index(inplace=True)
         
-               
+        # CO2 emission intensity (sum)
+        df_df_co2intensity = [pyo.value(self.compute_CO2_intensity(self.instance,timesteps=[t])) 
+                for t in range(timelimit)]
+        self._dfCO2intensity = pd.concat([self._dfCO2intensity,
+                  pd.Series(data=df_df_co2intensity,
+                            index=range(timestep,timestep+timelimit))])
+        
+        # Revenue from exported energy
+        df_exportRevenue=pd.DataFrame()
+        for c in self.instance.setCarrier:
+            for t in range(timelimit):
+                exportRevenue_dev = self.compute_exportRevenue(
+                        self.instance,carriers=[c],timesteps=[t])
+                df_exportRevenue.loc[t+timestep,c] = pyo.value(exportRevenue_dev)
+        self._dfExportRevenue = pd.concat(
+                [self._dfExportRevenue,df_exportRevenue])
+        
         # Add to dataframes storing results (only the decision variables)
         def _addToDf(df_prev,df_new):
             level = df_new.index.names.index('time')
@@ -1063,13 +1364,10 @@ class Multicarrier:
         self._dfDeviceEnergy = _addToDf(self._dfDeviceEnergy,varDeviceEnergy)
         self._dfDeviceStarting = _addToDf(self._dfDeviceStarting,varDeviceStarting)
         self._dfDeviceStopping = _addToDf(self._dfDeviceStopping,varDeviceStopping)
-        self._dfEdgePower = _addToDf(self._dfEdgePower,varEdgePower)
+        self._dfEdgeFlow = _addToDf(self._dfEdgeFlow,varEdgeFlow)
         self._dfElVoltageAngle = _addToDf(self._dfElVoltageAngle,varElVoltageAngle)
         self._dfTerminalPressure = _addToDf(self._dfTerminalPressure,varPressure)
         self._dfTerminalFlow = _addToDf(self._dfTerminalFlow,varTerminalFlow)
-        self._dfCO2rate = pd.concat(
-                [self._dfCO2rate, 
-                 pd.Series(data=co2,index=range(timestep,timestep+timelimit))])
         return    
 
     
@@ -1124,11 +1422,10 @@ class Multicarrier:
         for k in instance.varDevicePower.keys():
             print("  {}: {}".format(k,instance.varDevicePower[k].value))
         
-        print("\nSOLUTION - edgePower:")
-        for k in instance.varEdgePower.keys():
-            power = instance.varEdgePower[k].value
+        print("\nSOLUTION - edgeFlow:")
+        for k in instance.varEdgeFlow.keys():
+            power = instance.varEdgeFlow[k].value
             print("  {}: {}".format(k,power))
-            #df_edge.loc[k,'edgePower'] = power
         
         print("\nSOLUTION - Pressure:")
         for k,v in instance.varPressure.get_values().items():
@@ -1192,11 +1489,51 @@ class Multicarrier:
                 p_out = model.paramNode[node_to]['pressure.gas.in']
                 if P is None:
                     P=Pmax
-                Q = P/model.paramCarriers['gas']['energy_value']
+#                Q = P/model.paramCarriers['gas']['energy_value']
+                Q = P
                 p_out_comp = 1/exp_s*(p_in**2-Q**2/gasflow_k**2)**(1/2)
                 
-                print("{}-{}:\n\tpin={} pout={}, computed (P={}) pout={}".format(
-                        node_from,node_to,p_in,p_out,P,p_out_comp))
+                print("{}-{}:\n\tpin={} pout={}, computed (P={}) pout={}"
+                      .format(node_from,node_to,p_in,p_out,P,p_out_comp))
+                
+    @staticmethod
+    def _pressuredrop(p_in,Q,exp_s,k):
+        '''Compute pressure drop in pipe according to Weymouth eqn'''
+        # Q = k*(p_in^2-exp(s)*p_out^2)^(1/2)
+        # => p_out = exp(-s)*sqrt(p_in^2 - Q^2/k^2)
+        p_out = 1/exp_s*(p_in**2-Q**2/k**2)**(1/2)
+        return p_out
+                
+    def computeEdgePressureDrop(self,timestep=0,var="outer"):
+        model = self.instance
+        for k,edge in model.paramEdge.items():
+            if edge['type']== 'gas':
+                # Q = k*(p_in^2-exp(s)*p_out^2)^(1/2)
+                # => p_out = exp(-s)*sqrt(p_in^2 - Q^2/k^2)
+                exp_s = edge['exp_s']
+                gasflow_k = edge['gasflow_k']
+                node_from = edge['nodeFrom']
+                node_to = edge['nodeTo']
+                p_in = model.paramNode[node_from]['pressure.gas.out']
+                p_out = model.paramNode[node_to]['pressure.gas.in']
+                if var=="inner":
+                    Q = model.varEdgeFlow[(k,timestep)]
+                    var_p_in = model.varPressure[(node_from,'gas','out',timestep)]                          
+                    var_p_out = model.varPressure[(node_to,'gas','in',timestep)]                          
+                elif var=="outer":
+                    Q = self._dfEdgeFlow[(k,timestep)]
+                    var_p_in = self._dfTerminalPressure[(node_from,'gas','out',timestep)]                          
+                    var_p_out = self._dfTerminalPressure[(node_to,'gas','in',timestep)]                          
+                else:
+                    raise Exception("var must be inner or outer")
+                p_out_comp = self._pressuredrop(p_in,Q,exp_s,gasflow_k)
+                p_out_comp2 = self._pressuredrop(var_p_in,Q,exp_s,gasflow_k)
+                print(("{}:{}-{} (Q={} m3/s)"
+                      "\n\tNOMINAL:    pin={}  pout={}  pout_computed={:3.5g}"
+                      "\n\tSIMULATION: pin={}  pout={}  pout_computed={:3.5g}")
+                      .format(k,node_from,node_to,Q,
+                              p_in,p_out,p_out_comp,
+                              var_p_in,var_p_out, p_out_comp2))
                 
     
 class Plots:  
@@ -1420,12 +1757,30 @@ def read_data_from_xlsx(filename,carrier_properties):
     carrier_properties: dict
         dictionary of all energy carriers and their specific properties
     """
-        
+    
+    def read_xlsx_devices(filename,sheet_name,method='new'):
+        df = pd.read_excel(filename,sheet_name=sheet_name)
+        if method=='new':
+            # model-specific parameters are given in param_id/param_value columns
+            # convert it to one column per parameter (old format)
+            df = df.fillna(method='ffill')
+            df2=df[['id','param_id','param_value']].set_index(['id','param_id'])
+            df3=df2.squeeze().unstack()
+            df3=df3.dropna(axis=1,how='all')
+            df4=df[['id','include','node','name','model','Pmax','Pmin']
+                    ].set_index('id').drop_duplicates()
+            df5 = df4.join(df3)
+            return df5
+        else:
+            # one column per parameter, lots of empty cells
+            return df
+            
     
     # Input data
     df_node = pd.read_excel(filename,sheet_name="node")
     df_edge = pd.read_excel(filename,sheet_name="edge")
-    df_device = pd.read_excel(filename,sheet_name="device")
+    #df_device = read_xlsx_devices(filename,sheet_name="device_old",method='old')
+    df_device = read_xlsx_devices(filename,sheet_name="device")
     df_parameters = pd.read_excel(filename,sheet_name="parameters",index_col=0)
     df_profiles = pd.read_excel(filename,sheet_name="profiles",index_col=0)
     df_profiles_forecast = pd.read_excel(filename,
@@ -1456,7 +1811,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     length = df_edge['length_km']*sfactor
     diameter = df_edge['diameter_mm']
     
-    gas_edge_k = (4.3328e-8*ga['Tb_basetemp_K']/ga['Pb_basepressure_kPa']
+    gas_edge_k = (4.3328e-8*ga['Tb_basetemp_K']/ga['Pb_basepressure_MPa']
         *(ga['G_gravity']*temp*length*ga['Z_compressibility'])**(-1/2)
         *diameter**(8/3))
     df_edge['gasflow_k'] = gas_edge_k
