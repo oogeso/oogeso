@@ -37,7 +37,7 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None):
     labels=[]
     for dev in devs:
         dev_param = mc.instance.paramDevice[dev]
-        curve = dev_param['external']
+        curve = dev_param['profile']
         devname = "{}:{}".format(dev,dev_param["name"])
         devPmax = dev_param['Pmax']
         df= mc._dfDevicePower.unstack(0)[dev]

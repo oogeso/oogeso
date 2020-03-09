@@ -938,11 +938,10 @@ class Multicarrier:
         def rule_devicePmax(model,dev,t):
             minValue = model.paramDevice[dev]['Pmin']
             maxValue = model.paramDevice[dev]['Pmax']
-            extprofile = model.paramDevice[dev]['external']
+            extprofile = model.paramDevice[dev]['profile']
+            # use an availability profile if provided
             if (not pd.isna(extprofile)):
-                #maxValue = maxValue*self._df_profiles.loc[t,extprofile]
-                maxValue = maxValue*model.paramProfiles[extprofile,t]
-                #print(dev,t,extprofile,maxValue)
+                maxValue = maxValue*model.paramProfiles[extprofile,t]                
             expr = pyo.inequality(minValue,model.varDevicePower[dev,t], maxValue)
             return expr                    
         model.constrDevicePmax = pyo.Constraint(
@@ -1240,13 +1239,18 @@ class Multicarrier:
         """
         opt_timesteps = self.instance.paramParameters['optimisation_timesteps']
         horizon = self.instance.paramParameters['planning_horizon']
+        timesteps_use_actual = self.instance.paramParameters['forecast_timesteps']
 
         # Update profile (using actual for first 4 timesteps, forecast for rest)
+        # -this is because for the first timesteps, we tend to have updated
+        #  and quite good forecasts - for example, it may become apparent
+        #  that there will be much less wind power than previously forecasted
+        #
         for prof in self.instance.setProfile:
-            for t in range(opt_timesteps):
+            for t in range(timesteps_use_actual):
                 self.instance.paramProfiles[prof,t] = (
                         self._df_profiles_actual.loc[timestep+t,prof])
-            for t in range(opt_timesteps+1,horizon):
+            for t in range(timesteps_use_actual+1,horizon):
                 self.instance.paramProfiles[prof,t] = (
                         self._df_profiles_forecast.loc[timestep+t,prof])
                    
@@ -1371,10 +1375,19 @@ class Multicarrier:
         return    
 
     
-    def solve(self,solver="gurobi",write_yaml=False):
+    def solve(self,solver="gurobi",write_yaml=False,timelimit=None):
         """Solve problem for planning horizon at a single timestep"""
         
         opt = pyo.SolverFactory(solver)
+        if timelimit is not None:
+            if solver == 'gurobi':           
+                opt.options['TimeLimit'] = timelimit
+            elif solver == 'cbc':           
+                opt.options['sec'] = timelimit
+            elif solver == 'cplex':
+                opt.options['timelimit'] = timelimit
+            elif solver == 'glpk':         
+                opt.options['tmlim'] = timelimit
         logging.debug("Solving...")
         sol = opt.solve(self.instance) 
         
@@ -1391,28 +1404,32 @@ class Multicarrier:
             logging.info("Solver Status:{}".format(sol.solver.status))
         return sol
  
-    def solveMany(self,solver="gurobi",time_end=None,write_yaml=False):
+    def solveMany(self,solver="gurobi",timerange=None,write_yaml=False,
+                  timelimit=None):
         """Solve problem over many timesteps - rolling horizon"""
         
-        logging.info("TODO: solve many data missing")
         steps = self.instance.paramParameters['optimisation_timesteps']
         horizon = self.instance.paramParameters['planning_horizon']
-        if time_end is None:
+        if timelimit is not None:
+            logging.info("Using solver timelimit={}".format(timelimit))
+        if timerange is None:
+            time_start = 0
             time_end = self._df_profiles_forecast.index.max()+1-horizon
-        #steps = range(0,5,2) # [0,2,4]
+        else:
+            time_start = timerange[0]
+            time_end=timerange[1]
         df_profiles = pd.DataFrame()
         
-        for step in range(0,time_end,steps):
+        first=True
+        for step in range(time_start,time_end,steps):
             logging.info("Solving timestep={}".format(step))
             # 1. Update problem formulation
-            first = False
-            if step==0:
-                first=True
             self.updateModelInstance(step,df_profiles,first=first)
             # 2. Solve for planning horizon
-            self.solve(solver=solver,write_yaml=write_yaml)
+            self.solve(solver=solver,write_yaml=write_yaml,timelimit=timelimit)
             # 3. Save results (for later analysis)
             self.saveOptimisationResult(step)
+            first = False
             
         
         
@@ -1534,7 +1551,30 @@ class Multicarrier:
                       .format(k,node_from,node_to,Q,
                               p_in,p_out,p_out_comp,
                               var_p_in,var_p_out, p_out_comp2))
-                
+    
+    def exportSimulationResult(self,filename):
+        '''Write saved simulation results to file'''
+        
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        self._dfCO2intensity.to_excel(writer,sheet_name="CO2intensity")
+        self._dfCO2rate.to_excel(writer,sheet_name="CO2rate")
+        self._dfCO2rate_per_dev.to_excel(writer,sheet_name="CO2rate_per_dev")
+        self._dfDeviceEnergy.to_excel(writer,sheet_name="DeviceEnergy")
+        self._dfDeviceFlow.to_excel(writer,sheet_name="DeviceFlow")       
+        self._dfDeviceIsOn.to_excel(writer,sheet_name="DeviceIsOn")
+        self._dfDevicePower.to_excel(writer,sheet_name="DevicePower")
+        #self._dfDeviceStarting.to_excel(writer,sheet_name="DeviceStarting")
+        #self._dfDeviceStopping.to_excel(writer,sheet_name="DeviceStopping")
+        #self._dfEdgeFlow.to_excel(writer,sheet_name="EdgeFlow")
+        #self._dfElVoltageAngle.to_excel(writer,sheet_name="ElVoltageAngle")
+        self._dfExportRevenue.to_excel(writer,sheet_name="ExportRevenue")
+        #self._dfTerminalFlow.to_excel(writer,sheet_name="TerminalFlow")
+        self._dfTerminalPressure.to_excel(writer,sheet_name="TerminalPressure")
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()        
     
 class Plots:  
       
@@ -1570,7 +1610,7 @@ class Plots:
 
     def plotDevicePowerLastOptimisation1(mc,device,filename=None):
         model = mc.instance
-        profile = model.paramDevice[device]['external']
+        profile = model.paramDevice[device]['profile']
         devname = model.paramDevice[device]['name']
         maxP = model.paramDevice[device]['Pmax']
         plt.figure(figsize=(12,4))
@@ -1827,7 +1867,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     #data['setDevicemodel'] = {None:Multicarrier.devicemodel_inout().keys()}
     data['setHorizon'] = {None:range(planning_horizon)}
     data['setParameters'] = {None:df_parameters.index.tolist()}
-    data['setProfile'] = {None:df_device['external'].dropna().unique().tolist()}
+    data['setProfile'] = {None:df_device['profile'].dropna().unique().tolist()}
     data['paramNode'] = df_node.set_index('id').to_dict(orient='index')
     data['paramNodeCarrierHasSerialDevice'] = node_carrier_has_serialdevice
     data['paramNodeDevices'] = df_device.groupby('node').groups

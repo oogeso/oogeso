@@ -1,5 +1,5 @@
--updating LP problem
--solving again (loop over time)
--ramp limits (gas turbine)
--battery and other storage
--flexible loads
+-objective function
+-flexible loads - see well_injection
+saving data for analysis/comparison of cases
+
+
