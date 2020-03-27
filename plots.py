@@ -49,7 +49,7 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None):
             (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
             ax.set_prop_cycle(None)
             (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
-            labels = labels+['--actual','--forecast']
+            labels = labels+['--nowcast','--forecast']
         if dev_param['model']=='gasturbine':
             df2=mc._dfDeviceIsOn.unstack(0)[dev]
             df2.plot(ax=ax,linestyle='-.')
@@ -158,9 +158,9 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
 
 def plot_ExportRevenue(mc,filename=None):
     plt.figure(figsize=(12,4))
-    plt.title("Export price ($/hour)")
+    plt.title("Export price ($/s)")
     ax=plt.gca()
-    ax.set_ylabel("$/hour")
+    ax.set_ylabel("$/s")
     ax.set_xlabel("Timestep")
     (mc._dfExportRevenue.loc[:,mc._dfExportRevenue.sum()>0]).plot.area(
             ax=ax,linewidth=0)
@@ -170,9 +170,9 @@ def plot_ExportRevenue(mc,filename=None):
 
 def plot_CO2_rate(mc,filename=None):
     plt.figure(figsize=(12,4))
-    plt.title("CO2 emission rate (kgCO2/hour)")
+    plt.title("CO2 emission rate (kgCO2/s)")
     ax=plt.gca()
-    ax.set_ylabel("kgCO2/hour")
+    ax.set_ylabel("kgCO2/s")
     ax.set_xlabel("Timestep")
     mc._dfCO2rate.plot()
     if filename is not None:
@@ -184,7 +184,7 @@ def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
 
     plt.figure(figsize=(12,4))
     ax=plt.gca()
-    ax.set_ylabel("Emission rate (kgCO2/hour)")
+    ax.set_ylabel("Emission rate (kgCO2/s)")
     ax.set_xlabel("Timestep")
     mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()
                     ].rename(columns=labels
@@ -484,9 +484,8 @@ def plotNetwork(mc,timestep=0,filename=None,
         #prog='dot' gives the best layout.  
         dotG.write_png(filename,prog='dot')    
  
-def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53, filename=None):
-    #fuelA = model.paramDevice[dev]['fuelA']
-    #fuelB = model.paramDevice[dev]['fuelB']
+def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,co2content=200,
+                             filename=None):
     x_pow = pd.np.linspace(0,1,50)
     y_fuel = fuelB + fuelA*x_pow
     plt.figure(figsize=(12,4))
@@ -500,15 +499,22 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53, filename=None):
     plt.ylim(bottom=0)
     
     plt.subplot(1,3,2)
-    plt.title("Specific fuel usage ($P_{gas}/P_{el}$)")
-    plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
-    plt.plot(x_pow,y_fuel/x_pow)
-    plt.ylim(top=30)
-    
-    plt.subplot(1,3,3)
     plt.title("Efficiency ($P_{el}/P_{gas}$)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
     plt.plot(x_pow,x_pow/y_fuel)
+
+#    plt.subplot(1,3,3)
+#    plt.title("Specific fuel usage ($P_{gas}/P_{el}$)")
+#    plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
+#    plt.plot(x_pow,y_fuel/x_pow)
+#    plt.ylim(top=30)
+    
+    plt.subplot(1,3,3)
+    plt.title("Emission factor (kgCO2/MWh)")
+    plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
+    plt.plot(x_pow,y_fuel*co2content/x_pow)
+    plt.ylim(top=1200)
+
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')        
 

@@ -22,24 +22,25 @@ carrier_properties = {
     'water': {},
     'oil': {'export_price': 419, #EUR/Sm3
             #'energy_value':36000, #MJ/Sm3
-            'CO2content':260 #kg/MWh
+            #'CO2content':260 #kg/MWh
             },
     'gas':{'energy_value':40, #MJ/Sm3
+           'rho_density': 0.84, # kg/Sm3
+           'CO2content':2.34, #kg/Sm3, SSB 2016 report
+           'export_price': 0.419, #$/Sm3
            'Tb_basetemp_K':273+15,
            'Pb_basepressure_MPa':0.101,
            'G_gravity':0.6,
            'Z_compressibility':0.9,
            'k_heat_capacity_ratio':1.27,
            'R_individual_gas_constant': 500, # J/kg K
-           'rho_density': 0.84, # kg/Sm3
-           'CO2content':200, #kg/MWh https://www.volker-quaschning.de/datserv/CO2-spez/index_e.php
-           'export_price': 0.419, #$/Sm3
            }, 
     'el':{'energy_value':1,
-          'CO2content':0,
+          #'CO2content':0,
           'export_price': 50, #EUR/MWh
           },
-    'heat':{'CO2content':0},
+    'heat':{#'CO2content':0
+            },
     }
 
 
@@ -125,7 +126,7 @@ if plotExport:
     ax2=ax.twinx()
     ax2.plot(df['ex_o'],label='oil',color='black')
     ax2.legend(loc='upper right')
-    plt.title("Oil/gas export volumes (Sm3/h)")
+    plt.title("Oil/gas export volumes (Sm3/s)")
     
 #    ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
 #              frameon=False)

@@ -1112,7 +1112,7 @@ class Multicarrier:
     # Helper functions
     @staticmethod
     def compute_CO2(model,devices=None,timesteps=None):
-        '''compute CO2 emission (kgCO2 per hour)
+        '''compute CO2 emission (kgCO2/s)
         
         model can be abstract model or model instance
         '''
@@ -1120,20 +1120,22 @@ class Multicarrier:
             devices = model.setDevice
         if timesteps is None:
             timesteps = model.setHorizon
-        deltaT = model.paramParameters['time_delta_minutes']/60
-        sumHours = len(timesteps)*deltaT
+        deltaT = model.paramParameters['time_delta_minutes']*60
+        sumTime = len(timesteps)*deltaT
         
         sumCO2 = 0
         # GAS: co2 emission from consumed gas (e.g. in gas heater)
         # EL: co2 emission from the generation of electricity
         # HEAT: co2 emission from the generation of heat
         
-        # MJ = MW*s=MWh*1/3600
-        # co2 = flow [m3/s] * CV [MJ/m3] * co2content [kg/MWh]
-        #     = flow*CV*co2content [m3/s * MWs/m3 * kg/MWh= kg/h]
-        gasflow_co2 = (model.paramCarriers['gas']['CO2content'] #kg/MWh
-                        *model.paramCarriers['gas']['energy_value'] #MJ/m3
-                        ) #kg/m3*s/h
+#        # MJ = MW*s=MWh*1/3600
+#        # co2 = flow [m3/s] * CV [MJ/m3] * co2content [kg/MWh]
+#        #     = flow*CV*co2content [m3/s * MWs/m3 * kg/MWh= kg/h]
+#        gasflow_co2 = (model.paramCarriers['gas']['CO2content'] #kg/MWh
+#                        *model.paramCarriers['gas']['energy_value'] #MJ/m3
+#                        ) #kg/m3*s/h
+
+        gasflow_co2 = model.paramCarriers['gas']['CO2content'] #kg/m3
         
         for d in devices:
             devmodel = pyo.value(model.paramDevice[d]['model'])
@@ -1163,13 +1165,13 @@ class Multicarrier:
                     "CO2 calculation for {} not implemented".format(devmodel))
             sumCO2 = sumCO2 + thisCO2*deltaT
             
-        # Average per hour
-        sumCO2 = sumCO2/sumHours    
+        # Average per s
+        sumCO2 = sumCO2/sumTime   
         return sumCO2
     
     @staticmethod
     def compute_exportRevenue(model,carriers=None,timesteps=None):
-        '''revenue from exported oil and gas, average per hour'''
+        '''revenue from exported oil and gas ($/s)'''
         if carriers is None:
             carriers = model.setCarrier
         if timesteps is None:
@@ -1188,14 +1190,14 @@ class Multicarrier:
                 inflow = sum(model.varDeviceFlow[dev,c,'in',t] 
                                 for t in timesteps)
                 sumRevenue += inflow*model.paramCarriers[c]['export_price'] 
-        # average revenue, expressed in $/hour
-        sumRevenue = sumRevenue/len(timesteps)*3600
+        # average revenue
+        sumRevenue = sumRevenue/len(timesteps)
         return sumRevenue 
 
 
     @staticmethod
     def compute_oilgas_export(model,timesteps=None):
-        '''CO2 emission per exported oil/gas (kgCO2/Sm3oe)'''
+        '''Export volume (Sm3oe/s)'''
         if timesteps is None:
             timesteps = model.setHorizon
 
@@ -1203,7 +1205,7 @@ class Multicarrier:
         export_node = model.paramParameters['export_node']
         export_devs = model.paramNodeDevices[export_node]
         inouts = Multicarrier.devicemodel_inout()
-        flow_oilequivalents_m3_per_hour = 0
+        flow_oilequivalents_m3_per_s = 0
         for dev in export_devs:
             devmodel = model.paramDevice[dev]['model']
             carriers_in = inouts[devmodel]['in']
@@ -1211,18 +1213,18 @@ class Multicarrier:
             for c in carriers_incl:
                 inflow = sum(model.varDeviceFlow[dev,c,'in',t] 
                                 for t in timesteps)
-                # average flow, expressed in m3/hour
-                inflow = inflow/len(timesteps)*3600
+                # average flow, expressed in m3/s
+                inflow = inflow/len(timesteps)
                 # Convert from Sm3 to Sm3 oil equivalents:
                 # REF https://www.norskpetroleum.no/kalkulator/om-kalkulatoren/
                 if c=='oil':
-                    flow_oilequivalents_m3_per_hour += inflow
+                    flow_oilequivalents_m3_per_s += inflow
                 elif c=='gas':
                     # 1 Sm3 gas = 1/1000 Sm3 o.e.
-                    flow_oilequivalents_m3_per_hour += inflow/1000
+                    flow_oilequivalents_m3_per_s += inflow/1000
                 else:
                     pass
-        return flow_oilequivalents_m3_per_hour 
+        return flow_oilequivalents_m3_per_s
         
 
     @staticmethod
@@ -1231,13 +1233,13 @@ class Multicarrier:
         if timesteps is None:
             timesteps = model.setHorizon
                         
-        co2_kg_per_hour = Multicarrier.compute_CO2(
+        co2_kg_per_time = Multicarrier.compute_CO2(
                 model,devices=None,timesteps=timesteps)
-        flow_oilequivalents_m3_per_hour = Multicarrier.compute_oilgas_export(
+        flow_oilequivalents_m3_per_time = Multicarrier.compute_oilgas_export(
                 model,timesteps)
-        if pyo.value(flow_oilequivalents_m3_per_hour)!=0:
-            co2intensity = co2_kg_per_hour/flow_oilequivalents_m3_per_hour
-        if pyo.value(flow_oilequivalents_m3_per_hour)==0:
+        if pyo.value(flow_oilequivalents_m3_per_time)!=0:
+            co2intensity = co2_kg_per_time/flow_oilequivalents_m3_per_time
+        if pyo.value(flow_oilequivalents_m3_per_time)==0:
             logging.warning("zero export, so co2 intensity set to NAN")
             co2intensity = pd.np.nan
        
@@ -1898,7 +1900,7 @@ class Plots:
         ax=plt.gca()
         df.loc[:,~(df==0).all()].rename(columns=labels).plot.area(ax=ax,linewidth=0)
         plt.xlabel("Timestep")
-        plt.ylabel("Emission rate (kgCO2/hour)")
+        plt.ylabel("Emission rate (kgCO2/s)")
         ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),
                   frameon=False)
         if filename is not None:
