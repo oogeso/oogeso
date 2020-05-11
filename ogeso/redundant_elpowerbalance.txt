@@ -1,0 +1,40 @@
+7788
+constrEdgeFlowEquations : Size=204, Index=constrEdgeFlowEquations_index, Active=True
+
+(1, 0) :   0.0 :  0.01*varEdgeFlow[1,0] - (-100.0*varElVoltageAngle[powersupply,0] + 100.0*varElVoltageAngle[process_oil,0]) :   0.0 :   True
+(17, 0) :   0.0 : 0.01*varEdgeFlow[17,0] - (100.0*varElVoltageAngle[pump_oil,0] - 100.0*varElVoltageAngle[process_oil,0]) :   0.0 :   True
+=> 0.01*(varEdgeFlow[1,0]-varEdgeFlow[17,0]) - 100*(-varElVoltageAngle[powersupply,0]-varElVoltageAngle[pump_oil,0]+2*varElVoltageAngle[process_oil,0]) = 0
+(eq1)
+
+9070
+constrTerminalEnergyBalance : Size=1440, Index=constrTerminalEnergyBalance_index, Active=True
+('el', 'process_oil', 'in', 0) :   0.0 :    - varTerminalFlow[process_oil,el,0] + varEdgeFlow[1,0] :   0.0 :   True
+('el', 'process_oil', 'out', 0) :   0.0 :   - varTerminalFlow[process_oil,el,0] + varEdgeFlow[17,0] :   0.0 :   True
+=> varEdgeFlow[1,0] = varEdgeFlow[17,0]
+(eq2)
+
+Combining (eq1) and (eq2):
+=> -varElVoltageAngle[powersupply,0]-varElVoltageAngle[pump_oil,0] + 2*varElVoltageAngle[process_oil,0] = 0
+(eq3)
+
+Compare with redundant constraint:
+7994
+constrElPowerBalance : Size=96, Index=constrElPowerBalance_index, Active=True
+
+('process_oil', 0) :   0.0 :   (-200.0*varElVoltageAngle[process_oil,0] + 100.0*varElVoltageAngle[pump_oil,0] + 100.0*varElVoltageAngle[powersupply,0])*100 :   0.0 :   True
+=> -2*varElVoltageAngle[process_oil,0] + varElVoltageAngle[pump_oil,0] + varElVoltageAngle[powersupply,0] = 0
+
+This is identical to (eq3) - i.e. redundant. qed.
+
+
+
+
+
+======================
+
+
+         (0, 10) :   0.0 :                                0.01*varEdgeFlow[0,10] - (-100.0*varElVoltageAngle[powersupply,10] + 100.0*varElVoltageAngle[separator,10]) :   0.0 :   True
+         (1, 10) :   0.0 :                              0.01*varEdgeFlow[1,10] - (-100.0*varElVoltageAngle[powersupply,10] + 100.0*varElVoltageAngle[process_oil,10]) :   0.0 :   True
+                                ('powersupply', 10) :   0.0 : varDeviceFlow[1,el,out,10] + varDeviceFlow[2,el,out,10] + varDeviceFlow[7,el,out,10] + varDeviceFlow[14,el,out,10] - (100.0*varElVoltageAngle[separator,10] + 100.0*varElVoltageAngle[process_oil,10] + 100.0*varElVoltageAngle[pump_oil,10] + 100.0*varElVoltageAngle[process_gas,10] + 100.0*varElVoltageAngle[compressor_gas,10] + 100.0*varElVoltageAngle[process_water,10] - 700.0*varElVoltageAngle[powersupply,10] + 100.0*varElVoltageAngle[auxiliary,10])*100 :   0.0 :   True
+                   ('el', 'powersupply', 'out', 10) :   0.0 : - varDeviceFlow[1,el,out,10] - varDeviceFlow[2,el,out,10] - varDeviceFlow[7,el,out,10] - varDeviceFlow[14,el,out,10] - varTerminalFlow[powersupply,el,10] + varEdgeFlow[0,10] + varEdgeFlow[1,10] + varEdgeFlow[2,10] + varEdgeFlow[3,10] + varEdgeFlow[4,10] + varEdgeFlow[5,10] + varEdgeFlow[6,10] :   0.0 :   True
+ 

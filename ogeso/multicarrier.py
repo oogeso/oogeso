@@ -1,5 +1,6 @@
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
+import numpy as np
 import pandas as pd
 import networkx as nx
 import scipy
@@ -19,7 +20,7 @@ gas network
 
 TODO: def objective function(s)
     -min operating cost, min co2, max oil/gas export...
-    
+
 TODO:well start/stop? (or continuous regulation of wellstream Pmax/Pmin)
 
 TODO: flexible demand (water injection)
@@ -31,7 +32,7 @@ TODO: weymouth equation linearisation improvement:
 -> closing well -> flow rate much less -> pressure drop much less ->
 linearisation points no longer good -> error
 
-fuel transport is converted to energy transport via energy value (calorific 
+fuel transport is converted to energy transport via energy value (calorific
 value) of the fuel, i.e. energy = volume * energy_value
 
 Device Pmax/Pmin usually refer to energy values (DevicePower)
@@ -41,7 +42,7 @@ Device Pmax/Pmin usually refer to energy values (DevicePower)
 
 class Multicarrier:
     """Multicarrier energy system"""
-    
+
     @staticmethod
     def devicemodel_inout():
         inout = {
@@ -68,6 +69,8 @@ class Multicarrier:
                 'storage_el':       {'in':['el'], 'out':['el']},
                 'pump_oil':         {'in':['oil','el'], 'out':['oil'],
                                      'serial':['oil']},
+                'pump_wellstream':  {'in':['wellstream','el'],'out':['wellstream'],
+                                     'serial':['wellstream']},
                 }
         return inout
 
@@ -76,7 +79,7 @@ class Multicarrier:
     def __init__(self,loglevel=logging.DEBUG,logfile=None,
                  quadraticConstraints=True):
         logging.basicConfig(filename=logfile,level=loglevel,
-                            format='%(asctime)s %(levelname)s: %(message)s', 
+                            format='%(asctime)s %(levelname)s: %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S')
         logging.debug("Initialising Multicarrier")
         # Abstract model:
@@ -90,7 +93,7 @@ class Multicarrier:
                 'baseAngle':1}
         #self._df_profiles = None
         self._devmodels = Multicarrier.devicemodel_inout()
-        
+
         self._dfDeviceFlow = None
         self._dfDeviceIsOn = None
         self._dfDevicePower = None
@@ -105,10 +108,11 @@ class Multicarrier:
         self._dfCO2rate_per_dev = None # co2 emission per device per timestep
         self._dfExportRevenue = None #revenue from exported energy
         self._dfCO2intensity = None
-        
+        self._dfElReserve = None #Reserve capacity
+
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
-        
+
         # Sets
         model.setCarrier = pyo.Set(doc="energy carrier")
         model.setNode = pyo.Set()
@@ -120,7 +124,7 @@ class Multicarrier:
         model.setHorizon = pyo.Set(ordered=True)
         model.setParameters = pyo.Set()
         model.setProfile = pyo.Set()
-        
+
         # Parameters (input data)
         model.paramNode = pyo.Param(model.setNode)
         model.paramEdge = pyo.Param(model.setEdge)
@@ -147,7 +151,7 @@ class Multicarrier:
                                                mutable=True,within=pyo.Reals)
         #model.paramPmaxScale = pyo.Param(model.setDevice,model.setHorizon,
         #                                 mutable=True)
-        
+
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
         model.varEdgeFlow = pyo.Var(
@@ -166,7 +170,7 @@ class Multicarrier:
                 model.setNode,model.setCarrier,model.setTerminal,
                 model.setHorizon, within=pyo.NonNegativeReals,initialize=0)
         model.varElVoltageAngle = pyo.Var(
-                model.setNode,model.setHorizon, 
+                model.setNode,model.setHorizon,
                 within=pyo.Reals)
         model.varDeviceFlow = pyo.Var(
                 model.setDevice,model.setCarrier,model.setTerminal,
@@ -174,9 +178,9 @@ class Multicarrier:
         model.varTerminalFlow = pyo.Var(
                 model.setNode,model.setCarrier,model.setHorizon,
                 within=pyo.Reals)
-        
 
-        
+
+
         # Objective
         #TODO update objective function
         logging.info("TODO: objective function definition")
@@ -184,25 +188,26 @@ class Multicarrier:
             sumE = sum(model.varDevicePower[k,t]
                        for k in model.setDevice for t in model.setHorizon)
             return sumE
-        
+
         def rule_objective_co2(model):
             '''CO2 emissions'''
             sumE = self.compute_CO2(model) #*model.paramParameters['CO2_price']
             return sumE
-        
-        
+
+
         def rule_objective_co2intensity(model):
             '''CO2 emission intensity (CO2 per exported oil/gas)
             DOES NOT WORK - NONLINEAR (ratio)'''
             sumE = self.compute_CO2_intensity(model)
             return sumE
-        
+
         def rule_objective_exportRevenue(model):
-            '''revenue from exported oil and gas'''           
+            '''revenue from exported oil and gas minus co2 tax'''
             sumRevenue = self.compute_exportRevenue(model)
+            startupCosts = self.compute_startup_costs(model)
             co2 = self.compute_CO2(model)
             co2_tax = model.paramParameters['co2_tax']
-            return -sumRevenue +co2*co2_tax
+            return -sumRevenue +co2*co2_tax + startupCosts
 
         def rule_objective(model):
             obj = model.paramParameters['objective']
@@ -216,15 +221,15 @@ class Multicarrier:
                 raise Exception("Objective '{}' has not been implemented"
                                 .format(obj))
             return rule
-            
-        
+
+
         model.objObjective = pyo.Objective(rule=rule_objective,
                                            sense=pyo.minimize)
 #        model.objObjective = pyo.Objective(rule=rule_objective_exportRevenue,
 #                                           sense=pyo.minimize)
-        
-        
-        
+
+
+
 
 
         def rule_devmodel_well_production(model,dev,t,i):
@@ -243,7 +248,7 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_well_production)
 
-        
+
         def rule_devmodel_well_injection(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'well_injection':
                 return pyo.Constraint.Skip
@@ -275,7 +280,7 @@ class Multicarrier:
                 # (water_in-water_avg)*dt = delta buffer
                 delta_t = model.paramParameters['time_delta_minutes']/60 #hours
                 lhs = (model.varDevicePower[dev,t]
-                       -model.paramDevice[dev]['Pavg'])*delta_t                        
+                       -model.paramDevice[dev]['Pavg'])*delta_t
                 if t>0:
                     Eprev = model.varDeviceEnergy[dev,t-1]
                 else:
@@ -342,7 +347,7 @@ class Multicarrier:
                 lhs = model.varPressure[(node,'water','out',t)]
                 rhs = model.paramNode[node]['pressure.water.out']
                 return lhs==rhs
-                
+
         model.constrDevice_separator = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,9),
                   rule=rule_devmodel_separator)
@@ -355,7 +360,7 @@ class Multicarrier:
             if i==1:
                 # Power demand vs pressure and flow
                 lhs = model.varDevicePower[dev,t]
-                rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)                
+                rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)
                 return (lhs==rhs)
             elif i==2:
                 '''gas flow in equals gas flow out (mass flow)'''
@@ -377,7 +382,7 @@ class Multicarrier:
         model.constrDevice_compressor_el = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,4),
                   rule=rule_devmodel_compressor_el)
-        
+
         def rule_devmodel_compressor_gas(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'compressor_gas':
                 return pyo.Constraint.Skip
@@ -385,19 +390,19 @@ class Multicarrier:
             if i==1:
                 # Power demand vs pressure and flow
                 lhs = model.varDevicePower[dev,t]
-                rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)                
+                rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)
                 return (lhs==rhs)
             elif i==2:
                 '''matter conservation'''
                 gas_energy_content=model.paramCarriers['gas']['energy_value'] #MJ/Sm3
                 lhs = model.varDeviceFlow[dev,'gas','out',t]
-                rhs = (model.varDeviceFlow[dev,'gas','in',t] 
+                rhs = (model.varDeviceFlow[dev,'gas','in',t]
                         - model.varDevicePower[dev,t]/gas_energy_content)
                 return lhs==rhs
         model.constrDevice_compressor_gas = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_compressor_gas)
-                
+
 
         def rule_devmodel_gasheater(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'gasheater':
@@ -417,7 +422,7 @@ class Multicarrier:
         model.constrDevice_gasheater = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_gasheater)
-        
+
         def rule_devmodel_heatpump(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'heatpump':
                 return pyo.Constraint.Skip
@@ -434,8 +439,8 @@ class Multicarrier:
         model.constrDevice_heatpump = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_heatpump)
-        
-        
+
+
         logging.info("TODO: gas turbine power vs heat output")
         logging.info("TODO: startup cost")
         def rule_devmodel_gasturbine(model,dev,t,i):
@@ -447,7 +452,7 @@ class Multicarrier:
                 rhs = model.varDeviceFlow[dev,'el','out',t]
                 return lhs==rhs
             if i==2:
-                '''turbine el power out vs gas fuel in'''       
+                '''turbine el power out vs gas fuel in'''
                 # fuel consumption (gas in) is a linear function of el power output
                 # fuel = B + A*power
                 # => efficiency = power/(A+B*power)
@@ -456,7 +461,7 @@ class Multicarrier:
                 B = model.paramDevice[dev]['fuelB']
                 Pmax = model.paramDevice[dev]['Pmax']
                 lhs = model.varDeviceFlow[dev,'gas','in',t]*gas_energy_content/Pmax
-                rhs = (B*model.varDeviceIsOn[dev,t] 
+                rhs = (B*model.varDeviceIsOn[dev,t]
                         + A*model.varDeviceFlow[dev,'el','out',t]/Pmax)
                 return lhs==rhs
 #            elif i==3: # already included in pmax/min constraint
@@ -535,7 +540,7 @@ class Multicarrier:
         model.constrDevice_source_el = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_source_el)
 
-        
+
         def rule_devmodel_storage_el(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'storage_el':
                 return pyo.Constraint.Skip
@@ -547,7 +552,7 @@ class Multicarrier:
                 lhs = (model.varDeviceFlow[dev,'el','in',t]
                         *model.paramDevice[dev]['eta']
                        -model.varDeviceFlow[dev,'el','out',t]
-                        /model.paramDevice[dev]['eta'] )*delta_t                        
+                        /model.paramDevice[dev]['eta'] )*delta_t
                 if t>0:
                     Eprev = model.varDeviceEnergy[dev,t-1]
                 else:
@@ -560,11 +565,11 @@ class Multicarrier:
                 return pyo.inequality(0,model.varDeviceEnergy[dev,t],ub)
             elif i==3:
                 #charging power limit
-                ub = model.paramDevice[dev]['Pmax']                
+                ub = model.paramDevice[dev]['Pmax']
                 return (model.varDeviceFlow[dev,'el','out',t]<=ub)
             elif i==4:
                 #discharging power limit
-                ub = model.paramDevice[dev]['Pmax']                
+                ub = model.paramDevice[dev]['Pmax']
                 return (model.varDeviceFlow[dev,'el','in',t]<=ub)
             elif i==5:
                 # device power = el out + el in (only one is non-zero)
@@ -588,9 +593,9 @@ class Multicarrier:
                   rule=rule_devmodel_storage_el)
 
 
-        logging.info("TODO: oil pump pressure difference approximation ok?")
-        def rule_devmodel_pump_oil(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'pump_oil':
+        logging.info("TODO: liquid pump approximation ok?")
+        def rule_devmodel_pump(model,dev,t,i,carrier):
+            if model.paramDevice[dev]['model'] != 'pump_{}'.format(carrier):
                 return pyo.Constraint.Skip
             if i==1:
                 '''device power is electrical demand'''
@@ -598,9 +603,9 @@ class Multicarrier:
                 rhs = model.varDevicePower[dev,t]
                 return lhs==rhs
             elif i==2:
-                # oil out = oil in
-                lhs = model.varDeviceFlow[dev,'oil','out',t]
-                rhs = model.varDeviceFlow[dev,'oil','in',t]
+                # flow out = flow in
+                lhs = model.varDeviceFlow[dev,carrier,'out',t]
+                rhs = model.varDeviceFlow[dev,carrier,'in',t]
                 return lhs==rhs
             elif i==3:
                 # power demand vs flow rate and pressure difference
@@ -608,27 +613,36 @@ class Multicarrier:
                 # P = Q*(p_out-p_in)/eta
                 # units: m3/s*MPa = MW
                 #
-                # Incompressible fluid, so can assume flow rate m3/s=Sm3/s
-
+                # Assuming incompressible fluid, so can assume flow rate m3/s=Sm3/s
+                # (well... multiphase..)
                 node = model.paramDevice[dev]['node']
                 eta = model.paramDevice[dev]['eta']
-                flowrate = model.varDeviceFlow[dev,'oil','in',t]
-                # use nominal pressure and keep only flow rate dependence
+                flowrate = model.varDeviceFlow[dev,carrier,'in',t]
+                # assume nominal pressure and keep only flow rate dependence
                 #TODO: Better linearisation?
-                p_in = model.paramNode[node]['pressure.oil.in']
-                p_out = model.paramNode[node]['pressure.oil.out']
+                p_in = model.paramNode[node]['pressure.{}.in'.format(carrier)]
+                p_out = model.paramNode[node]['pressure.{}.out'.format(carrier)]
                 delta_p = p_out - p_in
                 if self._quadraticConstraints:
                     # Quadratic constraint...
-                    delta_p = (model.varPressure[(node,'oil','out',t)]
-                                -model.varPressure[(node,'oil','in',t)])
+                    delta_p = (model.varPressure[(node,carrier,'out',t)]
+                                -model.varPressure[(node,carrier,'in',t)])
                 lhs = model.varDevicePower[dev,t]
                 rhs = flowrate*delta_p/eta
-                #rhs = eta*model.varDeviceFlow[dev,'oil','in',t]
-                return (lhs==rhs)               
+                return (lhs==rhs)
+
+        logging.info("TODO: oil pump pressure difference approximation ok?")
+        def rule_devmodel_pump_oil(model,dev,t,i):
+            return rule_devmodel_pump(model,dev,t,i,carrier='oil')
         model.constrDevice_pump_oil = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,3),
                   rule=rule_devmodel_pump_oil)
+
+        def rule_devmodel_pump_wellstream(model,dev,t,i):
+            return rule_devmodel_pump(model,dev,t,i,carrier='wellstream')
+        model.constrDevice_pump_wellstream = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,3),
+                  rule=rule_devmodel_pump_wellstream)
 
 
         def rule_devmodel_sink_gas(model,dev,t):
@@ -650,7 +664,7 @@ class Multicarrier:
 #        model.constrDevice_export_gas = pyo.Constraint(model.setDevice,
 #                  model.setHorizon,
 #                  rule=rule_devmodel_export_gas)
-        
+
         def rule_devmodel_sink_oil(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_oil':
                 return pyo.Constraint.Skip
@@ -660,9 +674,9 @@ class Multicarrier:
         model.constrDevice_sink_oil = pyo.Constraint(model.setDevice,
                   model.setHorizon,
                   rule=rule_devmodel_sink_oil)
-            
-            
-        
+
+
+
         def rule_devmodel_sink_el(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_el':
                 return pyo.Constraint.Skip
@@ -682,7 +696,7 @@ class Multicarrier:
 #            return lhs==rhs
 #        model.constrDevice_export_el = pyo.Constraint(model.setDevice,
 #                  model.setHorizon,rule=rule_devmodel_export_el)
-        
+
         def rule_devmodel_sink_heat(model,dev,t):
             if model.paramDevice[dev]['model'] != 'sink_heat':
                 return pyo.Constraint.Skip
@@ -703,6 +717,20 @@ class Multicarrier:
         model.constrDevice_sink_water = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_sink_water)
 
+        def rule_elReserve(model,dev,t):
+            '''Reserve capacity constraint (electrical supply)
+            Not used capacity by other online power suppliers should be larger
+            than power output of this device
+            '''
+            # reserve capacity by other devices
+            # (that can take over if this device faults)
+            res_otherdevs = self.compute_elReserve(model,t,exclude_device=dev)
+            f = model.paramParameters['elReserveFactor']
+            expr = (res_otherdevs >= f*model.varDeviceFlow[dev,'el','out',t])
+            return expr
+        model.constrDevice_elReserve = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_elReserve)
+
 
 
         def rule_startup_shutdown(model,dev,t):
@@ -713,7 +741,7 @@ class Multicarrier:
             else:
                 ison_prev = model.paramDeviceIsOnInitially[dev]
 #                # The following does NOT work:
-#                ison_prev = pyo.value(model.paramDeviceOnTimestepsInitially[dev]>0)         
+#                ison_prev = pyo.value(model.paramDeviceOnTimestepsInitially[dev]>0)
             rhs = (model.varDeviceIsOn[dev,t] - ison_prev)
             lhs = (model.varDeviceStarting[dev,t]
                     -model.varDeviceStopping[dev,t])
@@ -722,7 +750,8 @@ class Multicarrier:
                   model.setHorizon,
                   rule=rule_startup_shutdown)
 
-        #TODO: only include on models where it is needed (gasturbine)
+        #TODO: Start-up delay doesn't work with Pmin>0 (this implementation)
+        print("TODO: startup delay does not work with Pmin>0")
         def rule_startup_delay(model,dev,t,tau):
             '''startup delay (for gas turbines)'''
 #            if model.paramDevice[dev]['model'] no in ['gasturbine']:
@@ -730,12 +759,14 @@ class Multicarrier:
             # setHorizon is a rangeset [0,1,2,...,max]
             if ('startupDelay' not in model.paramDevice[dev]):
                 return pyo.Constraint.Skip
+            if model.paramDevice[dev]['startupDelay']==0:
+                return pyo.Constraint.Skip
             Tdelay_min = model.paramDevice[dev]['startupDelay']
             # Delay in timesteps, rounding down.
             # example: time_delta = 5 min, startupDelay= 8 min => Tdelay=1
             Tdelay = int(Tdelay_min/model.paramParameters['time_delta_minutes'])
             #TODO: fix
-            # using value(...) means it will take initial value on creation, 
+            # using value(...) means it will take initial value on creation,
             # and update only if constraint is reconstructed.
             # (self.instance.constrDevice_startup_delay.reconstruct())
             prevHasBeenOn = pyo.value(model.paramDeviceOnTimestepsInitially[dev])
@@ -758,7 +789,7 @@ class Multicarrier:
                 # output limited by Pmax and whether it was on in previous timestep
                 rhs = (model.varDeviceIsOn[dev,t-tau]
                         *model.paramDevice[dev]['Pmax'])
-                
+
 #            elif (t-tau>0):
 #                # output limited by Pmax and whether it was on in previous timestep
 #                rhs = (model.varDeviceIsOn[dev,t-tau]
@@ -781,31 +812,33 @@ class Multicarrier:
 #                t0 = 0
 #            # rhs <0 if device has been on less than Tdelay
 #            # rhs >= bigM if device has been on Tdelay or more
-#            rhs = (prevHasBeenOn 
+#            rhs = (prevHasBeenOn
 #                   + sum(model.varDeviceIsOn[dev,ti] for ti in range(t0,t))
-#                   - Tdelay + 1)*bigM 
+#                   - Tdelay + 1)*bigM
 #            print("LHS and RHS:")
 #            print(lhs)
 #            print(rhs)
 #            print(prevHasBeenOn)
 #            print(Tdelay)
             return (lhs <= rhs)
+
+
         model.constrDevice_startup_delay = pyo.Constraint(model.setDevice,
                   model.setHorizon,model.setHorizon,
                   rule=rule_startup_delay)
-       
-        
+
+
         def rule_ramprate(model,dev,t):
             '''ramp rate limit'''
 
             # If no ramp limits have been specified, skip constraint
-            if (('maxRampUp' not in model.paramDevice) 
+            if (('maxRampUp' not in model.paramDevice)
                 or pd.isna(model.paramDevice[dev]['maxRampUp'])):
                 return pyo.Constraint.Skip
             if (t>0):
                 p_prev = model.varDevicePower[dev,t-1]
             else:
-                p_prev = model.paramDevicePowerInitially[dev]         
+                p_prev = model.paramDevicePowerInitially[dev]
             deltaP = (model.varDevicePower[dev,t]- p_prev)
             delta_t = model.paramParameters['time_delta_minutes']
             maxP = model.paramDevice[dev]['Pmax']
@@ -815,26 +848,26 @@ class Multicarrier:
         model.constrDevice_ramprate = pyo.Constraint(model.setDevice,
                  model.setHorizon, rule=rule_ramprate)
 
-        
+
         def rule_terminalEnergyBalance(model,carrier,node,terminal,t):
             ''' node energy balance (at in and out terminals)
             "in" terminal: flow into terminal is positive (Pinj>0)
             "out" terminal: flow out of terminal is positive (Pinj>0)
-            
-            distinguishing between the case (1) where node/carrier has a 
-            single terminal or (2) with an "in" and one "out" terminal 
-            (with device in series) that may have different properties 
+
+            distinguishing between the case (1) where node/carrier has a
+            single terminal or (2) with an "in" and one "out" terminal
+            (with device in series) that may have different properties
             (such as gas pressure)
-            
+
             edge1 \                                     / edge3
                    \      devFlow_in    devFlow_out    /
                     [term in]-->--device-->--[term out]
-                   /      \                       /    \ 
+                   /      \                       /    \
             edge2 /        \......termFlow......./      \ edge4
 
-            
+
             '''
-                       
+
             # Pinj = power injected into in terminal /out of out terminal
             Pinj = 0
             # devices:
@@ -849,11 +882,11 @@ class Multicarrier:
                             Pinj -= model.varDeviceFlow[dev,carrier,terminal,t]
                     else:
                         raise Exception("Undefined device model ({})".format(dev_model))
-        
+
             # connect terminals (i.e. treat as one):
             if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
                 Pinj -= model.varTerminalFlow[node,carrier,t]
-        
+
             # edges:
             if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
                 for edg in model.paramNodeEdgesTo[(carrier,node)]:
@@ -863,8 +896,8 @@ class Multicarrier:
                 for edg in model.paramNodeEdgesFrom[(carrier,node)]:
                     # power out of node into edge
                     Pinj += (model.varEdgeFlow[edg,t])
-            
-            
+
+
             expr = (Pinj==0)
             if ((type(expr) is bool) and (expr==True)):
                 expr = pyo.Constraint.Skip
@@ -872,7 +905,7 @@ class Multicarrier:
         model.constrTerminalEnergyBalance = pyo.Constraint(model.setCarrier,
                       model.setNode, model.setTerminal,model.setHorizon,
                       rule=rule_terminalEnergyBalance)
-        
+
 #        logging.info("TODO: el power balance constraint redundant?")
 #        def rule_terminalElPowerBalance(model,node,t):
 #            ''' electric power balance at in and out terminals
@@ -893,7 +926,7 @@ class Multicarrier:
 #                            Pinj += model.varDeviceFlow[dev,carrier,'out',t]
 #                    else:
 #                        raise Exception("Undefined device model ({})".format(dev_model))
-#                   
+#
 #            # edges:
 #            # El linearised power flow equations:
 #            # Pinj = B theta
@@ -902,35 +935,35 @@ class Multicarrier:
 #                rhs -= model.paramCoeffB[node,n2]*(
 #                        model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
 #            rhs = rhs*self.elbase['baseMVA']
-#            
+#
 #            expr = (Pinj==rhs)
 #            if ((type(expr) is bool) and (expr==True)):
 #                expr = pyo.Constraint.Skip
 #            return expr
 #        model.constrElPowerBalance = pyo.Constraint(model.setNode,
 #                    model.setHorizon, rule=rule_terminalElPowerBalance)
-        
-                
+
+
         def rule_elVoltageReference(model,t):
             n = model.paramParameters['reference_node']
             expr = (model.varElVoltageAngle[n,t] == 0)
             return expr
         model.constrElVoltageReference = pyo.Constraint(model.setHorizon,
                                               rule=rule_elVoltageReference)
-        
-        
-        
+
+
+
         logging.info("TODO: flow vs pressure equations for liquid flows")
         def rule_edgeFlowEquations(model,edge,t):
             '''Flow as a function of node values (voltage/pressure)'''
             carrier = model.paramEdge[edge]['type']
             n_from = model.paramEdge[edge]['nodeFrom']
             n_to = model.paramEdge[edge]['nodeTo']
-            
+
             if carrier == 'el':
                 '''power flow vs voltage angle difference
                 Linearised power flow equations (DC power flow)'''
-                
+
                 lhs = model.varEdgeFlow[edge,t]
                 lhs = lhs/self.elbase['baseMVA']
                 rhs = 0
@@ -939,24 +972,24 @@ class Multicarrier:
                 for n2 in n2s:
                     rhs += model.paramCoeffDA[edge,n2]*(
                             model.varElVoltageAngle[n2,t]*self.elbase['baseAngle'])
-                return (lhs==rhs) 
-              
+                return (lhs==rhs)
+
             elif carrier == 'gas':
                 '''
                 Q = k * sqrt( Pin^2 - e^s Pout^2 )
                 Q = c * (Pin_0 Pin - e^s Pout0 Pout) [linearised version]
                 c = k/sqrt(Pin0^2 - e^s Pout0^2)
-                
+
                 Here, a linearised Weynmouth equation is implemented
                 Q: m3/s, P: J/s=W
                 P = Q*energy_value
-                
-                REFERENCES:     
-                1) E Sashi Menon, Gas Pipeline Hydraulics, Taylor & Francis (2005), 
-                https://doi.org/10.1201/9781420038224     
-                2) A Tomasgard et al., Optimization  models  for  the  natural  gas  
-                value  chain, in: Geometric Modelling, Numerical Simulation and 
-                Optimization. Springer Verlag, New York (2007), 
+
+                REFERENCES:
+                1) E Sashi Menon, Gas Pipeline Hydraulics, Taylor & Francis (2005),
+                https://doi.org/10.1201/9781420038224
+                2) A Tomasgard et al., Optimization  models  for  the  natural  gas
+                value  chain, in: Geometric Modelling, Numerical Simulation and
+                Optimization. Springer Verlag, New York (2007),
                 https://doi.org/10.1007/978-3-540-68783-2_16
                 '''
                 p_from = model.varPressure[(n_from,'gas','out',t)]
@@ -984,20 +1017,20 @@ class Multicarrier:
                     logging.debug("constr gas pressure vs flow: {}-{},{},{},exp_s={},coeff={}".format(
                                     n_from,n_to,p0_from,p0_to,exp_s,coeff))
                 return (lhs==rhs)
-            
+
             elif carrier in ['wellstream','oil','water']:
                 #TODO: implement flow equation for liquids
                 # For now - no pressure drop
                 lhs = model.varPressure[(n_from,carrier,'out',t)]
                 rhs = model.varPressure[(n_to,carrier,'in',t)]
                 return (lhs==rhs)
-            
+
             else:
                 #Other types of edges - no constraints other than max/min flow
-                return pyo.Constraint.Skip                
+                return pyo.Constraint.Skip
         model.constrEdgeFlowEquations = pyo.Constraint(
                 model.setEdge,model.setHorizon,rule=rule_edgeFlowEquations)
-        
+
         def rule_pressureAtNode(model,node,carrier,t):
             if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
                 # single terminal. (pressure out=pressure in)
@@ -1005,13 +1038,13 @@ class Multicarrier:
                         == model.varPressure[(node,carrier,'in',t)] )
                 return expr
             else:
-                # pressure in and out are related via device equations for 
+                # pressure in and out are related via device equations for
                 # device connected between in and out terminals
-                return pyo.Constraint.Skip    
+                return pyo.Constraint.Skip
         model.constrPressureAtNode = pyo.Constraint(
                 model.setNode,model.setCarrier,model.setHorizon,
                 rule=rule_pressureAtNode)
-        
+
         def rule_pressureBounds(model,node,term,carrier,t):
             col = 'pressure.{}.{}'.format(carrier,term)
             if not col in model.paramNode[node]:
@@ -1027,8 +1060,8 @@ class Multicarrier:
         model.constrPressureBounds = pyo.Constraint(
                 model.setNode,model.setTerminal,model.setCarrier,
                 model.setHorizon,rule=rule_pressureBounds)
-            
-        
+
+
         def rule_devicePmax(model,dev,t):
             # max/min power (zero if device is not on)
 #            minValue = model.paramDevice[dev]['Pmin']
@@ -1041,13 +1074,13 @@ class Multicarrier:
             if model.paramDevice[dev]['model'] in ['gasturbine']:
                 ison = model.varDeviceIsOn[dev,t]
 #            expr = pyo.inequality(minValue*ison,
-#                                  model.varDevicePower[dev,t], 
+#                                  model.varDevicePower[dev,t],
 #                                  maxValue*ison)
             expr = (model.varDevicePower[dev,t] <= ison*maxValue)
-            return expr                    
+            return expr
         model.constrDevicePmax = pyo.Constraint(
                 model.setDevice,model.setHorizon,rule=rule_devicePmax)
-        
+
         def rule_devicePmin(model,dev,t):
             minValue = model.paramDevice[dev]['Pmin']
             ison = 1
@@ -1057,14 +1090,14 @@ class Multicarrier:
             return expr
         model.constrDevicePmin = pyo.Constraint(
                 model.setDevice,model.setHorizon,rule=rule_devicePmin)
-        
+
         def rule_edgePmaxmin(model,edge,t):
-            return pyo.inequality(-model.paramEdge[edge]['capacity'], 
-                    model.varEdgeFlow[edge,t], 
+            return pyo.inequality(-model.paramEdge[edge]['capacity'],
+                    model.varEdgeFlow[edge,t],
                     model.paramEdge[edge]['capacity'])
         model.constrEdgeBounds = pyo.Constraint(
                 model.setEdge,model.setHorizon,rule=rule_edgePmaxmin)
-    
+
         def rule_emissionRateLimit(model,t):
             '''Upper limit on CO2 emission rate'''
             emissionRateMax = model.paramParameters['emissionRateMax']
@@ -1091,8 +1124,8 @@ class Multicarrier:
                 return (lhs<=rhs)
         model.constrEmissionIntensityLimit = pyo.Constraint(model.setHorizon,
                                                rule=rule_emissionIntensityLimit)
-    
-        return model    
+
+        return model
         # END class init.
 
     def _check_constraints_complete(self):
@@ -1108,12 +1141,12 @@ class Multicarrier:
 
 
 
-    
+
     # Helper functions
     @staticmethod
     def compute_CO2(model,devices=None,timesteps=None):
         '''compute CO2 emission (kgCO2/s)
-        
+
         model can be abstract model or model instance
         '''
         if devices is None:
@@ -1122,12 +1155,12 @@ class Multicarrier:
             timesteps = model.setHorizon
         deltaT = model.paramParameters['time_delta_minutes']*60
         sumTime = len(timesteps)*deltaT
-        
+
         sumCO2 = 0
         # GAS: co2 emission from consumed gas (e.g. in gas heater)
         # EL: co2 emission from the generation of electricity
         # HEAT: co2 emission from the generation of heat
-        
+
 #        # MJ = MW*s=MWh*1/3600
 #        # co2 = flow [m3/s] * CV [MJ/m3] * co2content [kg/MWh]
 #        #     = flow*CV*co2content [m3/s * MWs/m3 * kg/MWh= kg/h]
@@ -1136,11 +1169,11 @@ class Multicarrier:
 #                        ) #kg/m3*s/h
 
         gasflow_co2 = model.paramCarriers['gas']['CO2content'] #kg/m3
-        
+
         for d in devices:
             devmodel = pyo.value(model.paramDevice[d]['model'])
             if devmodel in ['gasturbine','gasheater']:
-                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]*gasflow_co2 
+                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]*gasflow_co2
                               for t in timesteps)
             elif devmodel=='compressor_gas':
                 thisCO2 = sum((model.varDeviceFlow[d,'gas','in',t]
@@ -1157,18 +1190,44 @@ class Multicarrier:
                               'sink_oil','sink_water',
                               'storage_el','separator',
                               'well_production','well_injection',
-                              'pump_oil','source_water','source_oil']:
+                              'pump_oil','pump_wellstream',
+                              'source_water','source_oil']:
                 # no CO2 emission contribution
                 thisCO2 = 0
             else:
                 raise NotImplementedError(
                     "CO2 calculation for {} not implemented".format(devmodel))
             sumCO2 = sumCO2 + thisCO2*deltaT
-            
+
         # Average per s
-        sumCO2 = sumCO2/sumTime   
+        sumCO2 = sumCO2/sumTime
         return sumCO2
-    
+
+    @staticmethod
+    def compute_startup_costs(model,devices=None, timesteps=None):
+        '''startup costs/emissions (average per sec)'''
+        if timesteps is None:
+            timesteps = model.setHorizon
+        if devices is None:
+            devices = model.setDevice
+        startupcosts = 0
+        for d in devices:
+            #devmodel = pyo.value(model.paramDevice[d]['model'])
+            if 'startupCost' in model.paramDevice[d]:
+#                print(d,"startup costs")
+                startupcost = pyo.value(model.paramDevice[d]['startupCost'])
+                thisCost = sum(model.varDeviceStarting[d,t]*startupcost
+                              for t in timesteps)
+                startupcosts += thisCost
+#            else:
+#                print("no startupCost specified")
+        # get average per sec:
+        deltaT = model.paramParameters['time_delta_minutes']*60
+        sumTime = len(timesteps)*deltaT
+        startupcosts = startupcosts/sumTime
+        return startupcosts
+
+
     @staticmethod
     def compute_exportRevenue(model,carriers=None,timesteps=None):
         '''revenue from exported oil and gas ($/s)'''
@@ -1187,12 +1246,12 @@ class Multicarrier:
             carriers_incl = [v for v in carriers if v in carriers_in]
             for c in carriers_incl:
                 # flow in m3/s, price in $/m3
-                inflow = sum(model.varDeviceFlow[dev,c,'in',t] 
+                inflow = sum(model.varDeviceFlow[dev,c,'in',t]
                                 for t in timesteps)
-                sumRevenue += inflow*model.paramCarriers[c]['export_price'] 
+                sumRevenue += inflow*model.paramCarriers[c]['export_price']
         # average revenue
         sumRevenue = sumRevenue/len(timesteps)
-        return sumRevenue 
+        return sumRevenue
 
 
     @staticmethod
@@ -1211,7 +1270,7 @@ class Multicarrier:
             carriers_in = inouts[devmodel]['in']
             carriers_incl = [v for v in carriers if v in carriers_in]
             for c in carriers_incl:
-                inflow = sum(model.varDeviceFlow[dev,c,'in',t] 
+                inflow = sum(model.varDeviceFlow[dev,c,'in',t]
                                 for t in timesteps)
                 # average flow, expressed in m3/s
                 inflow = inflow/len(timesteps)
@@ -1225,14 +1284,14 @@ class Multicarrier:
                 else:
                     pass
         return flow_oilequivalents_m3_per_s
-        
+
 
     @staticmethod
     def compute_CO2_intensity(model,timesteps=None):
         '''CO2 emission per exported oil/gas (kgCO2/Sm3oe)'''
         if timesteps is None:
             timesteps = model.setHorizon
-                        
+
         co2_kg_per_time = Multicarrier.compute_CO2(
                 model,devices=None,timesteps=timesteps)
         flow_oilequivalents_m3_per_time = Multicarrier.compute_oilgas_export(
@@ -1241,10 +1300,10 @@ class Multicarrier:
             co2intensity = co2_kg_per_time/flow_oilequivalents_m3_per_time
         if pyo.value(flow_oilequivalents_m3_per_time)==0:
             logging.warning("zero export, so co2 intensity set to NAN")
-            co2intensity = pd.np.nan
-       
-        return co2intensity 
-        
+            co2intensity = np.nan
+
+        return co2intensity
+
     @staticmethod
     def compute_compressor_demand(model,dev,linear=False,
                                   Q=None,p1=None,p2=None,t=None):
@@ -1277,13 +1336,13 @@ class Multicarrier:
             # p1=p10, p2=p20, Q=Q0
             p10 = model.paramNode[node]['pressure.gas.in']
             p20 = model.paramNode[node]['pressure.gas.out']
-            Q0 = model.paramDevice[dev]['Q0']    
-            P = c*(a*(p20/p10)**a * Q0*(p2/p20-p1/p10) 
+            Q0 = model.paramDevice[dev]['Q0']
+            P = c*(a*(p20/p10)**a * Q0*(p2/p20-p1/p10)
                      +((p20/p10)**a-1)*Q )
         else:
             P = c*((p2/p1)**a-1)*Q
         return P
-        
+
     @staticmethod
     #TODO not completed
     def compute_pump_demand(model,dev,linear=False,
@@ -1296,7 +1355,7 @@ class Multicarrier:
         else:
             print("{} is not a compressor".format(dev))
             return
-            
+
         eta = model.paramDevice[dev]['eta'] # efficiency
         node = model.paramDevice[dev]['node']
         if t is None:
@@ -1312,12 +1371,12 @@ class Multicarrier:
             # p1=p10, p2=p20, Q=Q0
             p10 = model.paramNode[node]['pressure.{}.in'.format(carrier)]
             p20 = model.paramNode[node]['pressure.{}.out'.format(carrier)]
-            Q0 = model.paramDevice[dev]['Q0']    
+            Q0 = model.paramDevice[dev]['Q0']
             #P = eta*(Q*(p20-p10)+Q0*(p10-p1))
             P = eta*Q*(p20-p10)
         else:
             P = eta*Q*(p2-p1)
-            
+
         return P
 
     @staticmethod
@@ -1344,11 +1403,61 @@ class Multicarrier:
         elif carrier in ['oil','water']:
             raise NotImplementedError()
         return p2
-        
+
+    @staticmethod
+    def compute_elReserve(model,t,exclude_device=None):
+        '''Compute available reserve power
+        Consists of:
+        1. generator unused capacity (el out)
+        2. sheddable load (el in)'''
+        alldevs = model.setDevice
+        # relevant devices are devices with el output or input
+        inout = Multicarrier.devicemodel_inout()
+        el_devices = []
+        for d in alldevs:
+            devmodel = model.paramDevice[d]['model']
+            if (('el' in inout[devmodel]['out'])
+                or ('el' in inout[devmodel]['in'])):
+                 el_devices.append(d)
+        if exclude_device is None:
+            otherdevs = el_devices
+        else:
+            otherdevs = [d for d in el_devices if d!=exclude_device]
+        cap_avail = 0
+        p_generating = 0
+        p_sheddable = 0
+        for d in otherdevs:
+            devmodel = model.paramDevice[d]['model']
+            if 'el' in inout[devmodel]['out']:
+                #generator
+                maxValue = model.paramDevice[d]['Pmax']
+                if 'profile' in model.paramDevice[d]:
+                    extprofile = model.paramDevice[d]['profile']
+                    maxValue = maxValue*model.paramProfiles[extprofile,t]
+                ison = 1
+                if devmodel in ['gasturbine']:
+                    ison = model.varDeviceIsOn[d,t]
+                elif devmodel in ['storage_el']:
+                    #available power may be limited by energy in the storage
+                    delta_t = model.paramParameters['time_delta_minutes']/60 #hours
+                    storageP = model.varDeviceEnergy[d,t]/delta_t #MWh to MW
+    #TODO: Take into account available energy in the storage
+    # cannot use non-linear min() function here
+    #                maxValue= min(maxValue,storageP)
+                cap_avail += ison*maxValue
+                p_generating += model.varDeviceFlow[d,'el','out',t]
+            if 'el' in inout[devmodel]['in']:
+                if ('reserve_factor' in model.paramDevice[d]):
+                    # sheddable load
+                    shed_factor = model.paramDevice[d]['reserve_factor']
+                    p_sheddable += shed_factor*model.varDeviceFlow[d,'el','in',t]
+        res_dev = (cap_avail-p_generating) + p_sheddable
+        return res_dev
+
 
     def createModelInstance(self,data,profiles,filename=None):
         """Create concrete Pyomo model instance
-        
+
         data : dict of data
         filename : name of file to write model to (optional)
         """
@@ -1356,7 +1465,7 @@ class Multicarrier:
         self._df_profiles_forecast = profiles['forecast']
         #self._df_profiles = self._df_profiles_forecast.loc[
         #        data['setHorizon'][None]]
-        
+
         instance = self.model.create_instance(data={None:data},name='MultiCarrier')
         instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
@@ -1364,10 +1473,10 @@ class Multicarrier:
             instance.pprint(filename=filename)
         self.instance = instance
         return instance
-    
+
     def updateModelInstance(self,timestep,df_profiles,first=False,filename=None):
         """Update Pyomo model instance
-        
+
         first : True if it is the first timestep
         """
         opt_timesteps = self.instance.paramParameters['optimisation_timesteps']
@@ -1386,7 +1495,7 @@ class Multicarrier:
             for t in range(timesteps_use_actual+1,horizon):
                 self.instance.paramProfiles[prof,t] = (
                         self._df_profiles_forecast.loc[timestep+t,prof])
-        
+
         def _updateOnTimesteps(t_prev,dev):
             # sum up consequtive timesteps starting at tprev going
             # backwards, where device has been on.
@@ -1401,7 +1510,7 @@ class Multicarrier:
             if docontinue:
                 sum_on = sum_on + self.instance.paramDeviceOnTimestepsInitially[dev]
             return sum_on
-                
+
         # Update startup/shutdown info
         # pick the last value from previous optimistion prior to the present time
         if not first:
@@ -1431,7 +1540,7 @@ class Multicarrier:
 #        if unstack is None:
 #            df = df[0]
 #        else:
-#            df = df[0].unstack(level=unstack)            
+#            df = df[0].unstack(level=unstack)
 #        df = df.dropna()
 #        return df
 
@@ -1442,20 +1551,25 @@ class Multicarrier:
         df.index.set_levels(df.index.levels[level]+timeshift,level=level,
                             inplace=True)
         return df
-        
+
 
     def saveOptimisationResult(self,timestep):
         '''save results of optimisation for later analysis'''
-        
+
         #TODO: Implement result storage
         # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
-        
+
         timelimit = self.instance.paramParameters['optimisation_timesteps']
         timeshift = timestep
-        
+
         # Retrieve variable values
         varDeviceFlow = self.getVarValues(self.instance.varDeviceFlow,
               names=('device','carrier','terminal','time'))
+        if (varDeviceFlow<0).any():
+            #get first index where this is true
+            ind = varDeviceFlow[varDeviceFlow<0].index[0]
+            logging.warning("Negative number in varDeviceFlow - set to zero ({})".format(ind))
+            varDeviceFlow = varDeviceFlow.clip(lower=0)
         varDeviceIsOn = self.getVarValues(self.instance.varDeviceIsOn,
               names=('device','time'))
         varDevicePower = self.getVarValues(self.instance.varDevicePower,
@@ -1474,13 +1588,13 @@ class Multicarrier:
               names=('node','carrier','terminal','time'))
         varTerminalFlow = self.getVarValues(self.instance.varTerminalFlow,
               names=('node','carrier','time'))
-    
-        
+
+
         # CO2 emission rate (sum all emissions)
-        co2 = [pyo.value(self.compute_CO2(self.instance,timesteps=[t])) 
+        co2 = [pyo.value(self.compute_CO2(self.instance,timesteps=[t]))
                 for t in range(timelimit)]
         self._dfCO2rate = pd.concat(
-                [self._dfCO2rate, 
+                [self._dfCO2rate,
                  pd.Series(data=co2,index=range(timestep,timestep+timelimit))])
 
         # CO2 emission rate per device:
@@ -1491,14 +1605,14 @@ class Multicarrier:
                 df_co2.loc[t+timestep,d] = pyo.value(co2_dev)
         self._dfCO2rate_per_dev = pd.concat([self._dfCO2rate_per_dev,df_co2])
         #self._dfCO2dev.sort_index(inplace=True)
-        
+
         # CO2 emission intensity (sum)
-        df_df_co2intensity = [pyo.value(self.compute_CO2_intensity(self.instance,timesteps=[t])) 
+        df_df_co2intensity = [pyo.value(self.compute_CO2_intensity(self.instance,timesteps=[t]))
                 for t in range(timelimit)]
         self._dfCO2intensity = pd.concat([self._dfCO2intensity,
                   pd.Series(data=df_df_co2intensity,
                             index=range(timestep,timestep+timelimit))])
-        
+
         # Revenue from exported energy
         df_exportRevenue=pd.DataFrame()
         for c in self.instance.setCarrier:
@@ -1508,7 +1622,18 @@ class Multicarrier:
                 df_exportRevenue.loc[t+timestep,c] = pyo.value(exportRevenue_dev)
         self._dfExportRevenue = pd.concat(
                 [self._dfExportRevenue,df_exportRevenue])
-        
+
+        # Reserve capacity
+        # for all generators, should have reserve_excl_generator>p_out
+        df_reserve=pd.DataFrame()
+        devs_elout = self.getDevicesInout(carrier_out='el')
+        for t in range(timelimit):
+            for d in devs_elout:
+                rescap = pyo.value(self.compute_elReserve(
+                        self.instance,t,exclude_device=d))
+                df_reserve.loc[t+timestep,d] = rescap
+        self._dfElReserve = pd.concat([self._dfElReserve,df_reserve])
+
         # Add to dataframes storing results (only the decision variables)
         def _addToDf(df_prev,df_new):
             level = df_new.index.names.index('time')
@@ -1517,7 +1642,7 @@ class Multicarrier:
                                     level=level, inplace=True)
             df = pd.concat([df_prev,df_new])
             df.sort_index(inplace=True)
-            return df        
+            return df
         self._dfDeviceFlow = _addToDf(self._dfDeviceFlow,varDeviceFlow)
         self._dfDeviceIsOn = _addToDf(self._dfDeviceIsOn,varDeviceIsOn)
         self._dfDevicePower = _addToDf(self._dfDevicePower,varDevicePower)
@@ -1528,29 +1653,29 @@ class Multicarrier:
         self._dfElVoltageAngle = _addToDf(self._dfElVoltageAngle,varElVoltageAngle)
         self._dfTerminalPressure = _addToDf(self._dfTerminalPressure,varPressure)
         self._dfTerminalFlow = _addToDf(self._dfTerminalFlow,varTerminalFlow)
-        return    
+        return
 
-    
+
     def solve(self,solver="gurobi",write_yaml=False,timelimit=None):
         """Solve problem for planning horizon at a single timestep"""
-        
+
         opt = pyo.SolverFactory(solver)
         if timelimit is not None:
-            if solver == 'gurobi':           
+            if solver == 'gurobi':
                 opt.options['TimeLimit'] = timelimit
-            elif solver == 'cbc':           
+            elif solver == 'cbc':
                 opt.options['sec'] = timelimit
             elif solver == 'cplex':
                 opt.options['timelimit'] = timelimit
-            elif solver == 'glpk':         
+            elif solver == 'glpk':
                 opt.options['tmlim'] = timelimit
         logging.debug("Solving...")
-        sol = opt.solve(self.instance) 
-        
+        sol = opt.solve(self.instance)
+
         if write_yaml:
             sol.write_yaml()
-        
-        if ((sol.solver.status == pyopt.SolverStatus.ok) and 
+
+        if ((sol.solver.status == pyopt.SolverStatus.ok) and
            (sol.solver.termination_condition == pyopt.TerminationCondition.optimal)):
             logging.debug("Solved OK")
         elif (sol.solver.termination_condition == pyopt.TerminationCondition.infeasible):
@@ -1559,11 +1684,11 @@ class Multicarrier:
             # Something else is wrong
             logging.info("Solver Status:{}".format(sol.solver.status))
         return sol
- 
+
     def solveMany(self,solver="gurobi",timerange=None,write_yaml=False,
                   timelimit=None):
         """Solve problem over many timesteps - rolling horizon"""
-        
+
         steps = self.instance.paramParameters['optimisation_timesteps']
         horizon = self.instance.paramParameters['planning_horizon']
         if timelimit is not None:
@@ -1575,7 +1700,7 @@ class Multicarrier:
             time_start = timerange[0]
             time_end=timerange[1]
         df_profiles = pd.DataFrame()
-        
+
         first=True
         for step in range(time_start,time_end,steps):
             logging.info("Solving timestep={}".format(step))
@@ -1587,31 +1712,31 @@ class Multicarrier:
             self.saveOptimisationResult(step)
             first = False
 
-#            vals = [pyo.value(self.instance.varDeviceIsOn['GT1',x]) 
+#            vals = [pyo.value(self.instance.varDeviceIsOn['GT1',x])
 #                    for x in range(8) ]
-#            vals2 = [pyo.value(self.instance.varDevicePower['GT1',x]) 
+#            vals2 = [pyo.value(self.instance.varDevicePower['GT1',x])
 #                    for x in range(8) ]
 #            print(vals,vals2)
-            
-        
-        
-        
+
+
+
+
     def printSolution(self,instance):
         print("\nSOLUTION - devicePower:")
         for k in instance.varDevicePower.keys():
             print("  {}: {}".format(k,instance.varDevicePower[k].value))
-        
+
         print("\nSOLUTION - edgeFlow:")
         for k in instance.varEdgeFlow.keys():
             power = instance.varEdgeFlow[k].value
             print("  {}: {}".format(k,power))
-        
+
         print("\nSOLUTION - Pressure:")
         for k,v in instance.varPressure.get_values().items():
             pressure = v #pyo.value(v)
             print("  {}: {}".format(k,pressure))
             #df_edge.loc[k,'gasPressure'] = pressure
-        
+
         # display all duals
         print ("Duals")
         for c in instance.component_objects(pyo.Constraint, active=True):
@@ -1634,7 +1759,7 @@ class Multicarrier:
             mydevs = model.paramNodeDevices[node]
             devmodels = [model.paramDevice[d]['model'] for d in mydevs]
             for dev_model in devmodels:
-                carriers_used = [item for sublist in 
+                carriers_used = [item for sublist in
                      #list(model.paramDevicemodel[dev_model].values())
                      list(self._devmodels[dev_model].values())
                      for item in sublist]
@@ -1642,7 +1767,7 @@ class Multicarrier:
                     isNontrivial = True
                     return isNontrivial
         return isNontrivial
-    
+
     def getProfiles(self,names):
         if not type(names) is list:
             names = [names]
@@ -1652,7 +1777,24 @@ class Multicarrier:
         df.index=pd.MultiIndex.from_tuples(df.index)
         df = df[0].unstack(level=0)
         return df
-    
+
+
+    def getDevicesInout(self,carrier_in=None,carrier_out=None):
+        '''devices that have the specified connections in and out'''
+        model = self.instance
+        inout = self.devicemodel_inout()
+        devs = []
+        for d in model.setDevice:
+            devmodel = model.paramDevice[d]['model']
+            ok_in = ((carrier_in is None)
+                        or (carrier_in in inout[devmodel]['in']))
+            ok_out = ((carrier_out is None)
+                        or (carrier_out in inout[devmodel]['out']))
+            if ok_in and ok_out:
+                devs.append(d)
+        return devs
+
+
     def computeEdgePressureDropAtFullPower(self,P=None):
         model = self.instance
         for k,edge in model.paramEdge.items():
@@ -1671,11 +1813,11 @@ class Multicarrier:
 #                Q = P/model.paramCarriers['gas']['energy_value']
                 Q = P
                 p_out_comp = 1/exp_s*(p_in**2-Q**2/gasflow_k**2)**(1/2)
-                
+
                 print("{}-{}:\n\tpin={} pout={}, computed (P={}) pout={}"
                       .format(node_from,node_to,p_in,p_out,P,p_out_comp))
-                
-                
+
+
     def checkEdgePressureDrop(self,timestep=0,var="outer"):
         model = self.instance
         for k,edge in model.paramEdge.items():
@@ -1691,16 +1833,16 @@ class Multicarrier:
                 if var=="inner":
                     # get value from inner optimisation (over rolling horizon)
                     Q = model.varEdgeFlow[(k,timestep)]
-                    var_p_in = model.varPressure[(node_from,'gas','out',timestep)]                          
-                    var_p_out = model.varPressure[(node_to,'gas','in',timestep)]                          
+                    var_p_in = model.varPressure[(node_from,'gas','out',timestep)]
+                    var_p_out = model.varPressure[(node_to,'gas','in',timestep)]
                 elif var=="outer":
                     # get value from outer loop (decisions)
                     Q = self._dfEdgeFlow[(k,timestep)]
-                    var_p_in = self._dfTerminalPressure[(node_from,'gas','out',timestep)]                          
-                    var_p_out = self._dfTerminalPressure[(node_to,'gas','in',timestep)]                          
+                    var_p_in = self._dfTerminalPressure[(node_from,'gas','out',timestep)]
+                    var_p_out = self._dfTerminalPressure[(node_to,'gas','in',timestep)]
                 else:
                     raise Exception("var must be inner or outer")
-                    
+
                 p_out_comp = self.compute_edge_pressuredrop(model,edge=k,
                         p1=p_in,Q=Q,exp_s=exp_s,k=gasflow_k,t=timestep)
                 p_out_comp2 = self.compute_edge_pressuredrop(model,edge=k,
@@ -1714,13 +1856,13 @@ class Multicarrier:
                               var_p_in,var_p_out, p_out_comp2))
             elif edge['type']=='oil':
                 pass
-    
+
     def exportSimulationResult(self,filename):
         '''Write saved simulation results to file'''
-        
+
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
+
         if not self._dfCO2intensity.empty:
             self._dfCO2intensity.to_excel(writer,sheet_name="CO2intensity")
         if not self._dfCO2rate.empty:
@@ -1730,7 +1872,7 @@ class Multicarrier:
         if not self._dfDeviceEnergy.empty:
             self._dfDeviceEnergy.to_excel(writer,sheet_name="DeviceEnergy")
         if not self._dfDeviceFlow.empty:
-            self._dfDeviceFlow.to_excel(writer,sheet_name="DeviceFlow")       
+            self._dfDeviceFlow.to_excel(writer,sheet_name="DeviceFlow")
         if not self._dfDeviceIsOn.empty:
             self._dfDeviceIsOn.to_excel(writer,sheet_name="DeviceIsOn")
         if not self._dfDevicePower.empty:
@@ -1749,16 +1891,15 @@ class Multicarrier:
 #            self._dfTerminalFlow.to_excel(writer,sheet_name="TerminalFlow")
         if not self._dfTerminalPressure.empty:
             self._dfTerminalPressure.to_excel(writer,sheet_name="TerminalPressure")
-        
+
         # Close the Pandas Excel writer and output the Excel file.
-        writer.save()        
-    
-class Plots:  
-      
+        writer.save()
+
+class Plots:
+
 
     def plotDevicePowerLastOptimisation1(mc,device,filename=None):
         model = mc.instance
-        profile = model.paramDevice[device]['profile']
         devname = model.paramDevice[device]['name']
         maxP = model.paramDevice[device]['Pmax']
         plt.figure(figsize=(12,4))
@@ -1767,18 +1908,13 @@ class Plots:
         plt.xlabel("Timestep in planning horizon")
         plt.ylabel("Device power (MW)")
         label_profile=""
-        if not pd.isna(profile):
+        if 'profile' in model.paramDevice[device]:
+            profile = model.paramDevice[device]['profile']
             dfa = mc.getProfiles(profile)
             dfa = dfa*maxP
             dfa[profile].plot(ax=ax,label='available')
             label_profile="({})".format(profile)
 
-#        df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
-#                                    orient="index")
-#        df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
-#        df = df[0].unstack(level=0)
-#        df[device].plot(ax=ax,label='actual')
-        
         dfIn = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(),
                                     orient="index")
         dfIn.index = pd.MultiIndex.from_tuples(dfIn.index,
@@ -1816,8 +1952,8 @@ class Plots:
         plt.title("{}:{} {}".format(device,devname,label_profile))
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
-        
-    
+
+
     def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
         """Plot power schedule over planning horizon (last optimisation)"""
         if devices=='all':
@@ -1843,12 +1979,12 @@ class Plots:
 
     def plotDeviceSumPowerLastOptimisation(model,carrier='el',filename=None):
         """Plot power schedule over planning horizon (last optimisation)"""
-        
+
         df = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(),
                                     orient="index")
         df.index = pd.MultiIndex.from_tuples(df.index,
                      names=('device','carrier','inout','time'))
-        
+
         # separate out in out
         df = df[0].unstack(level=2)
         df = df.fillna(0)
@@ -1860,7 +1996,7 @@ class Plots:
 #        dfprod = dfprod[dfprod>0]
 #        dfcons = df[df<0].unstack(level=1)[carrier]
 #        dfcons = dfcons[dfcons<0]
-        
+
         df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
         labels = (df_info.index.astype(str) +'_'+df_info['name'])
 
@@ -1875,16 +2011,16 @@ class Plots:
         axes[0].set_ylabel("Produced power (MW)")
         axes[0].set_xlabel("")
 
-        dfcons.unstack(level=0).rename(columns=labels).plot.area(ax=axes[1])      
+        dfcons.unstack(level=0).rename(columns=labels).plot.area(ax=axes[1])
         axes[1].legend(loc='lower left', bbox_to_anchor =(1.01,0),
                    frameon=False)
         axes[1].set_ylabel("Consumed power (MW)")
-        
+
         axes[1].set_xlabel("Timestep in planning horizon")
         plt.suptitle("Result from last optimisation")
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
-            
+
     def plotEmissionRateLastOptimisation(model,filename=None):
         devices = model.setDevice
         timesteps = model.setHorizon
@@ -1905,16 +2041,16 @@ class Plots:
                   frameon=False)
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
-        
-    
-    
+
+
+
 
 #########################################################################
 
 def _nodeCarrierHasSerialDevice(df_node,df_device):
     devmodel_inout = Multicarrier.devicemodel_inout()
     node_devices = df_device.groupby('node').groups
-    
+
     # extract carriers (from defined device models)
     sublist = [v['in']+v['out'] for k,v in devmodel_inout.items()]
     flatlist = [item for sublist2 in sublist for item in sublist2]
@@ -1931,7 +2067,7 @@ def _nodeCarrierHasSerialDevice(df_node,df_device):
             for dev_mod in df_device.loc[devs_at_node,'model']:
                 #has_series = ((carrier in devmodel_inout[dev_mod]['in'])
                 #                and (carrier in devmodel_inout[dev_mod]['out']))
-                if (('serial' in devmodel_inout[dev_mod]) and 
+                if (('serial' in devmodel_inout[dev_mod]) and
                             (carrier in devmodel_inout[dev_mod]['serial'])):
                     node_carrier_has_serialdevice[n][carrier] = True
                     break
@@ -1939,13 +2075,13 @@ def _nodeCarrierHasSerialDevice(df_node,df_device):
 
 def read_data_from_xlsx(filename,carrier_properties):
     """Read input data from spreadsheet.
-    
+
     filename : str
         name of file
     carrier_properties: dict
         dictionary of all energy carriers and their specific properties
     """
-    
+
     def read_xlsx_devices(filename,sheet_name,method='new'):
         df = pd.read_excel(filename,sheet_name=sheet_name)
         if method=='new':
@@ -1962,10 +2098,10 @@ def read_data_from_xlsx(filename,carrier_properties):
         else:
             # one column per parameter, lots of empty cells
             return df
-            
+
     def to_dict_dropna(df):
       return {k:r.dropna().to_dict() for k,r in df.iterrows()}
-    
+
     # Input data
     df_node = pd.read_excel(filename,sheet_name="node")
     df_edge = pd.read_excel(filename,sheet_name="edge")
@@ -1976,17 +2112,17 @@ def read_data_from_xlsx(filename,carrier_properties):
     df_profiles_forecast = pd.read_excel(filename,
                                          sheet_name="profiles_forecast",index_col=0)
     profiles = {'actual':df_profiles,'forecast':df_profiles_forecast}
-    
-    # discard edges and devices not to be included:    
+
+    # discard edges and devices not to be included:
     df_edge = df_edge[df_edge['include']==1]
     df_device = df_device[df_device['include']==1]
     if not 'profile' in df_device:
-        df_device['profile'] = pd.np.nan
-       
+        df_device['profile'] = np.nan
+
     allCarriers = list(carrier_properties.keys())
 
     node_carrier_has_serialdevice = _nodeCarrierHasSerialDevice(df_node,df_device)
-    
+
     # gas pipeline parameters - derive k and exp(s) parameters:
     ga=carrier_properties['gas']
     temp = df_edge['temperature_K']
@@ -1998,17 +2134,17 @@ def read_data_from_xlsx(filename,carrier_properties):
                     .set_index('index')['coord_z']*1000)
     s = 0.0684 * (ga['G_gravity']*(height_to-height_from)
                     /(temp*ga['Z_compressibility']))
-    sfactor= (pd.np.exp(s)-1)/s
+    sfactor= (np.exp(s)-1)/s
     sfactor.loc[s==0] = 1
     length = df_edge['length_km']*sfactor
     diameter = df_edge['diameter_mm']
-    
+
     gas_edge_k = (4.3328e-8*ga['Tb_basetemp_K']/ga['Pb_basepressure_MPa']
         *(ga['G_gravity']*temp*length*ga['Z_compressibility'])**(-1/2)
         *diameter**(8/3))
     df_edge['gasflow_k'] = gas_edge_k
-    df_edge['exp_s'] = pd.np.exp(s)
-        
+    df_edge['exp_s'] = np.exp(s)
+
     coeffB,coeffDA = computePowerFlowMatrices(df_node,df_edge,baseZ=1)
     planning_horizon = df_parameters.loc['planning_horizon','value']
     data = {}
@@ -2041,7 +2177,7 @@ def read_data_from_xlsx(filename,carrier_properties):
     data['paramCarriers'] = carrier_properties
     data['paramCoeffB'] = coeffB
     data['paramCoeffDA'] = coeffDA
-    
+
     return data,profiles
 
 
@@ -2050,30 +2186,30 @@ def read_data_from_xlsx(filename,carrier_properties):
 #    If not, well... baseOhm depends on the voltage level, so need to know
 #    the nominal voltage at the bus to convert from ohm to pu.
 #    '''
-#    #return [-1/self.branch['reactance'][i]*baseOhm 
+#    #return [-1/self.branch['reactance'][i]*baseOhm
 #    #        for i in self.branch.index.tolist()]
 #    return 1/df_edge['reactance']*baseOhm
 
 def computePowerFlowMatrices(df_node,df_edge,baseZ=1):
     """
     Compute and return dc power flow matrices B' and DA
-    
+
     Parameters
     ==========
     baseZ : float (impedance should already be in pu.)
-            base value for impedance        
-    
-    Returns 
+            base value for impedance
+
+    Returns
     =======
     (coeff_B, coeff_DA) : dictionary of matrix values
-          
+
     """
-    
+
     df_branch = df_edge[df_edge['type']=='el']
     #el_edges = df_edge[df_edge['type']=='el'].index
-    
+
     b = (1/df_branch['reactance']*baseZ)
-    #b0 = pd.np.asarray(_susceptancePu(baseZ))
+    #b0 = np.asarray(_susceptancePu(baseZ))
 
     # MultiDiGraph to allow parallel lines
     G = nx.MultiDiGraph()
@@ -2082,14 +2218,14 @@ def computePowerFlowMatrices(df_node,df_edge,baseZ=1):
               i,{'i':i,'b':b[i]})
               for i in df_branch.index]
     G.add_nodes_from(df_node['id'])
-    G.add_edges_from(edges)   
+    G.add_edges_from(edges)
     A_incidence_matrix = -nx.incidence_matrix(G,oriented=True,
                                              nodelist=df_node['id'],
                                              edgelist=edges).T
     # Diagonal matrix
     D = scipy.sparse.diags(-b,offsets=0)
     DA = D*A_incidence_matrix
-    
+
     # Bf constructed from incidence matrix with branch susceptance
     # used as weight (this is quite fast)
     Bf = -nx.incidence_matrix(G,oriented=True,
@@ -2111,9 +2247,5 @@ def computePowerFlowMatrices(df_node,df_edge,baseZ=1):
     cx = scipy.sparse.coo_matrix(DA)
     for i,j,v in zip(cx.row, cx.col, cx.data):
         coeff_DA[(b_i[i],n_i[j])] = v
-    
+
     return coeff_B,coeff_DA
-
-
-
-

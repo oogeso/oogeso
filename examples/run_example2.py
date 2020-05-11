@@ -98,7 +98,9 @@ plots.plotNetwork(mc,timestep=tstep,only_carrier='water',
 
 plots.plotProfiles(profiles,filename=outpath+"profiles.png")
 plots.plot_SumPowerMix(mc,carrier="el",filename=outpath+"el_sum_opt.png")
-plots.plot_deviceprofile(mc,devs=['GT1','GT2'],profiles=profiles,
+gts = [d for d in mc.instance.setDevice 
+       if mc.instance.paramDevice[d]['model']=='gasturbine']
+plots.plot_deviceprofile(mc,devs=gts,profiles=profiles,
                          filename=outpath+"GTs_opt.png")
 if 'wind' in mc.instance.setDevice:
     plots.plot_deviceprofile(mc,devs=['wind'],profiles=profiles,
@@ -114,6 +116,8 @@ plots.plot_CO2_intensity(mc,filename=outpath+"co2intensity_opt.png")
 
 plots.plot_ExportRevenue(mc,filename=outpath+"exportrevenue_opt.png")
 #mc._dfExportRevenue.loc[:,mc._dfExportRevenue.sum()>0].plot(kind="area")
+
+plots.plotElReserve(mc,filename=outpath+"elReserve.png")
 
 plotExport=True
 if plotExport:

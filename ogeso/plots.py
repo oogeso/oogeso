@@ -1,21 +1,23 @@
-#import plotly.plotly as py
 import plotly
 import plotly.express as px
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import pydot
 
 sns.set_style("whitegrid")
-sns.set_palette("dark")
+#sns.set_palette("dark")
+
+plotter="matplotlib"
 
 def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     '''Plot dataframe using plotly (saved to file)'''
-    
+
     df_tidy = df.reset_index()
     df_tidy.rename(columns={0:ylabel},inplace=True)
     fig = px.line(df_tidy,x="time",y=ylabel,color=id_var,title=title)
-    
+
     #fig = px.line()
     #for cols in df:
     #    fig.add_scatter(df[cols])
@@ -25,7 +27,7 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     #        filename=filename)
     if filename is not None:
         plotly.offline.plot(fig,filename=filename)
-    
+
     return fig
 
 def plot_deviceprofile(mc,devs,profiles=None,filename=None):
@@ -35,6 +37,7 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None):
     plt.figure(figsize=(12,4))
     ax=plt.gca()
     labels=[]
+    offset_online=0
     for dev in devs:
         dev_param = mc.instance.paramDevice[dev]
         devname = "{}:{}".format(dev,dev_param["name"])
@@ -42,17 +45,20 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None):
         df= mc._dfDevicePower.unstack(0)[dev]
         df.name = devname
         df.plot(ax=ax)
+        #get the color of the last plotted line (the one just plotted)
+        col = ax.get_lines()[-1].get_color()
         labels=labels+[devname]
         if 'profile' in dev_param:
             curve = dev_param['profile']
 #        if ((not profiles is None) and (not pd.isna(curve))):
             (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
-            ax.set_prop_cycle(None)
+            #ax.set_prop_cycle(None)
             (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
             labels = labels+['--nowcast','--forecast']
         if dev_param['model']=='gasturbine':
-            df2=mc._dfDeviceIsOn.unstack(0)[dev]
-            df2.plot(ax=ax,linestyle='-.')
+            df2=mc._dfDeviceIsOn.unstack(0)[dev]+offset_online
+            offset_online +=0.1
+            df2.plot(ax=ax,linestyle='--',color=col)
             labels = labels+['--online']
     plt.xlim(df.index.min(),df.index.max())
     ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
@@ -69,12 +75,12 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
     plt.figure(figsize=(12,4))
     plt.title(devname)
     ax=plt.gca()
-    
+
     # Power flow in/out
     dfF = mc._dfDeviceFlow[
             mc._dfDeviceFlow.index.get_level_values('device')==dev
             ]
-    #dfF = dfF.reset_index("time")   
+    #dfF = dfF.reset_index("time")
     #dfF["power flow"]=dfF.index
     #sns.lineplot(x="time",y=0,data=dfF,ax=ax,hue="power flow",legend="full")
     #ax.set_xlim(dfF['time'].min(),dfF['time'].max())
@@ -117,10 +123,7 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
         plt.savefig(filename,bbox_inches = 'tight')
 
 def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
-    fig,axes = plt.subplots(nrows=2,ncols=1,figsize=(12,8))
-    #plt.figure(figsize=(12,4))
-    plt.suptitle("Sum power ({})".format(carrier))
-    
+
     # Power flow in/out
     dfF = mc._dfDeviceFlow
     tmin = dfF.index.get_level_values('time').min()
@@ -131,30 +134,55 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
     dfF_out = dfF[mask_carrier&mask_out]
     dfF_out.index = dfF_out.index.droplevel(level=("carrier","terminal"))
     dfF_out = dfF_out.unstack(0)
+    keepcols = mc.getDevicesInout(carrier_out=carrier)
+    dfF_out = dfF_out[keepcols]
     dfF_in = dfF[mask_carrier&mask_in]
     dfF_in.index = dfF_in.index.droplevel(level=("carrier","terminal"))
     dfF_in = dfF_in.unstack(0)
-    dfF_in.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name']) 
-        for d in dfF_in.columns},inplace=True)
-    dfF_out.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name']) 
-        for d in dfF_out.columns},inplace=True)
-    dfF_out.plot.area(ax=axes[0],linewidth=0)
-    dfF_in.plot.area(ax=axes[1],linewidth=0)
-    axes[0].set_ylabel("Power supply (MW)")
-    axes[1].set_ylabel("Power consumption (MW)")
-    axes[0].set_xlabel("")
-    axes[1].set_xlabel("Timestep")
-    for ax in axes:
-        if reverseLegend:
-            handles, labels = ax.get_legend_handles_labels()
-            ax.legend(handles[::-1], labels[::-1],
-                      loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
-        else:
-            ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
-        ax.set_xlim(tmin,tmax)
+    keepcols = mc.getDevicesInout(carrier_in=carrier)
+    dfF_in = dfF_in[keepcols]
+#    dfF_in.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name'])
+#        for d in dfF_in.columns},inplace=True)
+#    dfF_out.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name'])
+#        for d in dfF_out.columns},inplace=True)
+
     
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
+    if plotter=="plotly":
+        fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True)
+        for col in dfF_in:
+            fig.add_scatter(y=dfF_in[col],line_shape='hv',name="in:"+col,stackgroup="in",legendgroup=col,row=2,col=1)
+        for col in dfF_out:
+            fig.add_scatter(y=dfF_out[col],line_shape='hv',name="out:"+col,stackgroup="out",legendgroup=col,row=1,col=1)
+        fig.update_xaxes(row=1,col=1,title_text="")
+        fig.update_xaxes(row=2,col=1,title_text="Timestep")
+        fig.update_yaxes(row=1,col=1,title_text="Power supply (MW)")
+        fig.update_yaxes(row=2,col=1,title_text="Power consumption (MW)")
+        if reverseLegend:
+            fig.update_layout(legend_traceorder="reversed")
+        fig.update_layout(height=600)
+        fig.show()
+    elif plotter=="matplotlib":
+        fig,axes = plt.subplots(nrows=2,ncols=1,figsize=(12,8))
+        #plt.figure(figsize=(12,4))
+        plt.suptitle("Sum power ({})".format(carrier))
+        dfF_out.plot.area(ax=axes[0],linewidth=0)
+        dfF_in.plot.area(ax=axes[1],linewidth=0)
+        axes[0].set_ylabel("Power supply (MW)")
+        axes[1].set_ylabel("Power consumption (MW)")
+        axes[0].set_xlabel("")
+        axes[1].set_xlabel("Timestep")
+        for ax in axes:
+            if reverseLegend:
+                handles, labels = ax.get_legend_handles_labels()
+                ax.legend(handles[::-1], labels[::-1],
+                          loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+            else:
+                ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+            ax.set_xlim(tmin,tmax)
+
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    return fig
 
 def plot_ExportRevenue(mc,filename=None):
     plt.figure(figsize=(12,4))
@@ -189,14 +217,14 @@ def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
     mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()
                     ].rename(columns=labels
                     ).plot.area(ax=ax,linewidth=0)
-    
+
     if reverseLegend:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[::-1], labels[::-1],
                   loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
     else:
         ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
-        
+
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
@@ -209,16 +237,17 @@ def plot_CO2_intensity(mc,filename=None):
     mc._dfCO2intensity.plot()
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
-   
+
 
 def plotProfiles(profiles,curves=None,filename=None):
     '''Plot profiles (forecast and actual)'''
-    
+
     plt.figure(figsize=(12,4))
     ax=plt.gca()
     if curves is None:
         curves = profiles['actual'].columns
     profiles['actual'][curves].plot(ax=ax)
+    #reset color cycle (so using the same as for the actual plot):
     ax.set_prop_cycle(None)
     profiles['forecast'][curves].plot(ax=ax,linestyle=":")
 
@@ -253,7 +282,7 @@ def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
             ls=':'
         for carr in carriers:
             ax.plot(mc._dfDeviceFlow.unstack([0,1,2])[(dev,carr,inout)],
-                     ls,label="DeviceFlow ({},{})".format(carr,inout)) 
+                     ls,label="DeviceFlow ({},{})".format(carr,inout))
     #Pressure
     for inout,carriers in carriers_inout.items():
         for carr in carriers:
@@ -267,12 +296,12 @@ def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
     plt.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
-    
 
-def plotNetwork(mc,timestep=0,filename=None,
-                        only_carrier=None,rankdir='LR'):
+
+def plotNetwork(mc,timestep=0,filename=None,prog='dot',
+                        only_carrier=None,rankdir='LR',plotDevName=False):
     """Plot energy network
-    
+
     mc : object
         Multicarrier object
     timestep : int
@@ -284,13 +313,13 @@ def plotNetwork(mc,timestep=0,filename=None,
     rankdir : str
         Plotting direction TB=top to bottom, LR=left to right
     """
-    
+
     # Idea: in general, there are "in" and "out" terminals. If there are
     # no serial devices, then these are merged into a single terminal
     # (prettier plot"). Whether the single terminal is shown as an in or out
     # terminal (left or irght), depends on whether it is an input or output
     # of a majority of the connected devices.
-    
+
     cluster = {}
     col = {'t': {'el':'red','gas':'orange','heat':'darkgreen',
                  'wellstream':'brown','oil':'black','water':'blue'},
@@ -306,9 +335,9 @@ def plotNetwork(mc,timestep=0,filename=None,
         carriers = model.setCarrier
     else:
         carriers = [only_carrier]
-    
+
     devicemodels = mc.devicemodel_inout()
-    
+
     # plot all node and terminals:
     for n_id in model.setNode:
         cluster = pydot.Cluster(graph_name=n_id,label=n_id,
@@ -319,17 +348,19 @@ def plotNetwork(mc,timestep=0,filename=None,
         for carrier in carriers:
             #add only terminals that are connected to something (device or edge)
             if mc.nodeIsNonTrivial(n_id,carrier):
-                
+
                 # add devices at this node
                 if n_id in model.paramNodeDevices:
                     devs = model.paramNodeDevices[n_id]
                 else:
-                    devs=[]            
+                    devs=[]
                 num_in=0
                 num_out=0
                 for d in devs:
                     dev_model = model.paramDevice[d]['model']
-                    devlabel = "{} {}".format(d,model.paramDevice[d]['name'])
+                    devlabel = d # use index as label
+                    if plotDevName:
+                        devlabel = "{} {}".format(devlabel,model.paramDevice[d]['name'])
                     if timestep is not None:
                         p_dev = mc._dfDevicePower[(d,timestep)]
                         devlabel = "{}\n{:.2f}".format(devlabel,p_dev)
@@ -347,10 +378,10 @@ def plotNetwork(mc,timestep=0,filename=None,
                         else:
                             f_in = mc._dfDeviceFlow[(d,carrier,'in',timestep)]
                             devedgelabel = "{:.2f}".format(f_in)
-                        if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:                   
+                        if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_in = n_id+'_'+carrier+'_in'
                         else:
-                            n_in = n_id+'_'+carrier                        
+                            n_in = n_id+'_'+carrier
                         dotG.add_edge(pydot.Edge(dst=d,src=n_in,
                              color=col['e'][carrier],
                              fontcolor=col['e'][carrier],
@@ -362,10 +393,10 @@ def plotNetwork(mc,timestep=0,filename=None,
                         else:
                             f_out = mc._dfDeviceFlow[(d,carrier,'out',timestep)]
                             devedgelabel = "{:.2f}".format(f_out)
-                        if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:                   
+                        if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_out = n_id+'_'+carrier+'_out'
                         else:
-                            n_out = n_id+'_'+carrier                        
+                            n_out = n_id+'_'+carrier
                         dotG.add_edge(pydot.Edge(dst=n_out,src=d,
                              color=col['e'][carrier],
                              fontcolor=col['e'][carrier],
@@ -386,7 +417,7 @@ def plotNetwork(mc,timestep=0,filename=None,
                     label_in +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
                     label_out +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
                 # Add two terminals if there are serial devices, otherwise one:
-                if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:                        
+                if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                     terms_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
                            color=col['t'][carrier],label=label_in,shape='box'))
                     terms_out.add_node(pydot.Node(name=n_id+'_'+carrier+'_out',
@@ -399,14 +430,14 @@ def plotNetwork(mc,timestep=0,filename=None,
                     else:
                         terms_in.add_node(pydot.Node(name=n_id+'_'+carrier,
                            color=col['t'][carrier],label=label_out,shape='box'))
-                        
 
-                
+
+
         cluster.add_subgraph(terms_in)
         cluster.add_subgraph(gr_devices)
         cluster.add_subgraph(terms_out)
         dotG.add_subgraph(cluster)
-    
+
     # plot all edges (per carrier):
     for carrier in carriers:
         for i,e in model.paramEdge.items():
@@ -426,12 +457,12 @@ def plotNetwork(mc,timestep=0,filename=None,
                     t_in = n_to+'_'+carrier+'_in'
                 else:
                     t_in = n_to+'_'+carrier
-                    
+
                 dotG.add_edge(pydot.Edge(src=t_out,dst=t_in,
                                          color='"{0}:invis:{0}"'.format(col['e'][carrier]),
                                          fontcolor=col['e'][carrier],
                                          label=edgelabel))
-    
+
 #    # plot devices and device connections:
 #    devicemodels = mc.devicemodel_inout()
 #    for n,devs in model.paramNodeDevices.items():
@@ -457,10 +488,10 @@ def plotNetwork(mc,timestep=0,filename=None,
 #                    #f_in = pyo.value(model.varDeviceFlow[d,carrier,'in',timestep])
 #                    f_in = mc._dfDeviceFlow[(d,carrier,'in',timestep)]
 #                    devlabel = "{:.2f}".format(f_in)
-#                if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
+#                if model.paramNodeCarrierHasSerialDevice[n][carrier]:
 #                    n_in = n+'_'+carrier+'_in'
 #                else:
-#                    n_in = n+'_'+carrier                        
+#                    n_in = n+'_'+carrier
 #                dotG.add_edge(pydot.Edge(dst=d,src=n_in,
 #                     color=col['e'][carrier],
 #                     fontcolor=col['e'][carrier],
@@ -472,32 +503,33 @@ def plotNetwork(mc,timestep=0,filename=None,
 #                    #f_out = pyo.value(model.varDeviceFlow[d,carrier,'out',timestep])
 #                    f_out = mc._dfDeviceFlow[(d,carrier,'out',timestep)]
 #                    devlabel = "{:.2f}".format(f_out)
-#                if model.paramNodeCarrierHasSerialDevice[n][carrier]:                   
+#                if model.paramNodeCarrierHasSerialDevice[n][carrier]:
 #                    n_out = n+'_'+carrier+'_out'
 #                else:
-#                    n_out = n+'_'+carrier                        
+#                    n_out = n+'_'+carrier
 #                dotG.add_edge(pydot.Edge(dst=n_out,src=d,
 #                     color=col['e'][carrier],
 #                     fontcolor=col['e'][carrier],
 #                     label=devlabel))
     if filename is not None:
-        #prog='dot' gives the best layout.  
-        dotG.write_png(filename,prog='dot')    
- 
+        #prog='dot' gives the best layout.
+        dotG.write_png(filename,prog=prog)
+    return dotG
+
 def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,co2content=200,
                              filename=None):
     x_pow = pd.np.linspace(0,1,50)
     y_fuel = fuelB + fuelA*x_pow
     plt.figure(figsize=(12,4))
     #plt.suptitle("Gas turbine fuel characteristics")
-    
+
     plt.subplot(1,3,1)
     plt.title("Fuel usage ($P_{gas}/P_{el}^{max}$)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
     #plt.ylabel("Gas power input ($P_{gas}/P_{el}^{max}$)")
     plt.plot(x_pow,y_fuel)
     plt.ylim(bottom=0)
-    
+
     plt.subplot(1,3,2)
     plt.title("Efficiency ($P_{el}/P_{gas}$)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
@@ -508,7 +540,7 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,co2content=200,
 #    plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
 #    plt.plot(x_pow,y_fuel/x_pow)
 #    plt.ylim(top=30)
-    
+
     plt.subplot(1,3,3)
     plt.title("Emission factor (kgCO2/MWh)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
@@ -516,6 +548,153 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,co2content=200,
     plt.ylim(top=1200)
 
     if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')        
+        plt.savefig(filename,bbox_inches = 'tight')
 
-       
+def recompute_elReserve(mc):
+    '''Compute reserve
+    should give the same as mc.compute_elReserve'''
+    model = mc.instance
+
+    # used capacity for all (relevant) devices:
+    carrier = 'el'
+    devices_elin = mc.getDevicesInout(carrier_in=carrier)
+    devices_elout = mc.getDevicesInout(carrier_out=carrier)
+    dfP = mc._dfDeviceFlow
+    mask_carrier = (dfP.index.get_level_values('carrier')==carrier)
+    mask_out = (dfP.index.get_level_values('terminal')=='out')
+    mask_in = (dfP.index.get_level_values('terminal')=='out')
+    dfPin = dfP[mask_carrier&mask_in]
+    dfPin.index = dfPin.index.droplevel(level=("carrier","terminal"))
+    dfPin = dfPin.unstack(0)
+    dfPin = dfPin[devices_elin]
+    dfPout = dfP[mask_carrier&mask_out]
+    dfPout.index = dfPout.index.droplevel(level=("carrier","terminal"))
+    dfPout = dfPout.unstack(0)
+    dfPout = dfPout[devices_elout]
+
+    # reserve (unused) capacity by other devices:
+    res_dev = pd.DataFrame(columns=dfPout.columns,index=dfPout.index)
+    df_ison = mc._dfDeviceIsOn.unstack(0)
+    for dev in devices_elout:
+        otherdevs = [d for d in devices_elout if d!=dev]
+        cap_avail = 0
+        for d in otherdevs:
+            devmodel = model.paramDevice[d]['model']
+            maxValue = model.paramDevice[d]['Pmax']
+            if 'profile' in model.paramDevice[d]:
+                extprofile = model.paramDevice[d]['profile']
+                maxValue = maxValue*mc._df_profiles_actual[extprofile]
+            ison = 1
+            if devmodel in ['gasturbine']:
+                ison = df_ison[d]
+            cap_avail += ison*maxValue
+        otherdevs_in = [d for d in devices_elin if d!=dev]
+        #TODO: include sheddable load
+        res_dev[dev] = cap_avail-dfPout[otherdevs].sum(axis=1)
+    return res_dev,dfPout
+
+def plotElReserve(mc,filename=None):
+    '''plot reserve capacity vs device power output'''
+    res_dev = mc._dfElReserve
+    dfP = mc._dfDeviceFlow.copy()
+    carrier='el'
+    mask_carrier = (dfP.index.get_level_values('carrier')==carrier)
+    mask_out = (dfP.index.get_level_values('terminal')=='out')
+    dfP.index = dfP.index.droplevel(level=("carrier","terminal"))
+    dfP = dfP[mask_carrier&mask_out].unstack(0)
+    dfP = dfP[res_dev.columns]
+    plt.figure(figsize=(12,4))
+    ax = plt.gca()
+    res_dev.plot(ax=ax,legend=True,alpha=1,linestyle="-")
+    (res_dev-dfP).min(axis=1).plot(ax=ax,linestyle="-",linewidth=3,
+                                   color="black",label="MARGIN")
+    plt.gca().set_prop_cycle(None)
+    dfP.plot(ax=ax,linestyle=':',legend=False,alpha=1)
+    labels=list(res_dev.columns) + ['MARGIN']
+    plt.title("Reserve capacity (solid lines) vs device output (dotted lines)")
+    ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+               frameon=False)
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+
+
+def plotElReserve2(mc,filename=None):
+    '''plot reserve capacity vs device power output'''
+    res_dev,dfP = recompute_elReserve(mc)
+    plt.figure(figsize=(12,4))
+    ax = plt.gca()
+    # default line zorder=2
+    res_dev.plot(ax=ax,linestyle='-',legend=True,alpha=0.5)
+#    # critical is the largest load:
+#    c_critical = dfP.idxmax(axis=1)
+    # critical is the smallest reserve margin:
+    c_critical = (res_dev-dfP).idxmin(axis=1)
+#    pd.Series(res_dev.lookup(res_dev.index,c_critical)).plot(ax=ax,
+#             linestyle='-',linewidth=2,label="CRITICAL",
+#             zorder=2.1,legend=True,color="black")
+    (res_dev-dfP).min(axis=1).plot(ax=ax,linestyle="--",
+                                   color="black",linewidth=2)
+
+    #use the same colors
+    plt.gca().set_prop_cycle(None)
+    dfP.plot(ax=ax,linestyle=':',legend=False,alpha=0.5)
+
+#    pd.Series(dfP.lookup(dfP.index,c_critical)).plot(ax=ax,
+#             linestyle=':',legend=False,linewidth=2,
+#             zorder=2.1,color="black")
+    plt.title("Reserve capacity (solid line) vs device output (dotted line)")
+#    leg = ax.get_legend()
+#    leg.set_bbox_to_anchor((1.01,0))
+#    leg.set_frame_on(False)
+    labels=list(dfP.columns) + ['MARGIN']
+    ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+               frameon=False)
+#    plt.legend(dfP.columns,loc='lower left', bbox_to_anchor =(1.01,0),
+#               frameon=False)
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
+
+
+
+def plotElReserve_OBSOLETE(mc,filename=None):
+
+    # power out (per device)
+    carrier = 'el'
+    dfF = mc._dfDeviceFlow
+    tmin = dfF.index.get_level_values('time').min()
+    tmax = dfF.index.get_level_values('time').max()+1
+    mask_carrier = (dfF.index.get_level_values('carrier')==carrier)
+    mask_out = (dfF.index.get_level_values('terminal')=='out')
+    dfF_out = dfF[mask_carrier&mask_out]
+    dfF_out.index = dfF_out.index.droplevel(level=("carrier","terminal"))
+    dfF_out = dfF_out.unstack(0)
+    devices_elout = mc.getDevicesInout(carrier_out='el')
+    dfF_out = dfF_out[devices_elout]
+
+    # available power
+    model = mc.instance
+    df_ison = mc._dfDeviceIsOn.unstack(0)
+    dfAvail = pd.DataFrame(index=dfF_out.index,columns=dfF_out.columns)
+    for d in devices_elout:
+        devmodel = model.paramDevice[d]['model']
+        maxValue = model.paramDevice[d]['Pmax']
+        if 'profile' in model.paramDevice[d]:
+            extprofile = model.paramDevice[d]['profile']
+            maxValue = maxValue*mc._df_profiles_actual[extprofile]
+        ison = 1
+        if devmodel in ['gasturbine']:
+            ison = df_ison[d]
+        dfAvail[d] = ison*maxValue
+    plt.figure()
+    ax = plt.gca()
+    for d in devices_elout:
+        dfF_out[d].plot(ax=ax,linestyle='-')
+        col = ax.get_lines()[-1].get_color()
+    #use the same colors
+    plt.gca().set_prop_cycle(None)
+    reserveP=(dfAvail-dfF_out).clip(0)
+    reserveP.plot.area(stacked=True, ax=ax,linestyle=':',alpha=0.5)
+    ax.plot(dfF_out.max(axis=1),label="P_largest",linestyle='--', linewidth=3)
+    plt.legend()
+    if filename is not None:
+        plt.savefig(filename,bbox_inches = 'tight')
