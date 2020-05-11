@@ -1,6 +1,4 @@
 include *.txt
-include userguide/UserGuide.pdf
 recursive-include examples *
-recursive-exclude examples *.sqlite *.sqlite3
+recursive-include doc *
 prune examples/.ipynb_checkpoints
-prune examples/powergim_doggerbank/.ipynb_checkpoints

@@ -3,6 +3,6 @@ model.txt
 *.pdf
 *.lp
 *.pyc
-ogeso.egg-info/
+oogeso.egg-info/
 examples/.ipynb_checkpoints/
 examples/result_*

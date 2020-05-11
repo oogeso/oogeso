@@ -1,12 +1,12 @@
 from setuptools import setup
 
-exec(open('ogeso/version.py').read())
+exec(open('oogeso/version.py').read())
 
-setup(name='ogeso',
+setup(name='oogeso',
       version=__version__,
-      description='Offshore Oil and Gas Field Energy System Operational Optimisation (OGESO)',
+      description='Offshore Oil and Gas Field Energy System Operational Optimisation (OOGESO)',
       license='MIT License (http://opensource.org/licenses/MIT)',
-      packages=['ogeso'],
+      packages=['oogeso'],
       zip_safe = True,
 	  classifiers = [
 		'Development Status :: 3 - Alpha',
