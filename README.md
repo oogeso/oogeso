@@ -1,5 +1,4 @@
-# Offshore Oil and Gas Energy System Operational Optimisation Model
-## (oogeso)
+# Offshore Oil and Gas Energy System Operational Optimisation Model (oogeso)
 
 Python module for modelling and analysing the energy system of offshore oil and gas fields, with renewable energy and storage integration.
 
@@ -12,3 +11,14 @@ Clone or download the code and install it as a python package. Navigate to the f
 
 (Installing as _editable_ means a link will be created from the python package directory to the code located here, and you can modify the code without the
 need to re-install.)
+
+## Contribute
+You are welcome to contribute to the improvement of the code.
+
+* Use Issues to describe and track needed improvements and bug fixes
+* Use branches to avoid messing things up -- but don't veer too far away from the trunk (master branch)
+
+### Contact
+
+[Harald G Svendsen](https://www.sintef.no/en/all-employees/employee/?empid=3414)  
+SINTEF Energy Research
