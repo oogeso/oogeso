@@ -13,8 +13,9 @@ Clone or download the code and install it as a python package. I.e. navigate to 
 need to re-install.)
 
 Check out the examples:
-* [Example 2](https://bitbucket.org/harald_g_svendsen/oogeso/src/master/examples/Example.ipynb?viewer=nbviewer)
-* [Example 2b](examples/Example2.ipynb?viewer=nbviewer)
+
+* [Example 2](examples/Example2.ipynb?viewer=nbviewer)
+* [Example 2b](examples/Example2b.ipynb?viewer=nbviewer)
 
 ## Contribute
 You are welcome to contribute to the improvement of the code.
