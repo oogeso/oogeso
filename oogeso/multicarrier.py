@@ -613,7 +613,7 @@ class Multicarrier:
                 # P = Q*(p_out-p_in)/eta
                 # units: m3/s*MPa = MW
                 #
-                # Assuming incompressible fluid, so can assume flow rate m3/s=Sm3/s
+                # Assuming incompressible fluid, so flow rate m3/s=Sm3/s
                 # (well... multiphase..)
                 node = model.paramDevice[dev]['node']
                 eta = model.paramDevice[dev]['eta']
@@ -631,7 +631,6 @@ class Multicarrier:
                 rhs = flowrate*delta_p/eta
                 return (lhs==rhs)
 
-        logging.info("TODO: oil pump pressure difference approximation ok?")
         def rule_devmodel_pump_oil(model,dev,t,i):
             return rule_devmodel_pump(model,dev,t,i,carrier='oil')
         model.constrDevice_pump_oil = pyo.Constraint(model.setDevice,
@@ -1018,13 +1017,54 @@ class Multicarrier:
                                     n_from,n_to,p0_from,p0_to,exp_s,coeff))
                 return (lhs==rhs)
 
-            elif carrier in ['wellstream','oil','water']:
-                #TODO: implement flow equation for liquids
-                # For now - no pressure drop
-                lhs = model.varPressure[(n_from,carrier,'out',t)]
-                rhs = model.varPressure[(n_to,carrier,'in',t)]
+            elif carrier in ['oil']:
+                # converting from MPa to Pa:
+                p_from = model.varPressure[(n_from,carrier,'out',t)]*1e6
+                p_to = model.varPressure[(n_to,carrier,'in',t)]*1e6
+                p0_from = model.paramNode[n_from][
+                    'pressure.{}.out'.format(carrier)]*1e6
+                p0_to = model.paramNode[n_to][
+                    'pressure.{}.in'.format(carrier)]*1e6
+                if (p0_from==p0_to):
+                    # nominal pressure drop is zero
+                    # i.e. no friction - no contraint
+                    logging.debug("{}-{}: pipe without nominal pressure drop".format(n_from,n_to))
+                    lhs = p_to
+                    rhs = p_from
+                else:
+                    # Darcy Weissbach equation (linearised)
+                    delta_z = model.paramEdge[edge]['height_m']
+                    grav=9.98 #m/s^2
+                    rho = model.paramCarriers[carrier]['rho_density']
+                    D = model.paramEdge[edge]['diameter_mm']/1000
+                    L = model.paramEdge[edge]['length_km']*1000
+                    if (('viscosity' in model.paramCarriers[carrier]) and 
+                        ('flowrate_nominal' in model.paramEdge[edge])):
+                        #compute darcy friction factor bsed on nominal flow
+                        Q_nominal = model.paramEdge[edge]['flowrate_nominal']
+                        mu = model.paramCarriers[carrier]['viscosity']
+                        Re = 2*rho*Q_nominal/(np.pi*mu*D)
+                        f = 1/(0.838*scipy.special.lambertw(0.629*Re))**2
+                        f = f.real
+                    elif 'darcy_friction' in model.paramCarriers[carrier]:
+                        f = model.paramCarriers[carrier]['darcy_friction']
+                        Q_nominal = None
+                    else:
+                        raise Exception("Must give viscosity/flowrate_nominal"
+                                        " or darcy friction factor")
+                    k = np.sqrt(np.pi**2 * D**5/(2*f*rho*L))
+                    sqrtX = np.sqrt(p0_from - p0_to - rho*grav*delta_z)
+                    Q0 = k*sqrtX
+                    logging.info("flow rate: nominal={}, linearQ0={}"
+                                 .format(Q_nominal,Q0))
+                    Q = model.varEdgeFlow[edge,t]
+                    lhs = Q
+                    rhs = Q0 + k/(2*sqrtX)*(p_from-p_to - (p0_from-p0_to))
                 return (lhs==rhs)
-
+            elif carrier in ['wellstream','water']:
+                p_from = model.varPressure[(n_from,carrier,'out',t)]
+                p_to = model.varPressure[(n_to,carrier,'in',t)]
+                return (p_from==p_to)
             else:
                 #Other types of edges - no constraints other than max/min flow
                 return pyo.Constraint.Skip
@@ -1383,11 +1423,13 @@ class Multicarrier:
     def compute_edge_pressuredrop(model,edge,carrier=None,p1=None
                               ,Q=None,exp_s=None,k=None,t=None,linear=False):
         '''Compute pressure drop in pipe'''
+        height_difference=0
         if carrier is None:
             carrier = model.paramEdge[edge]['type']
         if p1 is None:
             n1 = model.paramEdge[edge]['nodeFrom']
             p1 = model.paramNode[n1]['pressure.{}.out'.format(carrier)]
+            height_difference = model.paramEdge[edge]['height_m']
         if Q is None:
             #use actual flow
             Q = pyo.value(model.varEdgeFlow[(edge,t)])
@@ -1396,12 +1438,38 @@ class Multicarrier:
                 exp_s = model.paramEdge[edge]['exp_s']
             if k is None:
                 k = model.paramEdge[edge]['gasflow_k']
-            # Weymouth eqn
+            # Weymouth equation
             # Q = k*(p1^2-exp(s)*p2^2)^(1/2)
             # => p2 = exp(-s)*sqrt(p1^2 - Q^2/k^2)
             p2 = 1/exp_s*(p1**2-Q**2/k**2)**(1/2)
-        elif carrier in ['oil','water']:
-            raise NotImplementedError()
+        elif carrier in ['oil','water','wellstream']:
+            grav=9.98 #m/s^2
+            rho = model.paramCarriers[carrier]['rho_density']
+            D = model.paramEdge[edge]['diameter_mm']/1000
+            L = model.paramEdge[edge]['length_km']*1000
+            if 'viscosity' in model.paramCarriers[carrier]:
+                #compute darcy friction factor
+                mu = model.paramCarriers[carrier]['viscosity']
+                Re = 2*rho*Q/(np.pi*mu*D)
+                f = 1/(0.838*scipy.special.lambertw(0.629*Re))**2
+                f = f.real
+            elif 'darcy_friction' in model.paramCarriers[carrier]:
+                f = model.paramCarriers[carrier]['darcy_friction']
+                Re = None
+            else:
+                raise Exception(
+                    "Must provide viscosity or darcy_friction for {}"
+                    .format(carrier))
+            print("\tReynolds={:5.3g}, Darcy friction f={:5.3g}".format(Re,f))
+
+            # Darcy-Weissbach equation
+            # units of MPa for pressure
+            p2 = 1e-6*(
+                p1*1e6 
+                - rho*grav*height_difference
+                - 2*f*rho*L*Q**2/(np.pi**2*D**5) )
+        else:
+            p2=None
         return p2
 
     @staticmethod
@@ -1821,41 +1889,61 @@ class Multicarrier:
     def checkEdgePressureDrop(self,timestep=0,var="outer"):
         model = self.instance
         for k,edge in model.paramEdge.items():
-            if edge['type']== 'gas':
-                # Q = k*(p_in^2-exp(s)*p_out^2)^(1/2)
-                # => p_out = exp(-s)*sqrt(p_in^2 - Q^2/k^2)
+            carrier = edge['type']
+            if carrier in ['gas','oil','wellstream','water']:
+            
                 exp_s = edge['exp_s']
                 gasflow_k = edge['gasflow_k']
                 node_from = edge['nodeFrom']
                 node_to = edge['nodeTo']
-                p_in = model.paramNode[node_from]['pressure.gas.out']
-                p_out = model.paramNode[node_to]['pressure.gas.in']
+                p_in = model.paramNode[node_from][
+                    'pressure.{}.out'.format(carrier)]
+                p_out = model.paramNode[node_to][
+                    'pressure.{}.in'.format(carrier)]
                 if var=="inner":
                     # get value from inner optimisation (over rolling horizon)
                     Q = model.varEdgeFlow[(k,timestep)]
-                    var_p_in = model.varPressure[(node_from,'gas','out',timestep)]
-                    var_p_out = model.varPressure[(node_to,'gas','in',timestep)]
+                    var_p_in = model.varPressure[
+                        (node_from,carrier,'out',timestep)]
+                    var_p_out = model.varPressure[
+                        (node_to,carrier,'in',timestep)]
                 elif var=="outer":
                     # get value from outer loop (decisions)
                     Q = self._dfEdgeFlow[(k,timestep)]
-                    var_p_in = self._dfTerminalPressure[(node_from,'gas','out',timestep)]
-                    var_p_out = self._dfTerminalPressure[(node_to,'gas','in',timestep)]
+                    var_p_in = self._dfTerminalPressure[
+                        (node_from,carrier,'out',timestep)]
+                    var_p_out = self._dfTerminalPressure[
+                        (node_to,carrier,'in',timestep)]
                 else:
                     raise Exception("var must be inner or outer")
-
+    
+                print("{} edge {}:{}-{} (Q={} m3/s)"
+                       .format(carrier,k,node_from,node_to,Q))
+                diameter = model.paramEdge[k]['diameter_mm']/1000
+                    
                 p_out_comp = self.compute_edge_pressuredrop(model,edge=k,
-                        p1=p_in,Q=Q,exp_s=exp_s,k=gasflow_k,t=timestep)
+                        p1=p_in,Q=Q,t=timestep)
                 p_out_comp2 = self.compute_edge_pressuredrop(model,edge=k,
-                         p1=var_p_in,Q=Q,exp_s=exp_s,k=gasflow_k,t=timestep)
-                #p_out_comp2 = self.compute_edge_pressuredrop(var_p_in,Q,exp_s,gasflow_k)
-                print(("GAS edge {}:{}-{} (Q={} m3/s)"
-                      "\n\tNOMINAL:    pin={}  pout={}  pout_computed={:3.5g}"
-                      "\n\tSIMULATION: pin={}  pout={}  pout_computed={:3.5g}")
-                      .format(k,node_from,node_to,Q,
-                              p_in,p_out,p_out_comp,
-                              var_p_in,var_p_out, p_out_comp2))
-            elif edge['type']=='oil':
-                pass
+                         p1=var_p_in,Q=Q,t=timestep)
+                #p_out_comp2 = self.compute_edge_pressuredrop(var_p_in,Q,exp_s,gasflow_k)                
+                
+                pressure0 = 0.1 # MPa, standard condition (Sm3)
+                velocity=4*Q/(np.pi*diameter**2)
+                if carrier=='gas':
+                    # convert flow rate from Sm3/s to m3/s at the actual pressure:
+                    # ideal gas pV=const => pQ=const => Q1=Q0*(p0/p1)
+                    pressure1 = (var_p_in+var_p_out)/2
+                    Q1 = Q*(pressure0/pressure1)
+                    velocity=4*Q1/(np.pi*diameter**2)
+                print(("\tNOMINAL:    pin={}  pout={}  pout_computed={:3.5g}"
+                      "\n\tSIMULATION: pin={}  pout={}  pout_computed={:3.5g}"
+                      "\n\tflow velocity = {:3.5g} m/s")
+                      .format(p_in,p_out,p_out_comp,
+                              var_p_in,var_p_out, p_out_comp2,
+                              velocity))
+                
+
+    
 
     def exportSimulationResult(self,filename):
         '''Write saved simulation results to file'''
