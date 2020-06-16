@@ -42,7 +42,9 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None):
         dev_param = mc.instance.paramDevice[dev]
         devname = "{}:{}".format(dev,dev_param["name"])
         devPmax = dev_param['Pmax']
-        df= mc._dfDevicePower.unstack(0)[dev]
+        #df= mc._dfDevicePower.unstack(0)[dev]
+        # el power out:
+        df= mc._dfDeviceFlow.unstack([1,2])[('el','out')].unstack(0)[dev]
         df.name = devname
         df.plot(ax=ax)
         #get the color of the last plotted line (the one just plotted)
@@ -146,7 +148,7 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
 #    dfF_out.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name'])
 #        for d in dfF_out.columns},inplace=True)
 
-    
+
     if plotter=="plotly":
         fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True)
         for col in dfF_in:
@@ -274,7 +276,7 @@ def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
 
     plt.figure(figsize=(12,4))
     ax=plt.gca()
-    ax.plot(mc._dfDevicePower.unstack(0)[dev],'-.',label="DevicePower")
+    #ax.plot(mc._dfDevicePower.unstack(0)[dev],'-.',label="DevicePower")
     for inout,carriers in carriers_inout.items():
         if inout=='in':
             ls='--'
@@ -359,11 +361,12 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                 for d in devs:
                     dev_model = model.paramDevice[d]['model']
                     devlabel = d # use index as label
+                    devlabel = "{}\n{}".format(d,dev_model)
                     if plotDevName:
                         devlabel = "{} {}".format(devlabel,model.paramDevice[d]['name'])
-                    if timestep is not None:
-                        p_dev = mc._dfDevicePower[(d,timestep)]
-                        devlabel = "{}\n{:.2f}".format(devlabel,p_dev)
+                    #if timestep is not None:
+                    #    p_dev = mc._dfDevicePower[(d,timestep)]
+                    #    devlabel = "{}\n{:.2f}".format(devlabel,p_dev)
                     carriers_in = devicemodels[dev_model]['in']
                     carriers_out = devicemodels[dev_model]['out']
                     carriers_in_lim = list(set(carriers_in)&set(carriers))
