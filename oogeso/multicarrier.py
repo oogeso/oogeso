@@ -36,7 +36,6 @@ class Multicarrier:
                 'separator':        {'in':['wellstream','el','heat'],
                                      'out':['oil','gas','water']},
                 'well_production':  {'in':[],'out':['wellstream']},
-                'well_injection':   {'in':['water','el'],'out':[]},
                 'sink_gas':         {'in':['gas'],'out':[]},
                 'sink_oil':         {'in':['oil'], 'out':[]},
                 'sink_el':          {'in':['el'],'out':[]},
@@ -52,6 +51,8 @@ class Multicarrier:
                 'storage_el':       {'in':['el'], 'out':['el']},
                 'pump_oil':         {'in':['oil','el'], 'out':['oil'],
                                      'serial':['oil']},
+                'pump_water':       {'in':['water','el'],'out':['water'],
+                                     'serial':['water']},
                 'pump_wellstream':  {'in':['wellstream','el'],'out':['wellstream'],
                                      'serial':['wellstream']},
                 }
@@ -228,45 +229,6 @@ class Multicarrier:
                   rule=rule_devmodel_well_production)
 
 
-        def rule_devmodel_well_injection(model,dev,t,i):
-            if model.paramDevice[dev]['model'] != 'well_injection':
-                return pyo.Constraint.Skip
-            if i==1:
-                # injection pump energy demand
-                # el demand vs water injection flow and pressure
-                node = model.paramDevice[dev]['node']
-                Q = model.varDeviceFlow[dev,'water','in',t]
-                p10 = model.paramNode[node]['pressure.water.in']
-                p20 = model.paramDevice[dev]['injectionpressure']
-                delta_p = p20 - p10
-                if self._quadraticConstraints:
-                    # Quadratic constraint... does not work...
-                    delta_p = (p20-model.varPressure[(node,'water','in',t)])
-                eta = model.paramDevice[dev]['eta']
-                Pdemand = Q*delta_p/eta
-                lhs = model.varDeviceFlow[dev,'el','in',t]
-                rhs = Pdemand
-                return (lhs==rhs)
-            elif i==2:
-                # FLEXIBILITY
-                # (water_in-water_avg)*dt = delta buffer
-                delta_t = model.paramParameters['time_delta_minutes']/60 #hours
-                lhs = (model.varDeviceFlow[dev,'water','in',t]
-                       -model.paramDevice[dev]['Qavg'])*delta_t
-                if t>0:
-                    Eprev = model.varDeviceEnergy[dev,t-1]
-                else:
-                    Eprev = model.paramDeviceEnergyInitially[dev]
-                rhs = (model.varDeviceEnergy[dev,t]-Eprev)
-                return (lhs==rhs)
-            elif i==3:
-                # energy buffer limit
-                Emax = model.paramDevice[dev]['Vmax']
-                return pyo.inequality(
-                        -Emax/2,model.varDeviceEnergy[dev,t],Emax/2)
-        model.constrDevice_well_injection = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,3),
-                  rule=rule_devmodel_well_injection)
 
         #TODO: separator equations
         logging.info("TODO: separator power (eta) and heat (eta2) demand")
@@ -322,7 +284,6 @@ class Multicarrier:
                   rule=rule_devmodel_separator)
 
 
-        logging.info("Compressor - output pressure fixed at nominal value?")
         def rule_devmodel_compressor_el(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'compressor_el':
                 return pyo.Constraint.Skip
@@ -336,15 +297,8 @@ class Multicarrier:
                 lhs = model.varDeviceFlow[dev,'el','in',t]
                 rhs = self.compute_compressor_demand(model,dev,linear=True,t=t)
                 return (lhs==rhs)
-            elif i==3:
-                return pyo.Constraint.Skip
-#                '''Output pressure equals nominal value'''
-#                node = model.paramDevice[dev]['node']
-#                lhs = model.varPressure[(node,'gas','out',t)]
-#                rhs = model.paramNode[node]['pressure.gas.out']
-#                return (lhs==rhs)
         model.constrDevice_compressor_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,3),
+                  model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_compressor_el)
 
         def rule_devmodel_compressor_gas(model,dev,t,i):
@@ -552,6 +506,12 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,2),
                   rule=rule_devmodel_pump_oil)
 
+        def rule_devmodel_pump_water(model,dev,t,i):
+            return rule_devmodel_pump(model,dev,t,i,carrier='water')
+        model.constrDevice_pump_water = pyo.Constraint(model.setDevice,
+                  model.setHorizon,pyo.RangeSet(1,2),
+                  rule=rule_devmodel_pump_water)
+
         def rule_devmodel_pump_wellstream(model,dev,t,i):
             return rule_devmodel_pump(model,dev,t,i,carrier='wellstream')
         model.constrDevice_pump_wellstream = pyo.Constraint(model.setDevice,
@@ -593,13 +553,52 @@ class Multicarrier:
         model.constrDevice_sink_heat = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_devmodel_sink_heat)
 
-        def rule_devmodel_sink_water(model,dev,t):
+        def rule_devmodel_sink_water(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'sink_water':
                 return pyo.Constraint.Skip
-            expr = pyo.Constraint.Skip
+
+            # if i==1:
+            #     # injection pump energy demand
+            #     # el demand vs water injection flow and pressure
+            #     node = model.paramDevice[dev]['node']
+            #     Q = model.varDeviceFlow[dev,'water','in',t]
+            #     p10 = model.paramNode[node]['pressure.water.in']
+            #     p20 = model.paramDevice[dev]['injectionpressure']
+            #     delta_p = p20 - p10
+            #     if self._quadraticConstraints:
+            #         # Quadratic constraint... does not work...
+            #         delta_p = (p20-model.varPressure[(node,'water','in',t)])
+            #     eta = model.paramDevice[dev]['eta']
+            #     Pdemand = Q*delta_p/eta
+            #     lhs = model.varDeviceFlow[dev,'el','in',t]
+            #     rhs = Pdemand
+            #     return (lhs==rhs)
+            if ('Qmax' not in model.paramDevice[dev]):
+                    return pyo.Constraint.Skip
+            if ('Vmax' not in model.paramDevice[dev]):
+                    return pyo.Constraint.Skip
+            if i==1:
+                # FLEXIBILITY
+                # (water_in-water_avg)*dt = delta buffer
+                delta_t = model.paramParameters['time_delta_minutes']/60 #hours
+                lhs = (model.varDeviceFlow[dev,'water','in',t]
+                       -model.paramDevice[dev]['Qavg'])*delta_t
+                if t>0:
+                    Eprev = model.varDeviceEnergy[dev,t-1]
+                else:
+                    Eprev = model.paramDeviceEnergyInitially[dev]
+                rhs = (model.varDeviceEnergy[dev,t]-Eprev)
+                return (lhs==rhs)
+            elif i==2:
+                # energy buffer limit
+                Emax = model.paramDevice[dev]['Vmax']
+                return pyo.inequality(
+                        -Emax/2,model.varDeviceEnergy[dev,t],Emax/2)
             return expr
         model.constrDevice_sink_water = pyo.Constraint(model.setDevice,
-                  model.setHorizon,rule=rule_devmodel_sink_water)
+            model.setHorizon,pyo.RangeSet(1,2),
+            rule=rule_devmodel_sink_water)
+
 
         def rule_elReserve(model,dev,t):
             '''Reserve capacity constraint (electrical supply)
@@ -635,7 +634,7 @@ class Multicarrier:
                   rule=rule_startup_shutdown)
 
         #TODO: Start-up delay doesn't work with Pmin>0 (this implementation)
-        print("TODO: startup delay does not work with Pmin>0")
+        logging.info("TODO: startup delay does not work with Pmin>0")
         def rule_startup_delay(model,dev,t,tau):
             '''startup delay (for gas turbines)'''
 #            if model.paramDevice[dev]['model'] no in ['gasturbine']:
@@ -908,8 +907,10 @@ class Multicarrier:
                     sqrtX = np.sqrt(p0_from - p0_to - rho*grav*delta_z)
                     Q0 = k*sqrtX
                     if t==0:
-                        logging.info("{} oil flow rate: nominal={}, linearQ0={}"
-                                 .format(edge,Q_nominal,Q0))
+                        logging.debug(("derived oil pipe ({}) flow rate:"
+                            " nominal={}, linearQ0={:5.3g},"
+                            " friction={:5.3g}")
+                                 .format(edge,Q_nominal,Q0,f))
                     Q = model.varEdgeFlow[edge,t]
                     lhs = Q
                     rhs = Q0 + k/(2*sqrtX)*(p_from-p_to - (p0_from-p0_to))
@@ -953,7 +954,7 @@ class Multicarrier:
                 (not np.isnan(model.paramNode[node][cc]))):
                 maxdev = model.paramNode[node][cc]
                 if t==0:
-                    logging.info("Using ind. pressure limit for: {}, {}, {}"
+                    logging.debug("Using ind. pressure limit for: {}, {}, {}"
                         .format(node,cc, maxdev))
             else:
                 maxdev = model.paramParameters['max_pressure_deviation']
@@ -1087,7 +1088,7 @@ class Multicarrier:
         devmodel = model.paramDevice[dev]['model']
         if devmodel in ['gasturbine','source_el']:
             devpower = model.varDeviceFlow[dev,'el','out',t]
-        elif devmodel in ['sink_el']:
+        elif devmodel in ['sink_el','pump_water','pump_oil','compressor_el']:
             devpower = model.varDeviceFlow[dev,'el','in',t]
         elif devmodel in ['gasheater','source_heat']:
             devpower = model.varDeviceFlow[dev,'heat','out',t]
@@ -1105,7 +1106,7 @@ class Multicarrier:
         devmodel = model.paramDevice[dev]['model']
         if devmodel in ['sink_water','well_injection']:
             flow = model.varDeviceFlow[dev,'water','in',t]
-        elif devmodel in ['source_water']:
+        elif devmodel in ['source_water','pump_water']:
             flow = model.varDeviceFlow[dev,'water','out',t]
         elif devmodel in ['well_production']:
             flow = model.varDeviceFlow[dev,'wellstream','out',t]
@@ -1161,7 +1162,7 @@ class Multicarrier:
                               'sink_oil','sink_water',
                               'storage_el','separator',
                               'well_production','well_injection',
-                              'pump_oil','pump_wellstream',
+                              'pump_oil','pump_wellstream','pump_water',
                               'source_water','source_oil']:
                 # no CO2 emission contribution
                 thisCO2 = 0
