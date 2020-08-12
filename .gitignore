@@ -1,6 +1,4 @@
 model.txt
-*.png
-*.pdf
 *.lp
 *.pyc
 oogeso.egg-info/
