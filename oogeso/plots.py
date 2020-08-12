@@ -3,6 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import pydot
 
@@ -519,9 +520,15 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
         dotG.write_png(filename,prog=prog)
     return dotG
 
-def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,co2content=200,
-                             filename=None):
-    x_pow = pd.np.linspace(0,1,50)
+def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,energycontent=40,
+        co2content=2.34,filename=None):
+    '''
+    co2content : CO2 content, kgCO2/Sm3gas
+    energycontent: energy content, MJ/Sm3gas
+    A,B : linear parameters
+    '''
+
+    x_pow = np.linspace(0,1,50)
     y_fuel = fuelB + fuelA*x_pow
     plt.figure(figsize=(12,4))
     #plt.suptitle("Gas turbine fuel characteristics")
@@ -544,11 +551,14 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,co2content=200,
 #    plt.plot(x_pow,y_fuel/x_pow)
 #    plt.ylim(top=30)
 
+    # 1 MJ = 3600 MWh
+    with np.errstate(divide='ignore', invalid='ignore'):
+        emissions = 3600*co2content/energycontent * y_fuel/x_pow
     plt.subplot(1,3,3)
-    plt.title("Emission factor (kgCO2/MWh)")
+    plt.title("Emission intensity (kgCO2/MWh)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
-    plt.plot(x_pow,y_fuel*co2content/x_pow)
-    plt.ylim(top=1200)
+    plt.plot(x_pow,emissions)
+    plt.ylim(top=2000)
 
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')

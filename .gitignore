@@ -3,4 +3,5 @@ model.txt
 *.pyc
 oogeso.egg-info/
 examples/.ipynb_checkpoints/
-examples/result_*
+examples/result*
+examples/*.png
