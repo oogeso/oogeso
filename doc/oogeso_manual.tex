@@ -8,7 +8,7 @@
 \usepackage{subfig}
 \usepackage[svgnames,table]{xcolor}
 \usepackage{tikz}
-\usepackage{longtable}
+%\usepackage{longtable}
 \usepackage{hhline}
 \usepackage{gensymb}
 \usepackage{fancyhdr}
@@ -77,9 +77,14 @@
 
 
 \section{Introduction}
-Model to study the entire energy system
+This document describes a simulation model for studying operational strategies for low-emission offshore oil and gas field energy systems, and the performance with different system designs.
 
-Ref: LowEmission deliverable DSP5\_2019\_04
+The simulation model is being developed within the Norwegian \emph{Low Emission Research Centre}%
+\footnote{\url{https://www.sintef.no/en/projects/lowemission-research-centre/}}, 
+with financial support from the Research Council of Norway and Centre partners. 
+The Centre aims to develop new technologies and concepts for offshore energy systems, energy efficiency and integration with renewable power production technologies for application on the Norwegian Continental Shelf.
+
+
 
 
 \subsection{Objective}
@@ -101,14 +106,13 @@ Examples of operational decisions are
 \end{itemize}
 
 \noindent
-Design choices that may be relevant to consider and compare are:
+Design choices that may be relevant to consider and compare include:
 
 \begin{itemize}
 	\item Power supply and energy storage options (numbers, types, capacities)
 	\item Pipe dimensions and other properties
 	\item Device parameters (e.g. ramp rate and capacity of gas turbine)
 	\item Amount of load flexibility
-	\item etc.
 \end{itemize}
 
 \noindent
@@ -117,7 +121,7 @@ Operational strategy is encoded in the problem formulation indirectly through
 	\item Strategy for storage utilisation
 	\item Risk tolerance level
 	\item Forecasting
-	\item etc.
+	\item Parameter choices (e.g. allowable max/min bounds).
 \end{itemize}
 
 %Expand to use as operational decision support? Forecasting energy demand, energy availability (wind) and optimise dispatch. Should gas turbine be started up? – multi-horizon optimisation
@@ -202,7 +206,7 @@ The energy carriers and their most relevant network properties/characteristics a
 		\item pressure, diameter, friction, gas properties, 1-directional
 		\item flow determined by endpoint pressure and pipeline friction
 	\end{itemize}
-	\item[Liquid] Oil and water through pipelines
+	\item[Oil/water] Liquid oil and water through pipelines
 	\begin{itemize}
 		\item pressure, diameter, friction, fluid properties, 1-directional
 		\item flow determined by endpoint pressure and pipeline friction
@@ -251,9 +255,7 @@ In case of a fault on a power supply unit, reserve capacity is needed to cover t
  	RC_{i}(t) =P_{i}^{\max }p_{i}(t) - P_{i}. 
 \end{equation}
 
-\begin{itemize}
-\item \textcolor[HTML]{FF0000}{For a battery, the available power is limited not just by the maximum power, but also by the energy stored in the battery. This is not included at present. Possibly, this could be included in a linear way by computing an effective capacity profile from the battery energy scheduling from the previous timestep optimisation}.
-\end{itemize}
+\textit{For a battery, the available power is in reality limited not just by the maximum power, but also by the energy stored in the battery. This is not included at present. Possibly, this could be included in a linear way by computing an effective capacity profile from the battery energy scheduling from the previous timestep optimisation}.
 
 For a load, the reserve capacity contribution is the part of the load which can be shed (if any):
 \begin{equation}
