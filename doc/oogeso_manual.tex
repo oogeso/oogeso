@@ -77,13 +77,22 @@
 
 
 \section{Introduction}
-This document describes a simulation model for studying operational strategies for low-emission offshore oil and gas field energy systems, and the performance with different system designs.
+This document describes a simulation model for studying operational strategies for low-emission offshore oil and gas field energy systems (illustrated in Figure~\ref{fig:oilfield}), and the performance with different system designs.
 
 The simulation model is being developed within the Norwegian \emph{Low Emission Research Centre}%
 \footnote{\url{https://www.sintef.no/en/projects/lowemission-research-centre/}}, 
 with financial support from the Research Council of Norway and Centre partners. 
 The Centre aims to develop new technologies and concepts for offshore energy systems, energy efficiency and integration with renewable power production technologies for application on the Norwegian Continental Shelf.
 
+The program code is open-source with a permissible MIT licence, and is freely available.\footnote{\url{https://bitbucket.org/harald_g_svendsen/oogeso}}
+
+
+\begin{figure}
+\centering
+	\includegraphics[width=0.8\columnwidth]{media/oilfield.png}
+\caption{Offshore oil and gas field hybrid energy system}
+\label{fig:oilfield}
+\end{figure}
 
 
 
@@ -95,7 +104,7 @@ There are two main objectives of the hybrid energy system modelling
 \end{itemize}
 
 
-\noindent
+\medskip\noindent
 Examples of operational decisions are
 \begin{itemize}
 	\item Start/stop signals to gas turbines
@@ -105,9 +114,8 @@ Examples of operational decisions are
 	\item Load shedding
 \end{itemize}
 
-\noindent
+\medskip\noindent
 Design choices that may be relevant to consider and compare include:
-
 \begin{itemize}
 	\item Power supply and energy storage options (numbers, types, capacities)
 	\item Pipe dimensions and other properties
@@ -115,7 +123,7 @@ Design choices that may be relevant to consider and compare include:
 	\item Amount of load flexibility
 \end{itemize}
 
-\noindent
+\medskip\noindent
 Operational strategy is encoded in the problem formulation indirectly through
 \begin{itemize}
 	\item Strategy for storage utilisation
@@ -148,18 +156,32 @@ For operational control and CO2 emission estimation, the variability with time o
 
 For the planning of start-up and shut-down of devices, notably gas turbines operated in combination with wind power supply, it is necessary to consider a time-horizon stretching into the future rather than just the present time snapshot. If wind power is rapidly dropping and an extra gas turbine is required at full power in 2 hours, the gas turbine may have to be started already now because of ramp rate limits. And instead of shutting down the gas turbine for one hour, and then starting it up again, it may be more economical to keep it running (to avoid start-up costs). Optimal charging and discharging of battery, and utilisation of demand flexibility likewise depends on what is expected to happen next.
 
-As an operational planning tool, therefore, the model contains a rolling horizon optimization, where the system is optimised for a certain planning horizon that is continuously shifted forward. For example. The optimisation may be done for every 15 minutes for the next 12 hours, repeated at every hour.
+As an operational planning tool, therefore, the model contains a rolling horizon optimization, where the system is optimised for a certain planning horizon that is continuously shifted forward, see Figure~\ref{fig:rollinghorizon}. For example. The optimisation may be done for every 15 minutes for the next 12 hours, repeated at every hour.
 
+\begin{figure}
+\centering
+	\includegraphics[width=\columnwidth]{media/optimisation_rollinghorizon.png}
+\caption{Rolling horizon optimization}
+\label{fig:rollinghorizon}
+\end{figure}
 
 
 \subsection{Energy carrier networks}
 
-The offshore energy system is modelled as a hybrid system with multiple energy carriers. 
+The offshore energy system is modelled as a hybrid system with multiple energy carriers, see Figure~\ref{fig:energy_system}.
 There are energy transfer links or \emph{networks} for each energy carrier,
  and \emph{devices} that consume, produce, or convert energy from one form to another.
 
 
 Networks are modelled for the different energy carriers. Network topology is specified by sets of nodes and edges. An edge is a connection between two nodes.
+
+
+\begin{figure}
+\centering
+	\includegraphics[width=\columnwidth]{media/energy_system.png}
+\caption{Example schematic of an offshore multi-carrier hybrid energy system}
+\label{fig:energy_system}
+\end{figure}
 
 
 \subsubsection{Network components}
