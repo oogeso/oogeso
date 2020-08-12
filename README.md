@@ -19,7 +19,7 @@ Check out the examples:
 
 A user guide is provided together with  the code:
 
-* [User guide (pdf)](../raw/master/doc/oogeso_manual.pdf)
+* [User guide (pdf)](../../raw/master/doc/oogeso_manual.pdf)
 
 ## Contribute
 You are welcome to contribute to the improvement of the code.
