@@ -17,6 +17,10 @@ Check out the examples:
 * [Example 2](examples/Example2.ipynb?viewer=nbviewer)
 * [Example 2b](examples/Example2b.ipynb?viewer=nbviewer)
 
+A user guide is provided together with  the code:
+
+* [User guide (pdf)](raw/master/doc/oogeso_manual.pdf)
+
 ## Contribute
 You are welcome to contribute to the improvement of the code.
 
