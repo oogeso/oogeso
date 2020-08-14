@@ -245,23 +245,32 @@ def plot_CO2_intensity(mc,filename=None):
 def plotProfiles(profiles,curves=None,filename=None):
     '''Plot profiles (forecast and actual)'''
 
-    plt.figure(figsize=(12,4))
-    ax=plt.gca()
     if curves is None:
         curves = profiles['actual'].columns
-    profiles['actual'][curves].plot(ax=ax)
-    #reset color cycle (so using the same as for the actual plot):
-    ax.set_prop_cycle(None)
-    profiles['forecast'][curves].plot(ax=ax,linestyle=":")
-
-    labels = curves
-    ax.legend(labels=labels,loc='lower left', bbox_to_anchor =(1.01,0),
-              frameon=False)
-    plt.xlabel("Timestep")
-    plt.ylabel("Relative value")
-    plt.title("Actual vs forecast profile (actual=sold line)")
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
+    if plotter=="plotly":
+        pd.concat(profiles).unstack(0).melt()
+        df = pd.concat({'actual':profiles['actual'][curves],
+                        'forecast':profiles['forecast'][curves]})
+        df =df.reset_index().rename(columns={'level_0':'type'}).melt(
+            id_vars=['type','timestep'])
+        fig = px.line(df,x='timestep',y='value',
+            line_group='type',color='variable',line_dash='type')
+        fig.show()
+    elif plotter=="matplotlib":
+        plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        profiles['actual'][curves].plot(ax=ax)
+        #reset color cycle (so using the same as for the actual plot):
+        ax.set_prop_cycle(None)
+        profiles['forecast'][curves].plot(ax=ax,linestyle=":")
+        labels = curves
+        ax.legend(labels=labels,loc='lower left', bbox_to_anchor =(1.01,0),
+                  frameon=False)
+        plt.xlabel("Timestep")
+        plt.ylabel("Relative value")
+        plt.title("Actual vs forecast profile (actual=sold line)")
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
 
 def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
     model = mc.instance

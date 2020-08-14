@@ -2128,9 +2128,12 @@ def read_data_from_xlsx(filename):
     df_carriers = convert_xls_input(pd.read_excel(
         filename,sheet_name="carriers"),
         columns=['id'],index_col='id')
-    df_profiles = pd.read_excel(filename,sheet_name="profiles",index_col=0)
+    df_profiles = pd.read_excel(filename,sheet_name="profiles",
+        index_col="timestep",
+        usecols=lambda col: col not in ["time","comment"])
     df_profiles_forecast = pd.read_excel(filename,
-                                         sheet_name="profiles_forecast",index_col=0)
+        sheet_name="profiles_forecast",index_col="timestep",
+        usecols=lambda col: col not in ["time","comment"])
     profiles = {'actual':df_profiles,'forecast':df_profiles_forecast}
 
     # default values if missing from input:

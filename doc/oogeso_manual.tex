@@ -1259,7 +1259,7 @@ The worksheets have column headers which specifies what type of information is p
 	id & string & Unique identifier \\
 	name & string & Name of node \\
 	param\_id & string & parameter identifier \\
-	param\_value & & parameter value
+	param\_value & * & parameter value
 \end{tabular}
 \end{table}
 
@@ -1276,7 +1276,7 @@ The worksheets have column headers which specifies what type of information is p
 	include & bool & ignore (0) or include (1) this edge \\
 	length\_km & float & edge length in km \\
 	param\_id & string & parameter identifier \\
-	param\_value & & parameter value
+	param\_value & * & parameter value
 \end{tabular}
 \end{table}
 
@@ -1292,7 +1292,7 @@ The worksheets have column headers which specifies what type of information is p
 	include & bool & ignore (0) or include (1) this device \\
 	model & string & device model identifier \\
 	param\_id & string & parameter identifier \\
-	param\_value & & parameter value
+	param\_value & * & parameter value
 \end{tabular}
 \end{table}
 
@@ -1304,7 +1304,7 @@ The worksheets have column headers which specifies what type of information is p
 	\hline
 	id & string & Unique identifier \\
 	param\_id & string & parameter identifier \\
-	param\_value & & parameter value
+	param\_value & * & parameter value
 \end{tabular}
 \end{table}
 
@@ -1315,7 +1315,7 @@ The worksheets have column headers which specifies what type of information is p
 	header & type & description \\
 	\hline
 	param\_id & string & parameter identifier \\
-	param\_value & & parameter value
+	param\_value & * & parameter value
 \end{tabular}
 \end{table}
 
@@ -1325,6 +1325,9 @@ The worksheets have column headers which specifies what type of information is p
 	\hline
 	header & type & description \\
 	\hline
+	timestep & int & timestep identifier (0,1,2,...) \\
+	time & datetime & timestamp (optional, this column is ignored) \\
+	comment & string & comment (optional, this column is ignored) \\
 	profiles & float & one column per profile (header is profile identifier)\\
 \end{tabular}
 \end{table}
