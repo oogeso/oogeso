@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import pydot
+import logging
+
 
 sns.set_style("whitegrid")
 #sns.set_palette("dark")
@@ -311,7 +313,7 @@ def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
 
 
 def plotNetwork(mc,timestep=0,filename=None,prog='dot',
-                        only_carrier=None,rankdir='LR',plotDevName=False):
+    only_carrier=None,rankdir='LR',plotDevName=False, **kwargs):
     """Plot energy network
 
     mc : object
@@ -320,7 +322,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
         which timestep to show values for
     filename : string
         Name of file
-    only_carrier : list
+    only_carrier : str or list
         Restrict energy carriers to these types (None=plot all)
     rankdir : str
         Plotting direction TB=top to bottom, LR=left to right
@@ -341,12 +343,14 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
            'cluster':'lightgray'
            }
     #dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
-    dotG = pydot.Dot(graph_type='digraph',rankdir=rankdir,newrank='false')
+    dotG = pydot.Dot(graph_type='digraph',rankdir=rankdir,**kwargs)
     model = mc.instance
     if only_carrier is None:
         carriers = model.setCarrier
-    else:
+    elif type(only_carrier) is str:
         carriers = [only_carrier]
+    else:
+        carriers = only_carrier
 
     devicemodels = mc.devicemodel_inout()
 
@@ -390,7 +394,8 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                             devedgelabel=''
                         else:
                             f_in = mc._dfDeviceFlow[(d,carrier,'in',timestep)]
-                            devedgelabel = "{:.2f}".format(f_in)
+                            #logging.info("{},{},{},{}".format(d,carrier,timestep,f_in))
+                            devedgelabel = "{:.2g}".format(f_in)
                         if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_in = n_id+'_'+carrier+'_in'
                         else:
@@ -405,7 +410,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                             devedgelabel = ''
                         else:
                             f_out = mc._dfDeviceFlow[(d,carrier,'out',timestep)]
-                            devedgelabel = "{:.2f}".format(f_out)
+                            devedgelabel = "{:.2g}".format(f_out)
                         if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_out = n_id+'_'+carrier+'_out'
                         else:
@@ -424,8 +429,8 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                 if timestep is None:
                     pass
                 elif carrier in ['gas','wellstream','oil','water']:
-                    label_in +=':{:3.2f}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
-                    label_out +=':{:3.2f}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
+                    label_in +=':{:3.2g}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
+                    label_out +=':{:3.2g}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
                 elif carrier=='el':
                     label_in +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
                     label_out +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
@@ -457,8 +462,12 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
             if e['type']==carrier:
                 if timestep is None:
                     edgelabel=''
+                    if 'pressure.from' in e:
+                        edgelabel = '{} {}-'.format(edgelabel,e['pressure.from'])
+                    if 'pressure.to' in e:
+                        edgelabel = '{}-{}'.format(edgelabel,e['pressure.to'])
                 else:
-                    edgelabel = '{:.2f}'.format(mc._dfEdgeFlow[(i,timestep)])
+                    edgelabel = '{:.2g}'.format(mc._dfEdgeFlow[(i,timestep)])
                 n_from = e['nodeFrom']
                 n_to = e['nodeTo']
                 # name of terminal depends on whether it serial or single

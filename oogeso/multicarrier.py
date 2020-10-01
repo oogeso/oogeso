@@ -20,6 +20,8 @@ TODO: weymouth equation linearisation improvement:
 -> closing well -> flow rate much less -> pressure drop much less ->
 linearisation points no longer good -> error
 
+TODO: It will probably be more straightforward to directly define the problem
+as a concretemodel (with some mutable parameters)
 '''
 
 
@@ -110,18 +112,26 @@ class Multicarrier:
         model.setProfile = pyo.Set()
 
         # Parameters (input data)
-        model.paramNode = pyo.Param(model.setNode)
-        model.paramEdge = pyo.Param(model.setEdge)
-        model.paramDevice = pyo.Param(model.setDevice)
-        model.paramNodeCarrierHasSerialDevice = pyo.Param(model.setNode)
-        model.paramNodeDevices = pyo.Param(model.setNode)
-        model.paramNodeEdgesFrom = pyo.Param(model.setCarrier,model.setNode)
-        model.paramNodeEdgesTo = pyo.Param(model.setCarrier,model.setNode)
-        #model.paramDevicemodel = pyo.Param(model.setDevicemodel)
-        model.paramParameters = pyo.Param(model.setParameters)
-        model.paramCarriers = pyo.Param(model.setCarrier)
-        model.paramCoeffB = pyo.Param(model.setNode,model.setNode,within=pyo.Reals)
-        model.paramCoeffDA = pyo.Param(model.setEdge,model.setNode,within=pyo.Reals)
+        model.paramNode = pyo.Param(model.setNode,within=pyo.Any)
+        model.paramEdge = pyo.Param(model.setEdge,within=pyo.Any)
+        model.paramDevice = pyo.Param(model.setDevice,within=pyo.Any)
+        model.paramNodeCarrierHasSerialDevice = pyo.Param(
+            model.setNode,within=pyo.Any)
+        model.paramNodeDevices = pyo.Param(
+            model.setNode,within=pyo.Any)
+        model.paramNodeEdgesFrom = pyo.Param(
+            model.setCarrier,model.setNode,within=pyo.Any)
+        model.paramNodeEdgesTo = pyo.Param(
+            model.setCarrier,model.setNode,within=pyo.Any)
+        model.paramParameters = pyo.Param(
+            model.setParameters,within=pyo.Any)
+        model.paramCarriers = pyo.Param(
+            model.setCarrier,within=pyo.Any)
+
+        model.paramCoeffB = pyo.Param(
+            model.setNode,model.setNode,within=pyo.Reals)
+        model.paramCoeffDA = pyo.Param(
+            model.setEdge,model.setNode,within=pyo.Reals)
         # Mutable parameters (will be modified between successive optimisations)
         model.paramProfiles = pyo.Param(model.setProfile,model.setHorizon,
                                         within=pyo.Reals, mutable=True)
@@ -254,11 +264,11 @@ class Multicarrier:
             elif i==4:
                 # electricity demand
                 lhs = model.varDeviceFlow[dev,'el','in',t]
-                rhs = flow_in*model.paramDevice[dev]['eta']
+                rhs = flow_in*model.paramDevice[dev]['eta_el']
                 return lhs==rhs
             elif i==5:
                 lhs = model.varDeviceFlow[dev,'heat','in',t]
-                rhs = flow_in*model.paramDevice[dev]['eta2']
+                rhs = flow_in*model.paramDevice[dev]['eta_heat']
                 return lhs==rhs
             elif i==6:
                 '''gas pressure out = nominal'''
@@ -353,12 +363,12 @@ class Multicarrier:
             if model.paramDevice[dev]['model'] != 'gasturbine':
                 return pyo.Constraint.Skip
             elpower = model.varDeviceFlow[dev,'el','out',t]
+            gas_energy_content=model.paramCarriers['gas']['energy_value'] #MJ/Sm3
             if i==1:
                 '''turbine el power out vs gas fuel in'''
                 # fuel consumption (gas in) is a linear function of el power output
                 # fuel = B + A*power
                 # => efficiency = power/(A+B*power)
-                gas_energy_content=model.paramCarriers['gas']['energy_value'] #MJ/Sm3
                 A = model.paramDevice[dev]['fuelA']
                 B = model.paramDevice[dev]['fuelB']
                 Pmax = model.paramDevice[dev]['Pmax']
@@ -367,9 +377,11 @@ class Multicarrier:
                         + A*model.varDeviceFlow[dev,'el','out',t]/Pmax)
                 return lhs==rhs
             elif i==2:
-                '''heat output = el power * heat fraction'''
+                '''heat output = (gas energy in - el power out)* heat efficiency'''
                 lhs = model.varDeviceFlow[dev,'heat','out',t]
-                rhs = elpower*model.paramDevice[dev]['heat']
+                rhs = (model.varDeviceFlow[dev,'gas','in',t]*gas_energy_content
+                        -model.varDeviceFlow[dev,'el','out',t]
+                       )*model.paramDevice[dev]['eta_heat']
                 return lhs==rhs
         model.constrDevice_gasturbine = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,2),
@@ -591,6 +603,10 @@ class Multicarrier:
             Not used capacity by other online power suppliers should be larger
             than power output of this device
             '''
+            devmodel = model.paramDevice[dev]['model']
+            if 'el' not in Multicarrier.devicemodel_inout()[devmodel]['out']:
+                # this is not a power generator
+                return pyo.Constraint.Skip
             # reserve capacity by other devices
             # (that can take over if this device faults)
             res_otherdevs = self.compute_elReserve(model,t,exclude_device=dev)
@@ -898,6 +914,10 @@ class Multicarrier:
             if 'Pmin' not in model.paramDevice[dev]:
                 return pyo.Constraint.Skip
             minValue = model.paramDevice[dev]['Pmin']
+            if 'profile' in model.paramDevice[dev]:
+                # use an availability profile if provided
+                extprofile = model.paramDevice[dev]['profile']
+                minValue = minValue*model.paramProfiles[extprofile,t]
             ison = 1
             if model.paramDevice[dev]['model'] in ['gasturbine']:
                 ison = model.varDeviceIsOn[dev,t]
@@ -1020,6 +1040,8 @@ class Multicarrier:
             flow = model.varDeviceFlow[dev,'water','out',t]
         elif devmodel in ['well_production']:
             flow = model.varDeviceFlow[dev,'wellstream','out',t]
+        elif devmodel in ['source_gas']:
+            flow = model.varDeviceFlow[dev,'gas','out',t]
         else:
             raise Exception("Undefined flow variable for {}".format(devmodel))
         return flow
@@ -1290,7 +1312,26 @@ class Multicarrier:
     @staticmethod
     def compute_edge_pressuredrop(model,edge,p1,
             Q,method=None,linear=False):
-        '''Compute pressure drop in pipe'''
+        '''Compute pressure drop in pipe
+
+        parameters
+        ----------
+        model : pyomo optimisation model
+        edge : string
+            identifier of edge
+        p1 : float
+            pipe inlet pressure (MPa)
+        Q : float
+            flow rate (Sm3/s)
+        method : string
+            None, weymouth, darcy-weissbach
+        linear : boolean
+            whether to use linear model or not
+
+        Returns
+        -------
+        p2 : float
+            pipe outlet pressure (MPa)'''
 
 #        height_difference=0
         height_difference = model.paramEdge[edge]['height_m']
@@ -1409,7 +1450,27 @@ class Multicarrier:
 
     def darcy_weissbach_Q(p1,p2,f,rho,diameter_mm,
             length_km,height_difference_m=0):
-        '''compute flow rate from darcy-weissbach eqn'''
+        '''compute flow rate from darcy-weissbach eqn
+
+        parameters
+        ----------
+        p1 : float
+            pressure at pipe input (Pa)
+        p2 : float
+            pressure at pipe output (Pa)
+        f : float
+            friction factor
+        rho : float
+            fluid density (kg/m3)
+        diameter_mm : float
+            pipe inner diameter (mm)
+        length_km : float
+            pipe length (km)
+        height_difference_m : float
+            height difference output vs input (m)
+
+        '''
+
         grav = 9.98
         L=length_km*1000
         D=diameter_mm/1000
@@ -1838,6 +1899,9 @@ class Multicarrier:
                 print("{} edge {}:{}-{} (Q={} m3/s)"
                        .format(carrier,k,node_from,node_to,Q))
                 diameter = model.paramEdge[k]['diameter_mm']/1000
+
+                if 'num_pipes' in edge:
+                    Q = Q/edge['num_pipes']
 
                 if var in ["inner","outer"]:
                     p_out_comp = self.compute_edge_pressuredrop(model,edge=k,
