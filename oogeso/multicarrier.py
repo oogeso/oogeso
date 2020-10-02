@@ -37,7 +37,12 @@ class Multicarrier:
                                      'serial':['gas']},
                 'separator':        {'in':['wellstream','el','heat'],
                                      'out':['oil','gas','water']},
+                'separator2':        {'in':['oil','gas','water','el','heat'],
+                                     'out':['oil','gas','water'],
+                                     'serial':['oil','gas','water']},
                 'well_production':  {'in':[],'out':['wellstream']},
+                'well_gaslift':     {'in':['gas'],'out':['oil','gas','water'],
+                                     'serial':['gas']},
                 'sink_gas':         {'in':['gas'],'out':[]},
                 'sink_oil':         {'in':['oil'], 'out':[]},
                 'sink_el':          {'in':['el'],'out':[]},
@@ -105,6 +110,8 @@ class Multicarrier:
         model.setEdge= pyo.Set()
         model.setDevice = pyo.Set()
         model.setTerminal = pyo.Set(initialize=['in','out'])
+#        model.setEdgeWithFlowComponents= pyo.Set()
+        model.setFlowComponent= pyo.Set(initialize=['oil','gas','water'])
         #model.setDevicemodel = pyo.Set()
         # time for rolling horizon optimisation:
         model.setHorizon = pyo.Set(ordered=True)
@@ -150,8 +157,9 @@ class Multicarrier:
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
         model.varEdgeFlow = pyo.Var(
                 model.setEdge,model.setHorizon,within=pyo.Reals)
-#        model.varDevicePower = pyo.Var(
-#                model.setDevice,model.setHorizon,within=pyo.NonNegativeReals)
+#        model.varEdgeFlowComponent = pyo.Var(
+#                model.setEdgeWithFlowComponents,model.setFlowComponent,
+#                model.setHorizon,within=pyo.Reals)
         model.varDeviceIsOn = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.Binary,initialize=0)
         model.varDeviceStarting = pyo.Var(
@@ -172,6 +180,9 @@ class Multicarrier:
         model.varTerminalFlow = pyo.Var(
                 model.setNode,model.setCarrier,model.setHorizon,
                 within=pyo.Reals)
+#        model.varTerminalFlowComponent = pyo.Var(
+#                model.setNode,model.setFlowComponent,model.setHorizon,
+#                within=pyo.Reals)
 
 
 
@@ -238,6 +249,55 @@ class Multicarrier:
                   model.setHorizon,pyo.RangeSet(1,1),
                   rule=rule_devmodel_well_production)
 
+        def rule_devmodel_well_gaslift(model,dev,carrier,t,i):
+            if model.paramDevice[dev]['model'] != 'well_gaslift':
+                return pyo.Constraint.Skip
+
+            # flow from reservoir (equals flow out minus gas injection)
+            Q_reservoir = (sum(model.varDeviceFlow[dev,c,'out',t]
+                            for c in model.setFlowComponent)
+                            -model.varDeviceFlow[dev,'gas','in',t])
+            node = model.paramDevice[dev]['node']
+            if i==1:
+                # output pressure is fixed
+                lhs = model.varPressure[(node,carrier,'out',t)]
+                rhs = model.paramDevice[dev]['separatorpressure']
+                return (lhs==rhs)
+            elif i==2:
+                # output flow per comonent determined by GOR and WC
+                GOR = model.paramDevice[dev]['gas_oil_ratio']
+                WC = model.paramDevice[dev]['water_cut']
+                comp_oil = (1-WC)/(1+GOR-GOR*WC)
+                comp_water = WC/(1+GOR-GOR*WC)
+                comp_gas = GOR*(1-WC)/(1+GOR*(1-WC))
+                comp = {'oil':comp_oil,'gas':comp_gas,'water':comp_water}
+                lhs = model.varDeviceFlow[dev,carrier,'out',t]
+                if carrier=='gas':
+                    lhs -= model.varDeviceFlow[dev,carrier,'in',t]
+                rhs = comp[carrier]*Q_reservoir
+                return (lhs==rhs)
+            elif i==3:
+                # gas injection rate vs proudction rate (determines input gas)
+                # gas injection rate vs OIL proudction rate (determines input gas)
+                if carrier=='gas':
+                    lhs = model.varDeviceFlow[dev,'gas','in',t]
+                    #rhs = model.paramDevice[dev]['f_inj']*Q_reservoir
+                    rhs = model.paramDevice[dev]['f_inj']* model.varDeviceFlow[dev,'oil','out',t]
+                    return (lhs==rhs)
+                else:
+                    return pyo.Constraint.Skip
+            elif i==4:
+                # gas injection pressure is fixed
+                if carrier=='gas':
+                    lhs = model.varPressure[(node,carrier,'in',t)]
+                    rhs = model.paramDevice[dev]['injectionpressure']
+                    return (lhs==rhs)
+                else:
+                    return pyo.Constraint.Skip
+        model.constrDevice_well_gaslift = pyo.Constraint(model.setDevice,
+                  model.setFlowComponent,model.setHorizon,pyo.RangeSet(1,4),
+                  rule=rule_devmodel_well_gaslift)
+
 
 
         #TODO: separator equations
@@ -292,6 +352,45 @@ class Multicarrier:
         model.constrDevice_separator = pyo.Constraint(model.setDevice,
                   model.setHorizon,pyo.RangeSet(1,8),
                   rule=rule_devmodel_separator)
+
+        #Alternative separator model - using oil/gas/water input instead of
+        # wellstream
+        def rule_devmodel_separator2(model,dev,fc,t,i):
+            if model.paramDevice[dev]['model'] != 'separator2':
+                return pyo.Constraint.Skip
+            #composition = model.paramCarriers['wellstream']['composition']
+            wellstream_prop=model.paramCarriers['wellstream']
+            flow_in = sum(model.varDeviceFlow[dev,f,'in',t]
+                            for f in model.setFlowComponent)
+            if i==1:
+                # component flow in = flow out
+                lhs = model.varDeviceFlow[dev,fc,'out',t]
+                rhs =  model.varDeviceFlow[dev,fc,'in',t]
+                return (lhs==rhs)
+            elif i==2:
+                # pressure out is nominal
+                node = model.paramDevice[dev]['node']
+                lhs = model.varPressure[(node,fc,'out',t)]
+                rhs = model.paramNode[node]['pressure.{}.out'.format(fc)]
+                return (lhs==rhs)
+            elif i==3:
+                # electricity demand
+                if fc != model.setFlowComponent.first():
+                    return pyo.Constraint.Skip
+                lhs = model.varDeviceFlow[dev,'el','in',t]
+                rhs = flow_in*model.paramDevice[dev]['eta_el']
+                return (lhs==rhs)
+            elif i==4:
+                # heat demand
+                if fc != model.setFlowComponent.first():
+                    return pyo.Constraint.Skip
+                lhs = model.varDeviceFlow[dev,'heat','in',t]
+                rhs = flow_in*model.paramDevice[dev]['eta_heat']
+                return (lhs==rhs)
+
+        model.constrDevice_separator2 = pyo.Constraint(model.setDevice,
+                  model.setFlowComponent,model.setHorizon,pyo.RangeSet(1,4),
+                  rule=rule_devmodel_separator2)
 
 
         def rule_devmodel_compressor_el(model,dev,t,i):
@@ -758,6 +857,48 @@ class Multicarrier:
                       model.setNode, model.setTerminal,model.setHorizon,
                       rule=rule_terminalEnergyBalance)
 
+        # # additional terminal energy/mass balance for mixed flow (wellstream)
+        # def rule_terminalEnergyBalanceWithFlowComponents(
+        #         model,node,terminal,fc,t):
+        #     carrier="wellstream"
+        #     Pinj = 0
+        #     # devices:
+        #     if (node in model.paramNodeDevices):
+        #         for dev in model.paramNodeDevices[node]:
+        #             # Power into terminal:
+        #             dev_model = model.paramDevice[dev]['model']
+        #             if carrier in self._devmodels[dev_model][terminal]:
+        #                 GOR = model.paramDevice[dev]['gas_oil_ratio']
+        #                 WC = model.paramDevice[dev]['water_cut']
+        #                 comp_oil = (1-WC)/(1+GOR-GOR*WC)
+        #                 comp_water = WC/(1+GOR-GOR*WC)
+        #                 comp_gas = GOR*(1-WC)/(1+GOR*(1-WC))
+        #                 comp={'oil':comp_oil,'gas':comp_gas,'water':comp_water}
+        #                 Pinj -= comp[fc]*model.varDeviceFlow[dev,carrier,terminal,t]
+        #
+        #     # connect terminals (i.e. treat as one):
+        #     if not model.paramNodeCarrierHasSerialDevice[node][carrier]:
+        #         Pinj -= model.varTerminalFlowComponent[node,fc,t]
+        #
+        #     # edges:
+        #     if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
+        #         for edg in model.paramNodeEdgesTo[(carrier,node)]:
+        #             # power into node from edge
+        #             Pinj += (model.varEdgeFlowComponent[edg,fc,t])
+        #     elif (carrier,node) in model.paramNodeEdgesFrom and (terminal=='out'):
+        #         for edg in model.paramNodeEdgesFrom[(carrier,node)]:
+        #             # power out of node into edge
+        #             Pinj += (model.varEdgeFlowComponent[edg,fc,t])
+        #
+        #     expr = (Pinj==0)
+        #     if ((type(expr) is bool) and (expr==True)):
+        #         expr = pyo.Constraint.Skip
+        #     return expr
+        # model.constrTerminalEnergyBalanceWithFlowComponents = pyo.Constraint(
+        #     model.setNode, model.setTerminal,model.setFlowComponent,
+        #     model.setHorizon, rule=rule_terminalEnergyBalanceWithFlowComponents)
+
+
 #        logging.info("TODO: el power balance constraint redundant?")
 #        def rule_terminalElPowerBalance(model,node,t):
 #            ''' electric power balance at in and out terminals
@@ -946,6 +1087,10 @@ class Multicarrier:
             if 'Qmin' not in model.paramDevice[dev]:
                 return pyo.Constraint.Skip
             minValue = model.paramDevice[dev]['Qmin']
+            if 'profile' in model.paramDevice[dev]:
+                # use an availability profile if provided
+                extprofile = model.paramDevice[dev]['profile']
+                minValue = minValue*model.paramProfiles[extprofile,t]
             flow = self.getDeviceFlow(model,dev,t)
             expr = (flow >= minValue)
             return expr
@@ -1040,6 +1185,12 @@ class Multicarrier:
             flow = model.varDeviceFlow[dev,'water','out',t]
         elif devmodel in ['well_production']:
             flow = model.varDeviceFlow[dev,'wellstream','out',t]
+        elif devmodel in ['well_gaslift']:
+            # flow into well from reservoir
+            flow = (model.varDeviceFlow[dev,'oil','out',t]
+                    + model.varDeviceFlow[dev,'gas','out',t]
+                    - model.varDeviceFlow[dev,'gas','in',t]
+                    + model.varDeviceFlow[dev,'water','out',t])
         elif devmodel in ['source_gas']:
             flow = model.varDeviceFlow[dev,'gas','out',t]
         else:
@@ -1092,8 +1243,8 @@ class Multicarrier:
             elif devmodel in ['compressor_el','sink_heat','sink_el',
                               'heatpump','source_gas','sink_gas',
                               'sink_oil','sink_water',
-                              'storage_el','separator',
-                              'well_production','well_injection',
+                              'storage_el','separator','separator2',
+                              'well_production','well_injection','well_gaslift',
                               'pump_oil','pump_wellstream','pump_water',
                               'source_water','source_oil']:
                 # no CO2 emission contribution
@@ -1351,20 +1502,26 @@ class Multicarrier:
 
         n_from = model.paramEdge[edge]['nodeFrom']
         n_to = model.paramEdge[edge]['nodeTo']
-        p0_from = model.paramNode[n_from][
-            'pressure.{}.out'.format(carrier)]
-        p0_to = model.paramNode[n_to][
-            'pressure.{}.in'.format(carrier)]
-
-#        logging.info("edge {}-{}: p1={},Q={}"
-#            .format(n_from,n_to,p1,Q))
-
-        if (linear & (p0_from==p0_to)):
+        if (('pressure.{}.out'.format(carrier) in model.paramNode[n_from]) &
+            ('pressure.{}.in'.format(carrier) in model.paramNode[n_to])):
+            p0_from = model.paramNode[n_from][
+                'pressure.{}.out'.format(carrier)]
+            p0_to = model.paramNode[n_to][
+                'pressure.{}.in'.format(carrier)]
+            if (linear & (p0_from==p0_to)):
+                method=None
+                logging.debug(("{}-{}: Pipe without pressure drop"
+                    " ({} / {} MPa)").format(n_from,n_to,p0_from,p0_to))
+        elif linear:
+            # linear equations, but nominal values not given - assume no drop
             method=None
-            logging.debug(("{}-{}: Pipe without pressure drop"
-                " ({} / {} MPa)").format(n_from,n_to,p0_from,p0_to))
 
-        if method=='weymouth':
+        if method is None:
+            # no pressure drop
+            p2 = p1
+            return p2
+
+        elif method=='weymouth':
             '''
             Q = k * sqrt( Pin^2 - e^s Pout^2 ) [Weymouth equation, nonlinear]
                 => Pout = sqrt(Pin^2-Q^2/k^2)/e^2
@@ -1440,9 +1597,6 @@ class Multicarrier:
                     p1*1e6
                     - rho*grav*height_difference
                     - 8*f*rho*L*Q**2/(np.pi**2*D**5) )
-        elif method is None:
-            # no pressure drop
-            p2 = p1
         else:
             raise Exception("Unknown pressure drop calculation method ({})"
                             .format(method))
@@ -2292,6 +2446,8 @@ def read_data_from_xlsx(filename):
     data['setCarrier'] = {None:allCarriers}
     data['setNode'] = {None:df_node.index.tolist()}
     data['setEdge'] = {None:df_edge.index.tolist()}
+    data['setEdgeWithFlowComponents'] = {
+        None:df_edge[df_edge['type']=='wellstream'].index.tolist()}
     data['setDevice'] = {None:df_device.index.tolist()}
     #data['setDevicemodel'] = {None:Multicarrier.devicemodel_inout().keys()}
     data['setHorizon'] = {None:range(planning_horizon)}

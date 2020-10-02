@@ -33,44 +33,87 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
 
     return fig
 
-def plot_deviceprofile(mc,devs,profiles=None,filename=None):
+def plot_deviceprofile(mc,devs,profiles=None,filename=None,reverseLegend=True):
     '''plot forecast and actual profile (available power), and device output'''
     if type(devs) is not list:
         devs = [devs]
-    plt.figure(figsize=(12,4))
-    ax=plt.gca()
-    labels=[]
-    offset_online=0
-    for dev in devs:
-        dev_param = mc.instance.paramDevice[dev]
-        devname = "{}:{}".format(dev,dev_param["name"])
-        devPmax = dev_param['Pmax']
-        #df= mc._dfDevicePower.unstack(0)[dev]
-        # el power out:
-        df= mc._dfDeviceFlow.unstack([1,2])[('el','out')].unstack(0)[dev]
-        df.name = devname
-        df.plot(ax=ax)
-        #get the color of the last plotted line (the one just plotted)
-        col = ax.get_lines()[-1].get_color()
-        labels=labels+[devname]
-        if 'profile' in dev_param:
-            curve = dev_param['profile']
-#        if ((not profiles is None) and (not pd.isna(curve))):
-            (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
-            #ax.set_prop_cycle(None)
-            (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
-            labels = labels+['--nowcast','--forecast']
-        if dev_param['model']=='gasturbine':
-            df2=mc._dfDeviceIsOn.unstack(0)[dev]+offset_online
-            offset_online +=0.1
-            df2.plot(ax=ax,linestyle='--',color=col)
-            labels = labels+['--online']
-    plt.xlim(df.index.min(),df.index.max())
-    ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
-              frameon=False)
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
-    return ax
+
+    df = mc._dfDeviceFlow.unstack(['carrier','terminal'])[
+            ('el','out')].unstack('device')[devs]
+    df.columns.name="devices"
+    df2 = mc._dfDeviceIsOn.unstack('device')[devs]
+    if plotter=="plotly":
+        fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True)
+        colour = plotly.colors.DEFAULT_PLOTLY_COLORS
+        timerange=list(mc._dfExportRevenue.index)
+        k=0
+        for col in df:
+            dev=col
+            dev_param = mc.instance.paramDevice[dev]
+            k=k+1
+            fig.add_scatter(y=df[col],line_shape='hv',name=col,
+                line=dict(color=colour[k]),
+                stackgroup="P",legendgroup=col,row=1,col=1)
+            if dev_param['model']=='gasturbine':
+                fig.add_scatter(y=df2[col],line_shape='hv',name=col,
+                    line=dict(color=colour[k],dash='dash'),
+                    stackgroup="ison",legendgroup=col,row=2,col=1,
+                    showlegend=False)
+            if 'profile' in dev_param:
+                curve = dev_param['profile']
+                devPmax=dev_param['Pmax']
+                fig.add_scatter(
+                    y=mc._df_profiles_actual.loc[timerange,curve]*devPmax,
+                    line_shape='hv',line=dict(color=colour[k],dash='dash'),
+                    name='--nowcast',legendgroup=col,row=1,col=1)
+                fig.add_scatter(
+                    y=mc._df_profiles_forecast.loc[timerange,curve]*devPmax,
+                    line_shape='hv',line=dict(color=colour[k],dash='dot'),
+                    name='--forecast',legendgroup=col,row=1,col=1)
+        fig.update_xaxes(row=1,col=1,title_text="")
+        fig.update_xaxes(row=2,col=1,title_text="Timestep")
+        fig.update_yaxes(row=1,col=1,title_text="Power supply (MW)")
+        fig.update_yaxes(row=2,col=1,title_text="On/off status")
+        if reverseLegend:
+            fig.update_layout(legend_traceorder="reversed")
+        fig.update_layout(height=600)
+        #fig.show()
+    elif plotter=="matplotlib":
+
+        fig=plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        labels=[]
+        offset_online=0
+        #df.plot(ax=ax)
+        for dev in devs:
+            dev_param = mc.instance.paramDevice[dev]
+            devname = "{}:{}".format(dev,dev_param["name"])
+            devPmax = dev_param['Pmax']
+            # el power out:
+            #df= mc._dfDeviceFlow.unstack([1,2])[('el','out')].unstack(0)[dev]
+            #df.name = devname
+            df[dev].plot(ax=ax)
+            #get the color of the last plotted line (the one just plotted)
+            col = ax.get_lines()[-1].get_color()
+            labels=labels+[devname]
+            if 'profile' in dev_param:
+                curve = dev_param['profile']
+    #        if ((not profiles is None) and (not pd.isna(curve))):
+                (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
+                #ax.set_prop_cycle(None)
+                (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
+                labels = labels+['--nowcast','--forecast']
+            if dev_param['model']=='gasturbine':
+                #df2=mc._dfDeviceIsOn.unstack(0)[dev]+offset_online
+                offset_online +=0.1
+                df2[dev].plot(ax=ax,linestyle='--',color=col)
+                labels = labels+['--online']
+        plt.xlim(df.index.min(),df.index.max())
+        ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+                  frameon=False)
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    return fig
 
 def plot_devicePowerEnergy(mc,dev,filename=None):
     model = mc.instance
@@ -313,7 +356,8 @@ def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
 
 
 def plotNetwork(mc,timestep=0,filename=None,prog='dot',
-    only_carrier=None,rankdir='LR',plotDevName=False, **kwargs):
+    only_carrier=None,rankdir='LR',plotDevName=False, numberformat="{:.2g}",
+     **kwargs):
     """Plot energy network
 
     mc : object
@@ -326,6 +370,8 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
         Restrict energy carriers to these types (None=plot all)
     rankdir : str
         Plotting direction TB=top to bottom, LR=left to right
+    numberformat : str
+        specify how numbers should be represented in plot
     """
 
     # Idea: in general, there are "in" and "out" terminals. If there are
@@ -395,7 +441,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                         else:
                             f_in = mc._dfDeviceFlow[(d,carrier,'in',timestep)]
                             #logging.info("{},{},{},{}".format(d,carrier,timestep,f_in))
-                            devedgelabel = "{:.2g}".format(f_in)
+                            devedgelabel = numberformat.format(f_in)
                         if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_in = n_id+'_'+carrier+'_in'
                         else:
@@ -410,7 +456,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                             devedgelabel = ''
                         else:
                             f_out = mc._dfDeviceFlow[(d,carrier,'out',timestep)]
-                            devedgelabel = "{:.2g}".format(f_out)
+                            devedgelabel = numberformat.format(f_out)
                         if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_out = n_id+'_'+carrier+'_out'
                         else:
@@ -424,16 +470,16 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                 supp=""
                 if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                     supp = '_out'
-                label_in = carrier+'_in'
-                label_out= carrier+supp
+                label_in = carrier+'_in '
+                label_out= carrier+supp+' '
                 if timestep is None:
                     pass
                 elif carrier in ['gas','wellstream','oil','water']:
-                    label_in +=':{:3.2g}'.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
-                    label_out +=':{:3.2g}'.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
+                    label_in += numberformat.format(mc._dfTerminalPressure[(n_id,carrier,'in',timestep)])
+                    label_out += numberformat.format(mc._dfTerminalPressure[(n_id,carrier,'out',timestep)])
                 elif carrier=='el':
-                    label_in +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
-                    label_out +=':{:3.2g}'.format(mc._dfElVoltageAngle[(n_id,timestep)])
+                    label_in += numberformat.format(mc._dfElVoltageAngle[(n_id,timestep)])
+                    label_out += numberformat.format(mc._dfElVoltageAngle[(n_id,timestep)])
                 # Add two terminals if there are serial devices, otherwise one:
                 if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                     terms_in.add_node(pydot.Node(name=n_id+'_'+carrier+'_in',
@@ -467,7 +513,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                     if 'pressure.to' in e:
                         edgelabel = '{}-{}'.format(edgelabel,e['pressure.to'])
                 else:
-                    edgelabel = '{:.2g}'.format(mc._dfEdgeFlow[(i,timestep)])
+                    edgelabel = numberformat.format(mc._dfEdgeFlow[(i,timestep)])
                 n_from = e['nodeFrom']
                 n_to = e['nodeTo']
                 # name of terminal depends on whether it serial or single
