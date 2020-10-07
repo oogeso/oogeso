@@ -1201,7 +1201,7 @@ class Multicarrier:
     # Helper functions
     @staticmethod
     def compute_CO2(model,devices=None,timesteps=None):
-        '''compute CO2 emission (kgCO2/s)
+        '''compute CO2 emissions - average per sec (kgCO2/s)
 
         model can be abstract model or model instance
         '''
@@ -1209,8 +1209,8 @@ class Multicarrier:
             devices = model.setDevice
         if timesteps is None:
             timesteps = model.setHorizon
-        deltaT = model.paramParameters['time_delta_minutes']*60
-        sumTime = len(timesteps)*deltaT
+#        deltaT = model.paramParameters['time_delta_minutes']*60
+#        sumTime = len(timesteps)*deltaT
 
         sumCO2 = 0
         # GAS: co2 emission from consumed gas (e.g. in gas heater)
@@ -1229,18 +1229,20 @@ class Multicarrier:
         for d in devices:
             devmodel = pyo.value(model.paramDevice[d]['model'])
             if devmodel in ['gasturbine','gasheater']:
-                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]*gasflow_co2
-                              for t in timesteps)
+                thisCO2 = sum(model.varDeviceFlow[d,'gas','in',t]
+                              for t in timesteps)*gasflow_co2
             elif devmodel=='compressor_gas':
                 thisCO2 = sum((model.varDeviceFlow[d,'gas','in',t]
                             -model.varDeviceFlow[d,'gas','out',t])
-                            *gasflow_co2
-                            for t in timesteps)
+                            for t in timesteps)*gasflow_co2
             elif devmodel in ['source_el']:
-                # co2 from co2 content in fuel usage
+                # co2 content in fuel combustion
+                # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
+                # need to convert co2em to kgCO2/(MW*s)
+
                 thisCO2 = sum(model.varDeviceFlow[d,'el','out',t]
                             *model.paramDevice[d]['co2em']
-                            for t in timesteps)
+                            for t in timesteps)*1/3600
             elif devmodel in ['compressor_el','sink_heat','sink_el',
                               'heatpump','source_gas','sink_gas',
                               'sink_oil','sink_water',
@@ -1253,10 +1255,10 @@ class Multicarrier:
             else:
                 raise NotImplementedError(
                     "CO2 calculation for {} not implemented".format(devmodel))
-            sumCO2 = sumCO2 + thisCO2*deltaT
+            sumCO2 = sumCO2 + thisCO2
 
         # Average per s
-        sumCO2 = sumCO2/sumTime
+        sumCO2 = sumCO2/len(timesteps)
         return sumCO2
 
     @staticmethod
@@ -1272,8 +1274,8 @@ class Multicarrier:
             if 'startupCost' in model.paramDevice[d]:
 #                print(d,"startup costs")
                 startupcost = pyo.value(model.paramDevice[d]['startupCost'])
-                thisCost = sum(model.varDeviceStarting[d,t]*startupcost
-                              for t in timesteps)
+                thisCost = sum(model.varDeviceStarting[d,t]
+                              for t in timesteps)*startupcost
                 startupcosts += thisCost
 #            else:
 #                print("no startupCost specified")
@@ -1286,26 +1288,30 @@ class Multicarrier:
 
     @staticmethod
     def compute_exportRevenue(model,carriers=None,timesteps=None):
-        '''revenue from exported oil and gas ($/s)'''
+        '''revenue from exported oil and gas - average per sec ($/s)'''
         if carriers is None:
             carriers = model.setCarrier
         if timesteps is None:
             timesteps = model.setHorizon
 
-        export_node = model.paramParameters['export_node']
-        export_devs = model.paramNodeDevices[export_node]
+#        export_node = model.paramParameters['export_node']
+#        export_devs = model.paramNodeDevices[export_node]
         inouts = Multicarrier.devicemodel_inout()
         sumRevenue = 0
-        for dev in export_devs:
+#        for dev in export_devs:
+        for dev in model.setDevice:
             devmodel = model.paramDevice[dev]['model']
             carriers_in = inouts[devmodel]['in']
             carriers_incl = [v for v in carriers if v in carriers_in]
             for c in carriers_incl:
                 # flow in m3/s, price in $/m3
-                inflow = sum(model.varDeviceFlow[dev,c,'in',t]
-                                for t in timesteps)
-                sumRevenue += inflow*model.paramCarriers[c]['export_price']
-        # average revenue
+                price_param = 'price.{}'.format(c)
+                if price_param in model.paramDevice[dev]:
+                    inflow = sum(model.varDeviceFlow[dev,c,'in',t]
+                                    for t in timesteps)
+#                    sumRevenue += inflow*model.paramCarriers[c]['export_price']
+                    sumRevenue += inflow*model.paramDevice[dev][price_param]
+        # average per second (timedelta is not required)
         sumRevenue = sumRevenue/len(timesteps)
         return sumRevenue
 
