@@ -709,8 +709,9 @@ class Multicarrier:
             # reserve capacity by other devices
             # (that can take over if this device faults)
             res_otherdevs = self.compute_elReserve(model,t,exclude_device=dev)
-            f = model.paramParameters['elReserveFactor']
-            expr = (res_otherdevs >= f*model.varDeviceFlow[dev,'el','out',t])
+            # elReserveMargin is zero or negative (if loss of load is acceptable)
+            EM = model.paramParameters['elReserveMargin']
+            expr = (res_otherdevs -model.varDeviceFlow[dev,'el','out',t] >= EM)
             return expr
         model.constrDevice_elReserve = pyo.Constraint(model.setDevice,
                   model.setHorizon,rule=rule_elReserve)

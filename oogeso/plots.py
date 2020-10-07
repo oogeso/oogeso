@@ -33,19 +33,25 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
 
     return fig
 
-def plot_deviceprofile(mc,devs,profiles=None,filename=None,reverseLegend=True):
+def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
+        includeForecasts=False,includeOnOff=False):
     '''plot forecast and actual profile (available power), and device output'''
     if type(devs) is not list:
         devs = [devs]
-
+    if includeForecasts & (len(devs)>1):
+        print("Can only plot one device when showing forecasts")
+        return
     df = mc._dfDeviceFlow.unstack(['carrier','terminal'])[
             ('el','out')].unstack('device')[devs]
     df.columns.name="devices"
+    nrows=1
+    if includeOnOff:
+        nrows=2
     df2 = mc._dfDeviceIsOn.unstack('device')[devs]
+    timerange=list(mc._dfExportRevenue.index)
     if plotter=="plotly":
-        fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True)
+        fig = plotly.subplots.make_subplots(rows=nrows, cols=1,shared_xaxes=True)
         colour = plotly.colors.DEFAULT_PLOTLY_COLORS
-        timerange=list(mc._dfExportRevenue.index)
         k=0
         for col in df:
             dev=col
@@ -54,24 +60,24 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None,reverseLegend=True):
             fig.add_scatter(y=df[col],line_shape='hv',name=col,
                 line=dict(color=colour[k]),
                 stackgroup="P",legendgroup=col,row=1,col=1)
-            if dev_param['model']=='gasturbine':
+            if includeOnOff & (dev_param['model']=='gasturbine'):
                 fig.add_scatter(y=df2[col],line_shape='hv',name=col,
                     line=dict(color=colour[k],dash='dash'),
                     stackgroup="ison",legendgroup=col,row=2,col=1,
                     showlegend=False)
-            if 'profile' in dev_param:
+            if includeForecasts & ('profile' in dev_param):
                 curve = dev_param['profile']
                 devPmax=dev_param['Pmax']
                 fig.add_scatter(
                     y=mc._df_profiles_actual.loc[timerange,curve]*devPmax,
-                    line_shape='hv',line=dict(color=colour[k],dash='dash'),
+                    line_shape='hv',line=dict(color=colour[k+1]),
                     name='--nowcast',legendgroup=col,row=1,col=1)
                 fig.add_scatter(
                     y=mc._df_profiles_forecast.loc[timerange,curve]*devPmax,
-                    line_shape='hv',line=dict(color=colour[k],dash='dot'),
+                    line_shape='hv',line=dict(color=colour[k+2]),
                     name='--forecast',legendgroup=col,row=1,col=1)
         fig.update_xaxes(row=1,col=1,title_text="")
-        fig.update_xaxes(row=2,col=1,title_text="Timestep")
+        fig.update_xaxes(row=nrows,col=1,title_text="Timestep")
         fig.update_yaxes(row=1,col=1,title_text="Power supply (MW)")
         fig.update_yaxes(row=2,col=1,title_text="On/off status")
         if reverseLegend:
@@ -98,10 +104,11 @@ def plot_deviceprofile(mc,devs,profiles=None,filename=None,reverseLegend=True):
             labels=labels+[devname]
             if 'profile' in dev_param:
                 curve = dev_param['profile']
-    #        if ((not profiles is None) and (not pd.isna(curve))):
-                (profiles['actual'][curve]*devPmax).plot(ax=ax,linestyle='--')
+                (mc._df_profiles_actual.loc[timerange,curve]*devPmax).plot(
+                    ax=ax,linestyle='--')
                 #ax.set_prop_cycle(None)
-                (profiles['forecast'][curve]*devPmax).plot(ax=ax,linestyle=":")
+                (mc._df_profiles_forecast.loc[timerange,curve]*devPmax).plot(
+                    ax=ax,linestyle=":")
                 labels = labels+['--nowcast','--forecast']
             if dev_param['model']=='gasturbine':
                 #df2=mc._dfDeviceIsOn.unstack(0)[dev]+offset_online
@@ -244,7 +251,7 @@ def plot_ExportRevenue(mc,filename=None):
         plt.savefig(filename,bbox_inches = 'tight')
 
 
-def plot_CO2_rate(mc,filename=None):
+def plot_CO2rate(mc,filename=None):
     plt.figure(figsize=(12,4))
     plt.title("CO2 emission rate (kgCO2/s)")
     ax=plt.gca()
@@ -670,7 +677,7 @@ def recompute_elReserve(mc):
         res_dev[dev] = cap_avail-dfPout[otherdevs].sum(axis=1)
     return res_dev,dfPout
 
-def plotElReserve(mc,filename=None):
+def plotElReserve(mc,filename=None,showMargin=False,returnMargin=False):
     '''plot reserve capacity vs device power output'''
     res_dev = mc._dfElReserve
     dfP = mc._dfDeviceFlow.copy()
@@ -683,16 +690,21 @@ def plotElReserve(mc,filename=None):
     plt.figure(figsize=(12,4))
     ax = plt.gca()
     res_dev.plot(ax=ax,legend=True,alpha=1,linestyle="-")
-    (res_dev-dfP).min(axis=1).plot(ax=ax,linestyle="-",linewidth=3,
+    labels=list(res_dev.columns)
+    dfMargin = (res_dev-dfP).min(axis=1)
+    if showMargin:
+        dfMargin.plot(ax=ax,linestyle="-",linewidth=3,
                                    color="black",label="MARGIN")
+        labels = labels + ['MARGIN']
     plt.gca().set_prop_cycle(None)
     dfP.plot(ax=ax,linestyle=':',legend=False,alpha=1)
-    labels=list(res_dev.columns) + ['MARGIN']
     plt.title("Reserve capacity (solid lines) vs device output (dotted lines)")
     ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
                frameon=False)
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
+    if returnMargin:
+        return dfMargin
 
 
 def plotElReserve2(mc,filename=None):
