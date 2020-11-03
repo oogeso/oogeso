@@ -747,6 +747,7 @@ class Multicarrier:
 
         #TODO: Start-up delay doesn't work with Pmin>0 (this implementation)
         logging.info("TODO: startup delay does not work with Pmin>0")
+        logging.info("      -use of prevHasBeenOn does not work as intended")
         # maybe this helps: https://link.springer.com/article/10.1007/s00291-015-0400-4
         def rule_startup_delay(model,dev,t,tau):
             '''startup delay (for gas turbines)'''
@@ -766,7 +767,9 @@ class Multicarrier:
             # using value(...) means it will take initial value on creation,
             # and update only if constraint is reconstructed.
             # (self.instance.constrDevice_startup_delay.reconstruct())
+            # ref: https://stackoverflow.com/questions/49436118/pyomo-how-to-update-constraint-definition-for-existing-model-instance
             prevHasBeenOn = pyo.value(model.paramDeviceOnTimestepsInitially[dev])
+            # prevHasBeenOn = model.paramDeviceOnTimestepsInitially[dev]
             if (tau>Tdelay):
                 return pyo.Constraint.Skip
             # now, tau=0,1,2,...,Tdelay
@@ -782,8 +785,6 @@ class Multicarrier:
                         *model.paramDevice[dev]['Pmax'])
 
             return (powerout <= rhs)
-
-
         model.constrDevice_startup_delay = pyo.Constraint(model.setDevice,
                   model.setHorizon,model.setHorizon,
                   rule=rule_startup_delay)
@@ -1181,6 +1182,9 @@ class Multicarrier:
             devpower = model.varDeviceFlow[dev,'heat','out',t]
         elif devmodel in ['sink_heat']:
             devpower = model.varDeviceFlow[dev,'heat','in',t]
+        elif devmodel in ['storage_el']:
+            devpower = (model.varDeviceFlow[dev,'el','out',t]
+                + model.varDeviceFlow[dev,'el','in',t])
         else:
             # TODO: Complete this
             # no need to define devpower for other devices
@@ -1808,9 +1812,19 @@ class Multicarrier:
 
         # TODO: better way to update constraint than reconstructing?
         # reconstruct constraint (that depends on param values)
-        # Actually, doesn't seem necessary after all.
-        #self.instance.constrDevice_startup_delay.reconstruct()
-
+        # -maybe not necessary?
+        # ref https://stackoverflow.com/questions/49436118/pyomo-how-to-update-constraint-definition-for-existing-model-instance
+        #
+        # The startup delay constraint contains a pyo.value(...) evaluation.
+        # To update this value, the constraint needs to be reconstructed.
+        # (but it doesn't seem to work as intended)
+        self.instance.constrDevice_startup_delay.reconstruct()
+#        self.instance.reconstruct()
+#        for dev in ['GT1','GT2','GT3']:
+#            print('dev={}: tsIsOn={}'.format(dev,
+#                pyo.value(self.instance.paramDeviceOnTimestepsInitially[dev])))
+#            for tau in [0,1,2,3]:
+#                print(self.instance.constrDevice_startup_delay[dev,3,tau].body)
         return
 
     def getVarValues(self,variable,names):
@@ -2406,6 +2420,8 @@ def read_data_from_xlsx(filename):
 
     # Set node terminal nominal pressure based on edge from/to pressure values
     for i,edg in df_edge.iterrows():
+        if 'pressure.from' not in edg:
+            continue
         if np.isnan(edg['pressure.from']):
             continue
         n_from=edg['nodeFrom']

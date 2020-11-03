@@ -241,7 +241,7 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
 
 def plot_ExportRevenue(mc,filename=None):
     plt.figure(figsize=(12,4))
-    plt.title("Export price ($/s)")
+    plt.title("Export revenue ($/s)")
     ax=plt.gca()
     ax.set_ylabel("$/s")
     ax.set_xlabel("Timestep")
