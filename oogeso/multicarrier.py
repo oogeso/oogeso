@@ -83,6 +83,7 @@ class Multicarrier:
         self._devmodels = Multicarrier.devicemodel_inout()
 
         self._dfDeviceFlow = None
+        self._dfDeviceIsPrep = None
         self._dfDeviceIsOn = None
         self._dfDevicePower = None
         self._dfDeviceEnergy = None
@@ -141,8 +142,10 @@ class Multicarrier:
                                         within=pyo.Reals, mutable=True)
         model.paramDeviceIsOnInitially = pyo.Param(model.setDevice,
                                                mutable=True,within=pyo.Binary)
-        model.paramDeviceOnTimestepsInitially = pyo.Param(model.setDevice,
-                                          mutable=True, within=pyo.Integers)
+#        model.paramDeviceOnTimestepsInitially = pyo.Param(model.setDevice,
+#                                          mutable=True, within=pyo.Integers)
+        model.paramDevicePrepTimestepsInitially = pyo.Param(model.setDevice,
+            mutable=True, within=pyo.Integers, initialize=0)
         # needed for ramp rate limits:
         model.paramDevicePowerInitially = pyo.Param(model.setDevice,
                                                mutable=True,within=pyo.Reals)
@@ -157,6 +160,8 @@ class Multicarrier:
 #        model.varEdgeFlowComponent = pyo.Var(
 #                model.setEdgeWithFlowComponents,model.setFlowComponent,
 #                model.setHorizon,within=pyo.Reals)
+        model.varDeviceIsPrep = pyo.Var(
+                model.setDevice,model.setHorizon,within=pyo.Binary,initialize=0)
         model.varDeviceIsOn = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.Binary,initialize=0)
         model.varDeviceStarting = pyo.Var(
@@ -465,7 +470,8 @@ class Multicarrier:
                 B = model.paramDevice[dev]['fuelB']
                 Pmax = model.paramDevice[dev]['Pmax']
                 lhs = model.varDeviceFlow[dev,'gas','in',t]*gas_energy_content/Pmax
-                rhs = (B*model.varDeviceIsOn[dev,t]
+                rhs = (B*(model.varDeviceIsOn[dev,t]
+                            +model.varDeviceIsPrep[dev,t])
                         + A*model.varDeviceFlow[dev,'el','out',t]/Pmax)
                 return lhs==rhs
             elif i==2:
@@ -694,6 +700,10 @@ class Multicarrier:
                 if ( t==model.setHorizon.first()):
                     logging.info("Valid elDispatchMargin not defined -> no constraint")
                 return pyo.Constraint.Skip
+            # exclude constraint for first timesteps since the point of the
+            # dispatch margin is exactly to cope with forecast errors
+            if t < model.paramParameters['forecast_timesteps']:
+                return pyo.Constraint.Skip
 
             DM = model.paramParameters['elDispatchMargin']
             capacity_unused = self.compute_elDispatchMargin(model,t)
@@ -729,27 +739,79 @@ class Multicarrier:
 
 
         def rule_startup_shutdown(model,dev,t):
-            '''startup/shutdown constraint - for devices with startup costs'''
-            # setHorizon is a rangeset [0,1,2,...,max]
+            '''startup/shutdown constraint
+            connecting starting, stopping, preparation, online stages of GTs'''
+
+            Tdelay=0
+            if ('startupDelay' in model.paramDevice[dev]):
+                Tdelay_min = model.paramDevice[dev]['startupDelay']
+                # Delay in timesteps, rounding down.
+                # example: time_delta = 5 min, startupDelay= 8 min => Tdelay=1
+                Tdelay = int(Tdelay_min/model.paramParameters['time_delta_minutes'])
+            prevPart=0
+            if (t >= Tdelay):
+            	#prevPart = sum( model.varDeviceStarting[dev,t-tau]
+                #    for tau in range(0,Tdelay) )
+               prevPart = model.varDeviceStarting[dev,t-Tdelay]
+            else:
+                # OBS: for this to work as intended, need to reconstruct constraint
+                # pyo.value(...) not needed
+                #prepInit = pyo.value(model.paramDevicePrepTimestepsInitially[dev])
+                prepInit = model.paramDevicePrepTimestepsInitially[dev]
+                if (prepInit + t == Tdelay):
+                    prevPart = 1
             if (t>0):
                 ison_prev = model.varDeviceIsOn[dev,t-1]
             else:
                 ison_prev = model.paramDeviceIsOnInitially[dev]
-#                # The following does NOT work:
-#                ison_prev = pyo.value(model.paramDeviceOnTimestepsInitially[dev]>0)
-            rhs = (model.varDeviceIsOn[dev,t] - ison_prev)
-            lhs = (model.varDeviceStarting[dev,t]
-                    -model.varDeviceStopping[dev,t])
+            lhs = model.varDeviceIsOn[dev,t] - ison_prev
+            rhs = prevPart - model.varDeviceStopping[dev,t]
             return (lhs==rhs)
         model.constrDevice_startup_shutdown = pyo.Constraint(model.setDevice,
                   model.setHorizon,
                   rule=rule_startup_shutdown)
 
+        def rule_startup_delay(model,dev,t):
+            '''startup delay/preparation for GTs'''
+            Tdelay=0
+            if ('startupDelay' in model.paramDevice[dev]):
+                Tdelay_min = model.paramDevice[dev]['startupDelay']
+                # Delay in timesteps, rounding down.
+                # example: time_delta = 5 min, startupDelay= 8 min => Tdelay=1
+                Tdelay = int(Tdelay_min/model.paramParameters['time_delta_minutes'])
+            else:
+                return pyo.Constraint.Skip
+            # determine if was in preparation previously
+            # dependend on value - so must reconstruct constraint each time
+            stepsPrevPrep = pyo.value(
+                model.paramDevicePrepTimestepsInitially[dev])
+            if (stepsPrevPrep>0):
+                prevIsPrep = 1
+            else:
+                prevIsPrep = 0
+
+            prevPart=0
+            if (t < Tdelay-stepsPrevPrep):
+            	prevPart = prevIsPrep
+            tau_range = range(0,min(t,Tdelay))
+            lhs = model.varDeviceIsPrep[dev,t]
+            rhs = sum(model.varDeviceStarting[dev,t-tau]
+                        for tau in tau_range) + prevPart
+#            if (t==0) & (dev=="GT2"):
+#                print("rule startup delay (t=0)")
+#                print("prev steps=",stepsPrevPrep,"prevIsPrep=",prevIsPrep,
+#                    'prevpart=',prevPart,'Tdelay=',Tdelay)
+#                print("lhs=",lhs,"rhs=",rhs)
+            return (lhs==rhs)
+        model.constrDevice_startup_delay = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_startup_delay)
+
+
         #TODO: Start-up delay doesn't work with Pmin>0 (this implementation)
         logging.info("TODO: startup delay does not work with Pmin>0")
         logging.info("      -use of prevHasBeenOn does not work as intended")
         # maybe this helps: https://link.springer.com/article/10.1007/s00291-015-0400-4
-        def rule_startup_delay(model,dev,t,tau):
+        def rule_startup_delayOLD(model,dev,t,tau):
             '''startup delay (for gas turbines)'''
 #            if model.paramDevice[dev]['model'] no in ['gasturbine']:
 #                return pyo.Constraint.Skip
@@ -785,9 +847,9 @@ class Multicarrier:
                         *model.paramDevice[dev]['Pmax'])
 
             return (powerout <= rhs)
-        model.constrDevice_startup_delay = pyo.Constraint(model.setDevice,
-                  model.setHorizon,model.setHorizon,
-                  rule=rule_startup_delay)
+#        model.constrDevice_startup_delay = pyo.Constraint(model.setDevice,
+#                  model.setHorizon,model.setHorizon,
+#                  rule=rule_startup_delay)
 
 
         def rule_ramprate(model,dev,t):
@@ -810,6 +872,22 @@ class Multicarrier:
             return pyo.inequality(max_neg, deltaP, max_pos)
         model.constrDevice_ramprate = pyo.Constraint(model.setDevice,
                  model.setHorizon, rule=rule_ramprate)
+
+        # Not so easy to formulate equal load sharing as a linear equation
+        #
+        # def rule_gasturbine_loadsharing(model,dev,t):
+        #     '''ensure load is shared evently between online gas turbines'''
+        #     if model.paramDevice[dev]['model'] != 'gasturbine':
+        #         return pyo.Constraint.Skip
+        #     for otherdev in model.setDevice:
+        #         if (model.paramDevice[otherdev]['model'] == 'gasturbine'):
+        #             rhs =
+        #
+        #     lhs = model.varDeviceFlow[dev,t,'el','out']
+        #
+
+
+
 
 
         def rule_terminalEnergyBalance(model,carrier,node,terminal,t):
@@ -1782,17 +1860,20 @@ class Multicarrier:
 
         def _updateOnTimesteps(t_prev,dev):
             # sum up consequtive timesteps starting at tprev going
-            # backwards, where device has been on.
+            # backwards, where device has been in preparation phase
             sum_on=0
             docontinue = True
             for tt in range(t_prev,-1,-1):
-                if (self.instance.varDeviceIsOn[dev,tt]==1):
+                #if (self.instance.varDeviceIsOn[dev,tt]==1):
+                if (self.instance.varDeviceIsPrep[dev,tt]==1):
                     sum_on = sum_on+1
                 else:
                     docontinue = False
                     break #exit for loop
             if docontinue:
-                sum_on = sum_on + self.instance.paramDeviceOnTimestepsInitially[dev]
+                # we got all the way back to 0, so must include initial value
+                #sum_on = sum_on + self.instance.paramDeviceOnTimestepsInitially[dev]
+                sum_on = sum_on + self.instance.paramDevicePrepTimestepsInitially[dev]
             return sum_on
 
         # Update startup/shutdown info
@@ -1802,7 +1883,9 @@ class Multicarrier:
             for dev in self.instance.setDevice:
                 self.instance.paramDeviceIsOnInitially[dev] = (
                         self.instance.varDeviceIsOn[dev,t_prev])
-                self.instance.paramDeviceOnTimestepsInitially[dev] = (
+#                self.instance.paramDeviceOnTimestepsInitially[dev] = (
+#                        _updateOnTimesteps(t_prev,dev))
+                self.instance.paramDevicePrepTimestepsInitially[dev] = (
                         _updateOnTimesteps(t_prev,dev))
                 self.instance.paramDevicePowerInitially[dev] = (
                     self.getDevicePower(self.instance,dev,t_prev))
@@ -1810,21 +1893,10 @@ class Multicarrier:
                     self.instance.paramDeviceEnergyInitially[dev] = (
                             self.instance.varDeviceEnergy[dev,t_prev])
 
-        # TODO: better way to update constraint than reconstructing?
-        # reconstruct constraint (that depends on param values)
-        # -maybe not necessary?
-        # ref https://stackoverflow.com/questions/49436118/pyomo-how-to-update-constraint-definition-for-existing-model-instance
-        #
-        # The startup delay constraint contains a pyo.value(...) evaluation.
-        # To update this value, the constraint needs to be reconstructed.
-        # (but it doesn't seem to work as intended)
+        # These constraints need to be reconstructed to update properly
+        # (pyo.value(...) and/or if sentences...)
         self.instance.constrDevice_startup_delay.reconstruct()
-#        self.instance.reconstruct()
-#        for dev in ['GT1','GT2','GT3']:
-#            print('dev={}: tsIsOn={}'.format(dev,
-#                pyo.value(self.instance.paramDeviceOnTimestepsInitially[dev])))
-#            for tau in [0,1,2,3]:
-#                print(self.instance.constrDevice_startup_delay[dev,3,tau].body)
+        self.instance.constrDevice_startup_shutdown.reconstruct()
         return
 
     def getVarValues(self,variable,names):
@@ -1864,6 +1936,8 @@ class Multicarrier:
             ind = varDeviceFlow[varDeviceFlow<0].index[0]
             logging.warning("Negative number in varDeviceFlow - set to zero ({})".format(ind))
             varDeviceFlow = varDeviceFlow.clip(lower=0)
+        varDeviceIsPrep = self.getVarValues(self.instance.varDeviceIsPrep,
+              names=('device','time'))
         varDeviceIsOn = self.getVarValues(self.instance.varDeviceIsOn,
               names=('device','time'))
         varDeviceEnergy = self.getVarValues(self.instance.varDeviceEnergy,
@@ -1937,6 +2011,7 @@ class Multicarrier:
             return df
         self._dfDeviceFlow = _addToDf(self._dfDeviceFlow,varDeviceFlow)
         self._dfDeviceIsOn = _addToDf(self._dfDeviceIsOn,varDeviceIsOn)
+        self._dfDeviceIsPrep = _addToDf(self._dfDeviceIsPrep,varDeviceIsPrep)
         self._dfDeviceEnergy = _addToDf(self._dfDeviceEnergy,varDeviceEnergy)
         self._dfDeviceStarting = _addToDf(self._dfDeviceStarting,varDeviceStarting)
         self._dfDeviceStopping = _addToDf(self._dfDeviceStopping,varDeviceStopping)
