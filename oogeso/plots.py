@@ -34,7 +34,7 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     return fig
 
 def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
-        includeForecasts=False,includeOnOff=False):
+        includeForecasts=False,includeOnOff=False,includePrep=False):
     '''plot forecast and actual profile (available power), and device output'''
     if type(devs) is not list:
         devs = [devs]
@@ -46,13 +46,20 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
     df.columns.name="devices"
     nrows=1
     if includeOnOff:
-        nrows=2
+        nrows=nrows+1
+    if includePrep:
+        nrows=nrows+1
     df2 = mc._dfDeviceIsOn.unstack('device')[devs]
+    dfPrep = mc._dfDeviceIsPrep.unstack('device')[devs]
     timerange=list(mc._dfExportRevenue.index)
     if plotter=="plotly":
         fig = plotly.subplots.make_subplots(rows=nrows, cols=1,shared_xaxes=True)
         colour = plotly.colors.DEFAULT_PLOTLY_COLORS
         k=0
+        rowOnOff=2
+        rowPrep=2
+        if includeOnOff:
+            rowPrep=3
         for col in df:
             dev=col
             dev_param = mc.instance.paramDevice[dev]
@@ -63,7 +70,12 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
             if includeOnOff & (dev_param['model']=='gasturbine'):
                 fig.add_scatter(y=df2[col],line_shape='hv',name=col,
                     line=dict(color=colour[k],dash='dash'),
-                    stackgroup="ison",legendgroup=col,row=2,col=1,
+                    stackgroup="ison",legendgroup=col,row=rowOnOff,col=1,
+                    showlegend=False)
+            if includePrep & (dev_param['model']=='gasturbine'):
+                fig.add_scatter(y=dfPrep[col],line_shape='hv',name=col,
+                    line=dict(color=colour[k],dash='dash'),
+                    stackgroup="ison",legendgroup=col,row=rowPrep,col=1,
                     showlegend=False)
             if includeForecasts & ('profile' in dev_param):
                 curve = dev_param['profile']
@@ -79,7 +91,10 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
         fig.update_xaxes(row=1,col=1,title_text="")
         fig.update_xaxes(row=nrows,col=1,title_text="Timestep")
         fig.update_yaxes(row=1,col=1,title_text="Power supply (MW)")
-        fig.update_yaxes(row=2,col=1,title_text="On/off status")
+        if includeOnOff:
+            fig.update_yaxes(row=rowOnOff,col=1,title_text="On/off status")
+        if includePrep:
+            fig.update_yaxes(row=rowPrep,col=1,title_text="Startup",nticks=2)
         if reverseLegend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
@@ -203,7 +218,8 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
 
 
     if plotter=="plotly":
-        fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True)
+        fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True,
+            vertical_spacing=0.05)
         for col in dfF_in:
             fig.add_scatter(y=dfF_in[col],line_shape='hv',name="in:"+col,stackgroup="in",legendgroup=col,row=2,col=1)
         for col in dfF_out:
@@ -215,7 +231,7 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
         if reverseLegend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
-        fig.show()
+        #fig.show()
     elif plotter=="matplotlib":
         fig,axes = plt.subplots(nrows=2,ncols=1,figsize=(12,8))
         #plt.figure(figsize=(12,4))
@@ -263,35 +279,60 @@ def plot_CO2rate(mc,filename=None):
 
 def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
     df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
-    labels = (df_info.index.astype(str) +'_'+df_info['name'])
-
-    plt.figure(figsize=(12,4))
-    ax=plt.gca()
-    ax.set_ylabel("Emission rate (kgCO2/s)")
-    ax.set_xlabel("Timestep")
-    mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()
-                    ].rename(columns=labels
-                    ).plot.area(ax=ax,linewidth=0)
-
-    if reverseLegend:
-        handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles[::-1], labels[::-1],
-                  loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+    #labels = (df_info.index.astype(str))# +'_'+df_info['name'])
+    dfplot = mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()
+                    ]
+    #dfplot.columns=labels
+    if plotter=="plotly":
+        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        #,shared_xaxes=True,vertical_spacing=0.05)
+        #fig = px.line(dfplot,x="time",y=ylabel,color=id_var,title=title)
+        for col in dfplot:
+            fig.add_scatter(y=dfplot[col],line_shape='hv',name=col,
+                stackgroup="one",row=1,col=1)
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Emission rate (kgCO2/s)")
+        if reverseLegend:
+            fig.update_layout(legend_traceorder="reversed")
+        fig.update_layout(height=600)
     else:
-        ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+        fig=plt.figure(figsize=(12,4))
+        ax=plt.gca()
+        ax.set_ylabel("Emission rate (kgCO2/s)")
+        ax.set_xlabel("Timestep")
+        dfplot.plot.area(ax=ax,linewidth=0)
+        if reverseLegend:
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles[::-1], labels[::-1],
+                      loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
+        else:
+            ax.legend(loc='lower left', bbox_to_anchor =(1.01,0),frameon=False)
 
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    return fig
 
 def plot_CO2_intensity(mc,filename=None):
-    plt.figure(figsize=(12,4))
-    plt.title("CO2 intensity (kgCO2/Sm3oe)")
-    ax=plt.gca()
-    ax.set_ylabel("kgCO2/Sm3oe")
-    ax.set_xlabel("Timestep")
-    mc._dfCO2intensity.plot()
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
+    title="CO2 intensity (kgCO2/Sm3oe)"
+    xlabel="Timestep"
+    ylabel="CO2 intensity (kgCO2/Sm3oe)"
+    dfplot=mc._dfCO2intensity
+    if plotter=="plotly":
+        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        #,shared_xaxes=True,vertical_spacing=0.05)
+        fig = px.line(dfplot,x=dfplot.index,y=dfplot.values)#,title=title)
+        fig.update_xaxes(title_text=xlabel)
+        fig.update_yaxes(title_text=ylabel)
+    else:
+        fig=plt.figure(figsize=(12,4))
+        plt.title(title)
+        ax=plt.gca()
+        ax.set_ylabel(ylabel)
+        ax.set_xlabel(xlabel)
+        dfplot.plot()
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    return fig
 
 
 def plotProfiles(profiles,curves=None,filename=None):
@@ -677,9 +718,9 @@ def recompute_elReserve(mc):
         res_dev[dev] = cap_avail-dfPout[otherdevs].sum(axis=1)
     return res_dev,dfPout
 
-def plotElReserve(mc,filename=None,showMargin=False,returnMargin=False):
+def plotElBackup(mc,filename=None,showMargin=False,returnMargin=False):
     '''plot reserve capacity vs device power output'''
-    res_dev = mc._dfElReserve
+    res_dev = mc._dfElBackup
     dfP = mc._dfDeviceFlow.copy()
     carrier='el'
     mask_carrier = (dfP.index.get_level_values('carrier')==carrier)
@@ -698,7 +739,7 @@ def plotElReserve(mc,filename=None,showMargin=False,returnMargin=False):
         labels = labels + ['MARGIN']
     plt.gca().set_prop_cycle(None)
     dfP.plot(ax=ax,linestyle=':',legend=False,alpha=1)
-    plt.title("Reserve capacity (solid lines) vs device output (dotted lines)")
+    plt.title("Online backup capacity (solid lines) vs device output (dotted lines)")
     ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
                frameon=False)
     if filename is not None:
