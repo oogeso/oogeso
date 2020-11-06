@@ -138,59 +138,71 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
     return fig
 
 def plot_devicePowerEnergy(mc,dev,filename=None):
+    '''Plot power in/out of device and storage level (if any)'''
     model = mc.instance
     dev_param = model.paramDevice[dev]
     devname = "{}:{}".format(dev,dev_param["name"])
 
-    plt.figure(figsize=(12,4))
-    plt.title(devname)
-    ax=plt.gca()
-
+    carrier = 'el'
     # Power flow in/out
-    dfF = mc._dfDeviceFlow[
-            mc._dfDeviceFlow.index.get_level_values('device')==dev
-            ]
-    #dfF = dfF.reset_index("time")
-    #dfF["power flow"]=dfF.index
-    #sns.lineplot(x="time",y=0,data=dfF,ax=ax,hue="power flow",legend="full")
-    #ax.set_xlim(dfF['time'].min(),dfF['time'].max())
-    dfF.unstack().T.plot(ax=ax,drawstyle="steps-post",marker=".")
-    ax.set_xlabel("Timestep")
-    ax.set_ylabel("Power (MW)")
-    tmin = dfF.index.get_level_values('time').min()
-    tmax = dfF.index.get_level_values('time').max()+1
-    ax.set_ylim(0,dev_param['Pmax'])
-    ax.legend(loc='upper left')#, bbox_to_anchor =(1.01,0),frameon=False)
-
+    dfF = mc._dfDeviceFlow[dev,carrier].unstack('terminal')
+#    dfF = mc._dfDeviceFlow[
+#            mc._dfDeviceFlow.index.get_level_values('device')==dev,carrier
+#            ]
+#    dfF =dfF.unstack('terminal') # now index is time, columns are in/out
     # Energy stored:
-    dfE = mc._dfDeviceEnergy[
-            mc._dfDeviceEnergy.index.get_level_values('device')==dev
-            ]
-    if not dfE.empty:
-        ax2=ax.twinx()
-        ax2.grid(None)
-        #dfE = dfE.reset_index("time")
-        #dfE["storage"] = [("h",i) for i in dfE.index]
-        #sns.lineplot(data=dfE,ax=ax2,x="time",y=0,color="black",label="storage",
-        #             legend="full")
+#    dfE = mc._dfDeviceStorageEnergy[
+#            mc._dfDeviceStorageEnergy.index.get_level_values('device')==dev
+#            ]
+    if dev in mc._dfDeviceStorageEnergy:
+        dfE =  pd.DataFrame(mc._dfDeviceStorageEnergy[dev])
         # Shift time by one, since the dfDeviceEnergy[t] is the energy _after_
         # timestep t:
-        dfE = dfE.unstack().T
+#        dfE = dfE.unstack().T
         dfE.index = dfE.index+1
+        dfE = dfE.rename(columns={0:"storage"})
         #dfE.loc[dfE.index.min()-1,dev] = mc.instance.param
-        dfE.rename(columns={0:"storage"}).plot(ax=ax2,
-                  linestyle=":",color="black")
-        ax2.set_ylabel("Energy (MWh)")#,color="red")
-        if dev_param['model'] in ['storage_el']:
-            ax2.set_ylim(0,dev_param['Emax'])
-        elif dev_param['model'] in ['well_injection']:
-            ax2.set_ylim(-dev_param['Emax']/2,dev_param['Emax']/2)
-        #ax2.tick_params(axis='y', labelcolor="red")
-        ax2.legend(loc='upper right')
-    ax.set_xlim(tmin,tmax)
 
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
+    if plotter=="plotly":
+        fig = plotly.subplots.make_subplots(specs=[[{"secondary_y": True}]])
+        for col in dfF.columns:
+            fig.add_scatter(y=dfF[col],line_shape='hv',name=col,
+                secondary_y=False)
+        if not dfE.empty:
+            fig.add_scatter(x=dfE.index,y=dfE['storage'],name='storage',
+                secondary_y=True)#,line=dict(dash='dot'))
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
+        fig.update_yaxes(title_text="Energy storage (MWh)", secondary_y=True)
+
+    elif plotter=="matplotlib":
+        fig=plt.figure(figsize=(12,4))
+        plt.title(devname)
+        ax=plt.gca()
+        dfF.plot(ax=ax,drawstyle="steps-post",marker=".")
+        ax.set_xlabel("Timestep")
+        ax.set_ylabel("Power (MW)")
+        tmin = dfF.index.get_level_values('time').min()
+        tmax = dfF.index.get_level_values('time').max()+1
+        ax.set_ylim(0,dev_param['Pmax'])
+        ax.legend(loc='upper left')#, bbox_to_anchor =(1.01,0),frameon=False)
+
+        if not dfE.empty:
+            ax2=ax.twinx()
+            ax2.grid(None)
+            dfE.plot(ax=ax2,
+                      linestyle=":",color="black")
+            ax2.set_ylabel("Energy (MWh)")#,color="red")
+            if dev_param['model'] in ['storage_el']:
+                ax2.set_ylim(0,dev_param['Emax'])
+            elif dev_param['model'] in ['well_injection']:
+                ax2.set_ylim(-dev_param['Emax']/2,dev_param['Emax']/2)
+            #ax2.tick_params(axis='y', labelcolor="red")
+            ax2.legend(loc='upper right')
+        ax.set_xlim(tmin,tmax)
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    return fig
 
 def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
 
