@@ -270,43 +270,6 @@ Flexibility is included in the model by introducing an energy buffer that allows
 
 
 
-\subsubsection{Electrical reserve power capacity}
-
-In case of a fault on a power supply unit, reserve capacity is needed to cover the lost supply – either by ramping up other supply units or by reducing power consumption by loads. For a generator  $i$ , the reserve capacity contribution is the capacity not used  $RC_{i}(t)$ , i.e. the difference between available capacity (that may be time-dependent, e.g. for wind power) and current power output:
-\begin{equation}
- 	RC_{i}(t) =P_{i}^{\max }p_{i}(t) - P_{i}. 
-\end{equation}
-
-\textit{For a battery, the available power is in reality limited not just by the maximum power, but also by the energy stored in the battery. This is not included at present. Possibly, this could be included in a linear way by computing an effective capacity profile from the battery energy scheduling from the previous timestep optimisation}.
-
-For a load, the reserve capacity contribution is the part of the load which can be shed (if any):
-\begin{equation}
-	RL_{i} \left( t \right) = f_{i}^{shed}P_{i}, 
-\end{equation}
-where  \( f_{i}^{shed} \)  is a factor (input parameter) that specifies which fraction of the load that can be shed. 
-If the load cannot be shed, this factor is zero. If all can be shed, it is 1.
-
-
-The overall reserve capacity is then
-\begin{equation}
-	R=  \sum _{i}^{} \left[ RC_{i} \left( t \right) +RL_{i} \left( t \right)  \right] . 
-\end{equation}
-However, if there is a fault on device  $i$, the critical issue is not the overall reserve capacity, but the overall reserve capacity \emph{minus the contribution from the device itself}, which is:
-\begin{equation}
- 	R_{i}=  \sum _{j \neq i}^{} \left[ RC_{j}(t) +RL_{j}(t)  \right] . 
-\end{equation}
-To ensure there is enough reserve capacity in case of fault on any power supply device,  the following constraint must be satisfied for all electrical devices:
- \begin{equation}
- 	R_{i} \geq P_{i} 
- \end{equation}
- 
- 
-\subsubsection{Start-up time}
-
-Devices may be specified with a start-up delay, meaning that once turned on, some time is required before power can be ramped up. This is relevant at least for gas turbines. 
-Simple cycle gas turbines may have a start-up delay of 10 minutes, while combined cycle gas turbines about 30 minutes.
-
-
 
 \subsubsection{Optimisation variables}
 
@@ -317,14 +280,16 @@ Associated with devices are the following variables:
 %
 For devices with start-up time delay or costs, the following variables are used:
 \begin{itemize}
-	\item on/off status (\texttt{varDeviceIsOn})– boolean variables representing operational status
-	\item starting (\texttt{varDeviceStarting}) – boolean variable indicating if device is changing from stopped to started 
-	\item stopping (\texttt{varDeviceStopping}) – boolean variable indicating if device is changing from started to stopped
+	\item on/off status (\texttt{varDeviceIsOn})– binary variable indicating if device is online
+	\item startup (\texttt{varDeviceIsPrep}) – binary variable indicating if device is in startup phase (preparing to go online)
+	\item starting (\texttt{varDeviceStarting}) – binary variable indicating if device is started (activated)
+	\item stopping (\texttt{varDeviceStopping}) – binary variable indicating if device is stopped
 \end{itemize}
 %
 And for devices with energy storage:
 \begin{itemize}
 	\item device energy storage level (\texttt{varDeviceEnergy}) – state of charge for associated energy storage
+	\item device energy storage power available (\texttt{varDeviceEnergyPower}) – available power from storage in a given timestep
 \end{itemize}
 
 
@@ -1059,8 +1024,6 @@ Heat output is given as gas fuel consumption (energy content) times a a heat fra
 	P_{out}^{heat}= \eta _{heat}Q_{in}^{gas} CV
 \end{equation}
 
-
-
 \begin{figure}[]
 \centering
 		\includegraphics[width=\columnwidth]{./media/gt_fuel_curves.png}
@@ -1232,6 +1195,86 @@ Device types that may be implemented later:
 	\item gas-to-fuel (H2+CO2)
 	\item heat demand determined by thermodynamic equations (heat storage, heat loss function of temperature difference, max/min temperature)
 \end{itemize}
+
+\section{Other constraints}
+
+ 
+ 
+\subsection{Start-up time}
+
+Devices may be specified with a start-up delay, meaning that once turned on, some time is required before power can be ramped up. This is relevant at least for gas turbines. 
+Simple cycle gas turbines may have a start-up delay of 10 minutes, while combined cycle gas turbines about 30 minutes.
+
+Four binary variables are used to encode the logic for startup and shutdown of gas turbine generators where it takes some time from activation to power output to the system: 
+\begin{itemize}
+\item isStarting: 1 when device is activated, 0 otherwise
+\item isPrep: 1 when device is in startup preparation phase (after activation), 0 otherwise
+\item isOn: 1 when device is online, 0 otherwise (denoted $y$ above)
+\item isStopping: 1 when device is shut down, 0 otherwise
+\end{itemize}
+
+\medskip\noindent
+The equtions linking these are:
+\begin{equation}
+	isOn(t) - isOn(t-1) = isStarting(t-tDelay) - isStopping(t),
+\end{equation}
+\begin{equation}
+	isPrep(t)  = \sum_{\tau=0}^{tDelay-1} isStarting(t-\tau),
+\end{equation}
+where $tDelay$ is the startup time measured in timesteps.
+For the first timesteps when $t<tDelay$ these equations are modified to include the results from the previous rolling horizon.
+
+
+\subsection{Spinning reserve requirement}
+Spinning reserve capacity is usually required to cover unforeseen variation in power demand and supply.
+
+The reserve contribution from a single generating unit is computed as 
+\begin{equation}
+	R_{gen}(t) = p(t) P_{max} - P_{out}(t),
+\end{equation}
+where $p(t)$ is a profile that gives the available power relative to the installed capacity.
+
+For a load, the reserve capacity contribution is the part of the load which can be reduced (if any):
+\begin{equation}
+	R_{load} \left( t \right) = f^{reduction}P_{in}(t), 
+\end{equation}
+where  \( f_{i}^{reduction} \)  is a factor (input parameter) that specifies which fraction of the load that can be reduced. 
+If the load cannot be reduced, this factor is zero. If the load can be turned off completely, it is one.
+
+For energy storage devices, the reserve is given by the mimimum of the available energy and the power rating:
+\begin{equation}
+	R_{stor}(t) = \min{P_{max}, \frac{E(t)}{\Delta t}},
+\end{equation}
+where $\Delta t$ is the length of each timestep. For example, if the timesteps are 5 min=5/60 hours, and the energy level is $E(t)=2$~MWh, then the available power is $P=\frac{2}{5/60}$~MW = 24 MW. 
+However, if the battery power rating is e.g. 4 MW, only 4 MW can be output.
+
+\textit{For a battery, the available power is in reality limited not just by the maximum power, but also by the energy stored in the battery. This is not included at present. Possibly, this could be included in a linear way by computing an effective capacity profile from the battery energy scheduling from the previous timestep optimisation}.
+
+The overall reserve capacity is then
+\begin{equation}
+	R=  \sum R_{gen} + \sum R_{load}  \ \sum R_{stor} . 
+\end{equation}
+And the resrve requirement (optimisation constraint) is
+\begin{equation}
+	R(t) \ge R_{min}(t)
+\end{equation}
+
+
+\subsection{Backup power requirement}
+In addition or instead of defining a reserve requirement, it is possible to specify a backup power requirement. This is simlar to the reserve requirement, but instead of considering variations in demand or power availability, it considers generator trips.
+In the case of such a trip, or fault, on a power supply unit, online backup capacity may be required to cover the lost supply – either by ramping up other supply units, by reducing power consumption by loads, or by shedding loads.
+
+The main difference from the reserve requirement described above is that this considers \emph{fault} situations, and therefore the reserve contribution from the generator itself must be excluded. For example, if two 20 MW generators are running at 11 MW to supply a 22 MW load, the reserve is 18 MW, but if one of them trips, the other gas turbine can only increase by 9 MW, not enough to cover the lost supply. That is, either we need a third generator online, or we must be able to reduce or shed loads.
+
+
+The overall backup capacity to take over in case generator $i$ trips, \emph{excluding the contribution from the device itself}  is:
+\begin{equation}
+ 	R_{i}=  \sum _{j \neq i}^{} \left[ R_{gen}^j(t) +R_{load}^j(t) +R_{stor}^j(t) \right] . 
+\end{equation}
+The backup power requirement sets a lower limit for how much power loss is allowed ($P^{loss}_{max}$) in case of a trip and sudden loss of $P_i$ power from generator $i$: 
+ \begin{equation}
+ 	R_{i}   \geq P_i - P^{loss}_{max}.
+ \end{equation}
 
 
 
