@@ -86,7 +86,7 @@ class Multicarrier:
         self._dfDeviceIsPrep = None
         self._dfDeviceIsOn = None
         self._dfDevicePower = None
-        self._dfDeviceEnergy = None
+        self._dfDeviceStorageEnergy = None
         self._dfDeviceStarting = None
         self._dfDeviceStopping = None
         self._dfEdgeFlow = None
@@ -98,6 +98,7 @@ class Multicarrier:
         self._dfExportRevenue = None #revenue from exported energy
         self._dfCO2intensity = None
         self._dfElReserve = None #Reserve capacity
+        self._dfElBackup = None #Backup capacity (handling faults)
 
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -168,8 +169,14 @@ class Multicarrier:
                 model.setDevice,model.setHorizon,within=pyo.Binary)
         model.varDeviceStopping = pyo.Var(
                 model.setDevice,model.setHorizon,within=pyo.Binary)
-        model.varDeviceEnergy = pyo.Var(model.setDevice,model.setHorizon,
+        model.varDeviceStorageEnergy = pyo.Var(model.setDevice,model.setHorizon,
                                         within=pyo.Reals)
+        # available power from storage (linked to power rating and storage level):
+        model.varDeviceStoragePmax = pyo.Var(model.setDevice,model.setHorizon,
+            within=pyo.NonNegativeReals,initialize=0)
+        # binary variable related to available powr from storage:
+        model.varStorY = pyo.Var(model.setDevice,model.setHorizon,
+            within=pyo.Binary)
         model.varPressure = pyo.Var(
                 model.setNode,model.setCarrier,model.setTerminal,
                 model.setHorizon, within=pyo.NonNegativeReals,initialize=0)
@@ -189,8 +196,16 @@ class Multicarrier:
 
 
         # Objective
-        #TODO update objective function
-        logging.info("TODO: objective function definition")
+
+        def storPmaxPushup(model):
+            '''term in objective function to push varDeviceStoragePmax up
+            to its maximum value (to get correct calculation of reserve)'''
+            sumStorPmax=0
+            for dev in model.setDevice:
+                if model.paramDevice[dev]['model'] == 'storage_el':
+                    for t in model.setHorizon:
+                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
+            return sumStorPmax
 
         def rule_objective_co2(model):
             '''CO2 emissions'''
@@ -210,7 +225,12 @@ class Multicarrier:
             startupCosts = self.compute_startup_costs(model)
             co2 = self.compute_CO2(model)
             co2_tax = model.paramParameters['co2_tax']
-            return -sumRevenue +co2*co2_tax + startupCosts
+# this has been done in the constraints instead:
+            # use a tiny penalty factor to push varDeviceStoragePmax to its
+            # maximum allowable value (to get right reserve calculation)
+#            smallfactor = 0.000001 # must be small not to influence optimisation
+#            storMax = smallfactor*storPmaxPushup(model) # want to maximise this
+            return -sumRevenue +co2*co2_tax + startupCosts #- storMax
 
         def rule_objective(model):
             obj = model.paramParameters['objective']
@@ -537,15 +557,15 @@ class Multicarrier:
                        -model.varDeviceFlow[dev,'el','out',t]
                         /model.paramDevice[dev]['eta'] )*delta_t
                 if t>0:
-                    Eprev = model.varDeviceEnergy[dev,t-1]
+                    Eprev = model.varDeviceStorageEnergy[dev,t-1]
                 else:
                     Eprev = model.paramDeviceEnergyInitially[dev]
-                rhs = (model.varDeviceEnergy[dev,t]-Eprev)
+                rhs = (model.varDeviceStorageEnergy[dev,t]-Eprev)
                 return (lhs==rhs)
             elif i==2:
                 # energy storage limit
                 ub = model.paramDevice[dev]['Emax']
-                return pyo.inequality(0,model.varDeviceEnergy[dev,t],ub)
+                return pyo.inequality(0,model.varDeviceStorageEnergy[dev,t],ub)
             elif i==3:
                 #charging power limit
                 ub = model.paramDevice[dev]['Pmax']
@@ -554,18 +574,43 @@ class Multicarrier:
                 #discharging power limit
                 ub = model.paramDevice[dev]['Pmax']
                 return (model.varDeviceFlow[dev,'el','in',t]<=ub)
-#            elif i==6:
-#                # constraint on storage end vs start
-#                # Adding this does not seem to improve result (not lower CO2)
-#                if t==model.setHorizon[-1]:
-#                    lhs = model.varDeviceEnergy[dev,t]
-#                    rhs = model.varDeviceEnergy[dev,0] # end=start
-#                    #rhs = 0.5*model.paramDevice[dev]['Emax'] # 50% full
-#                    return (lhs==rhs)
-#                else:
-#                    return pyo.Constraint.Skip
+            elif i==5:
+                # Constraint 5-8: varDeviceStoragePmax = min{Pmax,E/dt}
+                # ref: https://or.stackexchange.com/a/1174
+                lhs = model.varDeviceStoragePmax[dev,t]
+                rhs = model.paramDevice[dev]['Pmax']
+                return (lhs<=rhs)
+            elif i==6:
+                lhs = model.varDeviceStoragePmax[dev,t]
+                # Parameter specifying for how long the power needs to be
+                # sustained to count as reserve (e.g. similar to GT startup time)
+                dt_hours = model.paramParameters['time_reserve_minutes']/60
+                rhs = model.varDeviceStorageEnergy[dev,t]/dt_hours
+                return (lhs<=rhs)
+            elif i==7:
+                bigM = 10*model.paramDevice[dev]['Pmax']
+                lhs = model.varDeviceStoragePmax[dev,t]
+                rhs = model.paramDevice[dev]['Pmax'] - bigM*(1-model.varStorY[dev,t])
+                return (lhs>=rhs)
+            elif i==8:
+                dt_hours = model.paramParameters['time_reserve_minutes']/60
+                bigM = 10*model.paramDevice[dev]['Emax']/dt_hours
+                lhs = model.varDeviceStoragePmax[dev,t]
+                rhs = (model.varDeviceStorageEnergy[dev,t]/dt_hours
+                        - bigM*model.varStorY[dev,t])
+                return (lhs>=rhs)
+            elif i==9:
+                # constraint on storage end vs start
+                # Adding this does not seem to improve result (not lower CO2)
+                if t==model.setHorizon[-1]:
+                    lhs = model.varDeviceStorageEnergy[dev,t]
+                    #rhs = model.varDeviceStorageEnergy[dev,0] # end=start
+                    rhs = model.paramDevice[dev]['Emax'] # 100% full at the end
+                    return (lhs==rhs)
+                else:
+                    return pyo.Constraint.Skip
         model.constrDevice_storage_el = pyo.Constraint(model.setDevice,
-                  model.setHorizon,pyo.RangeSet(1,4),
+                  model.setHorizon,pyo.RangeSet(1,9),
                   rule=rule_devmodel_storage_el)
 
 
@@ -673,68 +718,70 @@ class Multicarrier:
                 lhs = (model.varDeviceFlow[dev,'water','in',t]
                        -model.paramDevice[dev]['Qavg'])*delta_t
                 if t>0:
-                    Eprev = model.varDeviceEnergy[dev,t-1]
+                    Eprev = model.varDeviceStorageEnergy[dev,t-1]
                 else:
                     Eprev = model.paramDeviceEnergyInitially[dev]
-                rhs = (model.varDeviceEnergy[dev,t]-Eprev)
+                rhs = (model.varDeviceStorageEnergy[dev,t]-Eprev)
                 return (lhs==rhs)
             elif i==2:
                 # energy buffer limit
                 Emax = model.paramDevice[dev]['Vmax']
                 return pyo.inequality(
-                        -Emax/2,model.varDeviceEnergy[dev,t],Emax/2)
+                        -Emax/2,model.varDeviceStorageEnergy[dev,t],Emax/2)
             return expr
         model.constrDevice_sink_water = pyo.Constraint(model.setDevice,
             model.setHorizon,pyo.RangeSet(1,2),
             rule=rule_devmodel_sink_water)
 
 
-        def rule_elDispatchMargin(model,t):
-            '''Dispatch margin constraint (electrical supply)
+        def rule_elReserveMargin(model,t):
+            '''Reserve margin constraint (electrical supply)
             Not used capacity by power suppliers/storage/load flexibility
             must be larger than some specified margin
             (to cope with unforeseen variations)
             '''
-            if (('elDispatchMargin' not in model.paramParameters)
-                    or (model.paramParameters['elDispatchMargin']<0)):
+            if (('elReserveMargin' not in model.paramParameters)
+                    or (model.paramParameters['elReserveMargin']<0)):
                 if ( t==model.setHorizon.first()):
-                    logging.info("Valid elDispatchMargin not defined -> no constraint")
+                    logging.info("Valid elReserveMargin not defined -> no constraint")
                 return pyo.Constraint.Skip
             # exclude constraint for first timesteps since the point of the
             # dispatch margin is exactly to cope with forecast errors
+            # *2 to make sure there is time to start up gt
             if t < model.paramParameters['forecast_timesteps']:
                 return pyo.Constraint.Skip
 
-            DM = model.paramParameters['elDispatchMargin']
-            capacity_unused = self.compute_elDispatchMargin(model,t)
-            expr = (capacity_unused >= DM)
+            margin = model.paramParameters['elReserveMargin']
+            capacity_unused = self.compute_elReserve(model,t)
+            expr = (capacity_unused >= margin)
             return expr
-        model.constrDevice_elDispatchMargin = pyo.Constraint(
-                  model.setHorizon,rule=rule_elDispatchMargin)
+        model.constrDevice_elReserveMargin = pyo.Constraint(
+                  model.setHorizon,rule=rule_elReserveMargin)
 
-        def rule_elReserveMargin(model,dev,t):
-            '''Reserve capacity constraint (electrical supply)
+        def rule_elBackupMargin(model,dev,t):
+            '''Backup capacity constraint (electrical supply)
             Not used capacity by other online power suppliers plus sheddable
             load must be larger than power output of this device
             (to take over in case of a fault)
             '''
-            if (('elReserveMargin' not in model.paramParameters)
-                    or (model.paramParameters['elReserveMargin']<0)):
+            if (('elBackupMargin' not in model.paramParameters)
+                    or (model.paramParameters['elBackupMargin']<0)):
                 if ((dev==model.setDevice.first())
                     &( t==model.setHorizon.first())):
-                    logging.info("Valid elReserveMargin not defined -> no constraint")
+                    logging.info("Valid elBackupMargin not defined -> no constraint")
                 return pyo.Constraint.Skip
-            EM = model.paramParameters['elReserveMargin']
+            margin = model.paramParameters['elBackupMargin']
             devmodel = model.paramDevice[dev]['model']
             if 'el' not in Multicarrier.devicemodel_inout()[devmodel]['out']:
                 # this is not a power generator
                 return pyo.Constraint.Skip
-            res_otherdevs = self.compute_elReserve(model,t,exclude_device=dev)
-            # elReserveMargin is zero or positive (if loss of load is acceptable)
-            expr = (res_otherdevs -model.varDeviceFlow[dev,'el','out',t] >= -EM)
+            res_otherdevs = self.compute_elBackup(model,t,exclude_device=dev)
+            # elBackupMargin is zero or positive (if loss of load is acceptable)
+            expr = (res_otherdevs -model.varDeviceFlow[dev,'el','out',t]
+                    >= -margin)
             return expr
-        model.constrDevice_elReserveMargin = pyo.Constraint(model.setDevice,
-                  model.setHorizon,rule=rule_elReserveMargin)
+        model.constrDevice_elBackupMargin = pyo.Constraint(model.setDevice,
+                  model.setHorizon,rule=rule_elBackupMargin)
 
 
 
@@ -793,7 +840,7 @@ class Multicarrier:
             prevPart=0
             if (t < Tdelay-stepsPrevPrep):
             	prevPart = prevIsPrep
-            tau_range = range(0,min(t,Tdelay))
+            tau_range = range(0,min(t+1,Tdelay))
             lhs = model.varDeviceIsPrep[dev,t]
             rhs = sum(model.varDeviceStarting[dev,t-tau]
                         for tau in tau_range) + prevPart
@@ -1732,42 +1779,55 @@ class Multicarrier:
         Q = np.sqrt( ((p1-p2)*1e6 - rho*grav*height_difference_m) / k )
         return Q
 
+    logging.info("TODO: elReseve not including load reduction")
     @staticmethod
-    def compute_elDispatchMargin(model,t):
+    def compute_elReserve(model,t):
         '''compute non-used generator capacity (and available loadflex)
         This is reserve to cope with forecast errors, e.g. because of wind
         variation or motor start-up
+        (does not include load reduction yet)
         '''
         alldevs = model.setDevice
         # relevant devices are devices with el output or input
         inout = Multicarrier.devicemodel_inout()
-        generators = []
-        for d in alldevs:
-            devmodel = model.paramDevice[d]['model']
-            if ('el' in inout[devmodel]['out']):
-                 generators.append(d)
         cap_avail = 0
         p_generating = 0
-        for d in generators:
+        loadreduction = 0
+        for d in alldevs:
             devmodel = model.paramDevice[d]['model']
             if 'el' in inout[devmodel]['out']:
-                #generator
+                # Generators and storage
                 maxValue = model.paramDevice[d]['Pmax']
                 if 'profile' in model.paramDevice[d]:
                     extprofile = model.paramDevice[d]['profile']
                     maxValue = maxValue*model.paramProfiles[extprofile,t]
-                ison = 1
                 if devmodel in ['gasturbine']:
                     ison = model.varDeviceIsOn[d,t]
-                cap_avail += ison*maxValue
+                    maxValue = ison*maxValue
+                elif devmodel in ['storage_el']:
+                    #available power may be limited by energy in the storage
+                    # charging also contributes (can be reversed)
+                    #(it can go to e.g. -2 MW to +2MW => 4 MW,
+                    # even if Pmax=2 MW)
+                    maxValue = (model.varDeviceStoragePmax[d,t]
+                                +model.varDeviceFlow[d,'el','in',t])
+                cap_avail += maxValue
                 p_generating += model.varDeviceFlow[d,'el','out',t]
-        #TODO: include energy storage
+            elif 'el' in inout[devmodel]['in']:
+                # Loads
+                if ('reserve_factor' in model.paramDevice[d]):
+                    # load reduction possible
+                    #f_lr = model.paramDevice[d]['reserve_factor']
+                    #loadreduction += f_lr*model.varDeviceFlow[d,'el','in',t]
+                    #TODO: update, use above
+                    loadreduction = 0
+        res_dev = (cap_avail-p_generating) + loadreduction
         #TODO: include flexible loads (that can absorve variations)
         res_dev = (cap_avail-p_generating)
         return res_dev
 
     @staticmethod
-    def compute_elReserve(model,t,exclude_device=None):
+    def compute_elBackup(model,t,exclude_device=None):
         '''Compute available reserve power that can take over in case
         of a fault. Consists of:
         1. generator unused capacity (el out)
@@ -1802,7 +1862,7 @@ class Multicarrier:
                 elif devmodel in ['storage_el']:
                     #available power may be limited by energy in the storage
                     delta_t = model.paramParameters['time_delta_minutes']/60 #hours
-                    storageP = model.varDeviceEnergy[d,t]/delta_t #MWh to MW
+                    storageP = model.varDeviceStorageEnergy[d,t]/delta_t #MWh to MW
     #TODO: Take into account available energy in the storage
     # cannot use non-linear min() function here
     #                maxValue= min(maxValue,storageP)
@@ -1881,17 +1941,20 @@ class Multicarrier:
         if not first:
             t_prev = opt_timesteps-1
             for dev in self.instance.setDevice:
+                # On/off status:
                 self.instance.paramDeviceIsOnInitially[dev] = (
                         self.instance.varDeviceIsOn[dev,t_prev])
 #                self.instance.paramDeviceOnTimestepsInitially[dev] = (
 #                        _updateOnTimesteps(t_prev,dev))
                 self.instance.paramDevicePrepTimestepsInitially[dev] = (
                         _updateOnTimesteps(t_prev,dev))
+                # Power output (relevant for ramp rate constraint):
                 self.instance.paramDevicePowerInitially[dev] = (
                     self.getDevicePower(self.instance,dev,t_prev))
+                # Energy storage:
                 if self.instance.paramDevice[dev]['model'] in self.models_with_storage:
                     self.instance.paramDeviceEnergyInitially[dev] = (
-                            self.instance.varDeviceEnergy[dev,t_prev])
+                            self.instance.varDeviceStorageEnergy[dev,t_prev])
 
         # These constraints need to be reconstructed to update properly
         # (pyo.value(...) and/or if sentences...)
@@ -1940,7 +2003,7 @@ class Multicarrier:
               names=('device','time'))
         varDeviceIsOn = self.getVarValues(self.instance.varDeviceIsOn,
               names=('device','time'))
-        varDeviceEnergy = self.getVarValues(self.instance.varDeviceEnergy,
+        varDeviceStorageEnergy = self.getVarValues(self.instance.varDeviceStorageEnergy,
               names=('device','time'))
         varDeviceStarting = self.getVarValues(self.instance.varDeviceStarting,
               names=('device','time'))
@@ -1994,11 +2057,20 @@ class Multicarrier:
         df_reserve=pd.DataFrame()
         devs_elout = self.getDevicesInout(carrier_out='el')
         for t in range(timelimit):
-            for d in devs_elout:
-                rescap = pyo.value(self.compute_elReserve(
-                        self.instance,t,exclude_device=d))
-                df_reserve.loc[t+timestep,d] = rescap
+            rescap = pyo.value(self.compute_elReserve(self.instance,t))
+            df_reserve.loc[t+timestep,'reserve'] = rescap
         self._dfElReserve = pd.concat([self._dfElReserve,df_reserve])
+
+        # Backup capacity
+        # for all generators, should have reserve_excl_generator>p_out
+        df_backup=pd.DataFrame()
+        devs_elout = self.getDevicesInout(carrier_out='el')
+        for t in range(timelimit):
+            for d in devs_elout:
+                rescap = pyo.value(self.compute_elBackup(
+                        self.instance,t,exclude_device=d))
+                df_backup.loc[t+timestep,d] = rescap
+        self._dfElBackup = pd.concat([self._dfElBackup,df_backup])
 
         # Add to dataframes storing results (only the decision variables)
         def _addToDf(df_prev,df_new):
@@ -2012,7 +2084,7 @@ class Multicarrier:
         self._dfDeviceFlow = _addToDf(self._dfDeviceFlow,varDeviceFlow)
         self._dfDeviceIsOn = _addToDf(self._dfDeviceIsOn,varDeviceIsOn)
         self._dfDeviceIsPrep = _addToDf(self._dfDeviceIsPrep,varDeviceIsPrep)
-        self._dfDeviceEnergy = _addToDf(self._dfDeviceEnergy,varDeviceEnergy)
+        self._dfDeviceStorageEnergy = _addToDf(self._dfDeviceStorageEnergy,varDeviceStorageEnergy)
         self._dfDeviceStarting = _addToDf(self._dfDeviceStarting,varDeviceStarting)
         self._dfDeviceStopping = _addToDf(self._dfDeviceStopping,varDeviceStopping)
         self._dfEdgeFlow = _addToDf(self._dfEdgeFlow,varEdgeFlow)
@@ -2228,8 +2300,8 @@ class Multicarrier:
             self._dfCO2rate.to_excel(writer,sheet_name="CO2rate")
         if not self._dfCO2rate_per_dev.empty:
             self._dfCO2rate_per_dev.to_excel(writer,sheet_name="CO2rate_per_dev")
-        if not self._dfDeviceEnergy.empty:
-            self._dfDeviceEnergy.to_excel(writer,sheet_name="DeviceEnergy")
+        if not self._dfDeviceStorageEnergy.empty:
+            self._dfDeviceStorageEnergy.to_excel(writer,sheet_name="DeviceStorageEnergy")
         if not self._dfDeviceFlow.empty:
             self._dfDeviceFlow.to_excel(writer,sheet_name="DeviceFlow")
         if not self._dfDeviceIsOn.empty:
@@ -2289,7 +2361,7 @@ class Plots:
                            label="actual ({} {})".format(carr,term))
         ax.legend(loc='upper left')#, bbox_to_anchor =(1.01,0),frameon=False)
 
-        dfE = pd.DataFrame.from_dict(model.varDeviceEnergy.get_values(),
+        dfE = pd.DataFrame.from_dict(model.varDeviceStorageEnergy.get_values(),
                                     orient="index")
         dfE.index = pd.MultiIndex.from_tuples(dfE.index,
                                names=('device','time'))
