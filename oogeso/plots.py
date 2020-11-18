@@ -64,27 +64,27 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
             dev=col
             dev_param = mc.instance.paramDevice[dev]
             k=k+1
-            fig.add_scatter(y=df[col],line_shape='hv',name=col,
+            fig.add_scatter(x=df.index,y=df[col],line_shape='hv',name=col,
                 line=dict(color=colour[k]),
                 stackgroup="P",legendgroup=col,row=1,col=1)
             if includeOnOff & (dev_param['model']=='gasturbine'):
-                fig.add_scatter(y=df2[col],line_shape='hv',name=col,
+                fig.add_scatter(x=df2.index,y=df2[col],line_shape='hv',name=col,
                     line=dict(color=colour[k],dash='dash'),
                     stackgroup="ison",legendgroup=col,row=rowOnOff,col=1,
                     showlegend=False)
             if includePrep & (dev_param['model']=='gasturbine'):
-                fig.add_scatter(y=dfPrep[col],line_shape='hv',name=col,
+                fig.add_scatter(x=dfPrep.index,y=dfPrep[col],line_shape='hv',name=col,
                     line=dict(color=colour[k],dash='dash'),
                     stackgroup="ison",legendgroup=col,row=rowPrep,col=1,
                     showlegend=False)
             if includeForecasts & ('profile' in dev_param):
                 curve = dev_param['profile']
                 devPmax=dev_param['Pmax']
-                fig.add_scatter(
+                fig.add_scatter(x=timerange,
                     y=mc._df_profiles_actual.loc[timerange,curve]*devPmax,
                     line_shape='hv',line=dict(color=colour[k+1]),
                     name='--nowcast',legendgroup=col,row=1,col=1)
-                fig.add_scatter(
+                fig.add_scatter(x=timerange,
                     y=mc._df_profiles_forecast.loc[timerange,curve]*devPmax,
                     line_shape='hv',line=dict(color=colour[k+2]),
                     name='--forecast',legendgroup=col,row=1,col=1)
@@ -137,7 +137,7 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
             plt.savefig(filename,bbox_inches = 'tight')
     return fig
 
-def plot_devicePowerEnergy(mc,dev,filename=None):
+def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
     '''Plot power in/out of device and storage level (if any)'''
     model = mc.instance
     dev_param = model.paramDevice[dev]
@@ -154,6 +154,7 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
 #    dfE = mc._dfDeviceStorageEnergy[
 #            mc._dfDeviceStorageEnergy.index.get_level_values('device')==dev
 #            ]
+    dfE=pd.DataFrame()
     if dev in mc._dfDeviceStorageEnergy:
         dfE =  pd.DataFrame(mc._dfDeviceStorageEnergy[dev])
         # Shift time by one, since the dfDeviceEnergy[t] is the energy _after_
@@ -167,13 +168,21 @@ def plot_devicePowerEnergy(mc,dev,filename=None):
         fig = plotly.subplots.make_subplots(specs=[[{"secondary_y": True}]])
         for col in dfF.columns:
             fig.add_scatter(y=dfF[col],line_shape='hv',name=col,
-                secondary_y=False)
+                secondary_y=True,fill='tozeroy')
         if not dfE.empty:
             fig.add_scatter(x=dfE.index,y=dfE['storage'],name='storage',
-                secondary_y=True)#,line=dict(dash='dot'))
+                secondary_y=False,fill='tozeroy')#,line=dict(dash='dot'))
+            if energy_fill_opacity is not None:
+                k=len(fig['data'])-1
+                linecol=plotly.colors.DEFAULT_PLOTLY_COLORS[k]
+                opacity=energy_fill_opacity
+                fillcol='rgba({}, {})'.format(linecol[4:][:-1],opacity)
+                fig['data'][k]['fillcolor']=fillcol
+                fig['data'][k]['fill']='tozeroy'
+            fig.update_yaxes(title_text="Energy storage (MWh)",
+            secondary_y=False,side="right")
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
-        fig.update_yaxes(title_text="Energy storage (MWh)", secondary_y=True)
+        fig.update_yaxes(title_text="Power (MW)", secondary_y=True,side="left")
 
     elif plotter=="matplotlib":
         fig=plt.figure(figsize=(12,4))
@@ -233,9 +242,13 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
         fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True,
             vertical_spacing=0.05)
         for col in dfF_in:
-            fig.add_scatter(y=dfF_in[col],line_shape='hv',name="in:"+col,stackgroup="in",legendgroup=col,row=2,col=1)
+            fig.add_scatter(x=dfF_in.index,y=dfF_in[col],
+                line_shape='hv',name="in:"+col,stackgroup="in",
+                legendgroup=col,row=2,col=1)
         for col in dfF_out:
-            fig.add_scatter(y=dfF_out[col],line_shape='hv',name="out:"+col,stackgroup="out",legendgroup=col,row=1,col=1)
+            fig.add_scatter(x=dfF_out.index,y=dfF_out[col],
+                line_shape='hv',name="out:"+col,stackgroup="out",
+                legendgroup=col,row=1,col=1)
         fig.update_xaxes(row=1,col=1,title_text="")
         fig.update_xaxes(row=2,col=1,title_text="Timestep")
         fig.update_yaxes(row=1,col=1,title_text="Power supply (MW)")
@@ -267,17 +280,23 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
             plt.savefig(filename,bbox_inches = 'tight')
     return fig
 
-def plot_ExportRevenue(mc,filename=None):
-    plt.figure(figsize=(12,4))
-    plt.title("Export revenue ($/s)")
-    ax=plt.gca()
-    ax.set_ylabel("$/s")
-    ax.set_xlabel("Timestep")
-    (mc._dfExportRevenue.loc[:,mc._dfExportRevenue.sum()>0]).plot.area(
-            ax=ax,linewidth=0)
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
-
+def plot_ExportRevenue(mc,filename=None,currency="$"):
+    if plotter=="plotly":
+        dfplot = mc._dfExportRevenue.loc[:,mc._dfExportRevenue.sum()>0]
+        fig = px.area(dfplot)
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Revenue ({}/s)".format(currency))
+    elif plotter=="matplotlib":
+        fig=plt.figure(figsize=(12,4))
+        plt.title("Export revenue ($/s)")
+        ax=plt.gca()
+        ax.set_ylabel("{}/s".format(currency))
+        ax.set_xlabel("Timestep")
+        (mc._dfExportRevenue.loc[:,mc._dfExportRevenue.sum()>0]).plot.area(
+                ax=ax,linewidth=0)
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    return fig
 
 def plot_CO2rate(mc,filename=None):
     plt.figure(figsize=(12,4))
@@ -300,7 +319,8 @@ def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
         #,shared_xaxes=True,vertical_spacing=0.05)
         #fig = px.line(dfplot,x="time",y=ylabel,color=id_var,title=title)
         for col in dfplot:
-            fig.add_scatter(y=dfplot[col],line_shape='hv',name=col,
+            fig.add_scatter(x=dfplot.index,y=dfplot[col],
+                line_shape='hv',name=col,
                 stackgroup="one",row=1,col=1)
         fig.update_xaxes(title_text="Timestep")
         fig.update_yaxes(title_text="Emission rate (kgCO2/s)")
@@ -687,7 +707,109 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,energycontent=40,
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
-def recompute_elReserve(mc):
+
+def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
+    '''Plot unused online capacity by all el devices'''
+    df_devs=pd.DataFrame()
+    model=mc.instance
+    inout=mc.devicemodel_inout()
+    timerange=list(mc._dfExportRevenue.index)
+    marginIncr = pd.Series(0,index=timerange)
+    for d in mc.instance.setDevice:
+        devmodel = model.paramDevice[d]['model']
+        if 'el' in inout[devmodel]['out']:
+            # Generators and storage
+            maxValue = model.paramDevice[d]['Pmax']
+            if 'profile' in model.paramDevice[d]:
+                extprofile = model.paramDevice[d]['profile']
+                if useForecast:
+                    maxValue = maxValue*mc._df_profiles_forecast.loc[
+                        timerange,extprofile]
+                else:
+                    maxValue = maxValue*mc._df_profiles_actual.loc[
+                        timerange,extprofile]
+            if devmodel in ['gasturbine']:
+                ison = mc._dfDeviceIsOn[d]
+                maxValue = ison*maxValue
+            elif devmodel in ['storage_el']:
+                maxValue = (mc._dfDeviceStoragePmax[d]
+                            +mc._dfDeviceFlow[d,'el','in'])
+            if ('reserve_factor' in model.paramDevice[d]):
+                reserve_factor=model.paramDevice[d]['reserve_factor']
+                if dynamicMargin:
+                    # instead of reducing reserve, increase the margin instead
+                    # R*0.8-M = R - (M+0.2R) - this shows better in the plot what
+                    marginIncr = maxValue*(1-reserve_factor)
+                else:
+                    maxValue = maxValue*reserve_factor
+            cap_avail = maxValue
+            p_generating = mc._dfDeviceFlow[d,'el','out']
+            reserv = cap_avail-p_generating
+            df_devs[d] = reserv
+    df_devs.columns.name="device"
+    fig=px.area(df_devs,line_shape='hv')
+    fig.add_scatter(x=df_devs.index,y=df_devs.sum(axis=1),name='SUM',
+        line=dict(dash='dot',color='black'),line_shape='hv')
+    if includeMargin:
+        margin=mc.instance.paramParameters['elReserveMargin']
+        # wind contribution (cf compute reserve)
+        marginIncr = marginIncr+margin
+        fig.add_scatter(x=marginIncr.index, y=marginIncr,
+            name='Margin',line=dict(dash='dot',color='red'),mode="lines")
+    fig.update_xaxes(title_text="Timestep")
+    fig.update_yaxes(title_text="Reserve (MW)")
+    return fig
+
+
+def plotElBackup(mc,filename=None,showMargin=False,returnMargin=False):
+    '''plot reserve capacity vs device power output'''
+    res_dev = mc._dfElBackup
+    dfP = mc._dfDeviceFlow.copy()
+    carrier='el'
+    mask_carrier = (dfP.index.get_level_values('carrier')==carrier)
+    mask_out = (dfP.index.get_level_values('terminal')=='out')
+    dfP.index = dfP.index.droplevel(level=("carrier","terminal"))
+    dfP = dfP[mask_carrier&mask_out].unstack(0)
+    dfP = dfP[res_dev.columns]
+    dfMargin = (res_dev-dfP).min(axis=1)
+    if plotter=="plotly":
+        fig=px.line()#title="Online backup capacity (solid lines) vs device output (dotted lines)")
+        colour = plotly.colors.DEFAULT_PLOTLY_COLORS
+        k=0
+        for col in res_dev:
+            fig.add_scatter(x=res_dev.index,y=res_dev[col],mode="lines",
+                legendgroup=col,name="{} R_other".format(col),
+                line_shape='hv',line=dict(color=colour[k]))
+            fig.add_scatter(x=dfP.index,y=dfP[col],
+                legendgroup=col,name="{} P_out".format(col),
+                line_shape='hv',line=dict(color=colour[k],dash="dot"))
+            k=k+1
+        if showMargin:
+            fig.add_scatter(x=dfMargin.index,y=dfMargin,name="MARGIN",
+                line=dict(color="black"),line_shape='hv')
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Power (MW)")
+    elif plotter=="matplotlib":
+        fig=plt.figure(figsize=(12,4))
+        ax = plt.gca()
+        res_dev.plot(ax=ax,legend=True,alpha=1,linestyle="-")
+        labels=list(res_dev.columns)
+        if showMargin:
+            dfMargin.plot(ax=ax,linestyle="-",linewidth=3,
+                                       color="black",label="MARGIN")
+            labels = labels + ['MARGIN']
+        plt.gca().set_prop_cycle(None)
+        dfP.plot(ax=ax,linestyle=':',legend=False,alpha=1)
+        plt.title("Online backup capacity (solid lines) vs device output (dotted lines)")
+        ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+                   frameon=False)
+        if filename is not None:
+            plt.savefig(filename,bbox_inches = 'tight')
+    if returnMargin:
+        return dfMargin
+    return fig
+
+def recompute_elBackup(mc):
     '''Compute reserve
     should give the same as mc.compute_elReserve'''
     model = mc.instance
@@ -730,39 +852,9 @@ def recompute_elReserve(mc):
         res_dev[dev] = cap_avail-dfPout[otherdevs].sum(axis=1)
     return res_dev,dfPout
 
-def plotElBackup(mc,filename=None,showMargin=False,returnMargin=False):
+def plotElBackup2(mc,filename=None):
     '''plot reserve capacity vs device power output'''
-    res_dev = mc._dfElBackup
-    dfP = mc._dfDeviceFlow.copy()
-    carrier='el'
-    mask_carrier = (dfP.index.get_level_values('carrier')==carrier)
-    mask_out = (dfP.index.get_level_values('terminal')=='out')
-    dfP.index = dfP.index.droplevel(level=("carrier","terminal"))
-    dfP = dfP[mask_carrier&mask_out].unstack(0)
-    dfP = dfP[res_dev.columns]
-    plt.figure(figsize=(12,4))
-    ax = plt.gca()
-    res_dev.plot(ax=ax,legend=True,alpha=1,linestyle="-")
-    labels=list(res_dev.columns)
-    dfMargin = (res_dev-dfP).min(axis=1)
-    if showMargin:
-        dfMargin.plot(ax=ax,linestyle="-",linewidth=3,
-                                   color="black",label="MARGIN")
-        labels = labels + ['MARGIN']
-    plt.gca().set_prop_cycle(None)
-    dfP.plot(ax=ax,linestyle=':',legend=False,alpha=1)
-    plt.title("Online backup capacity (solid lines) vs device output (dotted lines)")
-    ax.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
-               frameon=False)
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
-    if returnMargin:
-        return dfMargin
-
-
-def plotElReserve2(mc,filename=None):
-    '''plot reserve capacity vs device power output'''
-    res_dev,dfP = recompute_elReserve(mc)
+    res_dev,dfP = recompute_elBackup(mc)
     plt.figure(figsize=(12,4))
     ax = plt.gca()
     # default line zorder=2
@@ -793,50 +885,5 @@ def plotElReserve2(mc,filename=None):
                frameon=False)
 #    plt.legend(dfP.columns,loc='lower left', bbox_to_anchor =(1.01,0),
 #               frameon=False)
-    if filename is not None:
-        plt.savefig(filename,bbox_inches = 'tight')
-
-
-
-def plotElReserve_OBSOLETE(mc,filename=None):
-
-    # power out (per device)
-    carrier = 'el'
-    dfF = mc._dfDeviceFlow
-    tmin = dfF.index.get_level_values('time').min()
-    tmax = dfF.index.get_level_values('time').max()+1
-    mask_carrier = (dfF.index.get_level_values('carrier')==carrier)
-    mask_out = (dfF.index.get_level_values('terminal')=='out')
-    dfF_out = dfF[mask_carrier&mask_out]
-    dfF_out.index = dfF_out.index.droplevel(level=("carrier","terminal"))
-    dfF_out = dfF_out.unstack(0)
-    devices_elout = mc.getDevicesInout(carrier_out='el')
-    dfF_out = dfF_out[devices_elout]
-
-    # available power
-    model = mc.instance
-    df_ison = mc._dfDeviceIsOn.unstack(0)
-    dfAvail = pd.DataFrame(index=dfF_out.index,columns=dfF_out.columns)
-    for d in devices_elout:
-        devmodel = model.paramDevice[d]['model']
-        maxValue = model.paramDevice[d]['Pmax']
-        if 'profile' in model.paramDevice[d]:
-            extprofile = model.paramDevice[d]['profile']
-            maxValue = maxValue*mc._df_profiles_actual[extprofile]
-        ison = 1
-        if devmodel in ['gasturbine']:
-            ison = df_ison[d]
-        dfAvail[d] = ison*maxValue
-    plt.figure()
-    ax = plt.gca()
-    for d in devices_elout:
-        dfF_out[d].plot(ax=ax,linestyle='-')
-        col = ax.get_lines()[-1].get_color()
-    #use the same colors
-    plt.gca().set_prop_cycle(None)
-    reserveP=(dfAvail-dfF_out).clip(0)
-    reserveP.plot.area(stacked=True, ax=ax,linestyle=':',alpha=0.5)
-    ax.plot(dfF_out.max(axis=1),label="P_largest",linestyle='--', linewidth=3)
-    plt.legend()
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
