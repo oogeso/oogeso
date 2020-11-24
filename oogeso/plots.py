@@ -167,7 +167,7 @@ def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
     if plotter=="plotly":
         fig = plotly.subplots.make_subplots(specs=[[{"secondary_y": True}]])
         for col in dfF.columns:
-            fig.add_scatter(y=dfF[col],line_shape='hv',name=col,
+            fig.add_scatter(x=dfF.index,y=dfF[col],line_shape='hv',name=col,
                 secondary_y=True,fill='tozeroy')
         if not dfE.empty:
             fig.add_scatter(x=dfE.index,y=dfE['storage'],name='storage',
@@ -665,7 +665,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
     return dotG
 
 def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,energycontent=40,
-        co2content=2.34,filename=None):
+        co2content=2.34,filename=None,Pmax=None):
     '''
     co2content : CO2 content, kgCO2/Sm3gas
     energycontent: energy content, MJ/Sm3gas
@@ -674,17 +674,29 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,energycontent=40,
 
     x_pow = np.linspace(0,1,50)
     y_fuel = fuelB + fuelA*x_pow
-    plt.figure(figsize=(12,4))
+    #Pgas = Qgas*energycontent: Qgas=Pgas/Pmax * Pmax/energycontent
+
+    nplots=3 if Pmax is None else 4
+    #if Pmax is not None
+    plt.figure(figsize=(4*nplots,4))
     #plt.suptitle("Gas turbine fuel characteristics")
 
-    plt.subplot(1,3,1)
+    if Pmax is not None:
+        y_fuel_sm3 = y_fuel*Pmax/energycontent #Sm3/s
+        plt.subplot(1,nplots,1)
+        plt.title("Fuel usage (Sm3/h)")
+        plt.xlabel("Electric power output (MW)")
+        plt.plot(x_pow*Pmax,y_fuel_sm3*3600) #per hour
+        plt.ylim(bottom=0)
+
+    plt.subplot(1,nplots,nplots-2)
     plt.title("Fuel usage ($P_{gas}/P_{el}^{max}$)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
     #plt.ylabel("Gas power input ($P_{gas}/P_{el}^{max}$)")
     plt.plot(x_pow,y_fuel)
     plt.ylim(bottom=0)
 
-    plt.subplot(1,3,2)
+    plt.subplot(1,nplots,nplots-1)
     plt.title("Efficiency ($P_{el}/P_{gas}$)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
     plt.plot(x_pow,x_pow/y_fuel)
@@ -698,7 +710,7 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,energycontent=40,
     # 1 MJ = 3600 MWh
     with np.errstate(divide='ignore', invalid='ignore'):
         emissions = 3600*co2content/energycontent * y_fuel/x_pow
-    plt.subplot(1,3,3)
+    plt.subplot(1,nplots,nplots)
     plt.title("Emission intensity (kgCO2/MWh)")
     plt.xlabel("Electric power output ($P_{el}/P_{el}^{max}$)")
     plt.plot(x_pow,emissions)
@@ -714,9 +726,10 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
     model=mc.instance
     inout=mc.devicemodel_inout()
     timerange=list(mc._dfExportRevenue.index)
-    marginIncr = pd.Series(0,index=timerange)
+    marginIncr = pd.DataFrame(0,index=timerange,columns=['margin'])
     for d in mc.instance.setDevice:
         devmodel = model.paramDevice[d]['model']
+        rf=1
         if 'el' in inout[devmodel]['out']:
             # Generators and storage
             maxValue = model.paramDevice[d]['Pmax']
@@ -736,14 +749,17 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
                             +mc._dfDeviceFlow[d,'el','in'])
             if ('reserve_factor' in model.paramDevice[d]):
                 reserve_factor=model.paramDevice[d]['reserve_factor']
+                if reserve_factor==0:
+                    # device does not count towards reserve
+                    rf=0
                 if dynamicMargin:
                     # instead of reducing reserve, increase the margin instead
                     # R*0.8-M = R - (M+0.2R) - this shows better in the plot what
-                    marginIncr = maxValue*(1-reserve_factor)
+                    marginIncr['margin'] = rf*maxValue*(1-reserve_factor)
                 else:
                     maxValue = maxValue*reserve_factor
-            cap_avail = maxValue
-            p_generating = mc._dfDeviceFlow[d,'el','out']
+            cap_avail = rf*maxValue
+            p_generating = rf*mc._dfDeviceFlow[d,'el','out']
             reserv = cap_avail-p_generating
             df_devs[d] = reserv
     df_devs.columns.name="device"
@@ -753,8 +769,8 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
     if includeMargin:
         margin=mc.instance.paramParameters['elReserveMargin']
         # wind contribution (cf compute reserve)
-        marginIncr = marginIncr+margin
-        fig.add_scatter(x=marginIncr.index, y=marginIncr,
+        marginIncr['margin'] = marginIncr['margin'] + margin
+        fig.add_scatter(x=marginIncr.index, y=marginIncr['margin'],
             name='Margin',line=dict(dash='dot',color='red'),mode="lines")
     fig.update_xaxes(title_text="Timestep")
     fig.update_yaxes(title_text="Reserve (MW)")

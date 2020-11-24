@@ -17,8 +17,6 @@ except:
     trange = range
     has_tqdm = False
 
-plt.close('all')
-
 '''
 TODO:well start/stop? (or continuous regulation of wellstream Pmax/Pmin)
 
@@ -214,15 +212,49 @@ class Multicarrier:
 
         # Objective
 
-        def storPmaxPushup(model):
-            '''term in objective function to push varDeviceStoragePmax up
-            to its maximum value (to get correct calculation of reserve)'''
-            sumStorPmax=0
+#        def storPmaxPushup(model):
+#            '''term in objective function to push varDeviceStoragePmax up
+#            to its maximum value (to get correct calculation of reserve)'''
+#            sumStorPmax=0
+#            for dev in model.setDevice:
+#                if model.paramDevice[dev]['model'] == 'storage_el':
+#                    for t in model.setHorizon:
+#                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
+#            return sumStorPmax
+
+        def costForDepletedStorage(model):
+            '''term in objective function to discourage depleting battery,
+            making sure it is used only when required'''
+            storCost = 0
             for dev in model.setDevice:
                 if model.paramDevice[dev]['model'] == 'storage_el':
+                    stor_cost=0
+                    if 'Ecost' in model.paramDevice[dev]:
+                        stor_cost = model.paramDevice[dev]['Ecost']
+                    Emax = model.paramDevice[dev]['Emax']
                     for t in model.setHorizon:
-                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
-            return sumStorPmax
+                        varE = model.varDeviceStorageEnergy[dev,t]
+                        storCost += stor_cost*(Emax-varE)
+            return storCost
+
+        def operatingCosts(model):
+            '''term in objective function to represent fuel costs or similar
+
+            opCost = energy costs (NOK/MJ, or NOK/Sm3)
+            Note: el costs per MJ not per MWh
+            '''
+            sumCost = 0
+            for dev in model.setDevice:
+                if 'opCost' in model.paramDevice[dev]:
+                    opcost = model.paramDevice[dev]['opCost']
+                    for t in model.setHorizon:
+                        varP = self.getDevicePower(model,dev,t)
+                        delta_t = model.paramParameters['time_delta_minutes']*60
+                        energy_in_dt = varP*delta_t
+                        sumCost += opcost*energy_in_dt
+                        #logging.info('opcost={}, e={}, scost={}'.format(opcost,energy_in_dt,opcost*energy_in_dt))
+            return sumCost
+
 
         def rule_objective_co2(model):
             '''CO2 emissions'''
@@ -240,14 +272,24 @@ class Multicarrier:
             '''revenue from exported oil and gas minus co2 tax'''
             sumRevenue = self.compute_exportRevenue(model)
             startupCosts = self.compute_startup_costs(model)
-            co2 = self.compute_CO2(model)
-            co2_tax = model.paramParameters['co2_tax']
+            co2 = self.compute_CO2(model) # kgCO2
+            co2_tax = model.paramParameters['co2_tax'] # kr/kgCO2
 # this has been done in the constraints instead:
             # use a tiny penalty factor to push varDeviceStoragePmax to its
             # maximum allowable value (to get right reserve calculation)
 #            smallfactor = 0.000001 # must be small not to influence optimisation
 #            storMax = smallfactor*storPmaxPushup(model) # want to maximise this
-            return -sumRevenue +co2*co2_tax + startupCosts #- storMax
+
+            storageDepletionCosts = costForDepletedStorage(model)
+            fuelCosts = operatingCosts(model)
+            sumCost = (-sumRevenue
+                        + co2*co2_tax
+                        + startupCosts
+                        + storageDepletionCosts
+                        + fuelCosts
+                        #- storMax
+                        )
+            return sumCost
 
         def rule_objective(model):
             obj = model.paramParameters['objective']
@@ -589,6 +631,8 @@ class Multicarrier:
                 lb = 0
                 # Specifying Emin may be useful e.g. to impose that battery
                 # should only be used for reserve
+                # BUT - probably better to specify an energy depletion cost
+                # instead (Ecost) - to allow using battery (at a cost) if required
                 if 'Emin' in model.paramDevice[dev]:
                     lb = model.paramDevice[dev]['Emin']
                 return pyo.inequality(lb,model.varDeviceStorageEnergy[dev,t],ub)
@@ -1793,6 +1837,7 @@ class Multicarrier:
         loadreduction = 0
         for d in alldevs:
             devmodel = model.paramDevice[d]['model']
+            rf = 1
             if 'el' in inout[devmodel]['out']:
                 # Generators and storage
                 maxValue = model.paramDevice[d]['Pmax']
@@ -1811,13 +1856,16 @@ class Multicarrier:
                                 +model.varDeviceFlow[d,'el','in',t])
                 if ('reserve_factor' in model.paramDevice[d]):
                     # safety margin - only count a part of the forecast power
-                    # towards the reserve
-                    # BUT TROUBLE: this does not affect scheduled power (i.e.
-                    # the reserve contribution may be negative)
+                    # towards the reserve, relevant for wind power
+                    # (equivalently, this may be seen as increaseing the
+                    # reserve margin requirement)
                     reserve_factor=model.paramDevice[d]['reserve_factor']
                     maxValue = maxValue*reserve_factor
-                cap_avail += maxValue
-                p_generating += model.varDeviceFlow[d,'el','out',t]
+                    if reserve_factor==0:
+                        # no reserve contribution
+                        rf = 0
+                cap_avail += rf*maxValue
+                p_generating += rf*model.varDeviceFlow[d,'el','out',t]
             elif 'el' in inout[devmodel]['in']:
                 # Loads
                 if ('reserve_factor' in model.paramDevice[d]):
