@@ -755,7 +755,7 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
                 if dynamicMargin:
                     # instead of reducing reserve, increase the margin instead
                     # R*0.8-M = R - (M+0.2R) - this shows better in the plot what
-                    marginIncr['margin'] = rf*maxValue*(1-reserve_factor)
+                    marginIncr['margin'] += rf*maxValue*(1-reserve_factor)
                 else:
                     maxValue = maxValue*reserve_factor
             cap_avail = rf*maxValue
@@ -774,6 +774,7 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
             name='Margin',line=dict(dash='dot',color='red'),mode="lines")
     fig.update_xaxes(title_text="Timestep")
     fig.update_yaxes(title_text="Reserve (MW)")
+#    return df_devs,marginIncr
     return fig
 
 

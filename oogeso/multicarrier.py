@@ -239,20 +239,25 @@ class Multicarrier:
 
         def operatingCosts(model):
             '''term in objective function to represent fuel costs or similar
+            as average per sec ($/s)
 
             opCost = energy costs (NOK/MJ, or NOK/Sm3)
             Note: el costs per MJ not per MWh
             '''
             sumCost = 0
+            timesteps = model.setHorizon
             for dev in model.setDevice:
                 if 'opCost' in model.paramDevice[dev]:
                     opcost = model.paramDevice[dev]['opCost']
                     for t in model.setHorizon:
                         varP = self.getDevicePower(model,dev,t)
-                        delta_t = model.paramParameters['time_delta_minutes']*60
-                        energy_in_dt = varP*delta_t
-                        sumCost += opcost*energy_in_dt
+                        #delta_t = model.paramParameters['time_delta_minutes']*60
+                        #energy_in_dt = varP*delta_t
+                        #sumCost += opcost*energy_in_dt
+                        sumCost += opcost*varP
                         #logging.info('opcost={}, e={}, scost={}'.format(opcost,energy_in_dt,opcost*energy_in_dt))
+            # average per sec
+            sumCost = sumCost/len(timesteps)
             return sumCost
 
 
@@ -1189,6 +1194,8 @@ class Multicarrier:
                         .format(node,cc, maxdev))
             else:
                 maxdev = model.paramParameters['max_pressure_deviation']
+                if maxdev==-1:
+                    return pyo.Constraint.Skip
             lb = nom_p*(1 - maxdev)
             ub = nom_p*(1 + maxdev)
             return (lb,model.varPressure[(node,carrier,term,t)],ub)
