@@ -14,8 +14,8 @@ need to re-install.)
 
 Check out the examples:
 
-* [Example 2](examples/Example2.ipynb?viewer=nbviewer)
-* [Example 2b](examples/Example2b.ipynb?viewer=nbviewer)
+* [Simple test case](examples/test case2.ipynb?viewer=nbviewer)
+* [Test oil and gas platform](examples/TestPlatform.ipynb?viewer=nbviewer)
 
 A user guide is provided together with  the code:
 
