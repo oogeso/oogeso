@@ -1,0 +1,183 @@
+paramParameters:
+  time_delta_minutes: 15 # minutes per timestep
+  planning_horizon: 8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 4 # timesteps between each optimisation
+  forecast_timesteps: 4 # timesteps beyond which forecast (instead of nowcast) profile is used
+  time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
+  co2_tax: 0.04 # $/kgCO2
+  elBackupMargin: -1 # MW, -1=no limit
+  elReserveMargin: 5 # MWm -1=no limit
+  emissionIntensityMax: -1 # kgCO2/Sm3oe, -1=no limit
+  emissionRateMax: -1 # kgCO2/hour, -1=no limit
+  export_node: export # only used for calcuation of oil and gas export (TODO: change this)
+  max_pressure_deviation: -1 # global limit for allowable relative pressure deviation from nominal
+  objective: exportRevenue # select objective function to use
+  reference_node: node1 # for electrical voltage angle
+
+paramCarriers:
+  el: {}
+  gas:
+    CO2content: 2.34 # kg/Sm3 - see SSB 2016 report
+    G_gravity: 0.6
+    Pb_basepressure_MPa: 0.101 # MPa
+    R_individual_gas_constant: 500 # J/(kg K)
+    Tb_basetemp_K: 288 # K = 15 degC
+    Z_compressibility: 0.9
+    energy_value: 40 # MJ/Sm3 (calorific value)
+    k_heat_capacity_ratio: 1.27
+    pressure_method: weymouth
+    rho_density: 0.84 # kg/m3
+  heat: {}
+  oil:
+    darcy_friction: 0.02
+    pressure_method: darcy-weissbach
+    rho_density: 900 # kg/m3
+    viscosity: 0.0026 # kg/(m s)
+  water:
+    darcy_friction: 0.01
+    pressure_method: darcy-weissbach
+    rho_density: 1000 # kg/m3
+    viscosity: 0.001 # kg/(m s)
+  wellstream:
+    #viscosity: 0.001 # kg/(m s) - only used in non-linear calculation
+    #composition.gas: 0.995
+    #composition.oil: 0.002
+    #composition.water: 0.003
+    darcy_friction: 0.0136
+    pressure_method: darcy-weissbach
+    rho_density: 5.63 # kg/m3 (dependent on wellstream composition)
+
+paramNode:
+    node1: {}
+    node2: {}
+    windfarm: {}
+    well: {}
+    export: {}
+
+paramEdge:
+    el1:
+        include: 1
+        type: el
+        nodeFrom: node1
+        nodeTo: node2
+        length_km: 2
+        Pmax: 500
+        reactance: 0.01
+        resistance: 0.001
+    el2:
+        include: 1
+        type: el
+        nodeFrom: windfarm
+        nodeTo: node2
+        length_km: 2
+        Pmax: 500
+        reactance: 0.01
+        resistance: 0.001
+    g:
+        include: 1
+        type: gas
+        nodeFrom: well
+        nodeTo: node1
+        length_km: 1
+    gex:
+        include: 1
+        type: gas
+        nodeFrom: node1
+        nodeTo: export
+        length_km: 1
+    h:
+        include: 1
+        type: heat
+        nodeFrom: node1
+        nodeTo: node2
+        length_km: 1
+        Pmax: 100
+
+paramDevice:
+    GT1:
+        include: 1
+        node: node1
+        model: gasturbine
+        name: Gas turbine 1
+        fuelA: 2.35
+        fuelB: 0.531
+        eta_heat: 0.5
+        maxRampUp: 0.5
+        maxRampDown: 1
+        startupDelay: 45 # min
+        startupCost: 200
+        Pmax: 20
+        Pmin: 5
+    GT2:
+        include: 1
+        node: node1
+        model: gasturbine
+        name: Gas turbine 1
+        fuelA: 2.351
+        fuelB: 0.532
+        eta_heat: 0.5
+        maxRampUp: 0.5
+        maxRampDown: 1
+        startupDelay: 45 # min
+        startupCost: 200
+        Pmax: 20
+        Pmin: 5
+    GT3:
+        include: 1
+        node: node1
+        model: gasturbine
+        name: Gas turbine 1
+        fuelA: 2.352
+        fuelB: 0.533
+        eta_heat: 0.5
+        maxRampUp: 0.5
+        maxRampDown: 1
+        startupDelay: 45 # min
+        startupCost: 200
+        Pmax: 20
+        Pmin: 5
+    dem:
+        include: 1
+        node: node2
+        model: sink_el
+        name: "El demand"
+        Pmax: 50
+        Pmin: 50
+        profile: demand
+    WT:
+        include: 1
+        node: windfarm
+        model: source_el
+        name: "Wind tubine"
+        Pmax: 50
+        Pmin: 0
+        profile: wind
+        co2em: 0
+    heatload:
+        include: 1
+        node: node2
+        model: sink_heat
+        name: "Heat demand"
+        Pmin: 5
+    gwell:
+        include: 1
+        node: well
+        model: source_gas
+        name: "Gas source"
+        Qmax: 50 #Sm3/s
+        Qmin: 50
+        naturalpressure: 20 #MPa
+    gex:
+        include: 1
+        node: export
+        model: sink_gas
+        name: "Gas export"
+    battery:
+        include: 1
+        node: node1
+        model: storage_el
+        name: battery
+        Pmax: 4 #MW
+        Pmin: 0
+        Emax: 4 #MWh
+        eta: 0.9 # efficiency
