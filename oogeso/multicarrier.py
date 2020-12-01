@@ -2293,10 +2293,25 @@ class Multicarrier:
             if carrier in ['gas','oil','wellstream','water']:
                 node_from = edge['nodeFrom']
                 node_to = edge['nodeTo']
+                print("{} edge {}:{}-{}"
+                       .format(carrier,k,node_from,node_to),end=" ")
+                if not (('pressure.{}.out'.format(carrier)
+                    in model.paramNode[node_from]) and (
+                     'pressure.{}.in'.format(carrier)
+                    in model.paramNode[node_to])):
+                    print("--")
+                    continue
                 p_in = model.paramNode[node_from][
                     'pressure.{}.out'.format(carrier)]
                 p_out = model.paramNode[node_to][
                     'pressure.{}.in'.format(carrier)]
+                if p_out==p_in:
+                    # no nominal pressure drop - i.e. pressure drop is not
+                    # modelled, so skip to next
+                    print("---")
+                    continue
+                print("{} edge {}:{}-{}"
+                       .format(carrier,k,node_from,node_to))
                 if var=="inner":
                     # get value from inner optimisation (over rolling horizon)
                     Q = model.varEdgeFlow[(k,timestep)]
