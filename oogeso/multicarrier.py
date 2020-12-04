@@ -97,7 +97,7 @@ class Multicarrier:
         self._dfDeviceFlow = None
         self._dfDeviceIsPrep = None
         self._dfDeviceIsOn = None
-        self._dfDevicePower = None
+#        self._dfDevicePower = None
         self._dfDeviceStorageEnergy = None
         self._dfDeviceStoragePmax = None
         self._dfDeviceStarting = None
@@ -112,6 +112,8 @@ class Multicarrier:
         self._dfCO2intensity = None
         self._dfElReserve = None #Reserve capacity
         self._dfElBackup = None #Backup capacity (handling faults)
+        self._dfDuals = None
+
 
     def _createPyomoModel(self):
         model = pyo.AbstractModel()
@@ -222,47 +224,10 @@ class Multicarrier:
 #                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
 #            return sumStorPmax
 
-        def costForDepletedStorage(model):
-            '''term in objective function to discourage depleting battery,
-            making sure it is used only when required'''
-            storCost = 0
-            for dev in model.setDevice:
-                if model.paramDevice[dev]['model'] == 'storage_el':
-                    stor_cost=0
-                    if 'Ecost' in model.paramDevice[dev]:
-                        stor_cost = model.paramDevice[dev]['Ecost']
-                    Emax = model.paramDevice[dev]['Emax']
-                    for t in model.setHorizon:
-                        varE = model.varDeviceStorageEnergy[dev,t]
-                        storCost += stor_cost*(Emax-varE)
-            return storCost
-
-        def operatingCosts(model):
-            '''term in objective function to represent fuel costs or similar
-            as average per sec ($/s)
-
-            opCost = energy costs (NOK/MJ, or NOK/Sm3)
-            Note: el costs per MJ not per MWh
-            '''
-            sumCost = 0
-            timesteps = model.setHorizon
-            for dev in model.setDevice:
-                if 'opCost' in model.paramDevice[dev]:
-                    opcost = model.paramDevice[dev]['opCost']
-                    for t in model.setHorizon:
-                        varP = self.getDevicePower(model,dev,t)
-                        #delta_t = model.paramParameters['time_delta_minutes']*60
-                        #energy_in_dt = varP*delta_t
-                        #sumCost += opcost*energy_in_dt
-                        sumCost += opcost*varP
-                        #logging.info('opcost={}, e={}, scost={}'.format(opcost,energy_in_dt,opcost*energy_in_dt))
-            # average per sec
-            sumCost = sumCost/len(timesteps)
-            return sumCost
 
 
         def rule_objective_co2(model):
-            '''CO2 emissions'''
+            '''CO2 emissions per sec'''
             sumE = self.compute_CO2(model) #*model.paramParameters['CO2_price']
             return sumE
 
@@ -274,25 +239,20 @@ class Multicarrier:
             return sumE
 
         def rule_objective_exportRevenue(model):
-            '''revenue from exported oil and gas minus co2 tax'''
-            sumRevenue = self.compute_exportRevenue(model)
-            startupCosts = self.compute_startup_costs(model)
-            co2 = self.compute_CO2(model) # kgCO2
+            '''revenue from exported oil and gas minus costs (co2 price and
+             operating costs) per second'''
+            sumRevenue = self.compute_exportRevenue(model) # kr/s
+            startupCosts = self.compute_startup_costs(model) # kr/s
+            co2 = self.compute_CO2(model) # kgCO2/s
             co2_tax = model.paramParameters['co2_tax'] # kr/kgCO2
-# this has been done in the constraints instead:
-            # use a tiny penalty factor to push varDeviceStoragePmax to its
-            # maximum allowable value (to get right reserve calculation)
-#            smallfactor = 0.000001 # must be small not to influence optimisation
-#            storMax = smallfactor*storPmaxPushup(model) # want to maximise this
-
-            storageDepletionCosts = costForDepletedStorage(model)
-            fuelCosts = operatingCosts(model)
+            co2Cost = co2*co2_tax # kr/s
+            storageDepletionCosts = self.compute_costForDepletedStorage(model)
+            opCosts = self.compute_operatingCosts(model) # kr/s
             sumCost = (-sumRevenue
-                        + co2*co2_tax
+                        + co2Cost
                         + startupCosts
                         + storageDepletionCosts
-                        + fuelCosts
-                        #- storMax
+                        + opCosts
                         )
             return sumCost
 
@@ -618,7 +578,7 @@ class Multicarrier:
             if i==1:
                 #energy balance
                 # (el_in*eta - el_out/eta)*dt = delta storage
-                # eta = efficiency charging  (discharging assumed lossless)
+                # eta = efficiency charging and discharging
                 delta_t = model.paramParameters['time_delta_minutes']/60 #hours
                 lhs = (model.varDeviceFlow[dev,'el','in',t]
                         *model.paramDevice[dev]['eta']
@@ -642,12 +602,15 @@ class Multicarrier:
                     lb = model.paramDevice[dev]['Emin']
                 return pyo.inequality(lb,model.varDeviceStorageEnergy[dev,t],ub)
             elif i==3:
+                #return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
                 #charging power limit
                 ub = model.paramDevice[dev]['Pmax']
                 return (model.varDeviceFlow[dev,'el','out',t]<=ub)
             elif i==4:
+                #return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
                 #discharging power limit
-                ub = model.paramDevice[dev]['Pmax']
+                #ub = model.paramDevice[dev]['Pmax']
+                ub = -model.paramDevice[dev]['Pmin'] # <- see generic Pmax/min constr
                 return (model.varDeviceFlow[dev,'el','in',t]<=ub)
             elif i==5:
                 # Constraint 5-8: varDeviceStoragePmax = min{Pmax,E/dt}
@@ -677,10 +640,11 @@ class Multicarrier:
             elif i==9:
                 # constraint on storage end vs start
                 # Adding this does not seem to improve result (not lower CO2)
-                if t==model.setHorizon[-1]:
+                if (('E_end' in model.paramDevice[dev])
+                        and (t==model.setHorizon[-1])):
                     lhs = model.varDeviceStorageEnergy[dev,t]
                     #rhs = model.varDeviceStorageEnergy[dev,0] # end=start
-                    rhs = model.paramDevice[dev]['Emax'] # 100% full at the end
+                    rhs = model.paramDevice[dev]['E_end']
                     return (lhs==rhs)
                 else:
                     return pyo.Constraint.Skip
@@ -1341,8 +1305,19 @@ class Multicarrier:
         elif devmodel in ['sink_heat']:
             devpower = model.varDeviceFlow[dev,'heat','in',t]
         elif devmodel in ['storage_el']:
-            devpower = (model.varDeviceFlow[dev,'el','out',t]
-                + model.varDeviceFlow[dev,'el','in',t])
+            # TODO: summing is OK for specifying Pmax/Pmin limits,
+            # But Pmax/Pmin is also specified in storage_el constraints
+
+
+#            devpower = (model.varDeviceFlow[dev,'el','out',t]
+#                - model.varDeviceFlow[dev,'el','in',t])
+
+            # Include energy loss so that charging and discharging is not
+            # happeing at the same time (cf expresstion used in constraints
+            # for storage_el)
+            eta = model.paramDevice[dev]['eta']
+            devpower = -(model.varDeviceFlow[dev,'el','in',t]*eta
+                        - model.varDeviceFlow[dev,'el','out',t]/eta)
         else:
             # TODO: Complete this
             # no need to define devpower for other devices
@@ -1436,7 +1411,7 @@ class Multicarrier:
 
     @staticmethod
     def compute_startup_costs(model,devices=None, timesteps=None):
-        '''startup costs/emissions (average per sec)'''
+        '''startup costs (average per sec)'''
         if timesteps is None:
             timesteps = model.setHorizon
         if devices is None:
@@ -1459,6 +1434,47 @@ class Multicarrier:
         sumTime = len(timesteps)*deltaT
         start_stop_costs = start_stop_costs/sumTime
         return start_stop_costs
+
+    logging.info("TODO: operating cost for el storage - needs improvement")
+    def compute_operatingCosts(self,model):
+        '''term in objective function to represent fuel costs or similar
+        as average per sec ($/s)
+
+        opCost = energy costs (NOK/MJ, or NOK/Sm3)
+        Note: el costs per MJ not per MWh
+        '''
+        sumCost = 0
+        timesteps = model.setHorizon
+        for dev in model.setDevice:
+            if 'opCost' in model.paramDevice[dev]:
+                opcost = model.paramDevice[dev]['opCost']
+                for t in model.setHorizon:
+                    varP = self.getDevicePower(model,dev,t)
+                    #delta_t = model.paramParameters['time_delta_minutes']*60
+                    #energy_in_dt = varP*delta_t
+                    #sumCost += opcost*energy_in_dt
+                    sumCost += opcost*varP
+                    #logging.info('opcost={}, e={}, scost={}'.format(opcost,energy_in_dt,opcost*energy_in_dt))
+        # average per sec
+        sumCost = sumCost/len(timesteps)
+        return sumCost
+
+    @staticmethod
+    def compute_costForDepletedStorage(model):
+        '''term in objective function to discourage depleting battery,
+        making sure it is used only when required'''
+        storCost = 0
+        for dev in model.setDevice:
+            if model.paramDevice[dev]['model'] == 'storage_el':
+                stor_cost=0
+                if 'Ecost' in model.paramDevice[dev]:
+                    stor_cost = model.paramDevice[dev]['Ecost']
+                Emax = model.paramDevice[dev]['Emax']
+                for t in model.setHorizon:
+                    varE = model.varDeviceStorageEnergy[dev,t]
+                    storCost += stor_cost*(Emax-varE)
+        return storCost
+
 
 
     @staticmethod
@@ -2039,7 +2055,7 @@ class Multicarrier:
         return df
 
 
-    def saveOptimisationResult(self,timestep):
+    def saveOptimisationResult(self,timestep,store_duals=None):
         '''save results of optimisation for later analysis'''
 
         #TODO: Implement result storage
@@ -2078,6 +2094,35 @@ class Multicarrier:
         varTerminalFlow = self.getVarValues(self.instance.varTerminalFlow,
               names=('node','carrier','time'))
 
+        if store_duals is not None:
+            # Save dual values
+            # store_duals = {
+            #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}
+            #   }
+            horizon_steps = self.instance.paramParameters['planning_horizon']
+            if self._dfDuals is None:
+                self._dfDuals = pd.DataFrame(columns=store_duals.keys())
+            for key,val in store_duals.items():
+                #vrs=('util',None)
+                vrs = val['indx']
+                constr = getattr(self.instance,val['constr'])
+                sumduals = 0
+                for t in range(timelimit):
+                    # Replace None by the timestep, ('util',None) -> ('util',t)
+                    vrs1=tuple(x if x is not None else t for x in vrs)
+                    dual = self.instance.dual[constr[vrs1]]
+                    # The dual gives the improvement in the objective function
+                    # if the constraint is relaxed by one unit.
+                    # The units of the dual prices are the units of the
+                    # objective function divided by the units of the constraint.
+                    #
+                    # A constraint is for a single timestep, whereas the
+                    # objective function averages over all timesteps in the
+                    # optimisation horizon. To get the improvement of relaxing
+                    # the constraint not just in the single timestep, but in
+                    # all timesteps we therefore scale up the dual value
+                    dual = dual * horizon_steps
+                    self._dfDuals.loc[timeshift+t,key] = dual
 
         # CO2 emission rate (sum all emissions)
         co2 = [pyo.value(self.compute_CO2(self.instance,timesteps=[t]))
@@ -2185,8 +2230,17 @@ class Multicarrier:
         return sol
 
     def solveMany(self,solver="gurobi",timerange=None,write_yaml=False,
-                  timelimit=None):
-        """Solve problem over many timesteps - rolling horizon"""
+                  timelimit=None,store_duals=None):
+        """Solve problem over many timesteps - rolling horizon
+        timelimit : int
+            Time limit spent on each optimisation (sec)
+        store_duals : dict
+            Store dual values of constraints. The dictionary contains a
+            key:value list where value is a new dictionary specifying the
+            constraint and indices. None in the index is replaced by time
+            Example:
+            store_duals = {'elcost':{constr=constrDevicePmin, indx:('util',None)}
+        """
 
         steps = self.instance.paramParameters['optimisation_timesteps']
         horizon = self.instance.paramParameters['planning_horizon']
@@ -2210,7 +2264,7 @@ class Multicarrier:
             # 2. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml,timelimit=timelimit)
             # 3. Save results (for later analysis)
-            self.saveOptimisationResult(step)
+            self.saveOptimisationResult(step,store_duals)
             first = False
 
 
@@ -2528,28 +2582,29 @@ class Plots:
             plt.savefig(filename,bbox_inches = 'tight')
 
 
-    def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
-        """Plot power schedule over planning horizon (last optimisation)"""
-        if devices=='all':
-            devices = list(model.setDevice)
-        df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
-                                    orient="index")
-        df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
-        df = df[0].unstack(level=0)
-        df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
-
-        plt.figure(figsize=(12,4))
-        ax=plt.gca()
-        df[devices].plot(ax=ax)
-        labels = (df_info.loc[devices].index.astype(str)
-                  +'_'+df_info.loc[devices,'name'])
-        plt.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
-                   frameon=False)
-        plt.xlabel("Timestep")
-        plt.ylabel("Device power (MW)")
-        if filename is not None:
-            plt.savefig(filename,bbox_inches = 'tight')
-
+    # def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
+    #     """Plot power schedule over planning horizon (last optimisation)"""
+    #     if devices=='all':
+    #         devices = list(model.setDevice)
+    #     varPower = model.getDevicePower()
+    #     df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
+    #                                 orient="index")
+    #     df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
+    #     df = df[0].unstack(level=0)
+    #     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
+    #
+    #     plt.figure(figsize=(12,4))
+    #     ax=plt.gca()
+    #     df[devices].plot(ax=ax)
+    #     labels = (df_info.loc[devices].index.astype(str)
+    #               +'_'+df_info.loc[devices,'name'])
+    #     plt.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+    #                frameon=False)
+    #     plt.xlabel("Timestep")
+    #     plt.ylabel("Device power (MW)")
+    #     if filename is not None:
+    #         plt.savefig(filename,bbox_inches = 'tight')
+    #
 
     def plotDeviceSumPowerLastOptimisation(model,carrier='el',filename=None):
         """Plot power schedule over planning horizon (last optimisation)"""
