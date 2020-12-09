@@ -9,8 +9,9 @@ dependencies:
   - plotly
   - networkx
   - scipy
-#  - yaml # is being ignored here, try pip instead
+  - pyyaml
   - tqdm
-  - pip:
-    - yaml
+  - pip
+#  - pip:
+#    - yaml
  
