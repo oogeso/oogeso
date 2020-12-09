@@ -13,6 +13,7 @@ dependencies:
   - tqdm
   - seaborn
   - pydot
+  - xlrd
 #  - pip
 #  - pip:
 #    - yaml
