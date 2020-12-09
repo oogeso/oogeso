@@ -59,7 +59,7 @@ class Multicarrier:
                 'source_oil':       {'in':[],'out':['oil']},
                 'gasheater':        {'in':['gas'],'out':['heat']},
                 'gasturbine':       {'in':['gas'],'out':['el','heat']},
-                'source_el':           {'in':[],'out':['el']},
+                'source_el':        {'in':[],'out':['el']},
                 'heatpump':         {'in':['el'],'out':['heat']},
                 'storage_el':       {'in':['el'], 'out':['el']},
                 'pump_oil':         {'in':['oil','el'], 'out':['oil'],
@@ -68,10 +68,13 @@ class Multicarrier:
                                      'serial':['water']},
                 'pump_wellstream':  {'in':['wellstream','el'],'out':['wellstream'],
                                      'serial':['wellstream']},
+                'electrolyser':     {'in':['el'], 'out':['hydrogen','heat']},
+                'fuelcell':         {'in':['hydrogen'],'out':['el','heat']},
+                'storage_hydrogen': {'in':['hydrogen'],'out':['hydrogen']},
                 }
         return inout
 
-    models_with_storage = ['storage_el','well_injection']
+    models_with_storage = ['storage_el','well_injection','storage_hydrogen']
 
     def __init__(self,loglevel=logging.INFO,logfile=None,
                  quadraticConstraints=True):
@@ -168,8 +171,10 @@ class Multicarrier:
                                                initialize=0)
         # needed for energy storage:
         model.paramDeviceEnergyInitially = pyo.Param(model.setDevice,
-                                               mutable=True,within=pyo.Reals,
-                                               initialize=0)
+            mutable=True,within=pyo.Reals,initialize=0)
+        # target energy level at end of horizon (useful for long-term storage)
+        model.paramDeviceEnergyTarget = pyo.Param(model.setDevice,
+            mutable=True,within=pyo.Reals,initialize=0)
 
         # Variables
         #model.varNodeVoltageAngle = pyo.Var(model.setNode,within=pyo.Reals)
@@ -194,6 +199,9 @@ class Multicarrier:
         # binary variable related to available powr from storage:
         model.varStorY = pyo.Var(model.setDevice,model.setHorizon,
             within=pyo.Binary)
+        # absolute value variable for storage with target level:
+        model.varDeviceStorageDeviationFromTarget = pyo.Var(
+            model.setDevice,within=pyo.NonNegativeReals,initialize=0)
         model.varPressure = pyo.Var(
                 model.setNode,model.setCarrier,model.setTerminal,
                 model.setHorizon, within=pyo.NonNegativeReals,initialize=0)
@@ -603,12 +611,12 @@ class Multicarrier:
                 return pyo.inequality(lb,model.varDeviceStorageEnergy[dev,t],ub)
             elif i==3:
                 #return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
-                #charging power limit
+                #discharging power limit
                 ub = model.paramDevice[dev]['Pmax']
                 return (model.varDeviceFlow[dev,'el','out',t]<=ub)
             elif i==4:
                 #return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
-                #discharging power limit
+                #charging power limit
                 #ub = model.paramDevice[dev]['Pmax']
                 ub = -model.paramDevice[dev]['Pmin'] # <- see generic Pmax/min constr
                 return (model.varDeviceFlow[dev,'el','in',t]<=ub)
@@ -774,6 +782,95 @@ class Multicarrier:
         model.constrDevice_sink_water = pyo.Constraint(model.setDevice,
             model.setHorizon,pyo.RangeSet(1,2),
             rule=rule_devmodel_sink_water)
+
+        logging.info("TODO: hydrogen devices")
+        # hydrogen flow: Sm3/s, kg/s or MW?
+        def rule_devmodel_electrolyser(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'electrolyser':
+                return pyo.Constraint.Skip
+            energy_value = model.paramCarriers['hydrogen']['energy_value'] # MJ/Sm3
+            efficiency = model.paramDevice[dev]['eta']
+            if i==1:
+                lhs = model.varDeviceFlow[dev,'hydrogen','out',t]*energy_value
+                rhs = model.varDeviceFlow[dev,'el','in',t]*efficiency
+                return (lhs==rhs)
+            elif i==2:
+                '''heat output = waste energy * heat recovery factor'''
+                lhs = model.varDeviceFlow[dev,'heat','out',t]
+                eta_heat = model.paramDevice[dev]['eta_heat']
+                rhs = (model.varDeviceFlow[dev,'el','in',t]
+                        *(1-efficiency)*model.paramDevice[dev]['eta_heat'])
+                return (lhs==rhs)
+        model.constrDevice_electrolyser = pyo.Constraint(model.setDevice,
+            model.setHorizon,pyo.RangeSet(1,2),rule=rule_devmodel_electrolyser)
+
+        def rule_devmodel_fuelcell(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'fuelcell':
+                return pyo.Constraint.Skip
+            energy_value = model.paramCarriers['hydrogen']['energy_value'] # MJ/Sm3
+            efficiency = model.paramDevice[dev]['eta']
+            if i==1:
+                '''hydrogen to el'''
+                lhs = model.varDeviceFlow[dev,'el','out',t] # MW
+                rhs = model.varDeviceFlow[dev,'hydrogen','in',t]*energy_value*efficiency
+                return (lhs==rhs)
+            elif i==2:
+                '''heat output = waste energy * heat recovery factor'''
+                lhs = model.varDeviceFlow[dev,'heat','out',t]
+                eta_heat = model.paramDevice[dev]['eta_heat']
+                rhs = (model.varDeviceFlow[dev,'hydrogen','in',t]*energy_value
+                        *(1-efficiency)*model.paramDevice[dev]['eta_heat'])
+                return (lhs==rhs)
+        model.constrDevice_fuelcell = pyo.Constraint(model.setDevice,
+            model.setHorizon,pyo.RangeSet(1,2),rule=rule_devmodel_fuelcell)
+
+        def rule_devmodel_storage_hydrogen(model,dev,t,i):
+            if model.paramDevice[dev]['model'] != 'storage_hydrogen':
+                return pyo.Constraint.Skip
+            if i==1:
+                # energy balance (delta E = in - out) (energy in Sm3)
+                delta_t = model.paramParameters['time_delta_minutes']*60 #seconds
+                eta=1
+                if 'eta' in model.paramDevice[dev]:
+                    eta=model.paramDevice[dev]['eta']
+                lhs = (model.varDeviceFlow[dev,'hydrogen','in',t]*eta
+                       -model.varDeviceFlow[dev,'hydrogen','out',t]/eta )*delta_t
+                if t>0:
+                    Eprev = model.varDeviceStorageEnergy[dev,t-1]
+                else:
+                    Eprev = model.paramDeviceEnergyInitially[dev]
+                rhs = (model.varDeviceStorageEnergy[dev,t]-Eprev)
+                return (lhs==rhs)
+            elif i==2:
+                # energy storage limit
+                ub = model.paramDevice[dev]['Emax']
+                lb = 0
+                if 'Emin' in model.paramDevice[dev]:
+                    lb = model.paramDevice[dev]['Emin']
+                return pyo.inequality(lb,model.varDeviceStorageEnergy[dev,t],ub)
+            elif i==3:
+                # Constraint 3 and 4: to represent absolute value in obj.function
+                # see e.g. http://lpsolve.sourceforge.net/5.1/absolute.htm
+                #
+                # deviation from target and absolute value at the end of horizon
+                if t != model.setHorizon[-1]:
+                    return pyo.Constraint.Skip
+                Xprime = model.varDeviceStorageDeviationFromTarget[dev]
+                #profile = model.paramDevice[dev]['target_profile']
+                target_value = model.paramDeviceEnergyTarget[dev]
+                deviation = model.varDeviceStorageEnergy[dev,t]-target_value
+                return (Xprime >= deviation)
+            elif i==4:
+                # deviation from target and absolute value at the end of horizon
+                if t != model.setHorizon[-1]:
+                    return pyo.Constraint.Skip
+                Xprime = model.varDeviceStorageDeviationFromTarget[dev]
+                #profile = model.paramDevice[dev]['target_profile']
+                target_value = model.paramDeviceEnergyTarget[dev]
+                deviation = model.varDeviceStorageEnergy[dev,t]-target_value
+                return (Xprime >= -deviation)
+        model.constrDevice_storage_hydrogen = pyo.Constraint(model.setDevice,
+            model.setHorizon,pyo.RangeSet(1,4),rule=rule_devmodel_storage_hydrogen)
 
 
         def rule_elReserveMargin(model,t):
@@ -1234,18 +1331,19 @@ class Multicarrier:
 
 
         def rule_edgePmaxmin(model,edge,t):
-            if model.paramEdge[edge]['type'] in ['el','heat']:
-                vname='Pmax'
-                expr = pyo.inequality(-model.paramEdge[edge][vname],
-                        model.varEdgeFlow[edge,t],
-                        model.paramEdge[edge][vname])
-            else:
-                vname='Qmax'
-                expr = pyo.Constraint.Skip
-                if vname in model.paramEdge[edge]:
+            edgetype = model.paramEdge[edge]['type']
+            expr = pyo.Constraint.Skip #default if Pmax/Qmax has not been set
+            if edgetype in ['el','heat']:
+                if 'Pmax' in model.paramEdge[edge]:
+                    expr = pyo.inequality(-model.paramEdge[edge]['Pmax'],
+                            model.varEdgeFlow[edge,t],
+                            model.paramEdge[edge]['Pmax'])
+            elif edgetype in ['wellstream','gas','oil','water','hydrogen']:
+                if 'Qmax' in model.paramEdge[edge]:
                     expr = (model.varEdgeFlow[edge,t] <=
-                            model.paramEdge[edge][vname])
-
+                            model.paramEdge[edge]['Qmax'])
+            else:
+                raise Exception("Unknown edge type ({})".format(edgetype))
             return expr
         model.constrEdgeBounds = pyo.Constraint(
                 model.setEdge,model.setHorizon,rule=rule_edgePmaxmin)
@@ -1296,9 +1394,10 @@ class Multicarrier:
         '''returns the variable that defines device power (depends on model)
         used for ramp rate limits, and print/plot'''
         devmodel = model.paramDevice[dev]['model']
-        if devmodel in ['gasturbine','source_el']:
+        if devmodel in ['gasturbine','source_el','fuelcell']:
             devpower = model.varDeviceFlow[dev,'el','out',t]
-        elif devmodel in ['sink_el','pump_water','pump_oil','compressor_el']:
+        elif devmodel in ['sink_el','pump_water','pump_oil','compressor_el',
+                            'electrolyser']:
             devpower = model.varDeviceFlow[dev,'el','in',t]
         elif devmodel in ['gasheater','source_heat']:
             devpower = model.varDeviceFlow[dev,'heat','out',t]
@@ -1315,12 +1414,14 @@ class Multicarrier:
             # Include energy loss so that charging and discharging is not
             # happeing at the same time (cf expresstion used in constraints
             # for storage_el)
+            # this represents energy taken out of the storage
             eta = model.paramDevice[dev]['eta']
             devpower = -(model.varDeviceFlow[dev,'el','in',t]*eta
                         - model.varDeviceFlow[dev,'el','out',t]/eta)
         else:
             # TODO: Complete this
             # no need to define devpower for other devices
+            #raise Exception("Undefined power variable for {}".format(devmodel))
             devpower = 0
         return devpower
 
@@ -1397,7 +1498,8 @@ class Multicarrier:
                               'storage_el','separator','separator2',
                               'well_production','well_injection','well_gaslift',
                               'pump_oil','pump_wellstream','pump_water',
-                              'source_water','source_oil']:
+                              'source_water','source_oil','electrolyser',
+                              'fuelcell','storage_hydrogen']:
                 # no CO2 emission contribution
                 thisCO2 = 0
             else:
@@ -1465,7 +1567,8 @@ class Multicarrier:
         making sure it is used only when required'''
         storCost = 0
         for dev in model.setDevice:
-            if model.paramDevice[dev]['model'] == 'storage_el':
+            devmodel = model.paramDevice[dev]['model']
+            if devmodel == 'storage_el':
                 stor_cost=0
                 if 'Ecost' in model.paramDevice[dev]:
                     stor_cost = model.paramDevice[dev]['Ecost']
@@ -1473,6 +1576,12 @@ class Multicarrier:
                 for t in model.setHorizon:
                     varE = model.varDeviceStorageEnergy[dev,t]
                     storCost += stor_cost*(Emax-varE)
+            elif devmodel == 'storage_hydrogen':
+                # cost if storage level at end of optimisation deviates from
+                # target profile (user input based on expectations)
+                deviation = model.varDeviceStorageDeviationFromTarget[dev]
+                stor_cost = model.paramDevice[dev]['Ecost']
+                storCost += stor_cost*deviation
         return storCost
 
 
@@ -2028,6 +2137,12 @@ class Multicarrier:
                 if self.instance.paramDevice[dev]['model'] in self.models_with_storage:
                     self.instance.paramDeviceEnergyInitially[dev] = (
                             self.instance.varDeviceStorageEnergy[dev,t_prev])
+                    if 'target_profile' in self.instance.paramDevice[dev]:
+                        prof = self.instance.paramDevice[dev]['target_profile']
+                        Emax = self.instance.paramDevice[dev]['Emax']
+                        self.instance.paramDeviceEnergyTarget[dev] = (
+                            Emax*self._df_profiles_forecast.loc[timestep+horizon,prof]
+                    )
 
         # These constraints need to be reconstructed to update properly
         # (pyo.value(...) and/or if sentences...)
@@ -2833,6 +2948,11 @@ def create_initdata(data_dict=None,dfs=None):
         if dfs is not None:
             raise Exception("Provide only one of data_dict and dfs parameters")
         dfs = _oogeso_dict_to_df(data_dict)
+
+    # Use device id as name if name is missing
+    dfs['device']['name'].fillna(pd.Series(
+        data=dfs['device'].index, index=dfs['device'].index),inplace=True)
+
     df_node = dfs['node']
     df_edge= dfs['edge']
     df_device= dfs['device']
@@ -2848,6 +2968,7 @@ def create_initdata(data_dict=None,dfs=None):
     # discard edges and devices not to be included:
     df_edge = df_edge[df_edge['include']==1]
     df_device = df_device[df_device['include']==1]
+
 
     if not 'profile' in df_device:
         df_device['profile'] = np.nan

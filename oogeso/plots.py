@@ -12,7 +12,7 @@ import logging
 sns.set_style("whitegrid")
 #sns.set_palette("dark")
 
-plotter="matplotlib"
+plotter="plotly" #matplotlib
 
 def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     '''Plot dataframe using plotly (saved to file)'''
@@ -143,7 +143,14 @@ def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
     dev_param = model.paramDevice[dev]
     devname = "{}:{}".format(dev,dev_param["name"])
 
-    carrier = 'el'
+    if dev_param['model']=="storage_hydrogen":
+        carrier='hydrogen'
+        Ptitle='Flow (Sm3/s)'
+        Etitle='Energy storage( Sm3)'
+    else:
+        carrier = 'el'
+        Ptitle='Power (MW)'
+        Etitle='Energy storage (MWh)'
     # Power flow in/out
     dfF = mc._dfDeviceFlow[dev,carrier].unstack('terminal')
 #    dfF = mc._dfDeviceFlow[
@@ -179,10 +186,10 @@ def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
                 fillcol='rgba({}, {})'.format(linecol[4:][:-1],opacity)
                 fig['data'][k]['fillcolor']=fillcol
                 fig['data'][k]['fill']='tozeroy'
-            fig.update_yaxes(title_text="Energy storage (MWh)",
+            fig.update_yaxes(title_text=Etitle,
             secondary_y=False,side="right")
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Power (MW)", secondary_y=True,side="left")
+        fig.update_yaxes(title_text=Ptitle, secondary_y=True,side="left")
 
     elif plotter=="matplotlib":
         fig=plt.figure(figsize=(12,4))
@@ -190,7 +197,7 @@ def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
         ax=plt.gca()
         dfF.plot(ax=ax,drawstyle="steps-post",marker=".")
         ax.set_xlabel("Timestep")
-        ax.set_ylabel("Power (MW)")
+        ax.set_ylabel(Ptitle)
         tmin = dfF.index.get_level_values('time').min()
         tmax = dfF.index.get_level_values('time').max()+1
         ax.set_ylim(0,dev_param['Pmax'])
@@ -462,9 +469,11 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
 
     cluster = {}
     col = {'t': {'el':'red','gas':'orange','heat':'darkgreen',
-                 'wellstream':'brown','oil':'black','water':'blue'},
+                 'wellstream':'brown','oil':'black','water':'blue4',
+                 'hydrogen':'deepskyblue2'},
            'e': {'el':'red','gas':'orange','heat':'darkgreen',
-                 'wellstream':'brown','oil':'black','water':'blue'},
+                 'wellstream':'brown','oil':'black','water':'blue4',
+                 'hydrogen':'deepskyblue2'},
            'd': 'white',
            'cluster':'lightgray'
            }
@@ -520,7 +529,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
                             devedgelabel=''
                         else:
                             f_in = mc._dfDeviceFlow[(d,carrier,'in',timestep)]
-                            #logging.info("{},{},{},{}".format(d,carrier,timestep,f_in))
+                            #logging.info("{},{},{},f_in={}".format(d,carrier,timestep,f_in))
                             devedgelabel = numberformat.format(f_in)
                         if model.paramNodeCarrierHasSerialDevice[n_id][carrier]:
                             n_in = n_id+'_'+carrier+'_in'
