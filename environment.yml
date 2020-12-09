@@ -9,7 +9,6 @@ dependencies:
   - plotly
   - networkx
   - scipy
-  - logging
   - yaml
   - tqdm
  
