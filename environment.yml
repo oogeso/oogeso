@@ -11,7 +11,9 @@ dependencies:
   - scipy
   - pyyaml
   - tqdm
-  - pip
+  - seaborn
+  - pydot
+#  - pip
 #  - pip:
 #    - yaml
  
