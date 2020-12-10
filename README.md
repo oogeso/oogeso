@@ -17,6 +17,9 @@ Check out the examples:
 * [Simple test case](examples/test case2.ipynb?viewer=nbviewer)
 * [Test oil and gas platform](examples/TestPlatform.ipynb?viewer=nbviewer)
 
+Explore and run the code online:
+[![Binder](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/git/https%3A%2F%2Fbitbucket.org%2Fharald_g_svendsen%2Foogeso/HEAD?filepath=examples)
+
 A user guide is provided together with  the code:
 
 * [User guide (pdf)](../../raw/master/doc/oogeso_manual.pdf)
