@@ -1,6 +1,6 @@
 Explore and run jupyter examples online:
-[![Binder](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/git/https%3A%2F%2Fbitbucket.org%2Fharald_g_svendsen%2Foogeso/3b86a3d?filepath=examples)
-(commit 3b86a3d)
+[![Binder](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/git/https%3A%2F%2Fbitbucket.org%2Fharald_g_svendsen%2Foogeso/74e1a171a29a357da82275973da1aac65b094e74?filepath=examples)
+(commit 74e1a17)
 
 # Offshore Oil and Gas Energy System Operational Optimisation Model (oogeso)
 
