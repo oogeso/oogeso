@@ -783,8 +783,7 @@ class Multicarrier:
             model.setHorizon,pyo.RangeSet(1,2),
             rule=rule_devmodel_sink_water)
 
-        logging.info("TODO: hydrogen devices")
-        # hydrogen flow: Sm3/s, kg/s or MW?
+        # hydrogen flow:
         def rule_devmodel_electrolyser(model,dev,t,i):
             if model.paramDevice[dev]['model'] != 'electrolyser':
                 return pyo.Constraint.Skip
@@ -799,7 +798,7 @@ class Multicarrier:
                 lhs = model.varDeviceFlow[dev,'heat','out',t]
                 eta_heat = model.paramDevice[dev]['eta_heat']
                 rhs = (model.varDeviceFlow[dev,'el','in',t]
-                        *(1-efficiency)*model.paramDevice[dev]['eta_heat'])
+                        *(1-efficiency)*eta_heat)
                 return (lhs==rhs)
         model.constrDevice_electrolyser = pyo.Constraint(model.setDevice,
             model.setHorizon,pyo.RangeSet(1,2),rule=rule_devmodel_electrolyser)
@@ -914,7 +913,7 @@ class Multicarrier:
             if 'el' not in Multicarrier.devicemodel_inout()[devmodel]['out']:
                 # this is not a power generator
                 return pyo.Constraint.Skip
-            res_otherdevs = self.compute_elBackup(model,t,exclude_device=dev)
+            res_otherdevs = self.compute_elReserve(model,t,exclude_device=dev)
             # elBackupMargin is zero or positive (if loss of load is acceptable)
             expr = (res_otherdevs -model.varDeviceFlow[dev,'el','out',t]
                     >= -margin)
@@ -1955,13 +1954,17 @@ class Multicarrier:
     logging.info("TODO: elReseve not including load reduction")
     logging.info("TODO: elReseve reserve_factor parameter")
     @staticmethod
-    def compute_elReserve(model,t):
+    def compute_elReserve(model,t,exclude_device=None):
         '''compute non-used generator capacity (and available loadflex)
         This is reserve to cope with forecast errors, e.g. because of wind
         variation or motor start-up
         (does not include load reduction yet)
+
+        exclue_device : str (default None)
+            compute reserve by devices excluding this one
         '''
-        alldevs = model.setDevice
+        #alldevs = model.setDevice
+        alldevs = [d for d in model.setDevice if d!=exclude_device]
         # relevant devices are devices with el output or input
         inout = Multicarrier.devicemodel_inout()
         cap_avail = 0
@@ -1999,20 +2002,20 @@ class Multicarrier:
                 cap_avail += rf*maxValue
                 p_generating += rf*model.varDeviceFlow[d,'el','out',t]
             elif 'el' in inout[devmodel]['in']:
-                # Loads
+                # Loads (only consider if resere factor has been set)
                 if ('reserve_factor' in model.paramDevice[d]):
                     # load reduction possible
-                    #f_lr = model.paramDevice[d]['reserve_factor']
-                    #loadreduction += f_lr*model.varDeviceFlow[d,'el','in',t]
-                    #TODO: update, use above
-                    loadreduction = 0
+                    f_lr = model.paramDevice[d]['reserve_factor']
+                    loadreduction += f_lr*model.varDeviceFlow[d,'el','in',t]
         res_dev = (cap_avail-p_generating) + loadreduction
         #TODO: include flexible loads (that can absorve variations)
         res_dev = (cap_avail-p_generating)
         return res_dev
 
+    # Not used - can be deleted
+    #TODO: delete
     @staticmethod
-    def compute_elBackup(model,t,exclude_device=None):
+    def OBSOLETE_compute_elBackup(model,t,exclude_device=None):
         '''Compute available reserve power that can take over in case
         of a fault. Consists of:
         1. generator unused capacity (el out)
@@ -2287,7 +2290,7 @@ class Multicarrier:
         devs_elout = self.getDevicesInout(carrier_out='el')
         for t in range(timelimit):
             for d in devs_elout:
-                rescap = pyo.value(self.compute_elBackup(
+                rescap = pyo.value(self.compute_elReserve(
                         self.instance,t,exclude_device=d))
                 df_backup.loc[t+timestep,d] = rescap
         self._dfElBackup = pd.concat([self._dfElBackup,df_backup])
