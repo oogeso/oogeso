@@ -1,3 +1,7 @@
+Explore and run jupyter examples online:
+[![Binder](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/git/https%3A%2F%2Fbitbucket.org%2Fharald_g_svendsen%2Foogeso/3b86a3d?filepath=examples)
+(commit 3b86a3d)
+
 # Offshore Oil and Gas Energy System Operational Optimisation Model (oogeso)
 
 Python module for modelling and analysing the energy system of offshore oil and gas fields, with renewable energy and storage integration.
@@ -16,9 +20,6 @@ Check out the examples:
 
 * [Simple test case](examples/test case2.ipynb?viewer=nbviewer)
 * [Test oil and gas platform](examples/TestPlatform.ipynb?viewer=nbviewer)
-
-Explore and run the code online:
-[![Binder](https://notebooks.gesis.org/binder/badge_logo.svg)](https://notebooks.gesis.org/binder/v2/git/https%3A%2F%2Fbitbucket.org%2Fharald_g_svendsen%2Foogeso/HEAD?filepath=examples)
 
 A user guide is provided together with  the code:
 
