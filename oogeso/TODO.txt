@@ -1,9 +1,0 @@
--objective function
--flexible loads - see well_injection
-saving data for analysis/comparison of cases
-
--GTG startup time (delay before ramping possible)
--reserve capacity requirement
-
-
-

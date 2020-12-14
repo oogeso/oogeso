@@ -7,6 +7,7 @@ import numpy as np
 import seaborn as sns
 import pydot
 import logging
+from . import milp_compute
 
 
 sns.set_style("whitegrid")
@@ -412,7 +413,7 @@ def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
     devname = "{}:{}".format(dev,dev_param["name"])
     #linecycler = itertools.cycle(['-','--',':','-.']*10)
     if carriers_inout is None:
-        carriers_inout = mc.devicemodel_inout()[model]
+        carriers_inout = milp_compute.devicemodel_inout()[model]
     if 'serial' in carriers_inout:
         del carriers_inout['serial']
 
@@ -487,7 +488,7 @@ def plotNetwork(mc,timestep=0,filename=None,prog='dot',
     else:
         carriers = only_carrier
 
-    devicemodels = mc.devicemodel_inout()
+    devicemodels = milp_compute.devicemodel_inout()
 
     # plot all node and terminals:
     for n_id in model.setNode:
@@ -733,7 +734,7 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
     '''Plot unused online capacity by all el devices'''
     df_devs=pd.DataFrame()
     model=mc.instance
-    inout=mc.devicemodel_inout()
+    inout=milp_compute.devicemodel_inout()
     timerange=list(mc._dfExportRevenue.index)
     marginIncr = pd.DataFrame(0,index=timerange,columns=['margin'])
     for d in mc.instance.setDevice:
