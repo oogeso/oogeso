@@ -221,7 +221,8 @@ def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
             plt.savefig(filename,bbox_inches = 'tight')
     return fig
 
-def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
+def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True,
+        exclude_zero=False):
 
     # Power flow in/out
     dfF = mc._dfDeviceFlow
@@ -244,6 +245,10 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True):
 #        for d in dfF_in.columns},inplace=True)
 #    dfF_out.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name'])
 #        for d in dfF_out.columns},inplace=True)
+
+    if exclude_zero:
+        dfF_in = dfF_in.loc[:,dfF_in.sum()!=0]
+        dfF_out = dfF_out.loc[:,dfF_out.sum()!=0]
 
 
     if plotter=="plotly":

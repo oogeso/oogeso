@@ -1,5 +1,5 @@
-%load_ext autoreload
-%autoreload 2
+#%load_ext autoreload
+#%autoreload 2
 import matplotlib.pyplot as plt
 import IPython
 import pyomo.environ as pyo

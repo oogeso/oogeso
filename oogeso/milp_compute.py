@@ -46,6 +46,15 @@ _devmodels = {
     }
 
 def devicemodel_inout():
+    """Return device input/output flow types
+
+    Returns:
+    --------
+    devmodels_inout : dict of dict
+        Dictionary containing device types as keys. For each item, a new
+        dictionary specifies which flows go into ("in") and out of ("out")
+        the device, as well as when there is a direct connection ("serial")
+    """
     return _devmodels
 
 models_with_storage = ['storage_el','well_injection','storage_hydrogen']

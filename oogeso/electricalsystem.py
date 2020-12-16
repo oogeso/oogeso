@@ -1,3 +1,5 @@
+"""This module is for electrical computations
+"""
 import pandas as pd
 import networkx as nx
 import scipy

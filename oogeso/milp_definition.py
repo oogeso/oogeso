@@ -11,7 +11,13 @@ from . import electricalsystem
 
 
 def check_constraints_complete(pyomo_model):
-    """CHECK that constraints are defined for all device models"""
+    """Check that constraints are defined for all device models
+
+    Parameters
+    ----------
+    pyomo_model : Pyomo model
+        Energy system model as MILP problem
+    """
 
     logging.debug("Checking existance of constraints for all device types")
     #devmodels = Multicarrier.devicemodel_inout()
@@ -25,6 +31,18 @@ def check_constraints_complete(pyomo_model):
 
 
 def definePyomoModel():
+    """Specify the energy system model as a Pyomo optimisation model
+
+    Returns
+    -------
+    model : abstract Pyomo model
+        Energy system model as an MILP problem
+
+    Model parameters are named model.paramXXX, variables are model.varXXX,
+    constraints are model.constrXXX and the objective function is
+    model.objective
+
+    """
     model = pyo.AbstractModel()
 
     # Sets
@@ -414,8 +432,6 @@ def definePyomoModel():
               rule=rule_devmodel_heatpump)
 
 
-    logging.info("TODO: gas turbine power vs heat output")
-    logging.info("TODO: startup cost")
     def rule_devmodel_gasturbine(model,dev,t,i):
         if model.paramDevice[dev]['model'] != 'gasturbine':
             return pyo.Constraint.Skip
@@ -473,7 +489,6 @@ def definePyomoModel():
               rule=rule_devmodel_source_water)
 
 
-    logging.info("TODO: el source: dieselgen, fuel, on-off variables")
     #TODO: diesel gen fuel, onoff variables..
     def rule_devmodel_source_el(model,dev,t):
         if model.paramDevice[dev]['model'] != 'source_el':
@@ -522,7 +537,11 @@ def definePyomoModel():
             #return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
             #charging power limit
             #ub = model.paramDevice[dev]['Pmax']
-            ub = -model.paramDevice[dev]['Pmin'] # <- see generic Pmax/min constr
+            if 'Pmin' in model.paramDevice[dev]:
+                ub = -model.paramDevice[dev]['Pmin']
+            else:
+                # assume max charging power is the same as discharging power (Pmax)
+                ub = model.paramDevice[dev]['Pmax'] # <- see generic Pmax/min constr
             return (model.varDeviceFlow[dev,'el','in',t]<=ub)
         elif i==5:
             # Constraint 5-8: varDeviceStoragePmax = min{Pmax,E/dt}
@@ -565,7 +584,7 @@ def definePyomoModel():
               rule=rule_devmodel_storage_el)
 
 
-    logging.info("TODO: liquid pump approximation ok?")
+    logging.info("TODO: check liquid pump approximation")
     def rule_devmodel_pump(model,dev,t,i,carrier):
         if model.paramDevice[dev]['model'] != 'pump_{}'.format(carrier):
             return pyo.Constraint.Skip
@@ -1081,7 +1100,7 @@ def definePyomoModel():
 
 
 
-    logging.info("TODO: flow vs pressure equations for liquid flows")
+    logging.info("TODO: equation for flow vs pressure of liquids")
     def rule_edgeFlowEquations(model,edge,t):
         '''Flow as a function of node values (voltage/pressure)'''
         carrier = model.paramEdge[edge]['type']

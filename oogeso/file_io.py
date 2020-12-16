@@ -9,8 +9,7 @@ from . import milp_compute
 
 
 def _convert_xls_input(df,columns,index_col='id'):
-    '''Convert from XLSX format input to flat DataFrame
-    '''
+    '''Convert from XLSX format input to flat DataFrame'''
     df[columns] = df[columns].fillna(method='ffill')
     if index_col is None:
         df.reset_index(drop=True)
@@ -35,13 +34,14 @@ def read_data_from_yaml(filename):
     return data_dict
 
 def read_profiles_from_hd5(filename,key_actual="actual",key_forecast="forecast"):
+    """Read input data profiles from HDF5 file"""
     profiles = {}
     profiles['actual'] = pd.read_hdf(filename, key=key_actual)
     profiles['forecast'] = pd.read_hdf(filename, key=key_forecast)
     return profiles
 
 def save_profiles_to_hd5(filename,profiles):
-    '''Save profiles to HDF5'''
+    """Save profiles to HDF5"""
     for k in profiles:
         profiles[k].to_hdf(filename,key=k,mode="a")
     return
@@ -49,6 +49,7 @@ def save_profiles_to_hd5(filename,profiles):
 def read_profiles_from_xlsx(filename,
         sheet_forecast="profiles",sheet_nowcast="profiles_forecast",
         exclude_cols=[]):
+    """Read input data profiles from XLSX to a dicitonary of pandas dataframes"""
     df_profiles = pd.read_excel(filename,sheet_name=sheet_forecast,
         index_col="timestep",
         usecols=lambda col: col not in exclude_cols)
@@ -61,8 +62,12 @@ def read_profiles_from_xlsx(filename,
 def read_data_from_xlsx(filename,includeforecast=True):
     """Read input data from spreadsheet.
 
+    Parameters
+    ----------
     filename : str
         name of file
+    includeForecast : boolean
+        wheter to read profiles from the same file
     """
     dfs = {}
     dfs['node'] = _convert_xls_input(pd.read_excel(filename,sheet_name="node"),
@@ -138,12 +143,20 @@ def to_dict_dropna(df):
 def create_initdata(data_dict=None,dfs=None):
     """Convert input data to data structure required by pyomo model
 
+    Parameters
+    ----------
     data_dict : dict
         Input data in python dict format
     dfs : dict of Pandas dataframe
         Input data in pandas format
-    device_models : dict
 
+    Either the dict or the dataframe input argument should be provided
+
+    Returns
+    -------
+    data : dict
+        Model data in a dictionary mirroring the Pyomo model, and used used
+        when creating a model instance
     """
 
     if data_dict is not None:

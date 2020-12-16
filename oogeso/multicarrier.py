@@ -25,8 +25,16 @@ class Multicarrier:
     """Multicarrier energy system"""
 
 
-    def __init__(self,loglevel=logging.INFO,logfile=None,
-                 quadraticConstraints=True):
+    def __init__(self,loglevel=logging.INFO,logfile=None):
+        """Create Multicarrier energy system object
+
+        Parameters
+        ----------
+        loglevel : int
+            logging level (default=logging.INFO)
+        logfile : string
+            name of log file (optional)
+        """
         #logging.basicConfig(filename=logfile,level=loglevel,
         #                    format='%(asctime)s %(levelname)s: %(message)s',
         #                    datefmt='%Y-%m-%d %H:%M:%S')
@@ -35,13 +43,12 @@ class Multicarrier:
         logger.setLevel(loglevel)
         logging.debug("Initialising Multicarrier")
         # Abstract model:
-        self._quadraticConstraints = quadraticConstraints
+        #self._quadraticConstraints = quadraticConstraints
         self.model = milp_definition.definePyomoModel()
         milp_definition.check_constraints_complete(self.model)
         # Concrete model instance:
         self.instance = None
-
-#        self._devmodels = Multicarrier.devicemodel_inout()
+        # Dataframes keeping track of simulation results:
         self._dfDeviceFlow = None
         self._dfDeviceIsPrep = None
         self._dfDeviceIsOn = None
@@ -83,10 +90,15 @@ class Multicarrier:
         self.instance = instance
         return instance
 
-    def updateModelInstance(self,timestep,df_profiles,first=False,filename=None):
+    def updateModelInstance(self,timestep,first=False):
         """Update Pyomo model instance
 
-        first : True if it is the first timestep
+        Parameters
+        ----------
+        timestep : int
+            Present timestep
+        first : booblean
+            True if it is the first timestep in rolling optimisation
         """
         opt_timesteps = self.instance.paramParameters['optimisation_timesteps']
         horizon = self.instance.paramParameters['planning_horizon']
@@ -154,6 +166,7 @@ class Multicarrier:
         return
 
     def getVarValues(self,variable,names):
+        '''Extract MILP problem variable values as dataframe'''
         df = pd.DataFrame.from_dict(variable.get_values(),orient="index")
         df.index = pd.MultiIndex.from_tuples(df.index,names=names)
         return df[0].dropna()
@@ -253,14 +266,16 @@ class Multicarrier:
         df_co2=pd.DataFrame()
         for d in self.instance.setDevice:
             for t in range(timelimit):
-                co2_dev = milp_compute.compute_CO2(self.instance,devices=[d],timesteps=[t])
+                co2_dev = milp_compute.compute_CO2(
+                    self.instance,devices=[d],timesteps=[t])
                 df_co2.loc[t+timestep,d] = pyo.value(co2_dev)
         self._dfCO2rate_per_dev = pd.concat([self._dfCO2rate_per_dev,df_co2])
         #self._dfCO2dev.sort_index(inplace=True)
 
         # CO2 emission intensity (sum)
-        df_df_co2intensity = [pyo.value(milp_compute.compute_CO2_intensity(self.instance,timesteps=[t]))
-                for t in range(timelimit)]
+        df_df_co2intensity = [pyo.value(
+            milp_compute.compute_CO2_intensity(self.instance,timesteps=[t]))
+            for t in range(timelimit)]
         self._dfCO2intensity = pd.concat([self._dfCO2intensity,
                   pd.Series(data=df_df_co2intensity,
                             index=range(timestep,timestep+timelimit))])
@@ -350,6 +365,17 @@ class Multicarrier:
     def solveMany(self,solver="gurobi",timerange=None,write_yaml=False,
                   timelimit=None,store_duals=None):
         """Solve problem over many timesteps - rolling horizon
+
+        Parameters
+        ----------
+        solver : string
+            Name of solver ("cbc", "gurobi")
+        timerange : list = [start,end]
+            List of two elments giving the timestep start and end of
+            the time window to investigate - timesteps are defined by
+            the timeseries profiles used (timestep=row)
+        write_yaml : boolean
+            Whether to save problem to yaml file (for debugging)
         timelimit : int
             Time limit spent on each optimisation (sec)
         store_duals : dict
@@ -370,7 +396,6 @@ class Multicarrier:
         else:
             time_start = timerange[0]
             time_end=timerange[1]
-        df_profiles = pd.DataFrame()
 
         first=True
         for step in trange(time_start,time_end,steps):
@@ -378,7 +403,7 @@ class Multicarrier:
                 # no progress bar
                 logging.info("Solving timestep={}".format(step))
             # 1. Update problem formulation
-            self.updateModelInstance(step,df_profiles,first=first)
+            self.updateModelInstance(step,first=first)
             # 2. Solve for planning horizon
             self.solve(solver=solver,write_yaml=write_yaml,timelimit=timelimit)
             # 3. Save results (for later analysis)
@@ -388,7 +413,7 @@ class Multicarrier:
 
 
     def printSolution(self,instance):
-
+        '''Print solution (edge flow and pressure variables) to screen'''
         print("\nSOLUTION - edgeFlow:")
         for k in instance.varEdgeFlow.keys():
             power = instance.varEdgeFlow[k].value
@@ -431,10 +456,10 @@ class Multicarrier:
                     return isNontrivial
         return isNontrivial
 
-    def getProfiles(self,names):
+    def OBSOLETE_getProfiles(self,names):
+        '''Extract timeseries profiles from MILP problem'''
         if not type(names) is list:
             names = [names]
-        #return self._df_profiles[names]
         df=pd.DataFrame.from_dict(
                 self.instance.paramProfiles.extract_values(),orient='index')
         df.index=pd.MultiIndex.from_tuples(df.index)
@@ -459,6 +484,7 @@ class Multicarrier:
 
 
     def checkEdgePressureDrop(self,timestep=0,var="outer"):
+        '''Compute and display pressure drop along edges'''
         model = self.instance
         for k,edge in model.paramEdge.items():
             carrier = edge['type']
@@ -585,7 +611,8 @@ class Multicarrier:
 
         num_sim_timesteps=mc._dfCO2rate.shape[0]
         timesteps=mc._dfCO2rate.index
-        kpi['hours_simulated'] = num_sim_timesteps*mc.instance.paramParameters['time_delta_minutes']/60
+        td_min = mc.instance.paramParameters['time_delta_minutes']
+        kpi['hours_simulated'] = num_sim_timesteps*td_min/60
 
         # CO2 emissions
         kpi['kgCO2_per_year'] = mc._dfCO2rate.mean()*sec_per_year
@@ -600,14 +627,18 @@ class Multicarrier:
         # fuel consumption
         gasturbines = [i for i,g in mc.instance.paramDevice.items()
                         if g['model']=='gasturbine']
-        mask_gt=mc._dfDeviceFlow.index.get_level_values('device').isin(gasturbines)
+        mask_gt=mc._dfDeviceFlow.index.get_level_values(
+            'device').isin(gasturbines)
         gtflow = mc._dfDeviceFlow[mask_gt]
-        fuel = gtflow.unstack('carrier')['gas'].unstack('terminal')['in'].unstack().mean(axis=1)
+        fuel = gtflow.unstack('carrier')['gas'].unstack(
+            'terminal')['in'].unstack().mean(axis=1)
         kpi['gt_fuel_sm3_per_year'] = fuel.sum()*sec_per_year
 
         # electric power consumption
-        el_dem=mc._dfDeviceFlow.unstack('carrier')['el'].unstack('terminal')['in'].dropna().unstack().mean(axis=1)
+        el_dem=mc._dfDeviceFlow.unstack('carrier')['el'].unstack(
+            'terminal')['in'].dropna().unstack().mean(axis=1)
         kpi['elconsumption_mwh_per_year'] = el_dem.sum()*hour_per_year
+        kpi['elconsumption_avg_mw'] = el_dem.sum()
 
 
         # number of generator starts
@@ -619,11 +650,13 @@ class Multicarrier:
         kpi['gt_stops_per_year'] = gt_stops*hour_per_year/kpi['hours_simulated']
 
         # running hours of generators
-        gt_ison = mc._dfDeviceIsOn.unstack().sum(axis=1)[gasturbines].sum()
+        gt_ison_tsteps = mc._dfDeviceIsOn.unstack().sum(axis=1)[gasturbines].sum()
+        gt_ison = gt_ison_tsteps*td_min/60
         kpi['gt_hoursrunning_per_year'] = gt_ison*hour_per_year/kpi['hours_simulated']
 
         # wind power output
-        el_sup=mc._dfDeviceFlow.unstack('carrier')['el'].unstack('terminal')['out'].dropna().unstack()
+        el_sup=mc._dfDeviceFlow.unstack('carrier')['el'].unstack(
+            'terminal')['out'].dropna().unstack()
         p_wind = el_sup.T[windturbines]
         kpi['wind_output_mwh_per_year'] = p_wind.sum(axis=1).mean()*hour_per_year
 
@@ -639,7 +672,3 @@ class Multicarrier:
         p_curtailed = (p_avail - p_wind).sum(axis=1)
         kpi['wind_curtailed_mwh_per_year'] = p_curtailed.mean()*hour_per_year
         return kpi
-
-
-
-#########################################################################
