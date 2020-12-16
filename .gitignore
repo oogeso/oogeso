@@ -8,3 +8,4 @@ examples/*.png
 doc/oogeso_manual.synctex.gz
 doc/oogeso_manual.log
 examples/run_debug.py
+doc-sphinx/_build/
