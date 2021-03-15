@@ -140,7 +140,7 @@ For example, a 30% deviation allowed on gas input pressure is written as
 This consists a set of edges with a set of parameters for each edge
 that depends on the edge type. These are as follows.
 
-- Common parameters:
+Common parameters for all edges:
 
 parameter | type | description
 ----------|------|------------
@@ -155,29 +155,23 @@ Qmax        | float | (optional) maximum mass flow allowed (Sm3/s)
 
 Additional parameters specific to edge type:
 
-- type: el
-
 parameter | type | description
 ----------|------|------------
+**el:**
 reactance   | float | reactance in system per units
 resistance  | float | resistance in system per units
-
-- type: gas, oil, water
-
-parameter | type | description
-----------|------|------------
+**gas, oil, water:**
 pressure.from | float | nominal pressure (MPa) at start point (required if it is not given by device parameter)
 pressure.to     | float | nominal pressure (MPa) at start point (required if it is not given by device parameter)
 diameter_mm     | float | pipe internal diameter (mm)
 temperature_K   | float | fluid temperature (K)
 
 
-
 #### paramDevice
 This consists a set of devices with a set of parameters for each device
 that depends on the device type.
 
-- Common parameters:
+Common parameters for all device types:
 
 parameter | type | description
 ----------|------|------------
@@ -193,12 +187,11 @@ Qmin        | float     | (optional) maximum flow rate allowed (Sm3/s)
 profile     | string    | (optional) name of time series profile to use for scaling power (Pmax) or flow (Qmax)
 price.CARRIER | float   | (optional) price for power/flow in or out of device (NOK/MW or NOK/Sm3)
 
-Parameters specific to device model types
-
-- gasturbine:
+Parameters specific to device model types:
 
 parameter | type | description
 ----------|------|------------
+**gasturbine:**
 eta_heat    | float | efficiency of converting energy (heat) loss to usable heat
 fuelA       | float | fuel vs power parameter A (fuel = A*power + B)
 fuelB       | float | fuel vs power parameter B (fuel = A*power + B)
@@ -207,64 +200,36 @@ maxRampDown | float | maximum ramp down rate, relative to capacity per minute (1
 maxRampUp   | float | maximum ramp down rate, relative to capacity per minute (1=100%/min)
 startupCost | float | cost (NOK) for each start-up
 startupDelay    | float | delay (min) from start-up activation to powr output
-
-- source_el:
-
-parameter | type | description
-----------|------|------------
+**source_el:**
 co2em       | float | Emissions per electric power delivered (kgCO2/MWh)
 opCost      | float | Operating costs (eg. fuel) (NOK/MJ) (10 NOK/MWh = 0.003 NOK/MJ)
-
-- storage_el:
-
-parameter | type | description
-----------|------|------------
+**storage_el:**
 Emax    | float | Energy capacity (MWh)
 eta     | float | Round-trip charge/discharge efficiency
-
-- sink_el, sink_heat, sink_water: No additional parameters
-
-- pump_oil, pump_water
-
-parameter | type | description
-----------|------|------------
+**sink_el, sink_heat, sink_water:**
+(none)
+**pump_oil, pump_water:**
 eta     | float | Pump efficiency
-
-- compressor_el:
-
-parameter | type | description
-----------|------|------------
+**compressor_el:**
 eta     | float | Compressor efficiency
 Q0      | float | Nominal flow rate (used for linearisation) (Sm3/s)
 temp_in | float | Inlet gas temperate (K)
-
-- separator: no additional parameters
-
-- separator2
-
-parameter | type | description
-----------|------|------------
+**separator:**
+(none)
+**separator2:**
 eta_el      | float | electricity demand as fraction of flow rate (MW/(Sm3/s))
 eta_heat    | float | heat demand as fraction of flow rate (MW/(Sm3/s))
-
-
-- sink_gas, sink_oil: no additional parameters
-
-- source_water
-
-parameter | type | description
-----------|------|------------
+**sink_gas, sink_oil:**
+(none)
+**source_water:**
 naturalpressure | float | Outlet pressure (MPa)
-
-- well_gaslift
-
-parameter | type | description
-----------|------|------------
+**well_gaslift:**
 gas_oil_ratio   | float | Gas to oil ratio (GOR), ratio of produced gas to produced oil
 water_cut       | float | Water cut (WC), ratio of produced water to total produced liquids
 f_inj           | float | Ratio of gas injection rate (Sm3/s) to oil production rate (Sm3/s)
 injectionpressure   | float | Gas injection pressure (MPa)
 separatorpressure   | float | Pressure (from well) into separator (MPa)
+
 
 
 ### Time-series profiles
