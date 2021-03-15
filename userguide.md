@@ -98,22 +98,16 @@ reference_node          | string    | name of node used as electrical voltage an
 
 #### paramCarriers
 
-- el: no parameters required
-- heat: no parameters required
-
-- oil, water, wellstream:
-
-parameter | type | description
-----------|------|------------
-darcy_friction  | float | Darcy friction factor
-pressure_method | string | method for pressure drop calculation (darcy-weissbach/weymouth)
-rho_density     | float | density (kg/m3)
-viscosity       | float | viscosity (kg/(m s))
-
-- gas:
-
-parameter | type | description
-----------|------|------------
+| parameter | type | description |
+| ----------|------|-------------|
+<b>el, heat, hydrogen:</b>
+(none required)
+<b>oil, water, wellstream:</b>
+| darcy_friction  | float | Darcy friction factor
+| pressure_method | string | method for pressure drop calculation (darcy-weissbach/weymouth)
+| rho_density     | float | density (kg/m3)
+| viscosity       | float | viscosity (kg/(m s))
+<b>gas:</b>
 CO2content          | float |   amount of CO2 per volume (kg/Sm3)
 G_gravity           | float |  gas gravity constant
 Pb_basepressure_MPa | float | base pressure (MPa) (1 atm=0.101 MPa)
@@ -125,7 +119,6 @@ k_heat_capacity_ratio   | float | heat capacity ratio
 pressure_method     | string | method used co compute pressure drop in pipe (weymouth/darcy-weissbach)
 rho_density         | float | density (kg/Sm3)
 
-- hydrogen: no parameters required (simplified model)
 
 
 #### paramNode
