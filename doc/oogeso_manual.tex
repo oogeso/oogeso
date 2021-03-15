@@ -1279,88 +1279,19 @@ The backup power requirement sets a lower limit for how much power loss is allow
 
 
 \section{Input data}
-Input data is provided as an XLSX file with multiple worksheets:
+The input data consists of a YAML file containing specifications of all elements (nodes, edges, devices) included, how they are connected (network topology) and parameters for each element. A separate file (XLSX or HD5) containts time-series profiles.
 
-\begin{description}[labelindent=\parindent,topsep=6pt]
-\item[node] list of nodes with their properties
-\item[edge] list of edges (connections between nodes) with their properties
-\item[device] list of devices with their properties
-\item[carriers] list of energy carriers with properties
-\item[parameters] list of global parameter values
-\item[profiles] time-varying profiles (actual values)
-\item[profiles\_forecast] time-varying profiles (forecasts)
-\end{description}
+\subsection{YAML file -- elements, topology, and parameter values}
 
-The worksheets have column headers which specifies what type of information is provided in each column. The columns with headers param\_id and param\_value are special. In these two columns, multiple parameter key--value pairs may be provided. Which parameters are relevant differs for each case.
+The YAML file includes the following elements:
+\begin{itemize}
+\item paramParameters -- global parameters
+\item paramCarriers -- energy/mass flow carriers and their parameters
+\item paramDevice -- devices and their parameters
+\item paramEdge -- edges (pipes/conductors) and their parameters
+\item paramNode -- nodes and their parameters
+\end{itemize}
 
-\begin{table}[h]
-\caption{Node input data}
-\begin{tabular}{lll}
-	\hline
-	header & type & description \\
-	\hline
-	id & string & Unique identifier \\
-	name & string & Name of node \\
-	param\_id & string & parameter identifier \\
-	param\_value & * & parameter value
-\end{tabular}
-\end{table}
-
-\begin{table}[h]
-\caption{Edge input data}
-\begin{tabular}{lll}
-	\hline
-	header & type & description \\
-	\hline
-	id & string & Unique identifier \\
-	type & string & Energy carrier \\
-	node\_from & string &  id of edge starting node \\
-	node\_to & string &  id of edge end node \\
-	include & bool & ignore (0) or include (1) this edge \\
-	length\_km & float & edge length in km \\
-	param\_id & string & parameter identifier \\
-	param\_value & * & parameter value
-\end{tabular}
-\end{table}
-
-\begin{table}[h]
-\caption{Device input data}
-\begin{tabular}{lll}
-	\hline
-	header & type & description \\
-	\hline
-	id & string & Unique identifier \\
-	name & string & Name of device \\
-	node & string &  id of node where connected \\
-	include & bool & ignore (0) or include (1) this device \\
-	model & string & device model identifier \\
-	param\_id & string & parameter identifier \\
-	param\_value & * & parameter value
-\end{tabular}
-\end{table}
-
-\begin{table}[h]
-\caption{Carriers input data}
-\begin{tabular}{lll}
-	\hline
-	header & type & description \\
-	\hline
-	id & string & Unique identifier \\
-	param\_id & string & parameter identifier \\
-	param\_value & * & parameter value
-\end{tabular}
-\end{table}
-
-\begin{table}[h]
-\caption{Parameters input data}
-\begin{tabular}{lll}
-	\hline
-	header & type & description \\
-	\hline
-	param\_id & string & parameter identifier \\
-	param\_value & * & parameter value
-\end{tabular}
-\end{table}
 
 \begin{table}[h]
 \caption{Profiles input data}

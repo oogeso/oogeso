@@ -20,9 +20,16 @@ Check out the examples:
 * [Simple test case](examples/test case2.ipynb?viewer=nbviewer)
 * [Test oil and gas platform](examples/TestPlatform.ipynb?viewer=nbviewer)
 
-A user guide is provided together with  the code:
+## User guide
+The online user guide  gives more information about how to
+specify input data and run a simulation case.
 
-* [User guide (pdf)](../../raw/master/doc/oogeso_manual.pdf)
+*  [User guide](userguide.md)
+
+There is also a (not always up-to-date) manual with more information and explanations
+about the modelling concepts and model elements:
+
+* [Manual (pdf)](../../raw/master/doc/oogeso_manual.pdf)
 
 ## Contribute
 You are welcome to contribute to the improvement of the code.
