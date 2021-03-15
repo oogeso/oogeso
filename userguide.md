@@ -3,18 +3,18 @@
 [Home](README.md)
 
 ## Contents:
-1. [Introduction](#introduction)
-2. [Modelling documentation](#modelling-documentation)
-3. [Examples](#examples)
-4. [How Oogeso works](#how-oogeso-works)
-5. [Input data](#input-data)
-    + [Network topology and parameter values](#network-topology-and-parameter-values)
-        * [paramParameters](#paramparameters)
-        * [paramCarriers](#paramcarriers)
-        * [paramNode](#paramnode)
-        * [paramEdge](#paramedge)
-        * [paramDevice](#paramdevice)
-    + [Timeseries](#timeseries)
+1. [Introduction](#markdown-header-introduction)
+2. [Modelling documentation](#markdown-header-modelling-documentation)
+3. [Examples](#markdown-header-examples)
+4. [How Oogeso works](#markdown-header-how-oogeso-works)
+5. [Input data](#markdown-header-input-data)
+    + [Network topology and parameter values](#markdown-header-network-topology-and-parameter-values)
+        * [paramParameters](#markdown-header-paramparameters)
+        * [paramCarriers](#markdown-header-paramcarriers)
+        * [paramNode](#markdown-header-paramnode)
+        * [paramEdge](#markdown-header-paramedge)
+        * [paramDevice](#markdown-header-paramdevice)
+    + [Timeseries](#markdown-header-timeseries)
 
 ## Introduction
 The Oogeso tool is open-source Python based software for simulating the operation of offshore oil and gas platform energy systems.
