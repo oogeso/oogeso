@@ -35,8 +35,23 @@ def plot_df(df,id_var,filename=None,title=None,ylabel="value"):
     return fig
 
 def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
-        includeForecasts=False,includeOnOff=False,includePrep=False):
-    '''plot forecast and actual profile (available power), and device output'''
+        includeForecasts=False,includeOnOff=False,includePrep=False,
+        devs_shareload=None):
+    '''plot forecast and actual profile (available power), and device output
+
+    Parameters
+    ==========
+    devs : list
+        which devices to include
+    devs_shareload : list ([]=ignore, None=do it for gas turbines)
+        list of devices for which displayed power should be shared evenly
+        (typically gas turbines)
+        The optimision returns somewhat random distribution of load per device,
+        in reality they will share load more or less evenly due to their
+        frequency droop settings. Rather than imposing this in the optimisation,
+        this is included in the plots. Default: gas turbine
+
+    '''
     if type(devs) is not list:
         devs = [devs]
     if includeForecasts & (len(devs)>1):
@@ -44,6 +59,17 @@ def plot_deviceprofile(mc,devs,filename=None,reverseLegend=True,
         return
     df = mc._dfDeviceFlow.unstack(['carrier','terminal'])[
             ('el','out')].unstack('device')[devs]
+    if devs_shareload is None:
+        # gas turbines:
+        devs_shareload = [d for d in mc.instance.setDevice
+            if mc.instance.paramDevice[d]['model']=='gasturbine']
+    if devs_shareload: #list is non-empty
+        devs_online=(df[devs_shareload]>0).sum(axis=1)
+        devs_sum=df[devs_shareload].sum(axis=1)
+        devs_mean=devs_sum/devs_online
+        for c in devs_shareload:
+            mask = df[c]>0
+            df.loc[mask,c]=devs_mean[mask]
     df.columns.name="devices"
     nrows=1
     if includeOnOff:
@@ -222,7 +248,19 @@ def plot_devicePowerEnergy(mc,dev,filename=None,energy_fill_opacity=None):
     return fig
 
 def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True,
-        exclude_zero=False):
+        exclude_zero=False,devs_shareload=None):
+    '''
+    Plot power mix
+
+    Parameters
+    ==========
+    devs_shareload : list ([]=ignore, None=do it for gas turbines)
+        list of devices for which power should be shared evenly (typically gas turbines)
+        The optimision returns somewhat random distribution of load per device,
+        in reality they will share load more or less evenly due to their
+        frequency droop settings. Rather than imposing this in the optimisation,
+        this is included in the plots.
+    '''
 
     # Power flow in/out
     dfF = mc._dfDeviceFlow
@@ -245,6 +283,18 @@ def plot_SumPowerMix(mc,carrier,filename=None,reverseLegend=True,
 #        for d in dfF_in.columns},inplace=True)
 #    dfF_out.rename(columns={d:"{}:{}".format(d,mc.instance.paramDevice[d]['name'])
 #        for d in dfF_out.columns},inplace=True)
+
+    if devs_shareload is None:
+        # gas turbines:
+        devs_shareload = [d for d in mc.instance.setDevice
+            if mc.instance.paramDevice[d]['model']=='gasturbine']
+    if devs_shareload: #list is non-empty
+        devs_online=(dfF_out[devs_shareload]>0).sum(axis=1)
+        devs_sum=dfF_out[devs_shareload].sum(axis=1)
+        devs_mean=devs_sum/devs_online
+        for c in devs_shareload:
+            mask = dfF_out[c]>0
+            dfF_out.loc[mask,c]=devs_mean[mask]
 
     if exclude_zero:
         dfF_in = dfF_in.loc[:,dfF_in.sum()!=0]
@@ -321,11 +371,26 @@ def plot_CO2rate(mc,filename=None):
     if filename is not None:
         plt.savefig(filename,bbox_inches = 'tight')
 
-def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False):
+def plot_CO2rate_per_dev(mc,filename=None,reverseLegend=False,
+        devs_shareload=[]):
     df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
     #labels = (df_info.index.astype(str))# +'_'+df_info['name'])
-    dfplot = mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()
-                    ]
+    dfplot = mc._dfCO2rate_per_dev.loc[:,~(mc._dfCO2rate_per_dev==0).all()].copy()
+
+    if devs_shareload is None:
+        # gas turbines:
+        devs_shareload = [d for d in mc.instance.setDevice
+            if ((mc.instance.paramDevice[d]['model']=='gasturbine') and
+                (d in dfplot))]
+    if devs_shareload: #list is non-empty
+        devs_shareload = [d for d in devs_shareload if d in dfplot]
+        devs_online=(dfplot[devs_shareload]>0).sum(axis=1)
+        devs_sum=dfplot[devs_shareload].sum(axis=1)
+        devs_mean=devs_sum/devs_online
+        for c in devs_shareload:
+            mask = dfplot[c]>0
+            dfplot.loc[mask,c]=devs_mean[mask]
+
     #dfplot.columns=labels
     if plotter=="plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)

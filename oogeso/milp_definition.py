@@ -168,6 +168,21 @@ def definePyomoModel():
         sumE = milp_compute.compute_CO2_intensity(model)
         return sumE
 
+    def rule_objective_costs(model):
+        ''' costs (co2 price, operating costs, startstop, storage depletaion) per second'''
+        startupCosts = milp_compute.compute_startup_costs(model) # kr/s
+        storageDepletionCosts = milp_compute.compute_costForDepletedStorage(model)
+        opCosts = milp_compute.compute_operatingCosts(model) # kr/s
+        co2 = milp_compute.compute_CO2(model) # kgCO2/s
+        co2_tax = model.paramParameters['co2_tax'] # kr/kgCO2
+        co2Cost = co2*co2_tax # kr/s
+        sumCost = (co2Cost
+                    + startupCosts
+                    + storageDepletionCosts
+                    + opCosts
+                    )
+        return sumCost
+
     def rule_objective_exportRevenue(model):
         '''revenue from exported oil and gas minus costs (co2 price and
          operating costs) per second'''
@@ -186,10 +201,14 @@ def definePyomoModel():
                     )
         return sumCost
 
+
+
     def rule_objective(model):
         obj = model.paramParameters['objective']
         if obj=='co2':
             rule = rule_objective_co2(model)
+        elif obj=='costs':
+            rule = rule_objective_costs(model)
         elif obj=='exportRevenue':
             rule = rule_objective_exportRevenue(model)
         elif obj=='co2intensity':

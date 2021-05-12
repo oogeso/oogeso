@@ -254,16 +254,25 @@ def compute_costForDepletedStorage(model):
             storCost += stor_cost*deviation
     return storCost
 
+def compute_export(model,value="revenue",carriers=None,timesteps=None):
+    '''Compute average export (volume or revenue)
 
-def compute_exportRevenue(model,carriers=None,timesteps=None):
-    '''revenue from exported oil and gas - average per sec ($/s)'''
+    Parameters
+    ----------
+    model : oogeso model
+    value : string ("revenue", "volume")
+        which value to compute, revenue (€/s) or volume (Sm3oe/s)
+
+    Computes the energy/mass flow into devices with a price.CARRIER parameter
+    defined (CARRIER can be any of 'oil', 'gas', 'el')
+    '''
     if carriers is None:
         carriers = model.setCarrier
     if timesteps is None:
         timesteps = model.setHorizon
 
     inouts = _devmodels
-    sumRevenue = 0
+    sumValue = 0
     for dev in model.setDevice:
         devmodel = model.paramDevice[dev]['model']
         carriers_in = inouts[devmodel]['in']
@@ -274,42 +283,77 @@ def compute_exportRevenue(model,carriers=None,timesteps=None):
             if price_param in model.paramDevice[dev]:
                 inflow = sum(model.varDeviceFlow[dev,c,'in',t]
                                 for t in timesteps)
-#                    sumRevenue += inflow*model.paramCarriers[c]['export_price']
-                sumRevenue += inflow*model.paramDevice[dev][price_param]
+                if value=="revenue":
+                    sumValue += inflow*model.paramDevice[dev][price_param]
+                elif value=="volume":
+                    volumefactor=1
+                    if c=='gas':
+                        volumefactor = 1/1000 # Sm3 to Sm3oe
+                    sumValue += inflow*volumefactor
     # average per second (timedelta is not required)
-    sumRevenue = sumRevenue/len(timesteps)
-    return sumRevenue
+    sumValue = sumValue/len(timesteps)
+    return sumValue
+
+def compute_exportRevenue(model,carriers=None,timesteps=None):
+    '''revenue from exported oil and gas - average per sec ($/s)'''
+    return compute_export(model,value="revenue",carriers=carriers,timesteps=timesteps)
+#     if carriers is None:
+#         carriers = model.setCarrier
+#     if timesteps is None:
+#         timesteps = model.setHorizon
+#
+#     inouts = _devmodels
+#     sumRevenue = 0
+#     for dev in model.setDevice:
+#         devmodel = model.paramDevice[dev]['model']
+#         carriers_in = inouts[devmodel]['in']
+#         carriers_incl = [v for v in carriers if v in carriers_in]
+#         for c in carriers_incl:
+#             # flow in m3/s, price in $/m3
+#             price_param = 'price.{}'.format(c)
+#             if price_param in model.paramDevice[dev]:
+#                 inflow = sum(model.varDeviceFlow[dev,c,'in',t]
+#                                 for t in timesteps)
+# #                    sumRevenue += inflow*model.paramCarriers[c]['export_price']
+#                 sumRevenue += inflow*model.paramDevice[dev][price_param]
+#     # average per second (timedelta is not required)
+#     sumRevenue = sumRevenue/len(timesteps)
+#     return sumRevenue
 
 
 def compute_oilgas_export(model,timesteps=None):
     '''Export volume (Sm3oe/s)'''
-    if timesteps is None:
-        timesteps = model.setHorizon
+    return compute_export(model,value="volume",carriers=['oil','gas'],
+        timesteps=timesteps)
 
-    carriers = model.setCarrier
-    export_node = model.paramParameters['export_node']
-    export_devs = model.paramNodeDevices[export_node]
-    inouts = _devmodels
-    flow_oilequivalents_m3_per_s = 0
-    for dev in export_devs:
-        devmodel = model.paramDevice[dev]['model']
-        carriers_in = inouts[devmodel]['in']
-        carriers_incl = [v for v in carriers if v in carriers_in]
-        for c in carriers_incl:
-            inflow = sum(model.varDeviceFlow[dev,c,'in',t]
-                            for t in timesteps)
-            # average flow, expressed in m3/s
-            inflow = inflow/len(timesteps)
-            # Convert from Sm3 to Sm3 oil equivalents:
-            # REF https://www.norskpetroleum.no/kalkulator/om-kalkulatoren/
-            if c=='oil':
-                flow_oilequivalents_m3_per_s += inflow
-            elif c=='gas':
-                # 1 Sm3 gas = 1/1000 Sm3 o.e.
-                flow_oilequivalents_m3_per_s += inflow/1000
-            else:
-                pass
-    return flow_oilequivalents_m3_per_s
+    # if timesteps is None:
+    #     timesteps = model.setHorizon
+    # inouts = _devmodels
+    # flow_oilequivalents_m3_per_s = 0
+    # all_devices = model.setDevice
+    # for dev in model.setDevice:
+    #     devmodel = model.paramDevice[dev]['model']
+    #     if (('export' in model.paramDevice[dev]) and
+    #         (model.paramDevice[dev]['export'])):
+    #         # this is a "boundary" device with export to elsewhere
+    #         carriers_in = inouts[devmodel]['in']
+    #         carriers_incl = [v for v in model.setCarrier if v in carriers_in]
+    #         for c in carriers_incl:
+    #             inflow = sum(model.varDeviceFlow[dev,c,'in',t]
+    #                             for t in timesteps)
+    #             # average flow, expressed in m3/s
+    #             inflow = inflow/len(timesteps)
+    #             # Convert from Sm3 to Sm3 oil equivalents:
+    #             # REF https://www.norskpetroleum.no/kalkulator/om-kalkulatoren/
+    #             if c=='oil':
+    #                 flow_oilequivalents_m3_per_s += inflow
+    #             elif c=='gas':
+    #                 # 1 Sm3 gas = 1/1000 Sm3 o.e.
+    #                 flow_oilequivalents_m3_per_s += inflow/1000
+    #             else:
+    #                 #
+    #                 pass
+    # return flow_oilequivalents_m3_per_s
 
 
 def compute_CO2_intensity(model,timesteps=None):
@@ -324,7 +368,7 @@ def compute_CO2_intensity(model,timesteps=None):
     if pyo.value(flow_oilequivalents_m3_per_time)!=0:
         co2intensity = co2_kg_per_time/flow_oilequivalents_m3_per_time
     if pyo.value(flow_oilequivalents_m3_per_time)==0:
-        logging.warning("zero export, so co2 intensity set to NAN")
+        logging.debug("zero export, so co2 intensity set to NAN")
         co2intensity = np.nan
 
     return co2intensity
