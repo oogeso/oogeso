@@ -1,0 +1,59 @@
+[MESSAGES CONTROL]
+
+disable = bad-continuation, missing-docstring, duplicate-code
+
+[DESIGN]
+
+max-args = 8
+max-branches = 14
+max-attributes = 15
+min-public-methods = 1
+
+[BASIC]
+
+# Variable names which should always be accepted
+good-names=i,
+           j,
+           k,
+           dx,
+           dy,
+           dz,
+           n,
+           ng,
+           nx,
+           ny,
+           nz,
+           nw,
+           sw,
+           sg,
+           pc,
+           k1,
+           k2,
+           k3,
+           rw,
+           kh,
+           ex,
+           ax,
+           df,
+           sch,
+           Run,
+           fh,
+           x,
+           y,
+           z,
+           X,
+           Y,
+           Z,
+           xi,
+           yi,
+           zi,
+           _
+
+# Maximum number of characters on a single line.
+max-line-length=120
+
+# Maximum number of locals for function / method body.
+max-locals=20
+
+# Maximum number of statements in function / method body.
+max-statements=60
