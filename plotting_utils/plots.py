@@ -7,7 +7,7 @@ import numpy as np
 import seaborn as sns
 import pydot
 import logging
-from . import milp_compute
+from core import milp_compute
 
 
 sns.set_style("whitegrid")
