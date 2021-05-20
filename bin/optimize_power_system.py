@@ -6,7 +6,9 @@ some_test_data_file = "test_data.json"
 json_data = oogeso.io.file_io.read_data_from_json(some_test_data_file)
 
 # deserialize json data to objects
-power_network: oogeso.dto.PowerNetwork = oogeso.dto.deserialize_power_network_data(json_data)
+power_network: oogeso.dto.PowerNetwork = oogeso.dto.deserialize_power_network_data(
+    json_data
+)
 
 # call optimization method, input are data objects
 optimized_result = oogeso.core.optimize_power_system(
