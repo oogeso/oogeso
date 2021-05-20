@@ -50,7 +50,7 @@ jobs:
 
       - name: 🤖 Run tests
         run: |
-          pytest --cov=oogeso --cov-fail-under=30 ./tests
+          pytest ./tests
       #- name: 📚 Build documentation
       #  run: |
       #    pushd docs
