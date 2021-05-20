@@ -174,5 +174,3 @@ class DataclassJSONEncoder(json.JSONEncoder):
 serialized = json.dumps(power_network, cls=DataclassJSONEncoder, indent=2)
 
 print(serialized)
-
-
