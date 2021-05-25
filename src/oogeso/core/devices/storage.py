@@ -141,7 +141,7 @@ class Storage_hydrogen(_StorageDevice):
     carrier_out = ['hydrogen']
     serial = []
 
-    def _rules(model,t,i):
+    def _rules(self,model,t,i):
         dev = self.dev_id
         param_dev = self.params
         param_hydrogen = self.optimiser.all_carriers['hydrogen'].params
@@ -195,7 +195,7 @@ class Storage_hydrogen(_StorageDevice):
         super().defineConstraints()
 
         constr = pyo.Constraint(self.pyomo_model.setHorizon,pyo.RangeSet(1,4),
-            rule=rule_devmodel_storage_hydrogen)
+            rule=self._rules)
         # add constraints to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'misc'),
             constr)

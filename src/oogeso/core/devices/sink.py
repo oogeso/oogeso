@@ -96,13 +96,14 @@ class Sink_water(Device):
             Emax = param_dev['Vmax']
             return pyo.inequality(
                     -Emax/2,model.varDeviceStorageEnergy[dev,t],Emax/2)
-        return expr
+        else:
+            raise Exception("impossible")
 
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
         super().defineConstraints()
 
-        constr = pyo.Constraint(model.setHorizon,pyo.RangeSet(1,2),
+        constr = pyo.Constraint(self.pyomo_model.setHorizon,pyo.RangeSet(1,2),
             rule=self.rule_devmodel_sink_water)
         # add constraints to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'flex'),

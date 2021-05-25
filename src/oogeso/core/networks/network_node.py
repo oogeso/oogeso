@@ -126,11 +126,11 @@ class NetworkNode:
             # no pressure data relevant for this node/carrier
             return pyo.Constraint.Skip
         nom_p = params_node[col]
-        if pd.isna(nom_p):
+        if nom_p is None:
             # no pressure data specified for this node/carrier
             return pyo.Constraint.Skip
         cc = 'maxdeviation_pressure.{}.{}'.format(carrier,term)
-        if ((cc in params_node) and (not np.isnan(params_node[cc]))):
+        if ((cc in params_node) and (params_node[cc] is not None)):
             maxdev = params_node[cc]
             if t==0:
                 logging.debug("Using ind. pressure limit for: {}, {}, {}"

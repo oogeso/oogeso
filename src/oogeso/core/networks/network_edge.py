@@ -1,5 +1,7 @@
 import pyomo.environ as pyo
 import logging
+import numpy as np
+import scipy
 from . import electricalsystem as el_calc
 
 class NetworkEdge:

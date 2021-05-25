@@ -26,6 +26,8 @@ class Optimiser():
         """Create optimisation problem formulation with supplied data"""
         #raise NotImplementedError()
         self.pyomo_instance = self.createOptimisationModel(data)
+        self._setNodePressureFromEdgeData()
+        self._specifyConstraints()
 
 
     def solve(self,solver="gurobi",write_yaml=False,timelimit=None):
@@ -57,6 +59,57 @@ class Optimiser():
             # Something else is wrong
             logging.info("Solver Status:{}".format(sol.solver.status))
         return sol
+
+
+    def _setNodePressureFromEdgeData(self):
+        # Set node terminal nominal pressure based on edge from/to pressure values
+
+        for i,edge in self.all_edges.items():
+            edg = edge.params
+            if 'pressure.from' not in edg:
+                continue
+            #if np.isnan(edg['pressure.from']):
+            #    continue
+            n_from=edg['nodeFrom']
+            n_to =edg['nodeTo']
+            typ=edg['type']
+            p_from=edg['pressure.from']
+            p_to=edg['pressure.to']
+            c_out='pressure.{}.out'.format(typ)
+            c_in='pressure.{}.in'.format(typ)
+            # Check that pressure values are consistent:
+            is_consistent = True
+            existing_p_from=None
+            existing_p_to=None
+            try:
+                if c_out in self.all_nodes[n_from].params:
+                    existing_p_from = self.all_nodes[n_from].params[c_out]
+                logging.debug("{} p_from = {} (existing) / {} (new)"
+                            .format(i,existing_p_from,p_from))
+                if ((existing_p_from is not None) and (existing_p_from!=p_from)):
+                    msg =("Input data edge pressure from values are"
+                        " inconsistent (edge={}, {}!={})"
+                        ).format(i,existing_p_from,p_from)
+                    is_consistent=False
+            except:
+                pass
+            try:
+                if c_in in self.all_nodes[n_to].params:
+                    existing_p_to = self.all_nodes[n_to].params[c_in]
+                logging.debug("{} p_to = {} (existing) / {} (new)"
+                            .format(i,existing_p_to,p_to))
+                if ((existing_p_to is not None) and (existing_p_to!=p_to)):
+                    msg =("Input data edge pressure to values are"
+                        " inconsistent (edge={})").format(i)
+                    is_consistent=False
+            except:
+                pass
+            if not is_consistent:
+                #logging.warning(self.all_nodes)
+                raise Exception(msg)
+
+            self.all_nodes[n_from].params[c_out] = p_from
+            self.all_nodes[n_to].params[c_in] = p_to
 
 
     def createOptimisationModel(self,data):
@@ -111,8 +164,9 @@ class Optimiser():
         #logging.debug(self.all_devices.keys())
 
         timerange = range(data['paramParameters']['planning_horizon'])
-        profiles_in_use = [d['profile'] for k,d in data['paramDevice'].items()
-            if 'profile' in d]
+        profiles_in_use = list(set(d['profile'] for k,d in data['paramDevice'].items()
+            if 'profile' in d))
+        logging.info("profiles in use: {}".format(profiles_in_use))
 
         # Make network connections between nodes, edges and devices
         for dev_id,dev in self.all_devices.items():
@@ -210,7 +264,16 @@ class Optimiser():
         model.objObjective = pyo.Objective(rule=rule,sense=pyo.minimize)
 
 
+        # Specify initial values from input data
+        for i,dev in self.all_devices.items():
+            dev.setInitValues()
+
+
+        return model
+
+    def _specifyConstraints(self):
         # specify constraints:
+        model = self.pyomo_instance
         for dev_id,dev in self.all_devices.items():
             dev.defineConstraints()
 
@@ -249,14 +312,6 @@ class Optimiser():
                 rule=self._rule_elBackupMargin)
         else:
             logging.info("No elBackupMargin limit specified")
-
-
-        # Specify initial values from input data
-        for i,dev in self.all_devices.items():
-            dev.setInitValues()
-
-
-        return model
 
 
     def updateOptimisationModel(self,timestep,profiles,first=False):
@@ -613,10 +668,3 @@ class Optimiser():
                 devs.append(d)
         return devs
 
-    def NOT_USED_getProfiles(self):
-        '''Extract timeseries profiles from MILP problem as pandas dataframe'''
-        df=pd.DataFrame.from_dict(
-                self.pyomo_instance.paramProfiles.extract_values(),orient='index')
-        df.index=pd.MultiIndex.from_tuples(df.index)
-        df = df[0].unstack(level=0)
-        return df

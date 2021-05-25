@@ -3,7 +3,7 @@ import logging
 from . import Device
 
 
-def compute_compressor_demand(model,param_dev,param_node,param_gas,linear=False,
+def compute_compressor_demand(model,dev,param_dev,param_node,param_gas,linear=False,
                               Q=None,p1=None,p2=None,t=None):
     """Compute energy demand by compressor as function of pressure and flow"""
     # power demand depends on gas pressure ratio and flow
@@ -43,15 +43,15 @@ def compute_compressor_demand(model,param_dev,param_node,param_gas,linear=False,
 class Compressor_el(Device):
     "Abstract parent class for all device types"
     params = {}
-    carrier_in = []
-    carrier_out = []
-    serial = []
+    carrier_in = ['gas','el']
+    carrier_out = ['gas']
+    serial = ['gas']
 
     def _rules(self,model,t,i):
         dev = self.dev_id
         param_dev = self.params
-        param_node = self.pyomo_model.all_nodes[param_dev['node']].params
-        param_gas = self.pyomo_model.all_carriers['gas'].params
+        param_node = self.optimiser.all_nodes[param_dev['node']].params
+        param_gas = self.optimiser.all_carriers['gas'].params
         if i==1:
             '''gas flow in equals gas flow out (mass flow)'''
             lhs = model.varDeviceFlow[dev,'gas','in',t]
@@ -60,21 +60,21 @@ class Compressor_el(Device):
         elif i==2:
             '''Device el demand'''
             lhs = model.varDeviceFlow[dev,'el','in',t]
-            rhs = compute_compressor_demand(model,
+            rhs = compute_compressor_demand(model,dev,
                 param_dev,param_node,param_gas,linear=True,t=t)
             return (lhs==rhs)
 
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints(pyomo_model)
+        super().defineConstraints()
 
         constr_compressor_el = pyo.Constraint(
-              model.setHorizon,pyo.RangeSet(1,2),
-              rule=self._rule_compressor_el)
+              self.pyomo_model.setHorizon,pyo.RangeSet(1,2),
+              rule=self._rules)
         # add constraint to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'compr'),
-            constr_well)
+            constr_compressor_el)
 
     def getPowerVar(self,t):
         return self.pyomo_model.varDeviceFlow[self.dev_id,'el','in',t]
@@ -83,17 +83,17 @@ class Compressor_el(Device):
 class Compressor_gas(Device):
     "Abstract parent class for all device types"
     params = {}
-    carrier_in = []
-    carrier_out = []
-    serial = []
+    carrier_in = ['gas']
+    carrier_out = ['gas']
+    serial = ['gas']
 
-    def _rules(model,t):
+    def _rules(self,model,t):
         dev = self.dev_id
         param_dev = self.params
         param_node = self.pyomo_model.all_nodes[param_dev['node']].params
         param_gas = self.pyomo_model.all_carriers['gas'].params
         gas_energy_content=self.all_carriers['gas']['energy_value'] #MJ/Sm3
-        powerdemand = compute_compressor_demand(model,
+        powerdemand = compute_compressor_demand(model,dev,
             param_dev,param_node,param_gas,linear=True,t=t)
         # matter conservation:
         lhs = model.varDeviceFlow[dev,'gas','out',t]
@@ -106,7 +106,7 @@ class Compressor_gas(Device):
 
         super().defineConstraints()
 
-        constr = pyo.Constraint(model.setHorizon,rule=self._rules)
+        constr = pyo.Constraint(self.pyomo_model.setHorizon,rule=self._rules)
         # add constraint to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'compr'),
             constr)
@@ -114,6 +114,7 @@ class Compressor_gas(Device):
     # overriding default
     def compute_CO2(self,timesteps):
         model = self.pyomo_model
+        d = self.dev_id
         param_gas = self.optimiser.all_carriers['gas'].params
         gasflow_co2 = param_gas['CO2content'] #kg/m3
         thisCO2 = sum((model.varDeviceFlow[d,'gas','in',t]

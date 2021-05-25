@@ -64,7 +64,7 @@ class Separator(Device):
 
         super().defineConstraints()
 
-        constr_separator = pyo.Constraint(model.setHorizon,pyo.RangeSet(1,8),
+        constr_separator = pyo.Constraint(self.pyomo_model.setHorizon,pyo.RangeSet(1,8),
             rule=self._rule_separator)
         # add constraints to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'separator'),
@@ -84,7 +84,7 @@ class Separator2(Device):
     def _rule_separator2_flow(self,model,fc,t,i):
         dev = self.dev_id
         node = self.params['node']
-        param_node = self.pyomo_model.all_nodes[node].params
+        param_node = self.optimiser.all_nodes[node].params
         #wellstream_prop=self.pyomo_model.all_carriers['wellstream']
         #flow_in = sum(model.varDeviceFlow[dev,f,'in',t]
         #                for f in['oil','gas','water'])
@@ -122,14 +122,14 @@ class Separator2(Device):
         super().defineConstraints()
 
         constr_separator2_flow = pyo.Constraint(
-              ['oil','gas','water'],model.setHorizon,pyo.RangeSet(1,2),
+              ['oil','gas','water'],self.pyomo_model.setHorizon,pyo.RangeSet(1,2),
               rule=self._rule_separator2_flow)
         # add constraints to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'flow'),
             constr_separator2_flow)
 
         constr_separator2_energy = pyo.Constraint(
-              ['oil','gas','water'],model.setHorizon,pyo.RangeSet(1,2),
+              self.pyomo_model.setHorizon,pyo.RangeSet(1,2),
               rule=self._rule_separator2_energy)
         # add constraints to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'energy'),

@@ -21,15 +21,13 @@ class Simulator():
 
 
 
-    def __init__(self):
+    def __init__(self,optimiser):
         """Create Simulator object
 
         """
 
         # Abstract pyomo model formulation
-        #self.model = milp_definition.definePyomoModel()
-        # Concrete model instance:
-        #self.pyomo_instance = None
+        self.optimiser = optimiser
 
         # Dataframes keeping track of simulation results:
         self._dfDeviceFlow = None

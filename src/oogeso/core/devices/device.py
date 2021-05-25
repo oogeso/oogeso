@@ -40,7 +40,10 @@ class Device:
             extprofile = self.params['profile']
             maxValue = maxValue*model.paramProfiles[extprofile,t]
         power = self.getPowerVar(t)
-        expr = ( power <= maxValue)
+        if power is not None:
+            expr = ( power <= maxValue)
+        else:
+            expr = pyo.Constraint.Skip
         return expr
 
     def _rule_devicePmin(self,model,t):
@@ -51,7 +54,10 @@ class Device:
             extprofile = params_dev['profile']
             minValue = minValue*model.paramProfiles[extprofile,t]
         power = self.getPowerVar(t)
-        expr = (power >= minValue)
+        if power is not None:
+            expr = (power >= minValue)
+        else:
+            expr = pyo.Constraint.Skip
         return expr
 
     def _rule_deviceQmax(self,model,t):
@@ -135,12 +141,13 @@ class Device:
 
 
     def getPowerVar(self,t):
-        #logging.debug("Device: no getPowerVar defined for {}"
-        #    .format(self.dev_id))
-        #raise NotImplementedError()
-        return 0
+        logging.error("Device: no getPowerVar defined for {}"
+            .format(self.dev_id))
+        raise NotImplementedError()
 
     def getFlowVar(self,t):
+        logging.error("Device: no getFlowVar defined for {}"
+            .format(self.dev_id))
         raise NotImplementedError()
 
     def getMaxP(self,t):

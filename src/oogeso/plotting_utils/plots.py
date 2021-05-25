@@ -7,7 +7,6 @@ import numpy as np
 import seaborn as sns
 import pydot
 import logging
-#from . import milp_compute
 
 
 sns.set_style("whitegrid")
@@ -479,15 +478,16 @@ def plotProfiles(profiles,curves=None,filename=None):
         if filename is not None:
             plt.savefig(filename,bbox_inches = 'tight')
 
-def plotDevicePowerFlowPressure(mc,dev,carriers_inout=None,filename=None):
-    model = mc.instance
-    dev_param = model.paramDevice[dev]
-    model = dev_param["model"]
+def plotDevicePowerFlowPressure(simulator,dev,carriers_inout=None,filename=None):
+    mc = simulator
+    #model = simulator.optimiser.pyomo_instance
+    dev_obj =  simulator.optimiser.all_devices[dev]
+    dev_param =dev_obj.params
     node = dev_param["node"]
     devname = "{}:{}".format(dev,dev_param["name"])
     #linecycler = itertools.cycle(['-','--',':','-.']*10)
     if carriers_inout is None:
-        carriers_inout = milp_compute.devicemodel_inout()[model]
+        carriers_inout = {'in':dev_obj.carrier_in, 'out':dev_obj.carrier_out}
     if 'serial' in carriers_inout:
         del carriers_inout['serial']
 
@@ -765,21 +765,22 @@ def plotGasTurbineEfficiency(fuelA=2.35,fuelB=0.53,energycontent=40,
         plt.savefig(filename,bbox_inches = 'tight')
 
 
-def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
+def plotReserve(simulator,includeMargin=True,dynamicMargin=True,useForecast=False):
     '''Plot unused online capacity by all el devices'''
     df_devs=pd.DataFrame()
-    model=mc.instance
-    inout=milp_compute.devicemodel_inout()
+    mc = simulator
+    optimiser = simulator.optimiser
     timerange=list(mc._dfExportRevenue.index)
     marginIncr = pd.DataFrame(0,index=timerange,columns=['margin'])
-    for d in mc.instance.setDevice:
-        devmodel = model.paramDevice[d]['model']
+    for d,dev_obj in optimiser.all_devices.items():
+        dev_params = dev_obj.params
+        devmodel = dev_params['model']
         rf=1
-        if 'el' in inout[devmodel]['out']:
+        if 'el' in dev_obj.carrier_out:
             # Generators and storage
-            maxValue = model.paramDevice[d]['Pmax']
-            if 'profile' in model.paramDevice[d]:
-                extprofile = model.paramDevice[d]['profile']
+            maxValue = dev_params['Pmax']
+            if 'profile' in dev_params:
+                extprofile = dev_params['profile']
                 if useForecast:
                     maxValue = maxValue*mc._df_profiles_forecast.loc[
                         timerange,extprofile]
@@ -792,8 +793,8 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
             elif devmodel in ['storage_el']:
                 maxValue = (mc._dfDeviceStoragePmax[d]
                             +mc._dfDeviceFlow[d,'el','in'])
-            if ('reserve_factor' in model.paramDevice[d]):
-                reserve_factor=model.paramDevice[d]['reserve_factor']
+            if ('reserve_factor' in dev_params):
+                reserve_factor=dev_params['reserve_factor']
                 if reserve_factor==0:
                     # device does not count towards reserve
                     rf=0
@@ -812,7 +813,7 @@ def plotReserve(mc,includeMargin=True,dynamicMargin=True,useForecast=False):
     fig.add_scatter(x=df_devs.index,y=df_devs.sum(axis=1),name='SUM',
         line=dict(dash='dot',color='black'),line_shape='hv')
     if includeMargin:
-        margin=mc.instance.paramParameters['elReserveMargin']
+        margin=optimiser.optimisation_parameters['elReserveMargin']
         # wind contribution (cf compute reserve)
         marginIncr['margin'] = marginIncr['margin'] + margin
         fig.add_scatter(x=marginIncr.index, y=marginIncr['margin'],

@@ -2,10 +2,10 @@ import pyomo.environ as pyo
 import logging
 from . import Device
 
-class PumpDevice(Device):
+class _PumpDevice(Device):
     """Parent class for pumps. Don't use this class directly."""
 
-    def compute_pump_demand(self,model,carrier,
+    def compute_pump_demand(self,model,dev,carrier,
             linear=False,Q=None,p1=None,p2=None,t=None):
         param_dev = self.params
         node = param_dev['node']
@@ -64,7 +64,7 @@ class PumpDevice(Device):
             return lhs==rhs
         elif i==2:
             lhs = model.varDeviceFlow[dev,'el','in',t]
-            rhs = self.compute_pump_demand(model,linear=True,t=t,
+            rhs = self.compute_pump_demand(model,dev,linear=True,t=t,
                 carrier=carrier)
             return (lhs==rhs)
 
@@ -73,7 +73,7 @@ class PumpDevice(Device):
 
         super().defineConstraints()
 
-        constr = pyo.Constraint(model.setHorizon,rule=self._rules_pump)
+        constr = pyo.Constraint(self.pyomo_model.setHorizon,pyo.RangeSet(1,2),rule=self._rules_pump)
         # add constraint to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'misc'),
             constr)
@@ -81,19 +81,19 @@ class PumpDevice(Device):
     def getPowerVar(self,t):
         return self.pyomo_model.varDeviceFlow[self.dev_id,'el','in',t]
 
-class Pump_oil(Device):
+class Pump_oil(_PumpDevice):
     "Oil pump"
     carrier_in = ['oil','el']
     carrier_out = ['oil']
     serial = ['el']
 
-class Pump_wellstream(Device):
+class Pump_wellstream(_PumpDevice):
     "Wellstream pump"
     carrier_in = ['wellstream','el']
     carrier_out = ['wellstream']
     serial = ['wellstream']
 
-class Pump_water(Device):
+class Pump_water(_PumpDevice):
     "Water pump"
     carrier_in = ['water','el']
     carrier_out = ['water']

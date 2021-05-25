@@ -34,14 +34,14 @@ class Well_gaslift(Device):
     "Production well with gas lift"
     carrier_in = ['gas']
     carrier_out = ['gas','oil','water']
-    serial = []
+    serial = ['gas']
 
-    def _rule_gaslift(model,carrier,t,i):
+    def _rule_gaslift(self,model,carrier,t,i):
 
         # flow from reservoir (equals flow out minus gas injection)
         dev = self.dev_id
         Q_reservoir = (sum(model.varDeviceFlow[dev,c,'out',t]
-                        for c in model.setFlowComponent)
+                        for c in ['gas','oil','water'])
                         -model.varDeviceFlow[dev,'gas','in',t])
         node = self.params['node']
         if i==1:
@@ -89,13 +89,13 @@ class Well_gaslift(Device):
         super().defineConstraints()
 
         constr_gaslift = pyo.Constraint(
-              self.flow_out,model.setHorizon,pyo.RangeSet(1,4),
-              rule=_rule_gaslift)
+              self.carrier_out,self.pyomo_model.setHorizon,pyo.RangeSet(1,4),
+              rule=self._rule_gaslift)
         # add constraint to model:
         setattr(self.pyomo_model,'constr_{}_{}'.format(self.dev_id,'gaslift'),
             constr_gaslift)
 
 
 
-    def getPowerVar(self,t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id,'el','out',t]
+    def getFlowVar(self,t):
+        return self.pyomo_model.varDeviceFlow[self.dev_id,'gas','in',t]
