@@ -4,8 +4,8 @@ import yaml
 import pandas as pd
 import numpy as np
 import logging
-from core import electricalsystem
-from core import milp_compute
+from oogeso.core import electricalsystem
+#from core import milp_compute
 
 
 def _convert_xls_input(df, columns, index_col="id"):
@@ -71,7 +71,7 @@ def read_profiles_from_xlsx(
     return profiles
 
 
-def read_data_from_xlsx(filename, includeforecast=True):
+def OBSOLETEread_data_from_xlsx(filename, includeforecast=True):
     """Read input data from spreadsheet.
 
     Parameters
@@ -112,7 +112,7 @@ def read_data_from_xlsx(filename, includeforecast=True):
     return data
 
 
-def _nodeCarrierHasSerialDevice(df_node, df_device):
+def OBSOLETE_nodeCarrierHasSerialDevice(df_node, df_device):
     # devmodel_inout = device_models #Multicarrier.devicemodel_inout()
     devmodel_inout = milp_compute.devicemodel_inout()
     node_devices = df_device.groupby("node").groups
@@ -141,7 +141,7 @@ def _nodeCarrierHasSerialDevice(df_node, df_device):
     return node_carrier_has_serialdevice
 
 
-def _oogeso_dict_to_df(data_dict):
+def OBSOLETE_oogeso_dict_to_df(data_dict):
     """convert dict to dataframes for further processing in create_initdata"""
 
     def d2d(key):
@@ -162,11 +162,11 @@ def _oogeso_dict_to_df(data_dict):
     return dfs
 
 
-def to_dict_dropna(df):
+def OBSOLETEto_dict_dropna(df):
     return {k: r.dropna().to_dict() for k, r in df.iterrows()}
 
 
-def create_initdata(data_dict=None, dfs=None):
+def OBSOLETEcreate_initdata(data_dict=None, dfs=None):
     """Convert input data to data structure required by pyomo model
 
     Parameters
