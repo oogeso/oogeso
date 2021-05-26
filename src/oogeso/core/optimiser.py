@@ -268,7 +268,6 @@ class Optimiser():
         for i,dev in self.all_devices.items():
             dev.setInitValues()
 
-
         return model
 
     def _specifyConstraints(self):
@@ -364,25 +363,23 @@ class Optimiser():
         # pick the last value from previous optimistion prior to the present time
         if not first:
             t_prev = opt_timesteps-1
-            for dev in self.pyomo_instance.setDevice:
+            for dev,dev_obj in self.all_devices.items():
                 # On/off status:
                 self.pyomo_instance.paramDeviceIsOnInitially[dev] = (
                         self.pyomo_instance.varDeviceIsOn[dev,t_prev])
                 self.pyomo_instance.paramDevicePrepTimestepsInitially[dev] = (
                         _updateOnTimesteps(t_prev,dev))
-                # Power output (relevant for ramp rate constraint):
-                dev_obj = self.all_devices[dev]
-                self.pyomo_instance.paramDevicePowerInitially[dev] = (
-                    dev_obj.getPowerVar(t_prev))
+                # Initial power output (relevant for ramp rate constraint):
+                if 'maxRampUp' in dev_obj.params:
+                    self.pyomo_instance.paramDevicePowerInitially[dev] = (
+                        dev_obj.getPowerVar(t_prev))
                 # Energy storage:
-                #storagemodels = self.devices_with_storage
-                #if self.pyomo_instance.paramDevice[dev]['model'] in storagemodels:
                 if dev_obj in self.devices_with_storage:
                     self.pyomo_instance.paramDeviceEnergyInitially[dev] = (
                             self.pyomo_instance.varDeviceStorageEnergy[dev,t_prev])
-                    if 'target_profile' in self.pyomo_instance.paramDevice[dev]:
-                        prof = self.pyomo_instance.paramDevice[dev]['target_profile']
-                        Emax = self.pyomo_instance.paramDevice[dev]['Emax']
+                    if 'target_profile' in dev_obj.params:
+                        prof = dev_obj.params['target_profile']
+                        Emax = dev_obj.params['Emax']
                         self.pyomo_instance.paramDeviceEnergyTarget[dev] = (
                             Emax*self._df_profiles_forecast.loc[timestep+horizon,prof]
                     )
@@ -589,7 +586,8 @@ class Optimiser():
         timesteps = model.setHorizon
         for dev in model.setDevice:
             dev_obj = self.all_devices[dev]
-            storCost = dev_obj.compute_costForDepletedStorage(timesteps)
+            thisCost = dev_obj.compute_costForDepletedStorage(timesteps)
+            storCost += thisCost
         return storCost
 
 
