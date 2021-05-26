@@ -70,3 +70,22 @@ def read_profiles_from_xlsx(
     )
     profiles = {"actual": df_profiles, "forecast": df_profiles_forecast}
     return profiles
+
+def read_profiles_from_csv(
+    filename_forecasts,
+    filename_nowcasts,
+    exclude_cols=[],
+):
+    """Read input data profiles from CSV to a dicitonary of pandas dataframes"""
+    df_profiles = pd.read_csv(
+        filename_nowcasts,
+        index_col="timestep",
+        usecols=lambda col: col not in exclude_cols,
+    )
+    df_profiles_forecast = pd.read_csv(
+        filename_forecasts,
+        index_col="timestep",
+        usecols=lambda col: col not in exclude_cols,
+    )
+    profiles = {"actual": df_profiles, "forecast": df_profiles_forecast}
+    return profiles
