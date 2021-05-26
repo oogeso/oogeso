@@ -70,7 +70,7 @@ def plot_deviceprofile(
         return
     df = mc._dfDeviceFlow.unstack(["carrier", "terminal"])[("el", "out")].unstack(
         "device"
-    )[devs]
+    )
     if devs_shareload is None:
         # gas turbines:
         devs_shareload = [
@@ -88,6 +88,7 @@ def plot_deviceprofile(
             mask = df[c] > 0
             df.loc[mask, c] = devs_mean[mask]
     df.columns.name = "devices"
+    df = df[devs]
     nrows = 1
     if includeOnOff:
         nrows = nrows + 1

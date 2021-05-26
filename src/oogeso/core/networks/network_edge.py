@@ -52,7 +52,7 @@ class NetworkEdge:
                 num_pipes = params_edge["num_pipes"]
                 logging.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
                 Q = Q / num_pipes
-            p2_computed = self.compute_edge_pressuredrop(model, p1=p1, Q=Q, linear=True)
+            p2_computed = self.compute_edge_pressuredrop(p1=p1, Q=Q, linear=True)
             return p2 == p2_computed
         else:
             # Other types of edges - no constraints other than max/min flow
@@ -126,13 +126,12 @@ class NetworkEdge:
         exp_s = np.exp(s)
         return exp_s, k
 
-    def compute_edge_pressuredrop(self, model, p1, Q, method=None, linear=False):
+    def compute_edge_pressuredrop(self, p1, Q, method=None, linear=False):
         """Compute pressure drop in pipe
 
         parameters
         ----------
-        model : pyomo optimisation model
-        p1 : float
+         p1 : float
             pipe inlet pressure (MPa)
         Q : float
             flow rate (Sm3/s)

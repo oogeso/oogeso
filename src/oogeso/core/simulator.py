@@ -84,7 +84,9 @@ class Simulator:
             store_duals = {'elcost':{constr=constrDevicePmin, indx:('util',None)}
         """
 
-        self._df_profiles_forecast = profiles["actual"]
+        # These are used only when plotting afterwards
+        self._df_profiles_forecast = profiles["forecast"]
+        self._df_profiles_actual = profiles["actual"]
 
         steps = self.optimiser.optimisation_parameters["optimisation_timesteps"]
         horizon = self.optimiser.optimisation_parameters["planning_horizon"]
@@ -92,7 +94,7 @@ class Simulator:
             logging.debug("Using solver timelimit={}".format(timelimit))
         if timerange is None:
             time_start = 0
-            time_end = self._df_profiles_forecast.index.max() + 1 - horizon
+            time_end = profiles["forecast"].index.max() + 1 - horizon
         else:
             time_start = timerange[0]
             time_end = timerange[1]
@@ -188,17 +190,20 @@ class Simulator:
             # store_duals = {
             #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}
             #   }
-            horizon_steps = pyomo_instance.paramParameters["planning_horizon"]
+            horizon_steps = self.optimiser.optimisation_parameters["planning_horizon"]
             if self._dfDuals is None:
                 self._dfDuals = pd.DataFrame(columns=store_duals.keys())
             for key, val in store_duals.items():
                 # vrs=('util',None)
                 vrs = val["indx"]
                 constr = getattr(pyomo_instance, val["constr"])
+                logging.info(constr)
                 sumduals = 0
                 for t in range(timelimit):
                     # Replace None by the timestep, ('util',None) -> ('util',t)
                     vrs1 = tuple(x if x is not None else t for x in vrs)
+                    logging.info(vrs1)
+                    logging.info(constr[vrs1])
                     dual = pyomo_instance.dual[constr[vrs1]]
                     # The dual gives the improvement in the objective function
                     # if the constraint is relaxed by one unit.
@@ -322,3 +327,74 @@ class Simulator:
             self._dfTerminalFlow, varTerminalFlow, timelimit, timeshift
         )
         return
+
+    def compute_kpis(self,windturbines=[]):
+        '''Compute key indicators of simulation results'''
+        hour_per_year=8760
+        sec_per_year=3600*hour_per_year
+        kpi = {}
+        mc = self
+
+        num_sim_timesteps=mc._dfCO2rate.shape[0]
+        timesteps=mc._dfCO2rate.index
+        td_min = self.optimiser.optimisation_parameters['time_delta_minutes']
+        kpi['hours_simulated'] = num_sim_timesteps*td_min/60
+
+        # CO2 emissions
+        kpi['kgCO2_per_year'] = mc._dfCO2rate.mean()*sec_per_year
+        kpi['kgCO2_per_Sm3oe'] = mc._dfCO2intensity.mean()
+
+        # hours with reduced load
+#        kpi['reducedload_hours_per_year'] = None
+
+        # hours with load shedding
+#        kpi['loadshed_hours_per_year'] = None
+
+        # fuel consumption
+        gasturbines = [i for i,g in self.optimiser.all_devices.items()
+                        if g.params['model']=='gasturbine']
+        mask_gt=mc._dfDeviceFlow.index.get_level_values(
+            'device').isin(gasturbines)
+        gtflow = mc._dfDeviceFlow[mask_gt]
+        fuel = gtflow.unstack('carrier')['gas'].unstack(
+            'terminal')['in'].unstack().mean(axis=1)
+        kpi['gt_fuel_sm3_per_year'] = fuel.sum()*sec_per_year
+
+        # electric power consumption
+        el_dem=mc._dfDeviceFlow.unstack('carrier')['el'].unstack(
+            'terminal')['in'].dropna().unstack().mean(axis=1)
+        kpi['elconsumption_mwh_per_year'] = el_dem.sum()*hour_per_year
+        kpi['elconsumption_avg_mw'] = el_dem.sum()
+
+
+        # number of generator starts
+        gt_starts = mc._dfDeviceStarting.unstack().sum(axis=1)[gasturbines].sum()
+        kpi['gt_starts_per_year'] = gt_starts*hour_per_year/kpi['hours_simulated']
+
+        # number of generator stops
+        gt_stops = mc._dfDeviceStopping.unstack().sum(axis=1)[gasturbines].sum()
+        kpi['gt_stops_per_year'] = gt_stops*hour_per_year/kpi['hours_simulated']
+
+        # running hours of generators
+        gt_ison_tsteps = mc._dfDeviceIsOn.unstack().sum(axis=1)[gasturbines].sum()
+        gt_ison = gt_ison_tsteps*td_min/60
+        kpi['gt_hoursrunning_per_year'] = gt_ison*hour_per_year/kpi['hours_simulated']
+
+        # wind power output
+        el_sup=mc._dfDeviceFlow.unstack('carrier')['el'].unstack(
+            'terminal')['out'].dropna().unstack()
+        p_wind = el_sup.T[windturbines]
+        kpi['wind_output_mwh_per_year'] = p_wind.sum(axis=1).mean()*hour_per_year
+
+        # curtailed wind energy
+        p_avail = pd.DataFrame(index=timesteps)
+        for d in windturbines:
+            devparam=self.optimiser.all_devices[d].params
+            Pmax = devparam['Pmax']
+            p_avail[d] = Pmax
+            if 'profile' in devparam:
+                profile_ref = devparam['profile']
+                p_avail[d] = Pmax * mc._df_profiles_actual.loc[timesteps,profile_ref]
+        p_curtailed = (p_avail - p_wind).sum(axis=1)
+        kpi['wind_curtailed_mwh_per_year'] = p_curtailed.mean()*hour_per_year
+        return kpi

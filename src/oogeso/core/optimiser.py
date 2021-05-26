@@ -297,6 +297,8 @@ class Optimiser:
         for i, dev in self.all_devices.items():
             dev.setInitValues()
 
+        # Keep track of duals:
+        model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
         return model
 
     def _specifyConstraints(self):
@@ -678,3 +680,10 @@ class Optimiser:
             if ok_in and ok_out:
                 devs.append(d)
         return devs
+
+    def write(self,filename:str):
+        """Export optimisation problem to MPS or LP file"""
+        self.pyomo_instance.write(
+            filename = filename, 
+            io_options = {"symbolic_solver_labels":True}
+        )
