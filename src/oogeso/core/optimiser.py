@@ -455,8 +455,8 @@ class Optimiser:
         return sumE
 
     def _rule_objective_costs(self, model):
-        """ costs (co2 price, operating costs, startstop, storage depletaion)
-         per second (assuming fixed oil/gas production)"""
+        """costs (co2 price, operating costs, startstop, storage depletaion)
+        per second (assuming fixed oil/gas production)"""
         startupCosts = self.compute_startup_costs(model)  # kr/s
         storageDepletionCosts = self.compute_costForDepletedStorage(model)
         opCosts = self.compute_operatingCosts(model)  # kr/s
@@ -468,7 +468,7 @@ class Optimiser:
 
     def _rule_objective_exportRevenue(self, model):
         """revenue from exported oil and gas minus costs (co2 price and
-         operating costs) per second"""
+        operating costs) per second"""
         sumRevenue = self.compute_exportRevenue(model)  # kr/s
         startupCosts = self.compute_startup_costs(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
@@ -532,8 +532,7 @@ class Optimiser:
         return expr
 
     def compute_CO2(self, model, devices=None, timesteps=None):
-        """compute CO2 emissions - average per sec (kgCO2/s)
-        """
+        """compute CO2 emissions - average per sec (kgCO2/s)"""
         if devices is None:
             devices = model.setDevice
         if timesteps is None:

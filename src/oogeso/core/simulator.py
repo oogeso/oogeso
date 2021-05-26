@@ -23,9 +23,7 @@ class Simulator:
     """Main class for Oogeso energy system simulations"""
 
     def __init__(self, optimiser):
-        """Create Simulator object
-
-        """
+        """Create Simulator object"""
 
         # Abstract pyomo model formulation
         self.optimiser = optimiser

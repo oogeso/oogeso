@@ -58,7 +58,9 @@ def plotDevicePowerLastOptimisation1(mc, device, filename=None):
         df_this[device].plot(
             ax=ax2, linestyle="--", color="red", label="storage".format(carr, term)
         )
-        ax2.legend(loc="upper right",)
+        ax2.legend(
+            loc="upper right",
+        )
     ax.set_xlim(left=0)
 
     plt.title("{}:{} {}".format(device, devname, label_profile))

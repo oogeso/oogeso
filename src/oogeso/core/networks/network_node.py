@@ -191,8 +191,7 @@ class NetworkNode:
         )
 
     def isNontrivial(self, carrier):
-        """returns True if edges or devices are connected for given carrier
-        """
+        """returns True if edges or devices are connected for given carrier"""
         # check if any edges are connected on this carrier
         if carrier in self.edges_from:
             return True
