@@ -71,6 +71,7 @@ def read_profiles_from_xlsx(
     profiles = {"actual": df_profiles, "forecast": df_profiles_forecast}
     return profiles
 
+
 def read_profiles_from_csv(
     filename_forecasts,
     filename_nowcasts,
