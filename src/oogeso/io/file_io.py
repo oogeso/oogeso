@@ -4,8 +4,9 @@ import yaml
 import pandas as pd
 import numpy as np
 import logging
-#from oogeso.core import electricalsystem
-#from core import milp_compute
+
+# from oogeso.core import electricalsystem
+# from core import milp_compute
 
 
 def _convert_xls_input(df, columns, index_col="id"):
