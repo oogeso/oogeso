@@ -107,8 +107,10 @@ class Well_gaslift(Device):
     def getFlowVar(self, t):
         dev = self.dev_id
         # flow from reservoir (out minus in)
-        flow = (self.pyomo_model.varDeviceFlow[dev,'oil','out',t]
-                + self.pyomo_model.varDeviceFlow[dev,'gas','out',t]
-                - self.pyomo_model.varDeviceFlow[dev,'gas','in',t]
-                + self.pyomo_model.varDeviceFlow[dev,'water','out',t])
+        flow = (
+            self.pyomo_model.varDeviceFlow[dev, "oil", "out", t]
+            + self.pyomo_model.varDeviceFlow[dev, "gas", "out", t]
+            - self.pyomo_model.varDeviceFlow[dev, "gas", "in", t]
+            + self.pyomo_model.varDeviceFlow[dev, "water", "out", t]
+        )
         return flow

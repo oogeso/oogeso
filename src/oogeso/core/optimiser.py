@@ -298,7 +298,11 @@ class Optimiser:
             dev.setInitValues()
 
         # Keep track of duals:
+        # WARNING:
+        # From Gurobi: "Shadow prices are not well-defined in mixed-integer
+        # problems, so we don't provide dual values for an integer program."
         model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+
         return model
 
     def _specifyConstraints(self):
@@ -681,9 +685,8 @@ class Optimiser:
                 devs.append(d)
         return devs
 
-    def write(self,filename:str):
+    def write(self, filename: str):
         """Export optimisation problem to MPS or LP file"""
         self.pyomo_instance.write(
-            filename = filename, 
-            io_options = {"symbolic_solver_labels":True}
+            filename=filename, io_options={"symbolic_solver_labels": True}
         )
