@@ -89,7 +89,7 @@ class Pump_oil(_PumpDevice):
     "Oil pump"
     carrier_in = ["oil", "el"]
     carrier_out = ["oil"]
-    serial = ["el"]
+    serial = ["oil"]
 
 
 class Pump_wellstream(_PumpDevice):
