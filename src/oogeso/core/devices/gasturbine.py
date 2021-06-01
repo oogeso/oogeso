@@ -10,6 +10,18 @@ class Gasturbine(Device):
     carrier_out = ["el", "heat"]
     serial = []
 
+    # def __init__(self, data):
+    #    super().__init__()
+
+    # def setInitValues(self):
+    #     """Initial value in pyomo optimisation model"""
+    #     dev_id = self.dev_id
+    #     pyomo_model = self.pyomo_model
+    #     if self.isOn_init is not None:
+    #         pyomo_model.paramDeviceIsOnInitially[dev_id] = self.isOn_init
+    #     if "P_init" in dev_data:
+    #         pyomo_model.paramDevicePowerInitially[dev_id] = dev_data["P_init"]
+
     # overriding generic Pmax constraint because of start/stop logic
     # for gas turbine generators:
     def _rule_devicePmax(self, model, t):

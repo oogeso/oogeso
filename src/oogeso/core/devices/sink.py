@@ -9,11 +9,6 @@ class Sink_el(Device):
     carrier_out = []
     serial = []
 
-    def defineConstraints(self):
-        """Specifies the list of constraints for the device"""
-        super().defineConstraints()
-        # no additional constraints
-
     def getPowerVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "in", t]
 
@@ -23,12 +18,6 @@ class Sink_heat(Device):
     carrier_in = ["heat"]
     carrier_out = []
     serial = []
-
-    def defineConstraints(self):
-        """Specifies the list of constraints for the device"""
-
-        super().defineConstraints()
-        # no additional constraints
 
     def getPowerVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.dev_id, "heat", "in", t]
@@ -40,11 +29,6 @@ class Sink_gas(Device):
     carrier_out = []
     serial = []
 
-    def defineConstraints(self):
-        """Specifies the list of constraints for the device"""
-        super().defineConstraints()
-        # no additioanl constraints
-
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.dev_id, "gas", "in", t]
 
@@ -54,11 +38,6 @@ class Sink_oil(Device):
     carrier_in = ["oil"]
     carrier_out = []
     serial = []
-
-    def defineConstraints(self):
-        """Specifies the list of constraints for the device"""
-        super().defineConstraints()
-        # no additional constraints
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.dev_id, "oil", "in", t]

@@ -5,15 +5,10 @@ import logging
 class Device:
     "Parent class from which all device types derive"
 
-    # Define common fields and methods
-    dev_id = None
-    params = {}
+    # Common class parameters:
     carrier_in = []
     carrier_out = []
     serial = []
-    dev_constraints = None
-    pyomo_model = None
-    optimiser = None  # Oogeso optimiser object
 
     def __init__(self, pyomo_model, dev_id, dev_data, optimiser):
         """Device object constructor"""
@@ -21,8 +16,11 @@ class Device:
         self.pyomo_model = pyomo_model
         self.params = dev_data
         self.optimiser = optimiser
+        self.dev_constraints = None
 
     def setInitValues(self):
+        # Method invoked to specify optimisation problem initial value parameters
+        # TODO: move this to each subclass instead
         dev_id = self.dev_id
         pyomo_model = self.pyomo_model
         dev_data = self.params
@@ -205,9 +203,6 @@ class Device:
                         volumefactor = 1 / 1000  # Sm3 to Sm3oe
                     sumValue += inflow * volumefactor
         return sumValue
-
-    # computeStartupCosts(...)
-    # computeOperatingCosts(...)
 
     def compute_elReserve(self, t):
         """Compute available reserve power from this device

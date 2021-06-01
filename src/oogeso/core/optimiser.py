@@ -10,20 +10,21 @@ from .networks import electricalsystem as el_calc
 class Optimiser:
     """Class for MILP optimisation model"""
 
-    # dictionaries {key:object} for all devices, nodes and edges
-    all_devices = {}
-    all_nodes = {}
-    all_edges = {}
-    all_carriers = {}
-    optimisation_parameters = {}
-    pyomo_instance = None
-    # List of constraints that need to be reconstructed for each optimisation:
-    constraints_to_reconstruct = []
-    # List of devices with storage
-    devices_with_storage = []
-
     def __init__(self, data):
         """Create optimisation problem formulation with supplied data"""
+
+        # dictionaries {key:object} for all devices, nodes and edges
+        self.all_devices = {}
+        self.all_nodes = {}
+        self.all_edges = {}
+        self.all_carriers = {}
+        self.optimisation_parameters = {}
+        self.pyomo_instance = None
+        # List of constraints that need to be reconstructed for each optimisation:
+        self.constraints_to_reconstruct = []
+        # List of devices with storage
+        self.devices_with_storage = []
+
         # raise NotImplementedError()
         self.pyomo_instance = self.createOptimisationModel(data)
         self._setNodePressureFromEdgeData()
@@ -134,6 +135,7 @@ class Optimiser:
                 device_model = dev_data["model"]
                 # The class corresponding to the device type should always have a
                 # name identical to the type (but capitalized):
+                logging.debug("Device model={}".format(device_model))
                 Devclass = getattr(devices, device_model.capitalize())
                 newDevice = Devclass(model, dev_id, dev_data, self)
                 self.all_devices[dev_id] = newDevice
@@ -275,6 +277,15 @@ class Optimiser:
         )
         model.varTerminalFlow = pyo.Var(
             model.setNode, model.setCarrier, model.setHorizon, within=pyo.Reals
+        )
+        # this penalty variable should only require (device,time), but the
+        # piecewise constraint requires the domain to be the same as for varDeviceFlow
+        model.varDevicePenalty = pyo.Var(
+            model.setDevice,
+            model.setCarrier,
+            model.setTerminal,
+            model.setHorizon,
+            within=pyo.Reals,
         )
 
         # specify objective:

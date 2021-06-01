@@ -1,0 +1,87 @@
+{
+  "parameters": {
+    "objective": "exportRevenue",
+    "time_delta_minutes": 30,
+    "planning_horizon": 12,
+    "optimisation_timesteps": 6,
+    "forecast_timesteps": 6,
+    "time_reserve_minutes": 30,
+    "co2_tax": 30,
+    "el_reserve_margin": -1,
+    "max_pressure_deviation": -1,
+    "reference_node": "node1",
+    "el_backup_margin": -1,
+    "emission_intensity_max": -1,
+    "emission_rate_max": -1
+  },
+  "carriers": [
+    {
+      "id": "el"
+    },
+    {
+      "id": "heat"
+    },
+    {
+      "id": "gas",
+      "CO2content": 0.4,
+      "G_gravity": 0.6,
+      "Pb_basepressure_MPa": 100,
+      "R_individual_gas_constant": 9,
+      "Tb_basetemp_K": 300,
+      "Z_compressibility": 0.9,
+      "energy_value": 40,
+      "k_heat_capacity_ratio": 0.7,
+      "rho_density": 0.6,
+      "pressure_method": "weymouth"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node1",
+      "maxdeviation_pressure": {}
+    },
+    {
+      "id": "node2",
+      "maxdeviation_pressure": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge2",
+      "node_from": "node1",
+      "node_to": "node2",
+      "length_km": 10,
+      "include": true,
+      "model": "el",
+      "resistance": 1,
+      "reactance": 1,
+      "voltage": 33,
+      "p_max": 500,
+      "power_loss_function": null,
+      "directional": false
+    }
+  ],
+  "devices": [
+    {
+      "id": "elsource",
+      "node_id": "node1",
+      "include": true,
+      "model": "generic",
+      "profile": null,
+      "params": {
+        "model": "source_el",
+        "Pmax": 500
+      }
+    },
+    {
+      "id": "gt1",
+      "node_id": "node2",
+      "include": true,
+      "model": "powersource",
+      "profile": null,
+      "power_to_penalty_data": null,
+      "p_max": null,
+      "p_min": null
+    }
+  ]
+}
