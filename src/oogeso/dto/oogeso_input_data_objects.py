@@ -134,6 +134,7 @@ class EdgeElData(EdgeData):
 @dataclass
 class EdgeHeatData(EdgeData):
     p_max: Optional[float] = None
+    power_loss_function: Optional[Tuple[List[float], List[float]]] = None
 
 
 @dataclass
@@ -157,7 +158,7 @@ class CarrierData:
 
 @dataclass
 class CarrierElData(CarrierData):
-    pass
+    powerflow_method: str = "dc_pf"  # "transport","dc_pf","ac_pf"
 
 
 @dataclass
@@ -227,7 +228,7 @@ class OptimisationParametersData:
     co2_tax: float  # currency/kgCO2
     el_reserve_margin: float  # MWm -1=no limit
     max_pressure_deviation: float  # global limit for allowable relative pressure deviation from nominal
-    reference_node: str  # id of node used for electrical voltage angle
+    reference_node: str  # id of node used as reference for electrical voltage angle
     el_backup_margin: Optional[float] = -1  # MW, -1=no limit
     emission_intensity_max: Optional[float] = -1  # kgCO2/Sm3oe, -1=no limit
     emission_rate_max: Optional[float] = -1  # kgCO2/hour, -1=no limit
@@ -366,7 +367,10 @@ energy_system = EnergySystemData(
         DeviceGenericData(
             id="elsource", node_id="node1", params={"model": "source_el", "Pmax": 500}
         ),
-        DevicePowersourceData(id="gt1", node_id="node2",),
+        DevicePowersourceData(
+            id="gt1",
+            node_id="node2",
+        ),
     ],
     parameters=OptimisationParametersData(
         time_delta_minutes=30,
