@@ -33,9 +33,16 @@ class NodeData:
 class DeviceData:  # Parent class - use subclasses instead
     id: str
     node_id: str
+    name: str = ""
     include: Optional[bool] = True
-    model: str = field(init=False)
     profile: Optional[str] = None  # reference to time-series
+    flow_min: Optional[float] = None  # Energy or fluid flow limit
+    flow_max: Optional[float] = None
+    max_ramp_down: Optional[float] = None
+    max_ramp_up: Optional[float] = None
+    reserve_factor: float = 0  # contribution to electrical spinning reserve
+    op_cost: Optional[float] = None
+    model: str = field(init=False)  # model name is derived from class name
 
     def __post_init__(self):
         # Model name is given by class name. Eg "gasturbine" <-> "DeviceGasturbineData"
@@ -45,25 +52,18 @@ class DeviceData:  # Parent class - use subclasses instead
 
 
 @dataclass
-class DeviceGenericData(DeviceData):
-    # TODO: Replace generic "params" dictionary with the actual parameters used by the various device types
-    params: Dict = field(
-        default_factory=lambda: {}
-    )  # key:value pairs, depending on device model
-
-
-@dataclass
 class DevicePowersourceData(DeviceData):
     power_to_penalty_data: Tuple[
         List[float], List[float]
     ] = None  # Penalty may be fuel, emissions, cost and combinations of these
-    p_max: float = None  # MW, lowr limit for el output
-    p_min: float = None  # MW, lower limit for el output
+    reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
 @dataclass
 class DeviceSource_elData(DeviceData):
     co2em: Optional[float] = None
+    op_cost: Optional[float] = None
+    reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
 @dataclass
@@ -88,20 +88,118 @@ class DeviceSink_heatData(DeviceData):
 
 @dataclass
 class DeviceSink_gasData(DeviceData):
-    pass
+    price: field(default_factory=lambda: {}) = None
 
 
 @dataclass
 class DeviceSink_oilData(DeviceData):
-    pass
+    price: field(default_factory=lambda: {}) = None
 
 
 @dataclass
 class DeviceSink_waterData(DeviceData):
-    avg_flow: Optional[float] = None  # required average flow
+    price: field(default_factory=lambda: {}) = None
+    flow_avg: Optional[float] = None  # required average flow
     max_accumulated_deviation: Optional[
         float
     ] = None  # buffer size (max accumulated deviation from average)
+
+
+@dataclass
+class DeviceCompressor_elData(DeviceData):
+    eta: float = None  # efficiency
+    Q0: float = None  # nominal flow rate used in linearisation
+    temp_in: float = None  # inlet temperature
+
+
+@dataclass
+class DeviceCompressor_gasData(DeviceData):
+    eta: float = None  # efficiency
+    Q0: float = None  # nominal flow rate used in linearisation
+    temp_in: float = None  # inlet temperature
+
+
+@dataclass
+class DeviceElectrolyserData(DeviceData):
+    eta: float = None  # efficiency
+
+
+@dataclass
+class DeviceFuelcellData(DeviceData):
+    eta: float = None  # efficiency
+    eta_heat: float = None  # heat recovery efficiency
+
+
+@dataclass
+class DeviceGasheaterData(DeviceData):
+    pass
+
+
+@dataclass
+class DeviceGasturbineData(DeviceData):
+    fuel_A: float = None
+    fuel_B: float = None
+    eta_heat: float = None
+    is_on_init: bool = False
+    startup_cost: float = None
+    startup_delay: float = None  # Minutes from activation to power delivery
+    shutdown_cost: float = None
+    reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
+
+
+@dataclass
+class DeviceHeatpumpData(DeviceData):
+    pass
+
+
+@dataclass
+class DevicePump_oilData(DeviceData):
+    eta: float = None  # efficiency
+
+
+@dataclass
+class DevicePump_waterData(DeviceData):
+    eta: float = None
+
+
+@dataclass
+class DeviceSeparatorData(DeviceData):
+    el_demand_factor: float = None  # electricity demand factor
+    heat_demand_factor: float = None  # heat demand factor
+
+
+@dataclass
+class DeviceSeparator2Data(DeviceData):
+    el_demand_factor: float = None  # electricity demand factor
+    heat_demand_factor: float = None  # heat demand factor
+
+
+@dataclass
+class DeviceStorage_elData(DeviceData):
+    max_E: float = 0  # MWh storage capacity
+    eta: float = 1  # efficiency
+    target_profile: Optional[str] = None
+
+
+@dataclass
+class DeviceStorage_hydrogenData(DeviceData):
+    max_E: float = 0  # MWh storage capacity
+    eta: float = 1  # efficiency
+    target_profile: Optional[str] = None  # target profile for use of (seasonal) storage
+
+
+@dataclass
+class DeviceWell_productionData(DeviceData):
+    wellhead_pressure: float = None  # 2 # MPa
+
+
+@dataclass
+class DeviceWell_gasliftData(DeviceData):
+    gas_oil_ratio: float = None  # 500
+    water_cut: float = None  # 0.6
+    f_inj: float = None  # 220 # gas injection rate as fraction of production rate
+    injection_pressure: float = None  # 20 # MPa
+    separator_pressure: float = None  # 2 # MPa
 
 
 @dataclass
@@ -110,6 +208,8 @@ class EdgeData:
     node_from: str
     node_to: str
     length_km: float
+    flow_max: float = None  # Maximum flow (MW or Sm3/s)
+    bidirectional: Optional[bool] = True
     include: bool = True  # whether to include object in problem formulation
     model: str = field(init=False)
 
@@ -122,33 +222,51 @@ class EdgeData:
 class EdgeElData(EdgeData):
     resistance: float = 0  # ohm per km
     reactance: float = 0  # ohm per km
-    voltage: float = Union[float, Tuple]
-    p_max: Optional[float] = None
+    # Voltage for line (single value) or transformer (tuple)
+    voltage: Union[float, Tuple] = None  # kV.
     power_loss_function: Optional[Tuple[List[float], List[float]]] = None
-    # field(
-    #    default_factory=lambda: ([0, 1], [0, 0])
-    # )
-    directional: Optional[bool] = False
 
 
 @dataclass
 class EdgeHeatData(EdgeData):
-    p_max: Optional[float] = None
     power_loss_function: Optional[Tuple[List[float], List[float]]] = None
 
 
 @dataclass
 class EdgeHydrogenData(EdgeData):
-    q_max: Optional[float] = None
+    bidirectional: bool = False
 
 
 @dataclass
 class EdgeFluidData(EdgeData):
+    # wellstream, oil, water, gas
     pressure_from: float = None
     pressure_to: float = None
     diameter_mm: float = None
     temperature_K: float = None
-    q_max: Optional[float] = None
+    height_m: float = 0
+    num_pipes: Optional[int] = None
+    bidirectional: bool = False
+
+
+@dataclass
+class EdgeGasData(EdgeFluidData):
+    pass
+
+
+@dataclass
+class EdgeOilData(EdgeFluidData):
+    pass
+
+
+@dataclass
+class EdgeWellstreamData(EdgeFluidData):
+    pass
+
+
+@dataclass
+class EdgeWaterData(EdgeFluidData):
+    pass
 
 
 @dataclass
@@ -158,7 +276,7 @@ class CarrierData:
 
 @dataclass
 class CarrierElData(CarrierData):
-    powerflow_method: str = "dc_pf"  # "transport","dc_pf","ac_pf"
+    powerflow_method: str = "dc_pf"  # "transport","dc_pf"
 
 
 @dataclass
@@ -173,7 +291,7 @@ class CarrierHydrogenData(CarrierData):
 
 @dataclass
 class CarrierGasData(CarrierData):
-    CO2content: float  # kg/Sm3 - see SSB 2016 report -> 2.34 kg/Sm3
+    co2_content: float  # kg/Sm3 - see SSB 2016 report -> 2.34 kg/Sm3
     G_gravity: float  # 0.6
     Pb_basepressure_MPa: float  # MPa -> 0.101 # MPa
     R_individual_gas_constant: float  # J/(kg K) -> 500 J/kgK
@@ -182,39 +300,33 @@ class CarrierGasData(CarrierData):
     energy_value: float  # MJ/Sm3 (calorific value) -> 40 MJ/Sm3
     k_heat_capacity_ratio: float  # 1.27
     rho_density: float  # kg/m3 -> 0.84 kg/m3
-    pressure_method: Optional[
-        str
-    ] = "weymouth"  # method used for pipe pressure drop calculation
+    pressure_method: Optional[str] = "weymouth"  # pressure drop calculation
 
 
 @dataclass
 class CarrierWellstreamData(CarrierData):
-    darcy_friction: float  # 0.02
-    rho_density: float  # kg/m3 -> 900 kg/m3
-    viscosity: float  # kg/(m s) -> 0.0026 kg/(m s)
-    pressure_method: Optional[
-        str
-    ] = "darcy-weissbach"  # method used for pipe pressure drop calculation
+    darcy_friction: float = None  # 0.02
+    rho_density: float = None  # kg/m3 -> 900 kg/m3
+    viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
+    pressure_method: Optional[str] = None
+    water_cut: float = None
+    gas_oil_ratio: float = None
 
 
 @dataclass
 class CarrierOilData(CarrierData):
-    darcy_friction: float  # 0.02
-    rho_density: float  # kg/m3 -> 900 kg/m3
-    viscosity: float  # kg/(m s) -> 0.0026 kg/(m s)
-    pressure_method: Optional[
-        str
-    ] = "darcy-weissbach"  # method used for pipe pressure drop calculation
+    darcy_friction: float = None  # 0.02
+    rho_density: float = None  # kg/m3 -> 900 kg/m3
+    viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
+    pressure_method: Optional[str] = "darcy-weissbach"  # pressure drop calculation
 
 
 @dataclass
 class CarrierWaterData(CarrierData):
-    darcy_friction: float  # 0.02
-    rho_density: float  # kg/m3 -> 900 kg/m3
-    viscosity: float  # kg/(m s) -> 0.0026 kg/(m s)
-    pressure_method: Optional[
-        str
-    ] = "darcy-weissbach"  # method used for pipe pressure drop calculation
+    darcy_friction: float = None  # 0.02
+    rho_density: float = None  # kg/m3 -> 900 kg/m3
+    viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
+    pressure_method: Optional[str] = "darcy-weissbach"  # pressure drop calculation
 
 
 @dataclass
@@ -228,7 +340,7 @@ class OptimisationParametersData:
     co2_tax: float  # currency/kgCO2
     el_reserve_margin: float  # MWm -1=no limit
     max_pressure_deviation: float  # global limit for allowable relative pressure deviation from nominal
-    reference_node: str  # id of node used as reference for electrical voltage angle
+    reference_node: str = None  # node used as reference for electrical voltage angle
     el_backup_margin: Optional[float] = -1  # MW, -1=no limit
     emission_intensity_max: Optional[float] = -1  # kgCO2/Sm3oe, -1=no limit
     emission_rate_max: Optional[float] = -1  # kgCO2/hour, -1=no limit
@@ -240,7 +352,7 @@ class EnergySystemData:
     carriers: List[CarrierData]
     nodes: List[NodeData]
     edges: List[EdgeData]
-    devices: List[DeviceData]
+    devices: Dict[str, DeviceData]
 
 
 # Serialize (save to file)
@@ -281,7 +393,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
     def object_hook(self, dct):
         nodes = []
         edges = []
-        devs = []
+        devs = {}
         carriers = []
         if "nodes" in dct:
             # Top level
@@ -294,7 +406,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
             for n in dct["edges"]:
                 edges.append(self._newEdge(n))
             for n in dct["devices"]:
-                devs.append(self._newDevice(n))
+                devs[n["id"]] = self._newDevice(n)
             energy_system_data = EnergySystemData(
                 carriers=carriers,
                 nodes=nodes,
@@ -317,7 +429,7 @@ def serialize_oogeso_data(energy_system_data: EnergySystemData):
 
 
 def deserialize_oogeso_data(json_data):
-    energy_system_data = json.loads(json_data, cls=DataclassJSONEncoder)
+    energy_system_data = json.loads(json_data, cls=DataclassJSONDecoder)
     return energy_system_data
 
 
@@ -328,7 +440,7 @@ energy_system = EnergySystemData(
         CarrierHeatData("heat"),
         CarrierGasData(
             "gas",
-            CO2content=0.4,
+            co2_content=0.4,
             G_gravity=0.6,
             Pb_basepressure_MPa=100,
             R_individual_gas_constant=9,
@@ -345,7 +457,7 @@ energy_system = EnergySystemData(
             id="edge1",
             node_from="node1",
             node_to="node2",
-            p_max=500,
+            flow_max=500,
             reactance=1,
             resistance=1,
             voltage=33,
@@ -355,7 +467,7 @@ energy_system = EnergySystemData(
             id="edge2",
             node_from="node2",
             node_to="node1",
-            p_max=50,
+            flow_max=50,
             voltage=33,
             length_km=10,
             # reactance=1,
@@ -363,15 +475,10 @@ energy_system = EnergySystemData(
             power_loss_function=([0, 1], [0, 0.02]),
         ),
     ],
-    devices=[
-        DeviceGenericData(
-            id="elsource", node_id="node1", params={"model": "source_el", "Pmax": 500}
-        ),
-        DevicePowersourceData(
-            id="gt1",
-            node_id="node2",
-        ),
-    ],
+    devices={
+        "elsource": DeviceSource_elData(id="elsource", node_id="node1", flow_max=12),
+        "gt1": DevicePowersourceData(id="gt1", node_id="node2", flow_max=30),
+    },
     parameters=OptimisationParametersData(
         time_delta_minutes=30,
         planning_horizon=12,
@@ -386,9 +493,11 @@ energy_system = EnergySystemData(
     ),
 )
 
-print("Serializing example data and saving to file (examples/energysystem.json)")
-# serialized = serialize_oogeso_data(energy_system)
-# print(serialized)
 
-with open("examples/energysystem.json", "w") as outfile:
-    json.dump(energy_system, fp=outfile, cls=DataclassJSONEncoder, indent=2)
+if __name__ == "__main__":
+    print("Serializing example data and saving to file (examples/energysystem.json)")
+    # serialized = serialize_oogeso_data(energy_system)
+    # print(serialized)
+
+    with open("examples/energysystem.json", "w") as outfile:
+        json.dump(energy_system, fp=outfile, cls=DataclassJSONEncoder, indent=2)
