@@ -100,7 +100,7 @@ devices:
     profile: curve_wind
 
   - id: battery
-    max_E: 4
+    E_max: 4
     flow_max: 4
     eta: 0.9
     include: 0

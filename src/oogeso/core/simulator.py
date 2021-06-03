@@ -192,7 +192,7 @@ class Simulator:
             # store_duals = {
             #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}
             #   }
-            horizon_steps = self.optimiser.optimisation_parameters["planning_horizon"]
+            horizon_steps = self.optimiser.optimisation_parameters.planning_horizon
             if self._dfDuals is None:
                 self._dfDuals = pd.DataFrame(columns=store_duals.keys())
             for key, val in store_duals.items():

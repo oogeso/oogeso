@@ -176,16 +176,21 @@ class DeviceSeparator2Data(DeviceData):
 
 @dataclass
 class DeviceStorage_elData(DeviceData):
-    max_E: float = 0  # MWh storage capacity
+    E_max: float = 0  # MWh storage capacity
+    E_min: float = 0
+    E_end: Optional[float] = None  # required storage level at end of horzion
+    E_cost: Optional[float] = None  # cost for non-ful storage
     eta: float = 1  # efficiency
     target_profile: Optional[str] = None
 
 
 @dataclass
 class DeviceStorage_hydrogenData(DeviceData):
-    max_E: float = 0  # MWh storage capacity
+    E_max: float = 0  # MWh storage capacity (maximum stored energy)
+    E_min: float = 0
     eta: float = 1  # efficiency
     target_profile: Optional[str] = None  # target profile for use of (seasonal) storage
+    E_cost: float = 0  # cost for depleting storage
 
 
 @dataclass
