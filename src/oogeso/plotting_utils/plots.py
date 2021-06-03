@@ -812,12 +812,13 @@ def plotNetwork(
                         simulator._dfTerminalPressure[(n_id, carrier, "out", timestep)]
                     )
                 elif carrier == "el":
-                    label_in += numberformat.format(
-                        simulator._dfElVoltageAngle[(n_id, timestep)]
-                    )
-                    label_out += numberformat.format(
-                        simulator._dfElVoltageAngle[(n_id, timestep)]
-                    )
+                    if optimiser.all_carriers["el"].powerflow_method == "dc-pf":
+                        label_in += numberformat.format(
+                            simulator._dfElVoltageAngle[(n_id, timestep)]
+                        )
+                        label_out += numberformat.format(
+                            simulator._dfElVoltageAngle[(n_id, timestep)]
+                        )
                 # Add two terminals if there are serial devices, otherwise one:
                 if carrier in node_obj.devices_serial:
                     terms_in.add_node(
