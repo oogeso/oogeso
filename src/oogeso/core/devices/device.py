@@ -10,35 +10,34 @@ class Device:
     carrier_out = []
     serial = []
 
-    def __init__(self, pyomo_model, dev_id, dev_data, optimiser):
+    def __init__(self, pyomo_model, optimiser, dev_data):
         """Device object constructor"""
-        self.dev_id = dev_id
+        self.dev_data = dev_data
+        self.id = dev_data.id
         self.pyomo_model = pyomo_model
-        self.params = dev_data
         self.optimiser = optimiser
         self.dev_constraints = None
 
     def setInitValues(self):
         # Method invoked to specify optimisation problem initial value parameters
         # TODO: move this to each subclass instead
-        dev_id = self.dev_id
+        dev_id = self.id
         pyomo_model = self.pyomo_model
-        dev_data = self.params
-        if "E_init" in dev_data:
-            pyomo_model.paramDeviceEnergyInitially[dev_id] = dev_data["E_init"]
-        if "isOn_init" in dev_data:
-            pyomo_model.paramDeviceIsOnInitially[dev_id] = dev_data["isOn_init"]
-        if "P_init" in dev_data:
-            pyomo_model.paramDevicePowerInitially[dev_id] = dev_data["P_init"]
+        dev_data = self.dev_data
+        if hasattr(dev_data, "E_init"):
+            pyomo_model.paramDeviceEnergyInitially[dev_id] = dev_data.E_init
+        if hasattr(dev_data, "isOn_init"):
+            pyomo_model.paramDeviceIsOnInitially[dev_id] = dev_data.isOn_init
+        if hasattr(dev_data, "P_init"):
+            pyomo_model.paramDevicePowerInitially[dev_id] = dev_data.P_init
 
     def _rule_devicePmax(self, model, t):
-        # max/min power (zero if device is not on)
-        maxValue = self.params["Pmax"]
-        if "profile" in self.params:
+        maxValue = self.dev_data.flow_max
+        if self.dev_data.profile is not None:
             # use an availability profile if provided
-            extprofile = self.params["profile"]
+            extprofile = self.dev_data.profile
             maxValue = maxValue * model.paramProfiles[extprofile, t]
-        power = self.getPowerVar(t)
+        power = self.getFlowVar(t)
         if power is not None:
             expr = power <= maxValue
         else:
@@ -46,60 +45,37 @@ class Device:
         return expr
 
     def _rule_devicePmin(self, model, t):
-        params_dev = self.params
-        minValue = params_dev["Pmin"]
-        if "profile" in params_dev:
+        minValue = self.dev_data.flow_min
+        if self.dev_data.profile is not None:
             # use an availability profile if provided
-            extprofile = params_dev["profile"]
+            extprofile = self.dev_data.profile
             minValue = minValue * model.paramProfiles[extprofile, t]
-        power = self.getPowerVar(t)
+        power = self.getFlowVar(t)
         if power is not None:
             expr = power >= minValue
         else:
             expr = pyo.Constraint.Skip
         return expr
 
-    def _rule_deviceQmax(self, model, t):
-        params_dev = self.params
-        maxValue = params_dev["Qmax"]
-        if "profile" in params_dev:
-            # use an availability profile if provided
-            extprofile = params_dev["profile"]
-            maxValue = maxValue * model.paramProfiles[extprofile, t]
-        flow = self.getFlowVar(t)
-        expr = flow <= maxValue
-        return expr
-
-    def _rule_deviceQmin(self, model, t):
-        params_dev = self.params
-        minValue = params_dev["Qmin"]
-        if "profile" in params_dev:
-            # use an availability profile if provided
-            extprofile = params_dev["profile"]
-            minValue = minValue * model.paramProfiles[extprofile, t]
-        flow = self.getFlowVar(t)
-        expr = flow >= minValue
-        return expr
-
     def _rule_ramprate(self, model, t):
         """power ramp rate limit"""
-        dev = self.dev_id
-        param_dev = self.params
+        dev = self.id
+        dev_data = self.dev_data
         param_generic = self.optimiser.optimisation_parameters
 
         # If no ramp limits have been specified, skip constraint
-        if "maxRampUp" not in param_dev:
+        if self.dev_data.max_ramp_up is None:
             return pyo.Constraint.Skip
         if t > 0:
-            p_prev = self.getPowerVar(t - 1)
+            p_prev = self.getFlowVar(t - 1)
         else:
             p_prev = model.paramDevicePowerInitially[dev]
-        p_this = self.getPowerVar(t)
-        deltaP = self.getPowerVar(t) - p_prev
-        delta_t = param_generic["time_delta_minutes"]
-        maxP = param_dev["Pmax"]
-        max_neg = -param_dev["maxRampDown"] * maxP * delta_t
-        max_pos = param_dev["maxRampUp"] * maxP * delta_t
+        p_this = self.getFlowVar(t)
+        deltaP = p_this - p_prev
+        delta_t = param_generic.time_delta_minutes
+        maxP = dev_data.flow_max
+        max_neg = -dev_data.max_ramp_down * maxP * delta_t
+        max_pos = dev_data.max_ramp_up * maxP * delta_t
         expr = pyo.inequality(max_neg, deltaP, max_pos)
         return expr
 
@@ -108,66 +84,64 @@ class Device:
 
         # Generic constraints common for all device types:
 
-        if "Pmax" in self.params:
+        if self.dev_data.flow_max is not None:
             constrDevicePmax = pyo.Constraint(
                 self.pyomo_model.setHorizon, rule=self._rule_devicePmax
             )
             setattr(
                 self.pyomo_model,
-                "constr_{}_{}".format(self.dev_id, "Pmax"),
+                "constr_{}_{}".format(self.id, "Pmax"),
                 constrDevicePmax,
             )
-        if "Pmin" in self.params:
+        if self.dev_data.flow_min is not None:
             constrDevicePmin = pyo.Constraint(
                 self.pyomo_model.setHorizon, rule=self._rule_devicePmin
             )
             setattr(
                 self.pyomo_model,
-                "constr_{}_{}".format(self.dev_id, "Pmin"),
+                "constr_{}_{}".format(self.id, "Pmin"),
                 constrDevicePmin,
             )
-        if "Qmax" in self.params:
-            constrDeviceQmax = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_deviceQmax
-            )
-            setattr(
-                self.pyomo_model,
-                "constr_{}_{}".format(self.dev_id, "Qmax"),
-                constrDeviceQmax,
-            )
-        if "Qmin" in self.params:
-            constrDeviceQmin = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_deviceQmin
-            )
-            setattr(
-                self.pyomo_model,
-                "constr_{}_{}".format(self.dev_id, "Qmin"),
-                constrDeviceQmin,
-            )
+        # if "Qmax" in self.params:
+        #     constrDeviceQmax = pyo.Constraint(
+        #         self.pyomo_model.setHorizon, rule=self._rule_deviceQmax
+        #     )
+        #     setattr(
+        #         self.pyomo_model,
+        #         "constr_{}_{}".format(self.id, "Qmax"),
+        #         constrDeviceQmax,
+        #     )
+        # if "Qmin" in self.params:
+        #     constrDeviceQmin = pyo.Constraint(
+        #         self.pyomo_model.setHorizon, rule=self._rule_deviceQmin
+        #     )
+        #     setattr(
+        #         self.pyomo_model,
+        #         "constr_{}_{}".format(self.id, "Qmin"),
+        #         constrDeviceQmin,
+        #     )
 
-        if "maxRampUp" in self.params:
+        if (self.dev_data.max_ramp_up is not None) or (
+            self.dev_data.max_ramp_down is not None
+        ):
             constrDevice_ramprate = pyo.Constraint(
                 self.pyomo_model.setHorizon, rule=self._rule_ramprate
             )
             setattr(
                 self.pyomo_model,
-                "constr_{}_{}".format(self.dev_id, "ramprate"),
+                "constr_{}_{}".format(self.id, "ramprate"),
                 constrDevice_ramprate,
             )
 
-    def getPowerVar(self, t):
-        logging.error("Device: no getPowerVar defined for {}".format(self.dev_id))
-        raise NotImplementedError()
-
     def getFlowVar(self, t):
-        logging.error("Device: no getFlowVar defined for {}".format(self.dev_id))
+        logging.error("Device: no getFlowVar defined for {}".format(self.id))
         raise NotImplementedError()
 
     def getMaxP(self, t):
         model = self.pyomo_model
-        maxValue = self.params["Pmax"]
-        if "profile" in self.params:
-            extprofile = self.params["profile"]
+        maxValue = self.dev_data.flow_max
+        if self.dev_data.profile is not None:
+            extprofile = self.dev_data.profile
             maxValue = maxValue * model.paramProfiles[extprofile, t]
         return maxValue
 
@@ -187,21 +161,23 @@ class Device:
         carriers_in = self.carrier_in
         carriers_incl = [v for v in carriers if v in carriers_in]
         sumValue = 0
-        for c in carriers_incl:
+        if not hasattr(self.dev_data, "price"):
+            return 0
+        for carrier in carriers_incl:
             # flow in m3/s, price in $/m3
-            price_param = "price.{}".format(c)
-            if price_param in self.params:
-                inflow = sum(
-                    self.pyomo_model.varDeviceFlow[self.dev_id, c, "in", t]
-                    for t in timesteps
-                )
-                if value == "revenue":
-                    sumValue += inflow * self.params[price_param]
-                elif value == "volume":
-                    volumefactor = 1
-                    if c == "gas":
-                        volumefactor = 1 / 1000  # Sm3 to Sm3oe
-                    sumValue += inflow * volumefactor
+            if self.dev_data.price is not None:
+                if carrier in self.dev_data.price:
+                    inflow = sum(
+                        self.pyomo_model.varDeviceFlow[self.id, carrier, "in", t]
+                        for t in timesteps
+                    )
+                    if value == "revenue":
+                        sumValue += inflow * self.dev_data.price[carrier]
+                    elif value == "volume":
+                        volumefactor = 1
+                        if carrier == "gas":
+                            volumefactor = 1 / 1000  # Sm3 to Sm3oe
+                        sumValue += inflow * volumefactor
         return sumValue
 
     def compute_elReserve(self, t):
@@ -218,24 +194,24 @@ class Device:
         if "el" in self.carrier_out:
             # Generators and storage
             maxValue = self.getMaxP(t)
-            if "reserve_factor" in self.params:
+            if self.dev_data.reserve_factor is not None:
                 # safety margin - only count a part of the forecast power
                 # towards the reserve, relevant for wind power
                 # (equivalently, this may be seen as increaseing the
                 # reserve margin requirement)
-                reserve_factor = self.params["reserve_factor"]
+                reserve_factor = self.dev_data.reserve_factor
                 maxValue = maxValue * reserve_factor
                 if reserve_factor == 0:
                     # no reserve contribution
                     rf = 0
             cap_avail = rf * maxValue
-            p_generating = rf * model.varDeviceFlow[self.dev_id, "el", "out", t]
+            p_generating = rf * model.varDeviceFlow[self.id, "el", "out", t]
         elif "el" in self.carrier_in:
             # Loads (only consider if resere factor has been set)
-            if "reserve_factor" in self.params:
+            if self.dev_data.reserve_factor is not None:
                 # load reduction possible
-                f_lr = self.params["reserve_factor"]
-                loadreduction = f_lr * model.varDeviceFlow[self.dev_id, "el", "in", t]
+                f_lr = self.dev_data.reserve_factor
+                loadreduction = f_lr * model.varDeviceFlow[self.id, "el", "in", t]
         reserve = {
             "capacity_available": cap_avail,
             "capacity_used": p_generating,
@@ -250,10 +226,10 @@ class Device:
     def compute_operatingCosts(self, timesteps):
         """average operating cost within selected timespan"""
         sumCost = 0
-        if "opCost" in self.params:
-            opcost = self.params["opCost"]
+        if self.dev_data.op_cost is not None:
+            opcost = self.dev_data.op_cost
             for t in self.pyomo_model.setHorizon:
-                varP = self.getPowerVar(t)
+                varP = self.getFlowVar(t)
                 sumCost += opcost * varP
         # average per sec (simulation timestep drops out)
         avgCost = sumCost / len(timesteps)
@@ -265,7 +241,7 @@ class Device:
     def getProfile(self):
         """Get device profile as list of values, or None if no profile is used"""
         profile = None
-        if "profile" in self.params:
-            prof_id = self.params["profile"]
+        if self.dev_data.profile is not None:
+            prof_id = self.dev_data.profile
             profile = self.pyomo_model.paramProfiles[prof_id, :].value
         return profile

@@ -4,6 +4,8 @@ import yaml
 import pandas as pd
 import numpy as np
 import logging
+from ..dto import oogeso_input_data_objects as io_obj
+import json
 
 # from oogeso.core import electricalsystem
 # from core import milp_compute
@@ -30,8 +32,12 @@ def read_data_from_yaml(filename):
     data_dict = None
     with open(filename, "r") as text_file:
         data_dict = yaml.safe_load(text_file)
-    # data = create_initdata(data_dict=data_dict)
-    return data_dict
+
+    json_str = json.dumps(data_dict)
+    decoder = io_obj.DataclassJSONDecoder()
+    energy_system = decoder.decode(json_str)
+    # return data_dict
+    return energy_system
 
 
 def read_profiles_from_hd5(filename, key_actual="actual", key_forecast="forecast"):

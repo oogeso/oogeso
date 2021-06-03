@@ -1,5 +1,12 @@
 import pyomo.environ as pyo
 import logging
+from oogeso.core.networks.network_node import NetworkNode
+
+from oogeso.dto.oogeso_input_data_objects import (
+    CarrierWellstreamData,
+    DeviceSeparator2Data,
+    DeviceSeparatorData,
+)
 from . import Device
 
 
@@ -10,12 +17,15 @@ class Separator(Device):
     serial = []
 
     def _rule_separator(self, model, t, i):
-        dev = self.dev_id
-        node = self.params["node"]
-        param_node = self.pyomo_model.all_nodes[node].params
-        wellstream_prop = self.pyomo_model.all_carriers["wellstream"]
-        GOR = wellstream_prop["gas_oil_ratio"]
-        WC = wellstream_prop["water_cut"]
+        dev = self.id
+        dev_data: DeviceSeparatorData = self.dev_data
+        node = dev_data.node_id
+        node_obj: NetworkNode = self.optimiser.all_nodes[node]
+        wellstream_prop: CarrierWellstreamData = self.pyomo_model.all_carriers[
+            "wellstream"
+        ]
+        GOR = wellstream_prop.gas_oil_ratio
+        WC = wellstream_prop.water_cut
         comp_oil = (1 - WC) / (1 + GOR - GOR * WC)
         comp_water = WC / (1 + GOR - GOR * WC)
         comp_gas = GOR * (1 - WC) / (1 + GOR * (1 - WC))
@@ -36,26 +46,26 @@ class Separator(Device):
         elif i == 4:
             # electricity demand
             lhs = model.varDeviceFlow[dev, "el", "in", t]
-            rhs = flow_in * self.params["eta_el"]
+            rhs = flow_in * dev_data.el_demand_factor
             return lhs == rhs
         elif i == 5:
             lhs = model.varDeviceFlow[dev, "heat", "in", t]
-            rhs = flow_in * self.params["eta_heat"]
+            rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
         elif i == 6:
-            """gas pressure out = nominal"""
+            # gas pressure out = nominal
             lhs = model.varPressure[(node, "gas", "out", t)]
-            rhs = param_node["pressure.gas.out"]
+            rhs = node_obj.get_nominal_pressure("gas", "out")
             return lhs == rhs
         elif i == 7:
-            """oil pressure out = nominal"""
+            # oil pressure out = nominal
             lhs = model.varPressure[(node, "oil", "out", t)]
-            rhs = param_node["pressure.oil.out"]
+            rhs = node_obj.get_nominal_pressure("oil", "out")
             return lhs == rhs
         elif i == 8:
-            """water pressure out = nominal"""
+            # water pressure out = nominal
             lhs = model.varPressure[(node, "water", "out", t)]
-            rhs = param_node["pressure.water.out"]
+            rhs = node_obj.get_nominal_pressure("water", "out")
             return lhs == rhs
 
     def defineConstraints(self):
@@ -69,7 +79,7 @@ class Separator(Device):
         # add constraints to model:
         setattr(
             self.pyomo_model,
-            "constr_{}_{}".format(self.dev_id, "separator"),
+            "constr_{}_{}".format(self.id, "separator"),
             constr_separator,
         )
 
@@ -83,9 +93,9 @@ class Separator2(Device):
     # Alternative separator model - using oil/gas/water input instead of
     # wellstream
     def _rule_separator2_flow(self, model, fc, t, i):
-        dev = self.dev_id
-        node = self.params["node"]
-        param_node = self.optimiser.all_nodes[node].params
+        dev = self.id
+        node = self.dev_data.node_id
+        node_obj: NetworkNode = self.optimiser.all_nodes[node]
         # wellstream_prop=self.pyomo_model.all_carriers['wellstream']
         # flow_in = sum(model.varDeviceFlow[dev,f,'in',t]
         #                for f in['oil','gas','water'])
@@ -97,11 +107,12 @@ class Separator2(Device):
         elif i == 2:
             # pressure out is nominal
             lhs = model.varPressure[(node, fc, "out", t)]
-            rhs = param_node["pressure.{}.out".format(fc)]
+            rhs = node_obj.get_nominal_pressure(fc, "out")
             return lhs == rhs
 
     def _rule_separator2_energy(self, model, t, i):
-        dev = self.dev_id
+        dev = self.id
+        dev_data: DeviceSeparator2Data = self.dev_data
         flow_in = sum(
             model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"]
         )
@@ -109,12 +120,12 @@ class Separator2(Device):
         if i == 1:
             # electricity demand
             lhs = model.varDeviceFlow[dev, "el", "in", t]
-            rhs = flow_in * self.params["eta_el"]
+            rhs = flow_in * dev_data.el_demand_factor
             return lhs == rhs
         elif i == 2:
             # heat demand
             lhs = model.varDeviceFlow[dev, "heat", "in", t]
-            rhs = flow_in * self.params["eta_heat"]
+            rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
 
     def defineConstraints(self):
@@ -131,7 +142,7 @@ class Separator2(Device):
         # add constraints to model:
         setattr(
             self.pyomo_model,
-            "constr_{}_{}".format(self.dev_id, "flow"),
+            "constr_{}_{}".format(self.id, "flow"),
             constr_separator2_flow,
         )
 
@@ -143,6 +154,6 @@ class Separator2(Device):
         # add constraints to model:
         setattr(
             self.pyomo_model,
-            "constr_{}_{}".format(self.dev_id, "energy"),
+            "constr_{}_{}".format(self.id, "energy"),
             constr_separator2_energy,
         )

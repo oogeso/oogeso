@@ -6,11 +6,11 @@ import oogeso.dto.oogeso_input_data_objects
 import json
 
 # Read in data, validate date et.c. with methods from io
-# test_data_file = "examples/test case2.yaml"
-# json_data = oogeso.io.file_io.read_data_from_yaml(test_data_file)
-#
-# json_formatted_str = json.dumps(json_data, indent=2)
-# print(json_formatted_str)
+test_data_file = "examples/test case2.yaml"
+json_data = oogeso.io.file_io.read_data_from_yaml(test_data_file)
+
+json_formatted_str = json.dumps(json_data, indent=2)
+print("Type json formatted str=", type(json_formatted_str))
 
 # deserialize json data to objects
 # encoder = oogeso.dto.oogeso_input_data_objects.DataclassJSONEncoder
@@ -19,7 +19,11 @@ decoder = oogeso.dto.oogeso_input_data_objects.DataclassJSONDecoder
 with open("examples/energysystem.json", "r") as jsonfile:
     energy_system = json.load(jsonfile, cls=decoder)
 
-# energy_system = decoder.decode(json_formatted_str)
+es_str = oogeso.dto.oogeso_input_data_objects.serialize_oogeso_data(energy_system)
+print("Type seriealised=", type(es_str))
+mydecoder = decoder()
+energy_system = mydecoder.decode(json_formatted_str)
+print("Type energysystem=", type(energy_system))
 # energy_system = json.loads(
 #    json_formatted_str, cls=encoder
 # )

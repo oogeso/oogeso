@@ -11,14 +11,8 @@ class Source_el(Device):
     carrier_out = ["el"]
     serial = []
 
-    def defineConstraints(self):
-        """Specifies the list of constraints for the device"""
-
-        super().defineConstraints()
-        # No additional specific constraints
-
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", t]
+    def getFlowVar(self, t):
+        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default
     def compute_CO2(self, timesteps):
@@ -26,22 +20,17 @@ class Source_el(Device):
         # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
         # need to convert co2em to kgCO2/(MW*s)
         thisCO2 = 0
-        if "co2em" in self.params:
+        if self.dev_data.co2em is not None:
             thisCO2 = (
                 sum(
-                    self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", t]
-                    * self.params["co2em"]
+                    self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+                    * self.dev_data.co2em
                     for t in timesteps
                 )
                 * 1
                 / 3600
             )
         return thisCO2
-
-    # getFlowVar(...)
-    # computeCO2(...)
-    # computeStartupCosts(...)
-    # computeOperatingCosts(...)
 
 
 class Powersource(Device):
@@ -58,7 +47,7 @@ class Powersource(Device):
         constr_penalty = self._penaltyConstraint()
         setattr(
             self.pyomo_model,
-            "constrPW_{}_{}".format(self.dev_id, "penalty"),
+            "constrPW_{}_{}".format(self.id, "penalty"),
             constr_penalty,
         )
 
@@ -69,11 +58,11 @@ class Powersource(Device):
     # used with p_max / q_max / penalty_function
     def _penaltyConstraint(self):
         # Piecewise constraints require independent variable to be bounded:
-        self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", :].setlb(0)
-        self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", :].setub(
-            self.params["Pmax"]
+        self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setlb(0)
+        self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setub(
+            self.dev_data.flow_max
         )
-        lookup_table = self.params["penalty_function"]
+        lookup_table = self.dev_data.penalty_function
         pw_x = lookup_table[0]
         pw_y = lookup_table[1]
         var_x = self.pyomo_model.varDeviceFlow  # [self.dev_id, "el", "out", :]
@@ -84,7 +73,7 @@ class Powersource(Device):
         else:
             logging.info("Using default SOS2 piecewise constraint implementation")
         constr_penalty = pyo.Piecewise(
-            [self.dev_id],
+            [self.id],
             ["el"],
             ["out"],
             self.pyomo_model.setHorizon,
@@ -97,19 +86,8 @@ class Powersource(Device):
         )
         return constr_penalty
 
-    # def _penaltyfunction(self, model, dev, carr, term, t, xp):
-    #     # def _penaltyfunction(self, model, dev, carr, term, t, xp):
-    #     # p = model.varDeviceFlow[dev, carr, term, t]
-    #     # penalty = model.varDevicePenalty[dev,t]
-    #     # piecewise linear interpolation
-    #     logging.debug("Piecewise penalty: {},{},{},{}".format(dev, carr, term, t))
-    #     table_x = self.params["penalty_function"][0]
-    #     table_y = self.params["penalty_function"][1]
-    #     penalty = np.interp(xp, table_x, table_y)
-    #     return penalty
-
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", t]
+    def getFlowVar(self, t):
+        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default
     def compute_CO2(self, timesteps):
@@ -117,11 +95,11 @@ class Powersource(Device):
         # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
         # need to convert co2em to kgCO2/(MW*s)
         thisCO2 = 0
-        if "co2em" in self.params:
+        if self.dev_data.co2em is not None:
             thisCO2 = (
                 sum(
-                    self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", t]
-                    * self.params["co2em"]
+                    self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+                    * self.dev_data.co2em
                     for t in timesteps
                 )
                 * 1
@@ -137,9 +115,9 @@ class Source_gas(Device):
     serial = []
 
     def _rules(self, model, t):
-        node = self.params["node"]
+        node = self.dev_data.node_id
         lhs = model.varPressure[(node, "gas", "out", t)]
-        rhs = self.params["naturalpressure"]
+        rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
     def defineConstraints(self):
@@ -151,12 +129,12 @@ class Source_gas(Device):
         # add constraint to model:
         setattr(
             self.pyomo_model,
-            "constr_{}_{}".format(self.dev_id, "pressure"),
+            "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
 
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "gas", "out", t]
+        return self.pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
 
 
 class Source_oil(Device):
@@ -166,9 +144,9 @@ class Source_oil(Device):
     serial = []
 
     def _rules(self, model, t):
-        node = self.params["node"]
+        node = self.dev_data.node_id
         lhs = model.varPressure[(node, "oil", "out", t)]
-        rhs = self.params["naturalpressure"]
+        rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
     def defineConstraints(self):
@@ -180,12 +158,12 @@ class Source_oil(Device):
         # add constraint to model:
         setattr(
             self.pyomo_model,
-            "constr_{}_{}".format(self.dev_id, "pressure"),
+            "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
 
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "oil", "out", t]
+        return self.pyomo_model.varDeviceFlow[self.id, "oil", "out", t]
 
 
 class Source_water(Device):
@@ -195,9 +173,9 @@ class Source_water(Device):
     serial = []
 
     def _rules(self, model, t):
-        node = self.params["node"]
+        node = self.dev_data.node_id
         lhs = model.varPressure[(node, "water", "out", t)]
-        rhs = self.params["naturalpressure"]
+        rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
     def defineConstraints(self):
@@ -209,9 +187,9 @@ class Source_water(Device):
         # add constraint to model:
         setattr(
             self.pyomo_model,
-            "constr_{}_{}".format(self.dev_id, "pressure"),
+            "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
 
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "water", "out", t]
+        return self.pyomo_model.varDeviceFlow[self.id, "water", "out", t]

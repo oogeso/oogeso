@@ -1,116 +1,120 @@
+from __future__ import annotations
 import pyomo.environ as pyo
 import logging
 import numpy as np
 import scipy
 from . import electricalsystem as el_calc
+import typing
+
+if typing.TYPE_CHECKING:
+    from oogeso.core.networks.network_node import NetworkNode
+    from ...dto.oogeso_input_data_objects import EdgeData, EdgeFluidData
 
 
 class NetworkEdge:
     "Network edge"
-    node_id = None
-    pyomo_model = None
-    params = {}
-    optimiser = None
 
-    def __init__(self, pyomo_model, edge_id, edge_data, optimiser):
-        self.edge_id = edge_id
+    def __init__(self, pyomo_model, optimiser, edge_data_object: EdgeData):
+        self.id = edge_data_object.id
+        self.edge_data = edge_data_object  # Edge data object as defined in the DTO
         self.pyomo_model = pyomo_model
-        self.params = edge_data
         self.optimiser = optimiser
 
-    logging.info("TODO: equation for flow vs pressure of liquids")
-
-    def _rule_edgeFlowEquations(self, model, t):
+    def _ruleEdgeFlowEquations(self, model, t):
         """Flow as a function of node values (voltage/pressure)"""
-        edge = self.edge_id
-        params_edge = self.params
-        carrier = params_edge["type"]
-        n_from = params_edge["nodeFrom"]
-        n_to = params_edge["nodeTo"]
+        edge = self.id
+        carrier = self.edge_data.model
+        n_from = self.edge_data.node_from
+        n_to = self.edge_data.node_to
+        print_log = True if t == 0 else False
 
         if carrier == "el":
-            """power flow vs voltage angle difference
-            Linearised power flow equations (DC power flow)"""
-            baseMVA = el_calc.elbase["baseMVA"]
-            baseAngle = el_calc.elbase["baseAngle"]
-            lhs = model.varEdgeFlow[edge, t]
-            lhs = lhs / baseMVA
-            rhs = 0
-            # TODO speed up creatioin of constraints - remove for loop
-            n2s = [k[1] for k in self.optimiser.elFlowCoeffDA.keys() if k[0] == edge]
-            for n2 in n2s:
-                rhs += self.optimiser.elFlowCoeffDA[edge, n2] * (
-                    model.varElVoltageAngle[n2, t] * baseAngle
+            """Depending on method, power flow depends on nodal voltage angles (dc-pf)
+            or is unconstrained. DC-PF refers to the linearised power flow equations"""
+            carrier_data = self.optimiser.all_carriers["el"]
+            flowmethod = carrier_data.powerflow_method
+            if flowmethod is None:
+                return pyo.Constraint.Skip
+            elif flowmethod == "transport":
+                return pyo.Constraint.Skip
+            elif flowmethod == "dc-pf":
+                base_mva = el_calc.elbase["baseMVA"]
+                base_angle = el_calc.elbase["baseAngle"]
+                lhs = model.varEdgeFlow[edge, t]
+                lhs = lhs / base_mva
+                rhs = 0
+                # TODO speed up creatioin of constraints - remove for loop
+                n2s = [
+                    k[1] for k in self.optimiser.elFlowCoeffDA.keys() if k[0] == edge
+                ]
+                for n2 in n2s:
+                    rhs += self.optimiser.elFlowCoeffDA[edge, n2] * (
+                        model.varElVoltageAngle[n2, t] * base_angle
+                    )
+                return lhs == rhs
+            else:
+                raise Exception(
+                    "Power flow method must be None, 'transport' or 'dc-pf'"
                 )
-            return lhs == rhs
 
         elif carrier in ["gas", "wellstream", "oil", "water"]:
             p1 = model.varPressure[(n_from, carrier, "out", t)]
             p2 = model.varPressure[(n_to, carrier, "in", t)]
             Q = model.varEdgeFlow[edge, t]
-            if "num_pipes" in params_edge:
-                num_pipes = params_edge["num_pipes"]
-                logging.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
+            if self.edge_data.num_pipes is not None:
+                num_pipes = self.edge_data.num_pipes
+                if print_log:
+                    logging.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
                 Q = Q / num_pipes
-            p2_computed = self.compute_edge_pressuredrop(p1=p1, Q=Q, linear=True)
+            p2_computed = self.compute_edge_pressuredrop(
+                p1=p1, Q=Q, linear=True, print_log=print_log
+            )
             return p2 == p2_computed
         else:
             # Other types of edges - no constraints other than max/min flow
             return pyo.Constraint.Skip
 
-    def _rule_edgePmaxmin(self, model, t):
-        params_edge = self.params
-        edge = self.edge_id
-        edgetype = params_edge["type"]
-        expr = pyo.Constraint.Skip  # default if Pmax/Qmax has not been set
-        if edgetype in ["el", "heat"]:
-            if "Pmax" in params_edge:
-                expr = pyo.inequality(
-                    -params_edge["Pmax"],
-                    model.varEdgeFlow[edge, t],
-                    params_edge["Pmax"],
-                )
-        elif edgetype in ["wellstream", "gas", "oil", "water", "hydrogen"]:
-            if "Qmax" in params_edge:
-                expr = model.varEdgeFlow[edge, t] <= params_edge["Qmax"]
+    def _ruleEdgeFlowMaxMin(self, model, t):
+        edge = self.id
+        pmax = self.edge_data.flow_max
+        if self.edge_data.bidirectional:
+            # electricity (can flow either way) (-max <= flow <= max)
+            expr = pyo.inequality(-pmax, model.varEdgeFlow[edge, t], pmax)
         else:
-            raise Exception("Unknown edge type ({})".format(edgetype))
+            # flow only in specified direction (0 <= flow <= max)
+            expr = pyo.inequality(0, model.varEdgeFlow[edge, t], pmax)
         return expr
 
     def defineConstraints(self):
         """Returns the set of constraints for the node."""
 
-        if ("Pmax" in self.params) or ("Qmax" in self.params):
-            constrEdgeBounds = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_edgePmaxmin
+        if self.edge_data.flow_max is not None:
+            constr_edge_bounds = pyo.Constraint(
+                self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin
             )
             setattr(
                 self.pyomo_model,
-                "constrE_{}_{}".format(self.edge_id, "bounds"),
-                constrEdgeBounds,
+                "constrE_{}_{}".format(self.id, "bounds"),
+                constr_edge_bounds,
             )
 
         constr_flow = pyo.Constraint(
-            self.pyomo_model.setHorizon, rule=self._rule_edgeFlowEquations
+            self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowEquations
         )
-        setattr(
-            self.pyomo_model, "constrE_{}_{}".format(self.edge_id, "flow"), constr_flow
-        )
+        setattr(self.pyomo_model, "constrE_{}_{}".format(self.id, "flow"), constr_flow)
 
-    def _compute_exps_and_k(self, param_carrier):
+    def _compute_exps_and_k(self, carrier_data):
         """Derive exp_s and k parameters for Weymouth equation"""
-        param_edge = self.params
+        edge_data: EdgeFluidData = self.edge_data
         # gas pipeline parameters - derive k and exp(s) parameters:
-        ga = param_carrier
+        ga = carrier_data
 
         # if 'temperature_K' in model.paramEdge[edge]:
-        temp = param_edge["temperature_K"]
-        height_difference = param_edge["height_m"]
-        length = param_edge["length_km"]
-        diameter = param_edge["diameter_mm"]
-        s = 0.0684 * (
-            ga["G_gravity"] * height_difference / (temp * ga["Z_compressibility"])
-        )
+        temp = edge_data.temperature_K
+        height_difference = edge_data.height_m
+        length = edge_data.length_km
+        diameter = edge_data.diameter_mm
+        s = 0.0684 * (ga.G_gravity * height_difference / (temp * ga.Z_compressibility))
         if s > 0:
             # height difference - use equivalent length
             sfactor = (np.exp(s) - 1) / s
@@ -118,15 +122,17 @@ class NetworkEdge:
 
         k = (
             4.3328e-8
-            * ga["Tb_basetemp_K"]
-            / ga["Pb_basepressure_MPa"]
-            * (ga["G_gravity"] * temp * length * ga["Z_compressibility"]) ** (-1 / 2)
+            * ga.Tb_basetemp_K
+            / ga.Pb_basepressure_MPa
+            * (ga.G_gravity * temp * length * ga.Z_compressibility) ** (-1 / 2)
             * diameter ** (8 / 3)
         )
         exp_s = np.exp(s)
         return exp_s, k
 
-    def compute_edge_pressuredrop(self, p1, Q, method=None, linear=False):
+    def compute_edge_pressuredrop(
+        self, p1, Q, method=None, linear=False, print_log=True
+    ):
         """Compute pressure drop in pipe
 
         parameters
@@ -145,34 +151,37 @@ class NetworkEdge:
         p2 : float
             pipe outlet pressure (MPa)"""
 
-        edge = self.edge_id
-        param_edge = self.params
-        height_difference = param_edge["height_m"]
+        edge = self.id
+        edge_data = self.edge_data
+        height_difference = edge_data.height_m
         method = None
-        carrier = param_edge["type"]
-        param_carrier = self.optimiser.all_carriers[carrier].params
-        if "pressure_method" in param_carrier:
-            method = param_carrier["pressure_method"]
+        carrier = edge_data.model
+        carrier_data = self.optimiser.all_carriers[carrier]
+        if carrier_data.pressure_method is not None:
+            method = carrier_data.pressure_method
 
-        n_from = param_edge["nodeFrom"]
-        n_to = param_edge["nodeTo"]
-        n_from_obj = self.optimiser.all_nodes[n_from]
-        n_to_obj = self.optimiser.all_nodes[n_to]
-        if ("pressure.{}.out".format(carrier) in n_from_obj.params) & (
-            "pressure.{}.in".format(carrier) in n_to_obj.params
-        ):
-            p0_from = n_from_obj.params["pressure.{}.out".format(carrier)]
-            p0_to = n_to_obj.params["pressure.{}.in".format(carrier)]
+        n_from = edge_data.node_from
+        n_to = edge_data.node_to
+        n_from_obj: NetworkNode = self.optimiser.all_nodes[n_from]
+        n_to_obj: NetworkNode = self.optimiser.all_nodes[n_to]
+        p0_from = n_from_obj.get_nominal_pressure(carrier, "out")
+        p0_to = n_to_obj.get_nominal_pressure(carrier, "in")
+        if (p0_from is not None) and (p0_to is not None):
             if linear & (p0_from == p0_to):
                 method = None
-                logging.debug(
-                    ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(
-                        n_from, n_to, p0_from, p0_to
+                if print_log:
+                    logging.debug(
+                        ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(
+                            n_from, n_to, p0_from, p0_to
+                        )
                     )
-                )
         elif linear:
             # linear equations, but nominal values not given - assume no drop
+            # logging.debug("{}-{}: Aassuming no  pressure drop".format(n_from, n_to))
             method = None
+        else:
+            # use non-linear equations, no nominal pressure required
+            pass
 
         if method is None:
             # no pressure drop
@@ -195,8 +204,9 @@ class NetworkEdge:
             Optimization. Springer Verlag, New York (2007),
             https://doi.org/10.1007/978-3-540-68783-2_16
             """
-            exp_s, k = self._compute_exps_and_k(param_carrier)
-            logging.debug("pipe {}: exp_s={}, k={}".format(edge, exp_s, k))
+            exp_s, k = self._compute_exps_and_k(carrier_data=carrier_data)
+            if print_log:
+                logging.debug("pipe {}: exp_s={}, k={}".format(edge, exp_s, k))
             if linear:
                 p_from = p1
                 #                p_from = model.varPressure[(n_from,carrier,'out',t)]
@@ -213,18 +223,18 @@ class NetworkEdge:
 
         elif method == "darcy-weissbach":
             grav = 9.98  # m/s^2
-            rho = param_carrier["rho_density"]
-            D = param_edge["diameter_mm"] / 1000
-            L = param_edge["length_km"] * 1000
+            rho = carrier_data.rho_density
+            D = edge_data.diameter_mm / 1000
+            L = edge_data.length_km * 1000
 
-            if ("viscosity" in param_carrier) & (not linear):
+            if (carrier_data.viscosity is not None) & (not linear):
                 # compute darcy friction factor from flow rate and viscosity
-                mu = param_carrier["viscosity"]
+                mu = carrier_data.viscosity
                 Re = 2 * rho * Q / (np.pi * mu * D)
                 f = 1 / (0.838 * scipy.special.lambertw(0.629 * Re)) ** 2
                 f = f.real
-            elif "darcy_friction" in param_carrier:
-                f = param_carrier["darcy_friction"]
+            elif carrier_data.darcy_friction is not None:
+                f = carrier_data.darcy_friction
                 Re = None
             else:
                 raise Exception(
@@ -237,13 +247,14 @@ class NetworkEdge:
                     p0_from * 1e6 - p0_to * 1e6 - rho * grav * height_difference
                 )
                 Q0 = k * sqrtX
-                logging.debug(
-                    (
-                        "derived pipe ({}) flow rate:"
-                        " Q={}, linearQ0={:5.3g},"
-                        " friction={:5.3g}"
-                    ).format(edge, Q, Q0, f)
-                )
+                if print_log:
+                    logging.debug(
+                        (
+                            "derived pipe ({}) flow rate:"
+                            " Q={}, linearQ0={:5.3g},"
+                            " friction={:5.3g}"
+                        ).format(edge, Q, Q0, f)
+                    )
                 p2 = p_from - 1e-6 * (Q - Q0) * 2 * sqrtX / k - (p0_from - p0_to)
                 # linearised darcy-weissbach:
                 # Q = Q0 + k/(2*sqrtX)*(p_from-p_to - (p0_from-p0_to))

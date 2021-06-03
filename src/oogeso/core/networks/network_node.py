@@ -1,33 +1,58 @@
 import pyomo.environ as pyo
 import logging
+from oogeso.core.networks.network_edge import NetworkEdge
+from oogeso.dto.oogeso_input_data_objects import NodeData
 
 
 class NetworkNode:
     "Network node"
-    node_id = None
-    pyomo_model = None
-    params = {}
 
-    def __init__(self, pyomo_model, node_id, node_data, optimiser):
-        self.node_id = node_id
+    def __init__(self, pyomo_model, optimiser, node_data: NodeData):
         self.pyomo_model = pyomo_model
-        self.params = node_data
+        self.node_data: NodeData = node_data
+        self.id = node_data.id
         self.optimiser = optimiser
         self.devices = {}
         self.devices_serial = {}  # devices with through-flow
         self.edges_from = {}
         self.edges_to = {}
+        self.nominal_pressure = {}
+
+    def get_nominal_pressure(self, carrier, term):
+        if (carrier in self.nominal_pressure) and (
+            term in self.nominal_pressure[carrier]
+        ):
+            return self.nominal_pressure[carrier][term]
+        return None
+
+    def set_nominal_pressure(self, carrier, term, pressure):
+        if carrier in self.nominal_pressure:
+            if term in self.nominal_pressure[carrier]:
+                # pressure has already been set, so check consistency:
+                p_exst = self.nominal_pressure[carrier][term]
+                if p_exst != pressure:
+                    raise Exception(
+                        "Inconsistent pressure level for node {}:{} vs {}".format(
+                            self.id, p_exst, pressure
+                        )
+                    )
+            else:
+                self.nominal_pressure[carrier][term] = pressure
+        else:
+            self.nominal_pressure[carrier] = {}
+            self.nominal_pressure[carrier][term] = pressure
 
     def addDevice(self, device_id, device):
-        # logging.debug("addDevice: {},{}".format(self.node_id, device_id))
+        # logging.debug("addDevice: {},{}".format(self.id, device_id))
         self.devices[device_id] = device
         for carrier in device.serial:
             if carrier not in self.devices_serial:
                 self.devices_serial[carrier] = {}
             self.devices_serial[carrier][device_id] = device
 
-    def addEdge(self, edge_id, edge, to_from):
-        carrier = edge.params["type"]
+    def addEdge(self, edge: NetworkEdge, to_from: str):
+        carrier = edge.edge_data.model
+        edge_id = edge.id
         if to_from == "to":
             if carrier not in self.edges_to:
                 self.edges_to[carrier] = {}
@@ -69,7 +94,7 @@ class NetworkNode:
         # If no device is connected between in and out terminal for a given
         # energy carrier, connect the terminals (treat as one):
         if carrier not in self.devices_serial:
-            Pinj -= model.varTerminalFlow[self.node_id, carrier, t]
+            Pinj -= model.varTerminalFlow[self.id, carrier, t]
 
         # edges:
         if (terminal == "in") and (carrier in self.edges_to):
@@ -96,12 +121,12 @@ class NetworkNode:
         return expr
 
     def _rule_elVoltageReference(self, model, t):
-        n = self.optimiser.optimisation_parameters["reference_node"]
+        n = self.optimiser.optimisation_parameters.reference_node
         expr = model.varElVoltageAngle[n, t] == 0
         return expr
 
     def _rule_pressureAtNode(self, model, carrier, t):
-        node = self.node_id
+        node = self.id
         if carrier in ["el", "heat"]:
             return pyo.Constraint.Skip
         elif carrier in self.devices_serial:
@@ -118,31 +143,36 @@ class NetworkNode:
             return expr
 
     def _rule_pressureBounds(self, model, term, carrier, t):
-        node = self.node_id
-        params_node = self.params
+        node = self.id
+        node_data: NodeData = self.node_data
+        nominal_pressure = self.nominal_pressure
         params_generic = self.optimiser.optimisation_parameters
-        col = "pressure.{}.{}".format(carrier, term)
-        if col not in params_node:
-            # no pressure data relevant for this node/carrier
+        maxdev = None  # default is no constraint
+        if carrier in nominal_pressure:
+            if term in nominal_pressure[carrier]:
+                nom_p = nominal_pressure[carrier][term]
+                if nom_p is not None:
+                    if (carrier in node_data.maxdeviation_pressure) and (
+                        term in node_data.maxdeviation_pressure[carrier]
+                    ):
+                        maxdev = node_data.maxdeviation_pressure[carrier][term]
+                        if t == 0:
+                            logging.debug(
+                                "Using individual pressure limit for: {}, {}, {}, {}".format(
+                                    node, carrier, term, maxdev
+                                )
+                            )
+                    else:
+                        # Using globally set pressure deviation limit
+                        maxdev = params_generic.max_pressure_deviation
+        if (maxdev is None) or (maxdev == -1):
             return pyo.Constraint.Skip
-        nom_p = params_node[col]
-        if nom_p is None:
-            # no pressure data specified for this node/carrier
-            return pyo.Constraint.Skip
-        cc = "maxdeviation_pressure.{}.{}".format(carrier, term)
-        if (cc in params_node) and (params_node[cc] is not None):
-            maxdev = params_node[cc]
-            if t == 0:
-                logging.debug(
-                    "Using ind. pressure limit for: {}, {}, {}".format(node, cc, maxdev)
-                )
-        else:
-            maxdev = params_generic["max_pressure_deviation"]
-            if maxdev == -1:
-                return pyo.Constraint.Skip
-        lb = nom_p * (1 - maxdev)
-        ub = nom_p * (1 + maxdev)
-        return (lb, model.varPressure[(node, carrier, term, t)], ub)
+        lower_bound = nom_p * (1 - maxdev)
+        upper_bound = nom_p * (1 + maxdev)
+        expr = pyo.inequality(
+            lower_bound, model.varPressure[(node, carrier, term, t)], upper_bound
+        )
+        return expr
 
     def defineConstraints(self):
         """Returns the set of constraints for the node."""
@@ -156,7 +186,7 @@ class NetworkNode:
         )
         setattr(
             model,
-            "constrN_{}_{}".format(self.node_id, "energybalance"),
+            "constrN_{}_{}".format(self.id, "energybalance"),
             constrTerminalEnergyBalance,
         )
 
@@ -165,7 +195,7 @@ class NetworkNode:
         )
         setattr(
             model,
-            "constrN_{}_{}".format(self.node_id, "voltageref"),
+            "constrN_{}_{}".format(self.id, "voltageref"),
             constr_ElVoltageReference,
         )
 
@@ -174,7 +204,7 @@ class NetworkNode:
         )
         setattr(
             model,
-            "constrN_{}_{}".format(self.node_id, "nodepressure"),
+            "constrN_{}_{}".format(self.id, "nodepressure"),
             constrPressureAtNode,
         )
 
@@ -186,7 +216,7 @@ class NetworkNode:
         )
         setattr(
             model,
-            "constrN_{}_{}".format(self.node_id, "pressurebound"),
+            "constrN_{}_{}".format(self.id, "pressurebound"),
             constrPressureBounds,
         )
 
@@ -197,7 +227,7 @@ class NetworkNode:
             return True
         if carrier in self.edges_to:
             return True
-        for d, dev_obj in self.devices.items():
+        for dev_id, dev_obj in self.devices.items():
             # check if any devices are connected on this carrier
             if carrier in dev_obj.carrier_in:
                 return True

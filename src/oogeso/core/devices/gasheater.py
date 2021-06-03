@@ -32,11 +32,10 @@ class Gasheater(Device):
         # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
 
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "heat", "out", t]
-
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "gas", "in", t]
+        # using heat output as dimensioning variable
+        # (alternative could be to use gas input)
+        return self.pyomo_model.varDeviceFlow[self.dev_id, "heat", "out", t]
 
     # overriding default
     def compute_CO2(self, timesteps):

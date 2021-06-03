@@ -1,5 +1,7 @@
 import pyomo.environ as pyo
 import logging
+
+from oogeso.dto.oogeso_input_data_objects import DeviceFuelcellData
 from . import Device
 
 
@@ -9,13 +11,13 @@ class Fuelcell(Device):
     carrier_out = ["el", "heat"]
     serial = []
 
-    def _rules(model, t, i):
-        dev = self.dev_id
-        param_dev = self.params
-        param_hydrogen = self.optimiser.all_carriers["hydrogen"].params
-        energy_value = param_hydrogen["energy_value"]  # MJ/Sm3
-        efficiency = param_dev["eta"]
-        eta_heat = param_dev["eta_heat"]  # heat recovery efficiency
+    def _rules(self, model, t, i):
+        dev = self.id
+        dev_data: DeviceFuelcellData = self.dev_data
+        param_hydrogen = self.optimiser.all_carriers["hydrogen"]
+        energy_value = param_hydrogen.energy_value  # MJ/Sm3
+        efficiency = dev_data.eta
+        eta_heat = dev_data.eta_heat  # heat recovery efficiency
         if i == 1:
             """hydrogen to el"""
             lhs = model.varDeviceFlow[dev, "el", "out", t]  # MW
@@ -39,9 +41,10 @@ class Fuelcell(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
         super().defineConstraints()
+        model = self.pyomo_model
         constr = pyo.Constraint(model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
         # add constraint to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
+        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
 
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", t]
+    def getFlowVar(self, t):
+        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]

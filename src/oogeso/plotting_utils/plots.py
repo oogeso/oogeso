@@ -76,7 +76,7 @@ def plot_deviceprofile(
         devs_shareload = [
             d
             for d, d_obj in optimiser.all_devices.items()
-            if d_obj.params["model"] == "gasturbine"
+            if d_obj.dev_data.model == "gasturbine"
         ]
         # devs_shareload = [d for d in mc.instance.setDevice
         #    if mc.instance.paramDevice[d]['model']=='gasturbine']
@@ -107,7 +107,7 @@ def plot_deviceprofile(
             rowPrep = 3
         for col in df:
             dev = col
-            dev_param = optimiser.all_devices[dev].params
+            dev_data = optimiser.all_devices[dev].dev_data
             k = k + 1
             fig.add_scatter(
                 x=df.index,
@@ -120,7 +120,7 @@ def plot_deviceprofile(
                 row=1,
                 col=1,
             )
-            if includeOnOff & (dev_param["model"] == "gasturbine"):
+            if includeOnOff & (dev_data.model == "gasturbine"):
                 fig.add_scatter(
                     x=df2.index,
                     y=df2[col],
@@ -133,7 +133,7 @@ def plot_deviceprofile(
                     col=1,
                     showlegend=False,
                 )
-            if includePrep & (dev_param["model"] == "gasturbine"):
+            if includePrep & (dev_data.model == "gasturbine"):
                 fig.add_scatter(
                     x=dfPrep.index,
                     y=dfPrep[col],
@@ -146,9 +146,9 @@ def plot_deviceprofile(
                     col=1,
                     showlegend=False,
                 )
-            if includeForecasts & ("profile" in dev_param):
-                curve = dev_param["profile"]
-                devPmax = dev_param["Pmax"]
+            if includeForecasts & (dev_data.profile is not None):
+                curve = dev_data.profile
+                devPmax = dev_data.flow_max
                 fig.add_scatter(
                     x=timerange,
                     y=mc._df_profiles_actual.loc[timerange, curve] * devPmax,
@@ -224,10 +224,10 @@ def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=No
     """Plot power in/out of device and storage level (if any)"""
     optimiser = simulator.optimiser
     model = optimiser.pyomo_instance
-    dev_param = optimiser.all_devices[dev].params
-    devname = "{}:{}".format(dev, dev_param["name"])
+    dev_data = optimiser.all_devices[dev].dev_data
+    devname = "{}:{}".format(dev, dev_data.name)
 
-    if dev_param["model"] == "storage_hydrogen":
+    if dev_data.model == "storage_hydrogen":
         carrier = "hydrogen"
         Ptitle = "Flow (Sm3/s)"
         Etitle = "Energy storage( Sm3)"
@@ -286,7 +286,7 @@ def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=No
         ax.set_ylabel(Ptitle)
         tmin = dfF.index.get_level_values("time").min()
         tmax = dfF.index.get_level_values("time").max() + 1
-        ax.set_ylim(0, dev_param["Pmax"])
+        ax.set_ylim(0, dev_data.flow_max)
         ax.legend(loc="upper left")  # , bbox_to_anchor =(1.01,0),frameon=False)
 
         if not dfE.empty:
@@ -294,10 +294,10 @@ def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=No
             ax2.grid(None)
             dfE.plot(ax=ax2, linestyle=":", color="black")
             ax2.set_ylabel("Energy (MWh)")  # ,color="red")
-            if dev_param["model"] in ["storage_el"]:
-                ax2.set_ylim(0, dev_param["Emax"])
-            elif dev_param["model"] in ["well_injection"]:
-                ax2.set_ylim(-dev_param["Emax"] / 2, dev_param["Emax"] / 2)
+            if dev_data.model in ["storage_el"]:
+                ax2.set_ylim(0, dev_data.max_E)
+            elif dev_data.model in ["well_injection"]:
+                ax2.set_ylim(-dev_data.max_E / 2, dev_data.max_E / 2)
             # ax2.tick_params(axis='y', labelcolor="red")
             ax2.legend(loc="upper right")
         ax.set_xlim(tmin, tmax)
@@ -354,7 +354,7 @@ def plot_SumPowerMix(
         devs_shareload = [
             d
             for d, d_obj in optimiser.all_devices.items()
-            if d_obj.params["model"] == "gasturbine"
+            if d_obj.dev_data.model == "gasturbine"
         ]
         logging.info(devs_shareload)
     if devs_shareload:  # list is non-empty
@@ -478,7 +478,7 @@ def plot_CO2rate_per_dev(
         devs_shareload = [
             d
             for d, d_obj in simulator.optimiser.all_devices.items()
-            if d_obj.params["model"] == "gasturbine"
+            if d_obj.dev_data.model == "gasturbine"
         ]
     #        devs_shareload = [d for d in mc.instance.setDevice
     #            if ((mc.instance.paramDevice[d]['model']=='gasturbine') and
@@ -607,9 +607,9 @@ def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=No
     mc = simulator
     # model = simulator.optimiser.pyomo_instance
     dev_obj = simulator.optimiser.all_devices[dev]
-    dev_param = dev_obj.params
-    node = dev_param["node"]
-    devname = "{}:{}".format(dev, dev_param["name"])
+    dev_data = dev_obj.dev_data
+    node = dev_data.node_id
+    devname = "{}:{}".format(dev, dev_data.name)
     # linecycler = itertools.cycle(['-','--',':','-.']*10)
     if carriers_inout is None:
         carriers_inout = {"in": dev_obj.carrier_in, "out": dev_obj.carrier_out}
@@ -737,11 +737,11 @@ def plotNetwork(
                 num_in = 0
                 num_out = 0
                 for d, dev_obj in devs.items():
-                    dev_model = dev_obj.params["model"]
+                    dev_model = dev_obj.dev_data.model
                     devlabel = d  # use index as label
                     devlabel = "{}\n{}".format(d, dev_model)
                     if plotDevName:
-                        dev_name = dev_obj.params["name"]
+                        dev_name = dev_obj.dev_data.name
                         devlabel = "{} {}".format(devlabel, dev_name)
                     carriers_in = dev_obj.carrier_in
                     carriers_out = dev_obj.carrier_out
@@ -865,20 +865,23 @@ def plotNetwork(
     # plot all edges (per carrier):
     for carrier in carriers:
         for i, edge_obj in optimiser.all_edges.items():
-            e = edge_obj.params
-            if e["type"] == carrier:
+            edge_data = edge_obj.edge_data
+            if edge_data.model == carrier:
                 if timestep is None:
                     edgelabel = ""
-                    if "pressure.from" in e:
-                        edgelabel = "{} {}-".format(edgelabel, e["pressure.from"])
-                    if "pressure.to" in e:
-                        edgelabel = "{}-{}".format(edgelabel, e["pressure.to"])
+                    if hasattr(edge_data, "pressure_from"):
+                        edgelabel = "{} {}-{}".format(
+                            edgelabel,
+                            edge_data.pressure_from,
+                            edge_data.pressure_to,
+                        )
+                        # edgelabel = "{}-{}".format(edgelabel, edge_data.pressure["to"])
                 else:
                     edgelabel = numberformat.format(
                         simulator._dfEdgeFlow[(i, timestep)]
                     )
-                n_from = e["nodeFrom"]
-                n_to = e["nodeTo"]
+                n_from = edge_data.node_from
+                n_to = edge_data.node_to
                 n_from_obj = optimiser.all_nodes[n_from]
                 n_to_obj = optimiser.all_nodes[n_to]
                 # name of terminal depends on whether it serial or single
@@ -972,14 +975,14 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
     timerange = list(mc._dfExportRevenue.index)
     marginIncr = pd.DataFrame(0, index=timerange, columns=["margin"])
     for d, dev_obj in optimiser.all_devices.items():
-        dev_params = dev_obj.params
-        devmodel = dev_params["model"]
+        dev_data = dev_obj.dev_data
+        devmodel = dev_data.model
         rf = 1
         if "el" in dev_obj.carrier_out:
             # Generators and storage
-            maxValue = dev_params["Pmax"]
-            if "profile" in dev_params:
-                extprofile = dev_params["profile"]
+            maxValue = dev_data.flow_max
+            if dev_data.profile is not None:
+                extprofile = dev_data.profile
                 if useForecast:
                     maxValue = (
                         maxValue * mc._df_profiles_forecast.loc[timerange, extprofile]
@@ -993,8 +996,8 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
                 maxValue = ison * maxValue
             elif devmodel in ["storage_el"]:
                 maxValue = mc._dfDeviceStoragePmax[d] + mc._dfDeviceFlow[d, "el", "in"]
-            if "reserve_factor" in dev_params:
-                reserve_factor = dev_params["reserve_factor"]
+            if dev_data.reserve_factor is not None:
+                reserve_factor = dev_data.reserve_factor
                 if reserve_factor == 0:
                     # device does not count towards reserve
                     rf = 0
@@ -1018,7 +1021,7 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
         line_shape="hv",
     )
     if includeMargin:
-        margin = optimiser.optimisation_parameters["elReserveMargin"]
+        margin = optimiser.optimisation_parameters.el_reserve_margin
         # wind contribution (cf compute reserve)
         marginIncr["margin"] = marginIncr["margin"] + margin
         fig.add_scatter(

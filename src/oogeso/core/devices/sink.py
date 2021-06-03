@@ -9,8 +9,8 @@ class Sink_el(Device):
     carrier_out = []
     serial = []
 
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "in", t]
+    def getFlowVar(self, t):
+        return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
 class Sink_heat(Device):
@@ -19,8 +19,8 @@ class Sink_heat(Device):
     carrier_out = []
     serial = []
 
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "heat", "in", t]
+    def getFlowVar(self, t):
+        return self.pyomo_model.varDeviceFlow[self.id, "heat", "in", t]
 
 
 class Sink_gas(Device):
@@ -30,7 +30,7 @@ class Sink_gas(Device):
     serial = []
 
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "gas", "in", t]
+        return self.pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
 
 
 class Sink_oil(Device):
@@ -40,7 +40,7 @@ class Sink_oil(Device):
     serial = []
 
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "oil", "in", t]
+        return self.pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
 
 
 class Sink_water(Device):
@@ -50,22 +50,22 @@ class Sink_water(Device):
     serial = []
 
     def rule_devmodel_sink_water(self, model, t, i):
-        dev = self.dev_id
-        param_dev = self.params
+        dev = self.id
+        dev_data = self.dev_data
         param_generic = self.optimiser.optimisation_parameters
 
-        if "Qavg" not in param_dev:
+        if dev_data.flow_avg is None:
             return pyo.Constraint.Skip
-        if "Vmax" not in param_dev:
+        if dev_data.max_accumulated_deviation is None:
             return pyo.Constraint.Skip
-        if param_dev["Vmax"] == 0:
+        if dev_data.max_accumulated_deviation == 0:
             return pyo.Constraint.Skip
         if i == 1:
             # FLEXIBILITY
             # (water_in-water_avg)*dt = delta buffer
-            delta_t = param_generic["time_delta_minutes"] / 60  # hours
+            delta_t = param_generic.time_delta_minutes / 60  # hours
             lhs = (
-                model.varDeviceFlow[dev, "water", "in", t] - param_dev["Qavg"]
+                model.varDeviceFlow[dev, "water", "in", t] - dev_data.flow_avg
             ) * delta_t
             if t > 0:
                 Eprev = model.varDeviceStorageEnergy[dev, t - 1]
@@ -75,7 +75,7 @@ class Sink_water(Device):
             return lhs == rhs
         elif i == 2:
             # energy buffer limit
-            Emax = param_dev["Vmax"]
+            Emax = dev_data.max_accumulated_deviation
             return pyo.inequality(
                 -Emax / 2, model.varDeviceStorageEnergy[dev, t], Emax / 2
             )
@@ -92,7 +92,7 @@ class Sink_water(Device):
             rule=self.rule_devmodel_sink_water,
         )
         # add constraints to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "flex"), constr)
+        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "flex"), constr)
 
     def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "water", "in", t]
+        return self.pyomo_model.varDeviceFlow[self.id, "water", "in", t]

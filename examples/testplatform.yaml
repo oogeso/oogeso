@@ -1,23 +1,23 @@
-paramParameters:
+parameters:
   time_delta_minutes: 5 # minutes per timestep
   planning_horizon: 24 # timesteps in each rolling optimisation
   optimisation_timesteps: 6 # timesteps between each optimisation
   forecast_timesteps: 6 # timesteps beyond which forecast (instead of nowcast) profile is used
   time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   co2_tax: 0.8 # NOK/kgCO2
-  elBackupMargin: -1 # MW, -1=no limit
-  elReserveMargin: 5 # MWm -1=no limit
-  emissionIntensityMax: -1 # kgCO2/Sm3oe, -1=no limit
-  emissionRateMax: -1 # kgCO2/hour, -1=no limit
-  export_node: export # only used for calcuation of oil and gas export (TODO: change this)
+  el_backup_margin: -1 # MW, -1=no limit
+  el_reserve_margin: 5 # MWm -1=no limit
+  emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
+  emission_rate_max: -1 # kgCO2/hour, -1=no limit
   max_pressure_deviation: -1 # global limit for allowable relative pressure deviation from nominal
   objective: exportRevenue # select objective function to use
   reference_node: powersupply # for electrical voltage angle
 
-paramCarriers:
-  el: {}
-  gas:
-    CO2content: 2.34 # kg/Sm3 - see SSB 2016 report
+carriers:
+  - id: el
+    powerflow_method: dc-pf # transport, None, dc-pf
+  - id: gas
+    co2_content: 2.34 # kg/Sm3 - see SSB 2016 report
     G_gravity: 0.6
     Pb_basepressure_MPa: 0.101 # MPa
     R_individual_gas_constant: 500 # J/(kg K)
@@ -27,485 +27,513 @@ paramCarriers:
     k_heat_capacity_ratio: 1.27
     pressure_method: weymouth
     rho_density: 0.84 # kg/m3
-  heat: {}
-  oil:
+  - id: heat
+  - id: oil
     darcy_friction: 0.02
     pressure_method: darcy-weissbach
     rho_density: 900 # kg/m3
     viscosity: 0.0026 # kg/(m s)
-  water:
+  - id: water
     darcy_friction: 0.01
     pressure_method: darcy-weissbach
     rho_density: 1000 # kg/m3
     viscosity: 0.001 # kg/(m s)
-  wellstream:
-    #viscosity: 0.001 # kg/(m s) - only used in non-linear calculation
-    #composition.gas: 0.995
-    #composition.oil: 0.002
-    #composition.water: 0.003
+  - id: wellstream
     darcy_friction: 0.0136
     pressure_method: darcy-weissbach
     rho_density: 5.63 # kg/m3 (dependent on wellstream composition)
 
-paramDevice:
-  Gen1:
-    Pmax: 21.8
-    Pmin: 3.5
+devices:
+  - id: Gen1
+    flow_max: 21.8
+    flow_min: 3.5
     eta_heat: 0.5
-    fuelA: 2.350
-    fuelB: 0.530
+    fuel_A: 2.350
+    fuel_B: 0.530
     include: 1
-    maxRampDown: 1 # change relative to capacity per minute, 1=100%/min
-    maxRampUp: 0.5 # 100%/min
+    max_ramp_down: 1 # change relative to capacity per minute, 1=100%/min
+    max_ramp_up: 0.5 # 100%/min
     model: gasturbine
     name: gas turbine1
-    node: powersupply
-    startupCost: 2000 # NOK
-    startupDelay: 30 # min
-  Gen2:
-    Pmax: 21.8
-    Pmin: 3.5
+    node_id: powersupply
+    startup_cost: 2000 # NOK
+    startup_delay: 30 # min
+
+  - id: Gen2
+    flow_max: 21.8
+    flow_min: 3.5
     eta_heat: 0.5
-    fuelA: 2.351
-    fuelB: 0.531
+    fuel_A: 2.351
+    fuel_B: 0.531
     include: 1
-    maxRampDown: 1
-    maxRampUp: 0.5
+    max_ramp_down: 1
+    max_ramp_up: 0.5
     model: gasturbine
     name: gas turbine2
-    node: powersupply
-    startupCost: 2000
-    startupDelay: 30
-  Gen3:
-    Pmax: 21.8
-    Pmin: 3.5
+    node_id: powersupply
+    startup_cost: 2000
+    startup_delay: 30
+
+  - id: Gen3
+    flow_max: 21.8
+    flow_min: 3.5
     eta_heat: 0.5
-    fuelA: 2.352
-    fuelB: 0.532
+    fuel_A: 2.352
+    fuel_B: 0.532
     include: 1
-    maxRampDown: 1
-    maxRampUp: 0.5
+    max_ramp_down: 1
+    max_ramp_up: 0.5
     model: gasturbine
     name: gas turbine3
-    node: powersupply
-    startupCost: 2000
-    startupDelay: 30
-  wind:
-    Pmax: 32
+    node_id: powersupply
+    startup_cost: 2000
+    startup_delay: 30
+
+  - id: wind
+    flow_max: 32
     co2em: 0 # kgCO2/MWh_el
-    opCost: 0.003 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
+    op_cost: 0.003 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
     include: 1
     model: source_el
     name: wind turb
-    node: powersupply
+    node_id: powersupply
     profile: curve_wind
-  battery:
-    Emax: 4
-    Pmax: 4
+
+  - id: battery
+    max_E: 4
+    flow_max: 4
     eta: 0.9
     include: 0
     model: storage_el
     name: battery
-    node: powersupply
-  loadshed:
+    node_id: powersupply
+
+  - id: loadshed
     # A "generator" to cover otherwise unmet el demand - representing load shed
     include: 0
     model: source_el
-    node: powersupply
+    node_id: powersupply
     name: Loadshedding (dummy)
-    Pmax: 1000
+    flow_max: 1000
     # high operating (energy) cost to avoid using it unless necessary
-    opCost: 10 # NOK/MJ (= 10*3600s/h NOK/MWs = 36000 NOK/MWh)
+    op_cost: 10 # NOK/MJ (= 10*3600s/h NOK/MWs = 36000 NOK/MWh)
     co2em: 0
     reserve_factor: 0 #does not contribute towards reserve
-  PQ_load:
-    Pmax: 3
-    Pmin: 3
+
+  - id: PQ_load
+    flow_max: 3
+    flow_min: 3
     include: 1
     model: sink_el
     name: general el load
-    node: utility
+    node_id: utility
     reserve_factor: 0
-  ACO:
-    Pmax: 3.5
-    Pmin: 3.5
+
+  - id: ACO
+    flow_max: 3.5
+    flow_min: 3.5
     include: 1
     model: sink_el
     name: air compressors
-    node: utility
+    node_id: utility
     reserve_factor: 0
-  OEX:
+
+  - id: OEX
     eta: 0.6
     include: 1
     model: pump_oil
     name: oil export pump
-    node: pump_oil
+    node_id: pump_oil
     reserve_factor: 1
-  REC:
+
+  - id: REC
     Q0: 45.7 # Sm3/s - nominal flow rate (used in linearisation)
     eta: 0.65
     include: 1
     model: compressor_el
     name: compressor
-    node: compressor_gas
+    node_id: compressor_gas
     reserve_factor: 1
     temp_in: 300
-  SEP_2:
-    eta_el: 0.05
-    eta_heat: 0.07
+
+  - id: SEP_2
+    el_demand_factor: 0.05
+    heat_demand_factor: 0.07
     include: 1
     model: separator2
     name: separator
-    node: separator
+    node_id: separator
     reserve_factor: 1
-  SWL:
-    Pmax: 1000
-    Pmin: 0
+
+  - id: SWL
+    flow_max: 1000
+    flow_min: 0
     eta: 0.8
     include: 1
     model: pump_water
     name: seawater lift
-    node: waterlift
+    node_id: waterlift
     reserve_factor: 1
-  WIN:
-    Pmax: 1000
-    Pmin: 0
+
+  - id: WIN
+    flow_max: 1000
+    flow_min: 0
     eta: 0.8
     include: 1
     model: pump_water
     name: water injection pump
-    node: pump_water
+    node_id: pump_water
     reserve_factor: 1
-  WST_lift:
+
+  - id: WST_lift
     Q0: 5
     eta: 0.65
     include: 1
     model: compressor_el
     name: lift compressor
-    node: compressor_lift
+    node_id: compressor_lift
     reserve_factor: 1
     temp_in: 300
-  ex_g:
+
+  - id: ex_g
     include: 1
     model: sink_gas
     name: gas EXPORT
-    node: export
-    price.gas: 4.19 # NOK/Sm3
-  ex_o:
+    node_id: export
+    price: { "gas": 4.19 } # NOK/Sm3
+
+  - id: ex_o
     include: 1
     model: sink_oil
     name: oil EXPORT
-    node: export
-    price.oil: 4190 # NOK/Sm3
-  heat1:
-    Pmax: 3
-    Pmin: 3
+    node_id: export
+    price: { "oil": 4190 } # NOK/Sm3
+
+  - id: heat1
+    flow_max: 3
+    flow_min: 3
     include: 1
     model: sink_heat
     name: heat demand
-    node: utility
-  heatdump:
-    Pmax: 100
-    Pmin: 0
+    node_id: utility
+
+  - id: heatdump
+    flow_max: 100
+    flow_min: 0
     include: 1
     model: sink_heat
     name: heat dump
-    node: powersupply
-  injectionwell:
-    Qmax: 1.3
-    Qmin: 1.3
+    node_id: powersupply
+
+  - id: injectionwell
+    flow_max: 1.3
+    flow_min: 1.3
     #Qavg: 0.3
     #Vmax: 0
     #pressure: 6
     include: 1
     model: sink_water
     name: water injection
-    node: water_injection
+    node_id: water_injection
     profile: waterinj
-  seawater:
-    Qmax: 5
+
+  - id: seawater
+    flow_max: 5
     include: 1
     model: source_water
     name: water wells
     naturalpressure: 0.1
-    node: water_intake
-  water_disp:
+    node_id: water_intake
+
+  - id: water_disp
     include: 1
     model: sink_water
     name: water disposal
-    node: water_disp
-    price.water: -0.1 # NOK/Sm3 (cost to discourage water disposal)
-  wellL1:
+    node_id: water_disp
+    price: { "water": -0.1 } # NOK/Sm3 (cost to discourage water disposal)
+
+  - id: wellL1
     include: 1
     model: well_gaslift
     name: well1
-    node: wells
+    node_id: wells
     profile: oilgas
     gas_oil_ratio: 500
     water_cut: 0.6
-    Qmax: 15 # Sm3/s
+    flow_max: 15 # Sm3/s
     f_inj: 220 # gas injection rate as fraction of production rate
-    injectionpressure: 20 # MPa
-    separatorpressure: 2 # MPa
-  wellL2:
+    injection_pressure: 20 # MPa
+    separator_pressure: 2 # MPa
+
+  - id: wellL2
     include: 1
     model: well_gaslift
     name: well2
-    node: wells
+    node_id: wells
     profile: oilgas
     gas_oil_ratio: 500
     water_cut: 0.6
-    Qmax: 35 # Sm3/s
+    flow_max: 35 # Sm3/s
     f_inj: 220
-    injectionpressure: 20
-    separatorpressure: 2
+    injection_pressure: 20
+    separator_pressure: 2
 
-paramEdge:
-  cL1:
+edges:
+  - id: cL1
     height_m: 0.0
     include: 1
     length_km: 1.0
-    nodeFrom: compressor_lift
-    nodeTo: wells
-    pressure.from: 20.0
-    pressure.to: 20.0
-    type: gas
-  cL2g:
+    node_from: compressor_lift
+    node_to: wells
+    pressure_from: 20.0
+    pressure_to: 20.0
+    model: gas
+  - id: cL2g
     height_m: 0.0
     include: 1
     length_km: 1.0
-    nodeFrom: wells
-    nodeTo: separator
-    type: gas
-  cL2o:
+    node_from: wells
+    node_to: separator
+    model: gas
+  - id: cL2o
     height_m: 0.0
     include: 1
     length_km: 1.0
-    nodeFrom: wells
-    nodeTo: separator
-    type: oil
-  cL2w:
+    node_from: wells
+    node_to: separator
+    model: oil
+  - id: cL2w
     height_m: 0.0
     include: 1
     length_km: 1.0
-    nodeFrom: wells
-    nodeTo: separator
-    type: water
-  e1:
-    Pmax: 500.0
-    height_m: 0.0
+    node_from: wells
+    node_to: separator
+    model: water
+
+  - id: e1
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: utility
+    node_from: powersupply
+    node_to: utility
     reactance: 0.01
     resistance: 0.001
-    type: el
-  e2:
-    Pmax: 500.0
-    height_m: 0.0
+    model: el
+
+  - id: e2
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: separator
+    node_from: powersupply
+    node_to: separator
     reactance: 0.01
     resistance: 0.001
-    type: el
-  e3:
-    Pmax: 500.0
-    height_m: 0.0
+    model: el
+
+  - id: e3
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: pump_water
+    node_from: powersupply
+    node_to: pump_water
     reactance: 0.01
     resistance: 0.001
-    type: el
-  e4:
-    Pmax: 500.0
-    height_m: 0.0
+    model: el
+
+  - id: e4
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: compressor_gas
+    node_from: powersupply
+    node_to: compressor_gas
     reactance: 0.01
     resistance: 0.001
-    type: el
-  e5:
-    Pmax: 500.0
-    height_m: 0.0
+    model: el
+
+  - id: e5
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: pump_oil
+    node_from: powersupply
+    node_to: pump_oil
     reactance: 0.01
     resistance: 0.001
-    type: el
-  e7:
-    Pmax: 500.0
-    height_m: 0.0
+    model: el
+
+  - id: e7
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: waterlift
+    node_from: powersupply
+    node_to: waterlift
     reactance: 0.01
     resistance: 0.001
-    type: el
-  eL1:
-    Pmax: 500.0
-    height_m: 0.0
+    model: el
+
+  - id: eL1
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: compressor_lift
+    node_from: powersupply
+    node_to: compressor_lift
     reactance: 0.01
     resistance: 0.001
-    type: el
-  g1:
+    model: el
+
+  - id: g1
     diameter_mm: 500.0
     height_m: 0.0
     include: 1
     length_km: 0.01
-    nodeFrom: separator
-    nodeTo: compressor_gas
-    pressure.from: 2.0
-    pressure.to: 2.0
+    node_from: separator
+    node_to: compressor_gas
+    pressure_from: 2.0
+    pressure_to: 2.0
     temperature_K: 300.0
-    type: gas
-  g2:
+    model: gas
+
+  - id: g2
     diameter_mm: 200.0
     height_m: 0.0
     include: 1
     length_km: 5.0
-    nodeFrom: compressor_gas
-    nodeTo: export
-    pressure.from: 10.0
-    pressure.to: 6.0
+    node_from: compressor_gas
+    node_to: export
+    pressure_from: 10.0
+    pressure_to: 6.0
     temperature_K: 300.0
-    type: gas
-  g3:
+    model: gas
+
+  - id: g3
     diameter_mm: 100.0
     height_m: 0.0
     include: 1
     length_km: 0.01
-    nodeFrom: separator
-    nodeTo: powersupply
-    pressure.from: 2.0
-    pressure.to: 2.0
+    node_from: separator
+    node_to: powersupply
+    pressure_from: 2.0
+    pressure_to: 2.0
     temperature_K: 300.0
-    type: gas
-  gL1:
+    model: gas
+
+  - id: gL1
     #diameter_mm: 500.0
     #temperature_K: 300.0
     height_m: 0.0
     include: 1
     length_km: 1.0
-    nodeFrom: separator
-    nodeTo: compressor_lift
-    pressure.from: 2.0
-    pressure.to: 2.0
-    type: gas
-  h1:
-    Pmax: 500.0
-    height_m: 0.0
+    node_from: separator
+    node_to: compressor_lift
+    pressure_from: 2.0
+    pressure_to: 2.0
+    model: gas
+
+  - id: h1
+    flow_max: 500.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: utility
-    type: heat
-  h2:
-    Pmax: 1000.0
-    height_m: 0.0
+    node_from: powersupply
+    node_to: utility
+    model: heat
+
+  - id: h2
+    flow_max: 1000.0
     include: 1
     length_km: 0.01
-    nodeFrom: powersupply
-    nodeTo: separator
-    type: heat
-  o1:
+    node_from: powersupply
+    node_to: separator
+    model: heat
+
+  - id: o1
     diameter_mm: 200.0
     height_m: 0.0
     include: 1
     length_km: 0.01
-    nodeFrom: separator
-    nodeTo: pump_oil
-    pressure.from: 0.3
-    pressure.to: 0.3
-    type: oil
-  o2:
+    node_from: separator
+    node_to: pump_oil
+    pressure_from: 0.3
+    pressure_to: 0.3
+    model: oil
+
+  - id: o2
     diameter_mm: 200.0
     height_m: 0.0
     include: 1
     length_km: 5.0
-    nodeFrom: pump_oil
-    nodeTo: export
-    pressure.from: 5.0
-    pressure.to: 3.0
-    type: oil
-  w0:
+    node_from: pump_oil
+    node_to: export
+    pressure_from: 5.0
+    pressure_to: 3.0
+    model: oil
+
+  - id: w0
     diameter_mm: 200.0
     height_m: 0.0
     include: 1
     length_km: 0.01
-    nodeFrom: water_intake
-    nodeTo: waterlift
-    pressure.from: 0.1
-    pressure.to: 0.1
-    type: water
-  w1:
+    node_from: water_intake
+    node_to: waterlift
+    pressure_from: 0.1
+    pressure_to: 0.1
+    model: water
+
+  - id: w1
     diameter_mm: 200.0
     height_m: 40.0
     include: 1
     length_km: 0.01
-    nodeFrom: waterlift
-    nodeTo: pump_water
+    node_from: waterlift
+    node_to: pump_water
     num_pipes: 3
-    pressure.from: 1.14 # MPa
-    pressure.to: 0.7 # MPa
-    type: water
-  w2:
+    pressure_from: 1.14 # MPa
+    pressure_to: 0.7 # MPa
+    model: water
+
+  - id: w2
     diameter_mm: 200.0
     height_m: 0.0
     include: 1
     length_km: 0.01
-    nodeFrom: separator
-    nodeTo: pump_water
-    pressure.from: 0.7 # MPa
-    pressure.to: 0.7 # MPa
-    type: water
-  w3:
+    node_from: separator
+    node_to: pump_water
+    pressure_from: 0.7 # MPa
+    pressure_to: 0.7 # MPa
+    model: water
+
+  - id: w3
     diameter_mm: 135.0
     height_m: -100.0
     include: 1
     length_km: 1.0
-    nodeFrom: pump_water
-    nodeTo: water_injection
+    node_from: pump_water
+    node_to: water_injection
     num_pipes: 15
-    pressure.from: 7.0 # MPa
-    pressure.to: 6.0 # MPa
-    type: water
-  w5:
+    pressure_from: 7.0 # MPa
+    pressure_to: 6.0 # MPa
+    model: water
+
+  - id: w5
     height_m: 0.0
     include: 1
     length_km: 1.0
-    nodeFrom: separator
-    nodeTo: water_disp
-    type: water
+    node_from: separator
+    node_to: water_disp
+    model: water
 
-paramNode:
-  compressor_gas: {}
-  compressor_lift: {}
-  export:
-    maxdeviation_pressure.gas.in: 0.0 # 100%
-    maxdeviation_pressure.oil.in: 0.0 # 100%
-  powersupply: {}
-  pump_oil: {}
-  pump_water: {}
-  separator:
-    maxdeviation_pressure.wellstream.in: 0.0 # 100%
-  utility: {}
-  water_disp: {}
-  water_injection:
-    maxdeviation_pressure.water.in: 0.0 # 100%
-  water_intake: {}
-  waterlift: {}
-  wells: {}
+nodes:
+  - id: compressor_gas
+  - id: compressor_lift
+  - id: export
+    maxdeviation_pressure: { "gas": { "in": 0.0 }, "oil": { "in": 0.0 } }
+  - id: powersupply
+  - id: pump_oil
+  - id: pump_water
+  - id: separator
+    maxdeviation_pressure: { "wellstream": { "in": 0.0 } }
+  - id: utility
+  - id: water_disp
+  - id: water_injection
+    maxdeviation_pressure: { "water": { "in": 0.0 } }
+  - id: water_intake
+  - id: waterlift
+  - id: wells

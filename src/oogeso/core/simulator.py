@@ -1,6 +1,8 @@
 import pandas as pd
 import pyomo.environ as pyo
 
+from oogeso.core.devices.gasturbine import Gasturbine
+
 # from . import file_io
 from .optimiser import Optimiser
 import logging
@@ -26,7 +28,7 @@ class Simulator:
         """Create Simulator object"""
 
         # Abstract pyomo model formulation
-        self.optimiser = optimiser
+        self.optimiser: Optimiser = optimiser
 
         # Dataframes keeping track of simulation results:
         self._dfDeviceFlow = None
@@ -88,8 +90,8 @@ class Simulator:
         self._df_profiles_forecast = profiles["forecast"]
         self._df_profiles_actual = profiles["actual"]
 
-        steps = self.optimiser.optimisation_parameters["optimisation_timesteps"]
-        horizon = self.optimiser.optimisation_parameters["planning_horizon"]
+        steps = self.optimiser.optimisation_parameters.optimisation_timesteps
+        horizon = self.optimiser.optimisation_parameters.planning_horizon
         if timelimit is not None:
             logging.debug("Using solver timelimit={}".format(timelimit))
         if timerange is None:
@@ -137,7 +139,7 @@ class Simulator:
         # TODO: Implement result storage
         # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
         pyomo_instance = self.optimiser.pyomo_instance
-        timelimit = self.optimiser.optimisation_parameters["optimisation_timesteps"]
+        timelimit = self.optimiser.optimisation_parameters.optimisation_timesteps
         timeshift = timestep
 
         # Retrieve variable values
@@ -282,7 +284,7 @@ class Simulator:
         devs_elout = []
         for dev_id, dev_obj in self.optimiser.all_devices.items():
             if "el" in dev_obj.carrier_out:
-                devs_elout.append(dev_obj.dev_id)
+                devs_elout.append(dev_obj.id)
         for t in range(timelimit):
             for d in devs_elout:
                 rescap = pyo.value(
@@ -337,7 +339,7 @@ class Simulator:
 
         num_sim_timesteps = mc._dfCO2rate.shape[0]
         timesteps = mc._dfCO2rate.index
-        td_min = self.optimiser.optimisation_parameters["time_delta_minutes"]
+        td_min = self.optimiser.optimisation_parameters.time_delta_minutes
         kpi["hours_simulated"] = num_sim_timesteps * td_min / 60
 
         # CO2 emissions
@@ -352,10 +354,13 @@ class Simulator:
 
         # fuel consumption
         gasturbines = [
-            i
+            g.id
             for i, g in self.optimiser.all_devices.items()
-            if g.params["model"] == "gasturbine"
+            # if isinstance(g, Gasturbine) # why doesn't isinstance work?
+            if g.dev_data.model == "gasturbine"
         ]
+        g_type = type(self.optimiser.all_devices["Gen1"])
+        logging.debug("Gas turbines: {}, type={}".format(gasturbines, g_type))
         mask_gt = mc._dfDeviceFlow.index.get_level_values("device").isin(gasturbines)
         gtflow = mc._dfDeviceFlow[mask_gt]
         fuel = (
@@ -405,11 +410,11 @@ class Simulator:
         # curtailed wind energy
         p_avail = pd.DataFrame(index=timesteps)
         for d in windturbines:
-            devparam = self.optimiser.all_devices[d].params
-            Pmax = devparam["Pmax"]
+            devparam = self.optimiser.all_devices[d].dev_data
+            Pmax = devparam.flow_max
             p_avail[d] = Pmax
-            if "profile" in devparam:
-                profile_ref = devparam["profile"]
+            if devparam.profile is not None:
+                profile_ref = devparam.profile
                 p_avail[d] = Pmax * mc._df_profiles_actual.loc[timesteps, profile_ref]
         p_curtailed = (p_avail - p_wind).sum(axis=1)
         kpi["wind_curtailed_mwh_per_year"] = p_curtailed.mean() * hour_per_year

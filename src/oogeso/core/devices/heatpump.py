@@ -25,5 +25,5 @@ class Heatpump(Device):
         # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
 
-    def getPowerVar(self, t):
+    def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "in", t]

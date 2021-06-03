@@ -36,7 +36,7 @@ def computePowerFlowMatrices(nodes, branches, baseZ=1):
     for br_id, branch in branches.items():
         b = susceptance[br_id]
         edges.append(
-            (branch["nodeFrom"], branch["nodeTo"], br_id, {"i": br_id, "b": b})
+            (branch["node_from"], branch["node_to"], br_id, {"i": br_id, "b": b})
         )
         edge_ids.append(br_id)
 

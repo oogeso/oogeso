@@ -1,10 +1,13 @@
 import logging
+from dataclasses import asdict
+
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
-import pandas as pd
-from . import devices
-from . import networks
+
+from ..dto import oogeso_input_data_objects as inputdata
+from . import devices, networks
 from .networks import electricalsystem as el_calc
+from .networks.network_node import NetworkNode
 
 
 class Optimiser:
@@ -18,7 +21,7 @@ class Optimiser:
         self.all_nodes = {}
         self.all_edges = {}
         self.all_carriers = {}
-        self.optimisation_parameters = {}
+        self.optimisation_parameters: inputdata.OptimisationParametersData = None
         self.pyomo_instance = None
         # List of constraints that need to be reconstructed for each optimisation:
         self.constraints_to_reconstruct = []
@@ -63,62 +66,21 @@ class Optimiser:
 
     def _setNodePressureFromEdgeData(self):
         # Set node terminal nominal pressure based on edge from/to pressure values
-
         for i, edge in self.all_edges.items():
-            edg = edge.params
-            if "pressure.from" not in edg:
-                continue
-            # if np.isnan(edg['pressure.from']):
-            #    continue
-            n_from = edg["nodeFrom"]
-            n_to = edg["nodeTo"]
-            typ = edg["type"]
-            p_from = edg["pressure.from"]
-            p_to = edg["pressure.to"]
-            c_out = "pressure.{}.out".format(typ)
-            c_in = "pressure.{}.in".format(typ)
-            # Check that pressure values are consistent:
-            is_consistent = True
-            existing_p_from = None
-            existing_p_to = None
-            try:
-                if c_out in self.all_nodes[n_from].params:
-                    existing_p_from = self.all_nodes[n_from].params[c_out]
-                logging.debug(
-                    "{} p_from = {} (existing) / {} (new)".format(
-                        i, existing_p_from, p_from
-                    )
-                )
-                if (existing_p_from is not None) and (existing_p_from != p_from):
-                    msg = (
-                        "Input data edge pressure from values are"
-                        " inconsistent (edge={}, {}!={})"
-                    ).format(i, existing_p_from, p_from)
-                    is_consistent = False
-            except:
-                pass
-            try:
-                if c_in in self.all_nodes[n_to].params:
-                    existing_p_to = self.all_nodes[n_to].params[c_in]
-                logging.debug(
-                    "{} p_to = {} (existing) / {} (new)".format(i, existing_p_to, p_to)
-                )
-                if (existing_p_to is not None) and (existing_p_to != p_to):
-                    msg = (
-                        "Input data edge pressure to values are"
-                        " inconsistent (edge={})"
-                    ).format(i)
-                    is_consistent = False
-            except:
-                pass
-            if not is_consistent:
-                # logging.warning(self.all_nodes)
-                raise Exception(msg)
+            edg = edge.edge_data
+            carrier = edg.model
+            # Setting nominal pressure levels at node terminals. Raise exception
+            # if inconsistencies are found
+            if (hasattr(edg, "pressure_from")) and (edg.pressure_from is not None):
+                n_from: NetworkNode = self.all_nodes[edg.node_from]
+                p_from = edg.pressure_from
+                n_from.set_nominal_pressure(carrier, "out", p_from)
+            if (hasattr(edg, "pressure_to")) and (edg.pressure_to is not None):
+                n_to: NetworkNode = self.all_nodes[edg.node_to]
+                p_to = edg.pressure_to
+                n_to.set_nominal_pressure(carrier, "in", p_to)
 
-            self.all_nodes[n_from].params[c_out] = p_from
-            self.all_nodes[n_to].params[c_in] = p_to
-
-    def createOptimisationModel(self, data):
+    def createOptimisationModel(self, data: inputdata.EnergySystemData):
         """Create pyomo MILP model
 
         Parameters:
@@ -129,39 +91,58 @@ class Optimiser:
 
         model = pyo.ConcreteModel()
 
+        # TODO: Replace data dictionary with EnergySystemData object (cf DTO)
+        # edge: DONE
+        # carrier: DONE
+        # parameters: ...
+        # node: ...
+        # device: ...
+
+        # json_str = json.dumps(data)
+        # energy_system_data: inputdata.EnergySystemData = (
+        #    inputdata.deserialize_oogeso_data(json_str)
+        # )
+        # energy_system_data = json.loads(json_str, cls=inputdata.DataclassJSONDecoder)
+        energy_system_data = data
+        print("TYPE Energysystemdata = ", type(energy_system_data))
+
         # Create energy system network elements (devices, nodes, edges)
-        for dev_id, dev_data in data["paramDevice"].items():
-            if dev_data["include"] != 0:
-                device_model = dev_data["model"]
+        for dev_id, dev_data_obj in energy_system_data.devices.items():
+            if dev_data_obj.include != 0:
+                device_model = dev_data_obj.model
                 # The class corresponding to the device type should always have a
                 # name identical to the type (but capitalized):
                 logging.debug("Device model={}".format(device_model))
                 Devclass = getattr(devices, device_model.capitalize())
-                newDevice = Devclass(model, dev_id, dev_data, self)
-                self.all_devices[dev_id] = newDevice
+                new_device = Devclass(model, self, dev_data_obj)
+                self.all_devices[dev_id] = new_device
         #            else:
         #                logging.debug("Excluding device {}".format(dev_id))
 
-        for node_id, node_data in data["paramNode"].items():
-            newNode = networks.NetworkNode(model, node_id, node_data, self)
-            self.all_nodes[node_id] = newNode
+        for node_data_obj in energy_system_data.nodes:
+            new_node = networks.NetworkNode(model, self, node_data_obj)
+            node_id = new_node.id
+            # new_node = networks.NetworkNode(model, node_id, node_data, self)
+            self.all_nodes[node_id] = new_node
 
-        for edge_id, edge_data in data["paramEdge"].items():
-            newEdge = networks.NetworkEdge(model, edge_id, edge_data, self)
-            self.all_edges[edge_id] = newEdge
+        for edge_data_obj in data.edges:
+            edge_id = edge_data_obj.id
+            new_edge = networks.NetworkEdge(model, self, edge_data_obj)
+            self.all_edges[edge_id] = new_edge
 
-        for carrier_id, carrier_data in data["paramCarriers"].items():
-            newCarrier = networks.EnergyCarrier(model, carrier_id, carrier_data)
-            self.all_carriers[carrier_id] = newCarrier
+        for carrier_data_obj in data.carriers:
+            carrier_model = carrier_data_obj.id
+            new_carrier = carrier_data_obj
+            self.all_carriers[carrier_model] = new_carrier
 
-        self.optimisation_parameters = data["paramParameters"]
+        self.optimisation_parameters = data.parameters
 
         logging.debug("TODO: improve code for electric powerflow coefficients")
         nodelist = self.all_nodes.keys()
         edgelist = {
-            edge_id: edge.params
+            edge_id: asdict(edge.edge_data)
             for edge_id, edge in self.all_edges.items()
-            if edge.params["type"] == "el"
+            if edge.edge_data.model == "el"
         }
         coeffB, coeffDA = el_calc.computePowerFlowMatrices(nodelist, edgelist, baseZ=1)
         self.elFlowCoeffB = coeffB
@@ -171,22 +152,23 @@ class Optimiser:
         # logging.debug(self.all_edges.keys())
         # logging.debug(self.all_devices.keys())
 
-        timerange = range(data["paramParameters"]["planning_horizon"])
+        timerange = range(data.parameters.planning_horizon)
         profiles_in_use = list(
-            set(d["profile"] for k, d in data["paramDevice"].items() if "profile" in d)
+            set(d.profile for k, d in data.devices.items() if d.profile is not None)
         )
         logging.info("profiles in use: {}".format(profiles_in_use))
 
         # Make network connections between nodes, edges and devices
         for dev_id, dev in self.all_devices.items():
-            node_id_where_connected = dev.params["node"]
+            logging.debug("Node-device: {},{}".format(dev_id, dev))
+            node_id_where_connected = dev.dev_data.node_id
             node = self.all_nodes[node_id_where_connected]
             node.addDevice(dev_id, dev)
         for edge_id, edge in self.all_edges.items():
-            node = self.all_nodes[edge.params["nodeFrom"]]
-            node.addEdge(edge_id, edge, "from")
-            node = self.all_nodes[edge.params["nodeTo"]]
-            node.addEdge(edge_id, edge, "to")
+            node = self.all_nodes[edge.edge_data.node_from]
+            node.addEdge(edge, "from")
+            node = self.all_nodes[edge.edge_data.node_to]
+            node.addEdge(edge, "to")
 
         # specify sets:
         # energycarriers=['el','heat','gas','oil','water','wellstream','hydrogen']
@@ -289,7 +271,7 @@ class Optimiser:
         )
 
         # specify objective:
-        obj = self.optimisation_parameters["objective"]
+        obj = self.optimisation_parameters.objective
         if obj == "co2":
             rule = self._rule_objective_co2
         elif obj == "costs":
@@ -329,16 +311,16 @@ class Optimiser:
             edge.defineConstraints()
 
         params_generic = self.optimisation_parameters
-        if ("emissionRateMax" in params_generic) and (
-            params_generic["emissionRateMax"] >= 0
+        if (params_generic.emission_rate_max is not None) and (
+            params_generic.emission_rate_max >= 0
         ):
             model.constrO_emissionrate = pyo.Constraint(
                 model.setHorizon, rule=self._rule_emissionRateLimit
             )
         else:
-            logging.info("No emissionRateMax limit specified")
-        if ("emissionIntensityMax" in params_generic) and (
-            params_generic["emissionIntensityMax"] >= 0
+            logging.info("No emission_rate_max limit specified")
+        if (params_generic.emission_intensity_max is not None) and (
+            params_generic.emission_intensity_max >= 0
         ):
             model.constrO_emissionintensity = pyo.Constraint(
                 model.setHorizon, rule=self._rule_emissionIntensityLimit
@@ -346,16 +328,16 @@ class Optimiser:
         else:
             logging.info("No emissionIntensityMax limit specified")
 
-        if ("elReserveMargin" in params_generic) and (
-            params_generic["elReserveMargin"] >= 0
+        if (params_generic.el_reserve_margin is not None) and (
+            params_generic.el_reserve_margin >= 0
         ):
             model.constrO_elReserveMargin = pyo.Constraint(
                 model.setHorizon, rule=self._rule_elReserveMargin
             )
         else:
             logging.info("No elReserveMargin limit specified")
-        if ("elBackupMargin" in params_generic) and (
-            params_generic["elBackupMargin"] >= 0
+        if (params_generic.el_backup_margin is not None) and (
+            params_generic.el_backup_margin >= 0
         ):
             model.constrO_elBackupMargin = pyo.Constraint(
                 model.setDevice, model.setHorizon, rule=self._rule_elBackupMargin
@@ -375,9 +357,9 @@ class Optimiser:
         first : booblean
             True if it is the first timestep in rolling optimisation
         """
-        opt_timesteps = self.optimisation_parameters["optimisation_timesteps"]
-        horizon = self.optimisation_parameters["planning_horizon"]
-        timesteps_use_actual = self.optimisation_parameters["forecast_timesteps"]
+        opt_timesteps = self.optimisation_parameters.optimisation_timesteps
+        horizon = self.optimisation_parameters.planning_horizon
+        timesteps_use_actual = self.optimisation_parameters.forecast_timesteps
         self._timestep = timestep
         # Update profile (using actual for first 4 timesteps, forecast for rest)
         # -this is because for the first timesteps, we tend to have updated
@@ -426,21 +408,23 @@ class Optimiser:
                     dev
                 ] = _updateOnTimesteps(t_prev, dev)
                 # Initial power output (relevant for ramp rate constraint):
-                if "maxRampUp" in dev_obj.params:
+                if dev_obj.dev_data.max_ramp_up is not None:
                     self.pyomo_instance.paramDevicePowerInitially[
                         dev
-                    ] = dev_obj.getPowerVar(t_prev)
+                    ] = dev_obj.getFlowVar(t_prev)
                 # Energy storage:
                 if dev_obj in self.devices_with_storage:
                     self.pyomo_instance.paramDeviceEnergyInitially[
                         dev
                     ] = self.pyomo_instance.varDeviceStorageEnergy[dev, t_prev]
-                    if "target_profile" in dev_obj.params:
-                        prof = dev_obj.params["target_profile"]
-                        Emax = dev_obj.params["Emax"]
+                    # Update target profile if present:
+                    if hasattr(dev_obj.dev_data, "target_profile") and (
+                        dev_obj.dev_data.target_profile is not None
+                    ):
+                        prof = dev_obj.dev_data.target_profile
+                        max_E = dev_obj.dev_data.max_E
                         self.pyomo_instance.paramDeviceEnergyTarget[dev] = (
-                            Emax
-                            * self._df_profiles_forecast.loc[timestep + horizon, prof]
+                            max_E * profiles["forecast"].loc[timestep + horizon, prof]
                         )
 
         # These constraints need to be reconstructed to update properly
@@ -478,7 +462,7 @@ class Optimiser:
         storageDepletionCosts = self.compute_costForDepletedStorage(model)
         opCosts = self.compute_operatingCosts(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
-        co2_tax = self.optimisation_parameters["co2_tax"]  # kr/kgCO2
+        co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
         co2Cost = co2 * co2_tax  # kr/s
         sumCost = co2Cost + startupCosts + storageDepletionCosts + opCosts
         return sumCost
@@ -489,7 +473,7 @@ class Optimiser:
         sumRevenue = self.compute_exportRevenue(model)  # kr/s
         startupCosts = self.compute_startup_costs(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
-        co2_tax = self.optimisation_parameters["co2_tax"]  # kr/kgCO2
+        co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
         co2Cost = co2 * co2_tax  # kr/s
         storageDepletionCosts = self.compute_costForDepletedStorage(model)
         opCosts = self.compute_operatingCosts(model)  # kr/s
@@ -499,7 +483,7 @@ class Optimiser:
     def _rule_emissionRateLimit(self, model, t):
         """Upper limit on CO2 emission rate"""
         params_generic = self.optimisation_parameters
-        emissionRateMax = params_generic["emissionRateMax"]
+        emissionRateMax = params_generic.emission_rate_max
         lhs = self.compute_CO2(model, timesteps=[t])
         rhs = emissionRateMax
         return lhs <= rhs
@@ -507,7 +491,7 @@ class Optimiser:
     def _rule_emissionIntensityLimit(self, model, t):
         """Upper limit on CO2 emission intensity"""
         params_generic = self.optimisation_parameters
-        emissionIntensityMax = params_generic["emissionIntensityMax"]
+        emissionIntensityMax = params_generic.emission_intensity_max
         lhs = self.compute_CO2(model, timesteps=[t])
         rhs = emissionIntensityMax * self.compute_oilgas_export(model, timesteps=[t])
         return lhs <= rhs
@@ -522,10 +506,10 @@ class Optimiser:
         # exclude constraint for first timesteps since the point of the
         # dispatch margin is exactly to cope with forecast errors
         # *2 to make sure there is time to start up gt
-        if t < params_generic["forecast_timesteps"]:
+        if t < params_generic.forecast_timesteps:
             return pyo.Constraint.Skip
 
-        margin = params_generic["elReserveMargin"]
+        margin = params_generic.el_reserve_margin
         capacity_unused = self.compute_elReserve(model, t)
         expr = capacity_unused >= margin
         return expr
@@ -540,7 +524,7 @@ class Optimiser:
         """
         params_generic = self.optimisation_parameters
         dev_obj = self.all_devices[dev]
-        margin = params_generic["elBackupMargin"]
+        margin = params_generic.el_backup_margin
         if "el" not in dev_obj.carrier_out:
             # this is not a power generator
             return pyo.Constraint.Skip
@@ -589,7 +573,7 @@ class Optimiser:
             thisCost = dev_obj.compute_startup_costs(timesteps)
             start_stop_costs += thisCost
         # get average per sec:
-        deltaT = self.optimisation_parameters["time_delta_minutes"] * 60
+        deltaT = self.optimisation_parameters.time_delta_minutes * 60
         sumTime = len(timesteps) * deltaT
         start_stop_costs = start_stop_costs / sumTime
         return start_stop_costs

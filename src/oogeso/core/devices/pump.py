@@ -1,5 +1,7 @@
 import pyomo.environ as pyo
 import logging
+
+from oogeso.core.networks.network_node import NetworkNode
 from . import Device
 
 
@@ -7,11 +9,11 @@ class _PumpDevice(Device):
     """Parent class for pumps. Don't use this class directly."""
 
     def compute_pump_demand(
-        self, model, dev, carrier, linear=False, Q=None, p1=None, p2=None, t=None
+        self, model, carrier, linear=False, Q=None, p1=None, p2=None, t=None
     ):
-        param_dev = self.params
-        node = param_dev["node"]
-        param_node = self.optimiser.all_nodes[node].params
+        dev_data = self.dev_data
+        node_id = dev_data.node_id
+        node_obj: NetworkNode = self.optimiser.all_nodes[node_id]
         # power demand vs flow rate and pressure difference
         # see eg. doi:10.1016/S0262-1762(07)70434-0
         # P = Q*(p_out-p_in)/eta
@@ -23,21 +25,27 @@ class _PumpDevice(Device):
         # assume nominal pressure and keep only flow rate dependence
         # TODO: Better linearisation?
 
-        eta = param_dev["eta"]
+        eta = dev_data.eta
 
         if t is None:
             t = 0
         if Q is None:
-            Q = model.varDeviceFlow[dev, carrier, "in", t]
+            Q = model.varDeviceFlow[self.id, carrier, "in", t]
         if p1 is None:
-            p1 = model.varPressure[node, carrier, "in", t]
+            p1 = model.varPressure[node_id, carrier, "in", t]
         if p2 is None:
-            p2 = model.varPressure[node, carrier, "out", t]
+            p2 = model.varPressure[node_id, carrier, "out", t]
         if linear:
             # linearised equations around operating point
             # p1=p10, p2=p20, Q=Q0
-            p10 = param_node["pressure.{}.in".format(carrier)]
-            p20 = param_node["pressure.{}.out".format(carrier)]
+            if t == 0:
+                logging.debug(
+                    "Node:{}, nominal pressures={}".format(
+                        node_id, node_obj.nominal_pressure
+                    )
+                )
+            p10 = node_obj.nominal_pressure[carrier]["in"]
+            p20 = node_obj.nominal_pressure[carrier]["out"]
             delta_p = p20 - p10
             #            Q0 = model.paramDevice[dev]['Q0']
             # P = (Q*(p20-p10)+Q0*(p10-p1))/eta
@@ -52,8 +60,8 @@ class _PumpDevice(Device):
         return P
 
     def _rules_pump(self, model, t, i):
-        dev = self.dev_id
-        devmodel = self.params["model"]
+        dev = self.id
+        devmodel = self.dev_data.model
         if devmodel == "pump_oil":
             carrier = "oil"
         elif devmodel == "pump_water":
@@ -66,7 +74,10 @@ class _PumpDevice(Device):
         elif i == 2:
             lhs = model.varDeviceFlow[dev, "el", "in", t]
             rhs = self.compute_pump_demand(
-                model, dev, linear=True, t=t, carrier=carrier
+                model=model,
+                carrier=carrier,
+                linear=True,
+                t=t,
             )
             return lhs == rhs
 
@@ -79,10 +90,10 @@ class _PumpDevice(Device):
             self.pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump
         )
         # add constraint to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
+        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
 
-    def getPowerVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "in", t]
+    def getFlowVar(self, t):
+        return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
 class Pump_oil(_PumpDevice):

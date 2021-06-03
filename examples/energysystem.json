@@ -16,14 +16,15 @@
   },
   "carriers": [
     {
-      "id": "el"
+      "id": "el",
+      "powerflow_method": "dc_pf"
     },
     {
       "id": "heat"
     },
     {
       "id": "gas",
-      "CO2content": 0.4,
+      "co2_content": 0.4,
       "G_gravity": 0.6,
       "Pb_basepressure_MPa": 100,
       "R_individual_gas_constant": 9,
@@ -47,41 +48,72 @@
   ],
   "edges": [
     {
-      "id": "edge2",
+      "id": "edge1",
       "node_from": "node1",
       "node_to": "node2",
       "length_km": 10,
+      "flow_max": 500,
+      "bidirectional": true,
       "include": true,
       "model": "el",
       "resistance": 1,
       "reactance": 1,
       "voltage": 33,
-      "p_max": 500,
-      "power_loss_function": null,
-      "directional": false
-    }
-  ],
-  "devices": [
-    {
-      "id": "elsource",
-      "node_id": "node1",
-      "include": true,
-      "model": "generic",
-      "profile": null,
-      "params": {
-        "model": "source_el",
-        "Pmax": 500
-      }
+      "power_loss_function": null
     },
     {
+      "id": "edge2",
+      "node_from": "node2",
+      "node_to": "node1",
+      "length_km": 10,
+      "flow_max": 50,
+      "bidirectional": true,
+      "include": true,
+      "model": "el",
+      "resistance": 0,
+      "reactance": 0,
+      "voltage": 33,
+      "power_loss_function": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          0.02
+        ]
+      ]
+    }
+  ],
+  "devices": {
+    "elsource": {
+      "id": "elsource",
+      "node_id": "node1",
+      "name": "",
+      "include": true,
+      "profile": null,
+      "flow_min": null,
+      "flow_max": 12,
+      "max_ramp_down": null,
+      "max_ramp_up": null,
+      "reserve_factor": 0,
+      "model": "source_el",
+      "co2em": null,
+      "op_cost": null
+    },
+    "gt1": {
       "id": "gt1",
       "node_id": "node2",
+      "name": "",
       "include": true,
-      "model": "powersource",
       "profile": null,
-      "power_to_penalty_data": null,
-      "p_max": null,
-      "p_min": null
+      "flow_min": null,
+      "flow_max": 30,
+      "max_ramp_down": null,
+      "max_ramp_up": null,
+      "reserve_factor": 0,
+      "model": "powersource",
+      "power_to_penalty_data": null
     }
-  ]
+  }
 }

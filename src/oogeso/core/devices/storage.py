@@ -110,7 +110,7 @@ class Storage_el(_StorageDevice):
         # add constraints to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
 
-    def getPowerVar(self, t):
+    def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "out", t]
 
     def getMaxP(self, t):
