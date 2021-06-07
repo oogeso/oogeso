@@ -10,8 +10,7 @@ Energy system data - consists of:
 - list of edges (of different types) (power cables, pipes)
 - list of devices (of different types)
 - optimisation parameters
-
-Time-series profiles (e.g. for variable energy demand) are provied separately.
+- time-series profiles (e.g. for variable energy demand)
 """
 
 
@@ -24,9 +23,7 @@ def _default_pressures():
 @dataclass
 class NodeData:
     id: str
-    maxdeviation_pressure: Optional[Dict] = field(
-        default_factory=lambda: {}
-    )  # field(default_factory=_default_pressures)
+    maxdeviation_pressure: Optional[Dict] = field(default_factory=lambda: {})
 
 
 @dataclass
@@ -351,6 +348,9 @@ class OptimisationParametersData:
     emission_rate_max: Optional[float] = -1  # kgCO2/hour, -1=no limit
 
 
+TimeSeries = Dict[str, float]  # sring key is timestamp in iso format
+
+
 @dataclass
 class EnergySystemData:
     parameters: OptimisationParametersData
@@ -358,6 +358,9 @@ class EnergySystemData:
     nodes: List[NodeData]
     edges: List[EdgeData]
     devices: Dict[str, DeviceData]
+    profiles: Dict[str, TimeSeries]
+    # "nowcast" is near real-time updated forecast:
+    profiles_nowcast: Optional[Dict[str, TimeSeries]] = None
 
 
 # Serialize (save to file)
@@ -395,11 +398,16 @@ class DataclassJSONDecoder(json.JSONDecoder):
         dev_class = globals()[dev_class_str]
         return dev_class(**dct)
 
+    def _newProfile(self, dct: TimeSeries):
+        return dct
+
     def object_hook(self, dct):
+        carriers = []
         nodes = []
         edges = []
         devs = {}
-        carriers = []
+        profiles = {}
+        profiles_nowcast = {}
         if "nodes" in dct:
             # Top level
             d_params = dct["parameters"]
@@ -412,12 +420,20 @@ class DataclassJSONDecoder(json.JSONDecoder):
                 edges.append(self._newEdge(n))
             for n in dct["devices"]:
                 devs[n["id"]] = self._newDevice(n)
+            if "profiles" in dct:
+                for i, n in dct["profiles"].items():
+                    profiles[i] = self._newProfile(n)
+            if "profiles_nowcast" in dct:
+                for i, n in dct["profiles_nowcast"].items():
+                    profiles_nowcast[i] = self._newProfile(n)
             energy_system_data = EnergySystemData(
                 carriers=carriers,
                 nodes=nodes,
                 edges=edges,
                 devices=devs,
                 parameters=params,
+                profiles=profiles,
+                profiles_nowcast=profiles_nowcast,
             )
             return energy_system_data
         return dct
@@ -482,7 +498,12 @@ energy_system = EnergySystemData(
     ],
     devices={
         "elsource": DeviceSource_elData(id="elsource", node_id="node1", flow_max=12),
-        "gt1": DevicePowersourceData(id="gt1", node_id="node2", flow_max=30),
+        "gt1": DevicePowersourceData(
+            id="gt1", node_id="node2", flow_max=30, profile="profile1"
+        ),
+        "demand": DeviceSink_elData(
+            id="demand", node_id="node2", flow_min=4, profile="profile1"
+        ),
     },
     parameters=OptimisationParametersData(
         time_delta_minutes=30,
@@ -496,6 +517,7 @@ energy_system = EnergySystemData(
         co2_tax=30,
         objective="exportRevenue",
     ),
+    profiles={"profile1": {"2021-04-12": 12, "2021-05-13": 10, "2021-06-10": 21}},
 )
 
 

@@ -96,24 +96,46 @@
       "flow_max": 12,
       "max_ramp_down": null,
       "max_ramp_up": null,
-      "reserve_factor": 0,
+      "reserve_factor": 1,
+      "op_cost": null,
       "model": "source_el",
-      "co2em": null,
-      "op_cost": null
+      "co2em": null
     },
     "gt1": {
       "id": "gt1",
       "node_id": "node2",
       "name": "",
       "include": true,
-      "profile": null,
+      "profile": "profile1",
       "flow_min": null,
       "flow_max": 30,
       "max_ramp_down": null,
       "max_ramp_up": null,
-      "reserve_factor": 0,
+      "reserve_factor": 1,
+      "op_cost": null,
       "model": "powersource",
       "power_to_penalty_data": null
+    },
+    "demand": {
+      "id": "demand",
+      "node_id": "node2",
+      "name": "",
+      "include": true,
+      "profile": "profile1",
+      "flow_min": 4,
+      "flow_max": null,
+      "max_ramp_down": null,
+      "max_ramp_up": null,
+      "reserve_factor": 0,
+      "op_cost": null,
+      "model": "sink_el"
+    }
+  },
+  "profiles": {
+    "profile1": {
+      "2021-04-12": 12,
+      "2021-05-13": 10,
+      "2021-06-10": 21
     }
   }
 }

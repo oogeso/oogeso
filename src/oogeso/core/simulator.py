@@ -3,7 +3,6 @@ import pyomo.environ as pyo
 
 from oogeso.core.devices.gasturbine import Gasturbine
 
-# from . import file_io
 from .optimiser import Optimiser
 import logging
 

@@ -4,7 +4,10 @@ from dataclasses import asdict
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 
-from ..dto import oogeso_input_data_objects as inputdata
+from oogeso.dto.oogeso_input_data_objects import (
+    EnergySystemData,
+    OptimisationParametersData,
+)
 from . import devices, networks
 from .networks import electricalsystem as el_calc
 from .networks.network_node import NetworkNode
@@ -13,7 +16,7 @@ from .networks.network_node import NetworkNode
 class Optimiser:
     """Class for MILP optimisation model"""
 
-    def __init__(self, data):
+    def __init__(self, data: EnergySystemData):
         """Create optimisation problem formulation with supplied data"""
 
         # dictionaries {key:object} for all devices, nodes and edges
@@ -21,14 +24,13 @@ class Optimiser:
         self.all_nodes = {}
         self.all_edges = {}
         self.all_carriers = {}
-        self.optimisation_parameters: inputdata.OptimisationParametersData = None
+        self.optimisation_parameters: OptimisationParametersData = data.parameters
         self.pyomo_instance = None
         # List of constraints that need to be reconstructed for each optimisation:
         self.constraints_to_reconstruct = []
         # List of devices with storage
         self.devices_with_storage = []
 
-        # raise NotImplementedError()
         self.pyomo_instance = self.createOptimisationModel(data)
         self._setNodePressureFromEdgeData()
         self._specifyConstraints()
@@ -80,7 +82,7 @@ class Optimiser:
                 p_to = edg.pressure_to
                 n_to.set_nominal_pressure(carrier, "in", p_to)
 
-    def createOptimisationModel(self, data: inputdata.EnergySystemData):
+    def createOptimisationModel(self, data: EnergySystemData):
         """Create pyomo MILP model
 
         Parameters:
@@ -134,8 +136,6 @@ class Optimiser:
             carrier_model = carrier_data_obj.id
             new_carrier = carrier_data_obj
             self.all_carriers[carrier_model] = new_carrier
-
-        self.optimisation_parameters = data.parameters
 
         logging.debug("TODO: improve code for electric powerflow coefficients")
         nodelist = self.all_nodes.keys()
