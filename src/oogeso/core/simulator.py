@@ -25,20 +25,17 @@ ZERO_WARNING_THRESHOLD = 1e-6
 class Simulator:
     """Main class for Oogeso energy system simulations"""
 
-    def __init__(self, data: EnergySystemData, time_window=None):
+    def __init__(self, data: EnergySystemData):
         """Create Simulator object
 
         Parameters
         ----------
         data : EnergySystemData
             Data object (nodes, edges, devices, profiles)
-        time_window : list = [start,end]
-            List of two elments giving the start and end times (as iso datetime strings)
         """
 
         # Abstract pyomo model formulation
         self.optimiser = Optimiser(data)
-        self.timeseries = data.profiles
 
         # Dataframes keeping track of simulation results:
         self._dfDeviceFlow = None
@@ -61,24 +58,15 @@ class Simulator:
         self._dfDuals = None
         self._dfPenalty = None
 
-        # Prepare time-series (resample as required)
-        timestep_minutes = self.optimiser.optimisation_parameters.time_delta_minutes
-        if time_window is None:
-            start_time_str = None
-            end_time_str = None
-        else:
-            start_time_str = time_window[0]
-            end_time_str = time_window[1]
-        profiles = reshape_timeseries(
-            self.timeseries,
-            time_start=start_time_str,
-            time_end=end_time_str,
-            timestep_minutes=timestep_minutes,
-        )
-
         # These are used only when plotting afterwards
-        self._df_profiles_forecast = profiles["forecast"]
-        self._df_profiles_actual = profiles["actual"]
+        self._df_profiles_forecast = pd.DataFrame()
+        self._df_profiles_actual = pd.DataFrame()
+        for prof in data.profiles:
+            self._df_profiles_forecast[prof.id] = prof.data
+            if prof.data is not None:
+                self._df_profiles_actual[prof.id] = prof.data_nowcast
+        # self._df_profiles_forecast = profiles["forecast"]
+        # self._df_profiles_actual = profiles["actual"]
 
     def setOptimiser(self, optimiser):
         self.optimiser = optimiser

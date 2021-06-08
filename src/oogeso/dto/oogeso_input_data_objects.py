@@ -363,7 +363,9 @@ class OptimisationParametersData:
     piecewise_repn: str = "SOS2"
 
 
-TimeSeries = Dict[str, float]  # sring key is timestamp in iso format
+# TimeSeries = Dict[str, float]  # string key is timestamp in iso format
+# Timeseries are list of values with time intervals as defined by time_delta_minutes variable:
+TimeSeries = List[float]
 
 
 @dataclass
@@ -550,7 +552,7 @@ energy_system = EnergySystemData(
         co2_tax=30,
         objective="exportRevenue",
     ),
-    profiles={"profile1": {"2021-04-12": 12, "2021-05-13": 10, "2021-06-10": 21}},
+    profiles=[TimeSeriesData(id="profile1", data=[12, 10, 21])],
 )
 
 
