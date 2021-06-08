@@ -23,7 +23,7 @@ class NetworkEdge:
     def _ruleEdgeFlowEquations(self, model, t):
         """Flow as a function of node values (voltage/pressure)"""
         edge = self.id
-        carrier = self.edge_data.model
+        carrier = self.edge_data.carrier
         n_from = self.edge_data.node_from
         n_to = self.edge_data.node_to
         print_log = True if t == 0 else False
@@ -155,7 +155,7 @@ class NetworkEdge:
         edge_data = self.edge_data
         height_difference = edge_data.height_m
         method = None
-        carrier = edge_data.model
+        carrier = edge_data.carrier
         carrier_data = self.optimiser.all_carriers[carrier]
         if carrier_data.pressure_method is not None:
             method = carrier_data.pressure_method

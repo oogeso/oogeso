@@ -4,10 +4,13 @@ import yaml
 import json
 import logging
 import pandas as pd
-from oogeso.dto.oogeso_subset import EnergySystemData
-from oogeso.dto.timeseries import TimeSeries
-from ..dto import oogeso_input_data_objects as io_obj
-from typing import Dict
+from oogeso.dto.oogeso_input_data_objects import (
+    EnergySystemData,
+    TimeSeriesData,
+    DataclassJSONDecoder,
+)
+from typing import Dict, List
+import datetime
 
 
 def read_data_from_yaml(
@@ -29,7 +32,7 @@ def read_data_from_yaml(
             logging.warning("Overiding profile data in yaml file")
         data_dict["profiles_nowcast"] = profiles_nowcast
     json_str = json.dumps(data_dict)
-    decoder = io_obj.DataclassJSONDecoder()
+    decoder = DataclassJSONDecoder()
     energy_system = decoder.decode(json_str)
     return energy_system
 
@@ -78,7 +81,6 @@ def read_profiles_from_csv(
     timestamp_col="timestamp",
     dayfirst=True,
     exclude_cols=None,
-    json_indent=0,
 ):
     """Read input data profiles from CSV to a dicitonary of pandas dataframes"""
     if exclude_cols is None:
@@ -90,10 +92,7 @@ def read_profiles_from_csv(
         dayfirst=dayfirst,
         usecols=lambda col: col not in exclude_cols,
     )
-    tseries_forecast: Dict[str, TimeSeries] = json.loads(
-        df_profiles_forecast.to_json(indent=json_indent, date_format="iso")
-    )
-    tseries_nowcast = None
+    df_profiles_nowcast = pd.DataFrame()  # empty dataframe
     if filename_nowcasts is not None:
         df_profiles_nowcast = pd.read_csv(
             filename_nowcasts,
@@ -102,8 +101,26 @@ def read_profiles_from_csv(
             dayfirst=dayfirst,
             usecols=lambda col: col not in exclude_cols,
         )
-        tseries_nowcast: Dict[str, TimeSeries] = json.loads(
-            df_profiles_nowcast.to_json(indent=json_indent, date_format="iso")
-        )
-    es_timeseries = {"profiles": tseries_forecast, "profiles_nowcast": tseries_nowcast}
+
+    # change timestamp to iso string:
+    isofromat = "%Y-%m-%dT%H:%M:%SZ"
+    df_profiles_forecast.index = df_profiles_forecast.index.map(
+        lambda x: datetime.datetime.strftime(x, isofromat)
+    )
+    df_profiles_nowcast.index = df_profiles_nowcast.index.map(
+        lambda x: datetime.datetime.strftime(x, isofromat)
+    )
+
+    dict_forecasts = df_profiles_forecast.to_dict()
+    dict_nowcasts = df_profiles_nowcast.to_dict()
+
+    es_timeseries = []
+    for col in df_profiles_forecast.columns:
+        forecast = dict_forecasts[col]
+        if col in dict_nowcasts:
+            nowcast = dict_nowcasts[col]
+        else:
+            nowcast = None
+        this_timeseries = TimeSeriesData(id=col, data=forecast, data_nowcast=nowcast)
+        es_timeseries.append(this_timeseries)
     return es_timeseries

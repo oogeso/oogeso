@@ -1,69 +1,93 @@
-from oogeso.dto.timeseries import TimeSeries
-from typing import Dict
+from oogeso.dto.oogeso_input_data_objects import TimeSeriesData
+from typing import List, Dict
 import logging
 import pandas as pd
 
 
 def reshape_timeseries(
-    profiles: Dict[str, TimeSeries],
-    profiles_nowcast: Dict[str, TimeSeries],
-    start_time: str,
+    profiles: List[TimeSeriesData],
+    time_start: str,
+    time_end: str,
     timestep_minutes: int,
 ) -> Dict[str, pd.DataFrame]:
     """Resample and rearrange time series profiles to the pandas DataFrame format used internally
 
     Parameters
     ----------
-    profiles : dict
-        profiles
-    profiles_nowcast : dict
-        profiles - near real-time updated profile forecast
+    profiles : list
+        list of profiles
     start_time : str
-        iso datetime string to represent timestep 0
+        iso datetime string
+    end_time : str
+        iso datetime string
     timestep_minutes: int
         timestep interval in minutes in output data
     """
-    df = pd.DataFrame.from_dict(profiles, orient="columns")
-    df.index = pd.to_datetime(df.index)
-    incuding_nowcast = False
-    if profiles_nowcast is not None:
-        including_nowcast = True
-        df_nc = pd.DataFrame.from_dict(profiles_nowcast, orient="columns")
-        df_nc.index = pd.to_datetime(df_nc.index)
-        # give them names so they can be split later
-        df_nc.columns = "nowcast:" + df_nc.columns
-        df.columns = "forecast:" + df.columns
-        df = pd.concat([df, df_nc], axis=1)
-
-    resampled = df.resample(
+    dfs = []
+    for prof in profiles:
+        logging.debug("Processing timeseries %s", prof.id)
+        df_forecast = pd.DataFrame.from_dict(
+            prof.data, columns=["forecast:{}".format(prof.id)], orient="index"
+        )
+        # return df_forecast
+        dfs.append(df_forecast)
+        if prof.data_nowcast is not None:
+            df_nowcast = pd.DataFrame.from_dict(
+                prof.data_nowcast,
+                columns=["nowcast:{}".format(prof.id)],
+                orient="index",
+            )
+            dfs.append(df_nowcast)
+    df_orig = pd.concat(dfs, axis=1)
+    df_orig.index = pd.to_datetime(df_orig.index)
+    resampled = df_orig.resample(
         rule="{}T".format(
             timestep_minutes,
         ),
         closed="left",
         label="left",
     )
-    df = resampled.mean()
+    df_new = resampled.mean()
 
     # If up-sampling, NaN values filed by linear interpolation
     # If down-sampling, this does nothing
-    df = df.interpolate(method="linear")
+    df_new = df_new.interpolate(method="linear")
 
     # Select the times of interest
-    mask = df.index >= start_time
-    df = df[mask]
+    if time_start is not None:
+        mask = df_new.index >= time_start
+        df_new = df_new[mask]
+    if time_end is not None:
+        mask = df_new.index <= time_end
+        df_new = df_new[mask]
+    if df_new.isna().any().any():
+        logging.warning("Profiles contain NA")
 
-    cols_actual = df.columns[df.columns.str.startswith("nowcast:")]
-    cols_forecast = df.columns[df.columns.str.startswith("forecast:")]
+    cols_actual = df_new.columns[df_new.columns.str.startswith("nowcast:")]
+    cols_forecast = df_new.columns[df_new.columns.str.startswith("forecast:")]
     if not (cols_actual | cols_forecast).all():
         logging.warning("Profiles should be named 'nowcast:...' or 'forecast:...'")
 
+    # integer timesteps as index:
+    timestamps = df_new.index
+    df_new = df_new.reset_index()
+
     prof = {}
-    prof["forecast"] = df[cols_forecast].copy()
-    prof["actual"] = None
-    if including_nowcast:
-        # split nowcast(actual)/forecast profiles:
-        prof["forecast"].columns = prof["forecast"].columns.str[9:]
-        prof["actual"] = df[cols_actual].copy()
-        prof["actual"].columns = prof["actual"].columns.str[8:]
+    prof["forecast"] = df_new[cols_forecast].copy()
+    prof["forecast"].columns = prof["forecast"].columns.str[9:]
+    prof["actual"] = df_new[cols_actual].copy()
+    prof["actual"].columns = prof["actual"].columns.str[8:]
+    prof["forecast"]["TIMESTAMP"] = timestamps
+    prof["actual"]["TIMESTAMP"] = timestamps
 
     return prof
+
+
+def timeseries_to_dataframes(profiles):
+    """Convert timeseries to dataframes used internally"""
+    pass
+
+
+# TODO: decide where to convert between time-series with timestamps to uniform lists
+# Inside "core" simulator, or outside
+# i.e. should timeseries data within the data transfer object be with profiles as list of numbers, or time-value pairs

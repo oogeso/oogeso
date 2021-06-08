@@ -245,3 +245,21 @@ class Device:
             prof_id = self.dev_data.profile
             profile = self.pyomo_model.paramProfiles[prof_id, :].value
         return profile
+
+    def compute_penalty(self, timesteps):
+        # compute penalty (cost/emission or similar) as defined by penalty function
+        this_penalty = 0
+        if (
+            hasattr(self.dev_data, "penalty_function")
+            and self.dev_data.penalty_function is not None
+        ):
+            if not hasattr(self, "_penaltyConstraint"):
+                logging.warning(
+                    "Penalty functin constraint not impelemented for %s", self.id
+                )
+
+            this_penalty = sum(
+                self.pyomo_model.varDevicePenalty[self.id, "el", "out", t]
+                for t in timesteps
+            )
+        return this_penalty

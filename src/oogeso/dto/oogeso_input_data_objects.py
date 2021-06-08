@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass, is_dataclass, asdict, field
 from typing import List, Optional, Tuple, Any, Dict, Union
 import re
+import logging
 
 """
 Energy system data - consists of:
@@ -50,7 +51,7 @@ class DeviceData:  # Parent class - use subclasses instead
 
 @dataclass
 class DevicePowersourceData(DeviceData):
-    power_to_penalty_data: Tuple[
+    penalty_function: Tuple[
         List[float], List[float]
     ] = None  # Penalty may be fuel, emissions, cost and combinations of these
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
@@ -213,11 +214,11 @@ class EdgeData:
     flow_max: float = None  # Maximum flow (MW or Sm3/s)
     bidirectional: Optional[bool] = True
     include: bool = True  # whether to include object in problem formulation
-    model: str = field(init=False)
+    carrier: str = field(init=False)
 
     def __post_init__(self):
-        modelname = re.search("Edge(.+?)Data", self.__class__.__name__).group(1)
-        self.model = modelname.lower()
+        carrier_name = re.search("Edge(.+?)Data", self.__class__.__name__).group(1)
+        self.carrier = carrier_name.lower()
 
 
 @dataclass
@@ -279,6 +280,7 @@ class CarrierData:
 @dataclass
 class CarrierElData(CarrierData):
     powerflow_method: str = "dc_pf"  # "transport","dc_pf"
+    reference_node: str = None  # reference node for dc-pf electrical voltage angles
 
 
 @dataclass
@@ -333,22 +335,42 @@ class CarrierWaterData(CarrierData):
 
 @dataclass
 class OptimisationParametersData:
-    objective: str  # name of objective function to use
-    time_delta_minutes: int  # minutes per timestep
-    planning_horizon: int  # timesteps in each rolling optimisation
-    optimisation_timesteps: int  # timesteps between each optimisation
-    forecast_timesteps: int  # timesteps beyond which forecast (instead of nowcast) profile is used
-    time_reserve_minutes: int  # minutes, how long stored energy must be sustained to count as reserve
-    co2_tax: float  # currency/kgCO2
-    el_reserve_margin: float  # MWm -1=no limit
-    max_pressure_deviation: float  # global limit for allowable relative pressure deviation from nominal
-    reference_node: str = None  # node used as reference for electrical voltage angle
+    # name of objective function to use:
+    objective: str
+    # minutes per timestep:
+    time_delta_minutes: int
+    # timesteps in each rolling optimisation:
+    planning_horizon: int
+    # timesteps between each optimisation:
+    optimisation_timesteps: int
+    # timesteps beyond which forecast (instead of nowcast) profile is used:
+    forecast_timesteps: int
+    # minutes, how long stored energy must be sustained to count as reserve:
+    time_reserve_minutes: Optional[int] = None
+    # costs for co2 emissions (currency/kgCO2)
+    co2_tax: Optional[float] = None
+    # required (globally) spinning reserve (MW), -1=no limit
+    el_reserve_margin: float = -1
+    # required backup margin (MW), -1=no limit
     el_backup_margin: Optional[float] = -1  # MW, -1=no limit
-    emission_intensity_max: Optional[float] = -1  # kgCO2/Sm3oe, -1=no limit
-    emission_rate_max: Optional[float] = -1  # kgCO2/hour, -1=no limit
+    # global limit for allowable relative pressure deviation from nominal:
+    max_pressure_deviation: float = -1
+    # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
+    emission_intensity_max: Optional[float] = -1
+    # limit on allowable emission intensity (kgCO2/hour), -1= no limit
+    emission_rate_max: Optional[float] = -1
+    # how to represent piecewise linear constraints:
+    piecewise_repn: str = "SOS2"
 
 
 TimeSeries = Dict[str, float]  # sring key is timestamp in iso format
+
+
+@dataclass
+class TimeSeriesData:
+    id: str
+    data: TimeSeries
+    data_nowcast: Optional[TimeSeries] = None
 
 
 @dataclass
@@ -357,10 +379,12 @@ class EnergySystemData:
     carriers: List[CarrierData]
     nodes: List[NodeData]
     edges: List[EdgeData]
-    devices: Dict[str, DeviceData]
-    profiles: Dict[str, TimeSeries]
-    # "nowcast" is near real-time updated forecast:
-    profiles_nowcast: Optional[Dict[str, TimeSeries]] = None
+    # devices: Dict[str, DeviceData]
+    devices: List[DeviceData]
+    profiles: List[TimeSeriesData]
+    # profiles: Dict[str, TimeSeries]
+    ## "nowcast" is near real-time updated forecast:
+    # profiles_nowcast: Optional[Dict[str, TimeSeries]] = None
 
 
 # Serialize (save to file)
@@ -387,27 +411,34 @@ class DataclassJSONDecoder(json.JSONDecoder):
         return NodeData(**dct)
 
     def _newEdge(self, dct):
-        model = dct.pop("model")  # gets and deletes model from dictionary
-        edge_class_str = "Edge{}Data".format(model.capitalize())
+        carrier = dct.pop("carrier")  # gets and deletes model from dictionary
+        edge_class_str = "Edge{}Data".format(carrier.capitalize())
         edge_class = globals()[edge_class_str]
         return edge_class(**dct)
 
     def _newDevice(self, dct):
+        logging.debug(dct)
         model = dct.pop("model")  # gets and deletes model from dictionary
         dev_class_str = "Device{}Data".format(model.capitalize())
         dev_class = globals()[dev_class_str]
         return dev_class(**dct)
 
     def _newProfile(self, dct: TimeSeries):
-        return dct
+        name = dct["id"]
+        data = dct["data"]
+        data_nowcast = None
+        if "data_nowcast" in dct:
+            data_nowcast = dct["data_nowcast"]
+        return TimeSeriesData(name, data, data_nowcast)
 
     def object_hook(self, dct):
         carriers = []
         nodes = []
         edges = []
-        devs = {}
-        profiles = {}
-        profiles_nowcast = {}
+        # devs = {}
+        devs = []
+        profiles = []
+        # profiles_nowcast = {}
         if "nodes" in dct:
             # Top level
             d_params = dct["parameters"]
@@ -419,13 +450,15 @@ class DataclassJSONDecoder(json.JSONDecoder):
             for n in dct["edges"]:
                 edges.append(self._newEdge(n))
             for n in dct["devices"]:
-                devs[n["id"]] = self._newDevice(n)
+                # devs[n["id"]] = self._newDevice(n)
+                devs.append(self._newDevice(n))
             if "profiles" in dct:
-                for i, n in dct["profiles"].items():
-                    profiles[i] = self._newProfile(n)
-            if "profiles_nowcast" in dct:
-                for i, n in dct["profiles_nowcast"].items():
-                    profiles_nowcast[i] = self._newProfile(n)
+                for n in dct["profiles"]:
+                    profiles.append(self._newProfile(n))
+                    # profiles[i] = self._newProfile(n)
+            # if "profiles_nowcast" in dct:
+            #    for i, n in dct["profiles_nowcast"].items():
+            #        profiles_nowcast[i] = self._newProfile(n)
             energy_system_data = EnergySystemData(
                 carriers=carriers,
                 nodes=nodes,
@@ -433,7 +466,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
                 devices=devs,
                 parameters=params,
                 profiles=profiles,
-                profiles_nowcast=profiles_nowcast,
+                # profiles_nowcast=profiles_nowcast,
             )
             return energy_system_data
         return dct
@@ -457,7 +490,10 @@ def deserialize_oogeso_data(json_data):
 # Example:
 energy_system = EnergySystemData(
     carriers=[
-        CarrierElData(id="el"),
+        CarrierElData(
+            id="el",
+            reference_node="node1",
+        ),
         CarrierHeatData("heat"),
         CarrierGasData(
             "gas",
@@ -496,15 +532,13 @@ energy_system = EnergySystemData(
             power_loss_function=([0, 1], [0, 0.02]),
         ),
     ],
-    devices={
-        "elsource": DeviceSource_elData(id="elsource", node_id="node1", flow_max=12),
-        "gt1": DevicePowersourceData(
+    devices=[
+        DeviceSource_elData(id="elsource", node_id="node1", flow_max=12),
+        DevicePowersourceData(
             id="gt1", node_id="node2", flow_max=30, profile="profile1"
         ),
-        "demand": DeviceSink_elData(
-            id="demand", node_id="node2", flow_min=4, profile="profile1"
-        ),
-    },
+        DeviceSink_elData(id="demand", node_id="node2", flow_min=4, profile="profile1"),
+    ],
     parameters=OptimisationParametersData(
         time_delta_minutes=30,
         planning_horizon=12,
@@ -513,7 +547,6 @@ energy_system = EnergySystemData(
         time_reserve_minutes=30,
         el_reserve_margin=-1,
         max_pressure_deviation=-1,
-        reference_node="node1",
         co2_tax=30,
         objective="exportRevenue",
     ),

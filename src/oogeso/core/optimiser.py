@@ -70,7 +70,7 @@ class Optimiser:
         # Set node terminal nominal pressure based on edge from/to pressure values
         for i, edge in self.all_edges.items():
             edg = edge.edge_data
-            carrier = edg.model
+            carrier = edg.carrier
             # Setting nominal pressure levels at node terminals. Raise exception
             # if inconsistencies are found
             if (hasattr(edg, "pressure_from")) and (edg.pressure_from is not None):
@@ -106,20 +106,21 @@ class Optimiser:
         # )
         # energy_system_data = json.loads(json_str, cls=inputdata.DataclassJSONDecoder)
         energy_system_data = data
-        print("TYPE Energysystemdata = ", type(energy_system_data))
 
         # Create energy system network elements (devices, nodes, edges)
-        for dev_id, dev_data_obj in energy_system_data.devices.items():
-            if dev_data_obj.include != 0:
-                device_model = dev_data_obj.model
-                # The class corresponding to the device type should always have a
-                # name identical to the type (but capitalized):
-                logging.debug("Device model={}".format(device_model))
-                Devclass = getattr(devices, device_model.capitalize())
-                new_device = Devclass(model, self, dev_data_obj)
-                self.all_devices[dev_id] = new_device
-        #            else:
-        #                logging.debug("Excluding device {}".format(dev_id))
+        for dev_data_obj in energy_system_data.devices:
+            dev_id = dev_data_obj.id
+            if dev_data_obj.include == False:
+                # skip this edge and move to next
+                logging.debug("Excluding device {}".format(dev_id))
+                continue
+            device_model = dev_data_obj.model
+            # The class corresponding to the device type should always have a
+            # name identical to the type (but capitalized):
+            logging.debug("Device model={}".format(device_model))
+            Devclass = getattr(devices, device_model.capitalize())
+            new_device = Devclass(model, self, dev_data_obj)
+            self.all_devices[dev_id] = new_device
 
         for node_data_obj in energy_system_data.nodes:
             new_node = networks.NetworkNode(model, self, node_data_obj)
@@ -128,6 +129,9 @@ class Optimiser:
             self.all_nodes[node_id] = new_node
 
         for edge_data_obj in data.edges:
+            if edge_data_obj.include == False:
+                # skip this edge and move to next
+                continue
             edge_id = edge_data_obj.id
             new_edge = networks.NetworkEdge(model, self, edge_data_obj)
             self.all_edges[edge_id] = new_edge
@@ -137,16 +141,21 @@ class Optimiser:
             new_carrier = carrier_data_obj
             self.all_carriers[carrier_model] = new_carrier
 
-        logging.debug("TODO: improve code for electric powerflow coefficients")
-        nodelist = self.all_nodes.keys()
-        edgelist = {
-            edge_id: asdict(edge.edge_data)
-            for edge_id, edge in self.all_edges.items()
-            if edge.edge_data.model == "el"
-        }
-        coeffB, coeffDA = el_calc.computePowerFlowMatrices(nodelist, edgelist, baseZ=1)
-        self.elFlowCoeffB = coeffB
-        self.elFlowCoeffDA = coeffDA
+        if self.all_carriers["el"].powerflow_method == "dc-pf":
+            logging.warning(
+                "TODO: code for electric powerflow calculations need improvement (pu conversion"
+            )
+            nodelist = self.all_nodes.keys()
+            edgelist_el = {
+                edge_id: asdict(edge.edge_data)
+                for edge_id, edge in self.all_edges.items()
+                if edge.edge_data.carrier == "el"
+            }
+            coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(
+                nodelist, edgelist_el, baseZ=1
+            )
+            self.elFlowCoeffB = coeff_B
+            self.elFlowCoeffDA = coeff_DA
 
         # logging.debug(self.all_nodes.keys())
         # logging.debug(self.all_edges.keys())
@@ -154,7 +163,7 @@ class Optimiser:
 
         timerange = range(data.parameters.planning_horizon)
         profiles_in_use = list(
-            set(d.profile for k, d in data.devices.items() if d.profile is not None)
+            set(d.profile for d in data.devices if d.profile is not None)
         )
         logging.info("profiles in use: {}".format(profiles_in_use))
 
@@ -272,7 +281,9 @@ class Optimiser:
 
         # specify objective:
         obj = self.optimisation_parameters.objective
-        if obj == "co2":
+        if obj == "penalty":
+            rule = self._rule_objective_penalty
+        elif obj == "co2":
             rule = self._rule_objective_co2
         elif obj == "costs":
             rule = self._rule_objective_costs
@@ -326,7 +337,7 @@ class Optimiser:
                 model.setHorizon, rule=self._rule_emissionIntensityLimit
             )
         else:
-            logging.info("No emissionIntensityMax limit specified")
+            logging.info("No emission_intensity_max limit specified")
 
         if (params_generic.el_reserve_margin is not None) and (
             params_generic.el_reserve_margin >= 0
@@ -335,7 +346,7 @@ class Optimiser:
                 model.setHorizon, rule=self._rule_elReserveMargin
             )
         else:
-            logging.info("No elReserveMargin limit specified")
+            logging.info("No el_reserve_margin limit specified")
         if (params_generic.el_backup_margin is not None) and (
             params_generic.el_backup_margin >= 0
         ):
@@ -343,7 +354,7 @@ class Optimiser:
                 model.setDevice, model.setHorizon, rule=self._rule_elBackupMargin
             )
         else:
-            logging.info("No elBackupMargin limit specified")
+            logging.info("No el_backup_margin limit specified")
 
     def updateOptimisationModel(self, timestep, profiles, first=False):
         """Update Pyomo model instance
@@ -443,6 +454,18 @@ class Optimiser:
     #                    for t in model.setHorizon:
     #                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
     #            return sumStorPmax
+
+    def _rule_objective_penalty(self, model):
+        """'penalty' as specified through penalty functions"""
+        sum_penalty = 0
+        timesteps = model.setHorizon
+        for d in model.setDevice:
+            dev = self.all_devices[d]
+            this_penalty = dev.compute_penalty(timesteps)
+            sum_penalty = sum_penalty + this_penalty
+        # Average per s
+        sum_penalty = sum_penalty / len(timesteps)
+        return sum_penalty
 
     def _rule_objective_co2(self, model):
         """CO2 emissions per sec"""
