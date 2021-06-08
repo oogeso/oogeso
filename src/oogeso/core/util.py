@@ -4,42 +4,22 @@ import logging
 import pandas as pd
 
 
-def reshape_timeseries(
-    profiles: List[TimeSeriesData],
+def create_timeseriesdata(
+    df_forecast: pd.DataFrame,
+    df_nowcast: pd.DataFrame,
     time_start: str,
     time_end: str,
     timestep_minutes: int,
-) -> Dict[str, pd.DataFrame]:
-    """Resample and rearrange time series profiles to the pandas DataFrame format used internally
+    resample_method: str = "linear",
+) -> List[TimeSeriesData]:
+    """Rearrange and resample pandas timeseries to Oogeso data transfer object
 
-    Parameters
-    ----------
-    profiles : list
-        list of profiles
-    start_time : str
-        iso datetime string
-    end_time : str
-        iso datetime string
-    timestep_minutes: int
-        timestep interval in minutes in output data
+    The input dataframes should have a datetime index
     """
-    dfs = []
-    for prof in profiles:
-        logging.debug("Processing timeseries %s", prof.id)
-        df_forecast = pd.DataFrame.from_dict(
-            prof.data, columns=["forecast:{}".format(prof.id)], orient="index"
-        )
-        # return df_forecast
-        dfs.append(df_forecast)
-        if prof.data_nowcast is not None:
-            df_nowcast = pd.DataFrame.from_dict(
-                prof.data_nowcast,
-                columns=["nowcast:{}".format(prof.id)],
-                orient="index",
-            )
-            dfs.append(df_nowcast)
-    df_orig = pd.concat(dfs, axis=1)
-    df_orig.index = pd.to_datetime(df_orig.index)
+
+    # Compine forecast and nowcast timeseries into a single dataframe
+    df_orig = pd.concat({"forecast": df_forecast, "nowcast": df_nowcast}, axis=1)
+    # 1 resample
     resampled = df_orig.resample(
         rule="{}T".format(
             timestep_minutes,
@@ -49,9 +29,9 @@ def reshape_timeseries(
     )
     df_new = resampled.mean()
 
-    # If up-sampling, NaN values filed by linear interpolation
+    # If up-sampling, NaN values filed by linear interpolation (or other method)
     # If down-sampling, this does nothing
-    df_new = df_new.interpolate(method="linear")
+    df_new = df_new.interpolate(method=resample_method)
 
     # Select the times of interest
     if time_start is not None:
@@ -63,31 +43,16 @@ def reshape_timeseries(
     if df_new.isna().any().any():
         logging.warning("Profiles contain NA")
 
-    cols_actual = df_new.columns[df_new.columns.str.startswith("nowcast:")]
-    cols_forecast = df_new.columns[df_new.columns.str.startswith("forecast:")]
-    if not (cols_actual | cols_forecast).all():
-        logging.warning("Profiles should be named 'nowcast:...' or 'forecast:...'")
-
-    # integer timesteps as index:
-    timestamps = df_new.index
-    df_new = df_new.reset_index()
-
-    prof = {}
-    prof["forecast"] = df_new[cols_forecast].copy()
-    prof["forecast"].columns = prof["forecast"].columns.str[9:]
-    prof["actual"] = df_new[cols_actual].copy()
-    prof["actual"].columns = prof["actual"].columns.str[8:]
-    prof["forecast"]["TIMESTAMP"] = timestamps
-    prof["actual"]["TIMESTAMP"] = timestamps
-
-    return prof
-
-
-def timeseries_to_dataframes(profiles):
-    """Convert timeseries to dataframes used internally"""
-    pass
-
-
-# TODO: decide where to convert between time-series with timestamps to uniform lists
-# Inside "core" simulator, or outside
-# i.e. should timeseries data within the data transfer object be with profiles as list of numbers, or time-value pairs
+    # now, create Oogeso TimeSereriesData object
+    profiles = []
+    for col in df_new.columns:
+        curve = col[1]
+        list_data = list(df_new[("forecast", curve)])
+        list_data_nowcast = None
+        if ("nowcast", curve) in df_new.columns:
+            list_data_nowcast = list(df_new[("nowcast", curve)])
+        new_ts = TimeSeriesData(
+            id=curve, data=list_data, data_nowcast=list_data_nowcast
+        )
+        profiles.append(new_ts)
+    return profiles
