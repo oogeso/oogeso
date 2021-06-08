@@ -11,11 +11,11 @@ parameters:
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
   max_pressure_deviation: -1 # global limit for allowable relative pressure deviation from nominal
   objective: exportRevenue # select objective function to use
-  reference_node: node1 # for electrical voltage angle
 
 carriers:
   - id: el
     powerflow_method: "transport"
+    reference_node: node1 # for electrical voltage angle
   - id: gas
     co2_content: 2.34 # kg/Sm3 - see SSB 2016 report
     G_gravity: 0.6
@@ -53,7 +53,7 @@ nodes:
 edges:
   - id: el1
     include: 1
-    model: el
+    carrier: el
     node_from: node1
     node_to: node2
     length_km: 2
@@ -62,7 +62,7 @@ edges:
     resistance: 0.001
   - id: el2
     include: 1
-    model: el
+    carrier: el
     node_from: windfarm
     node_to: node2
     length_km: 2
@@ -71,19 +71,19 @@ edges:
     resistance: 0.001
   - id: g
     include: 1
-    model: gas
+    carrier: gas
     node_from: well
     node_to: node1
     length_km: 1
   - id: gex
     include: 1
-    model: gas
+    carrier: gas
     node_from: node1
     node_to: export
     length_km: 1
   - id: h
     include: 1
-    model: heat
+    carrier: heat
     node_from: node1
     node_to: node2
     length_km: 1
@@ -104,6 +104,7 @@ devices:
     startup_cost: 200
     flow_max: 20
     flow_min: 5
+    is_on_init: True
 
   - id: GT2
     include: 1
@@ -119,6 +120,7 @@ devices:
     startup_cost: 200
     flow_max: 20
     flow_min: 5
+    is_on_init: True
 
   - id: GT3
     include: 1
