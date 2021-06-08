@@ -277,10 +277,11 @@ class Simulator:
             pyomo_instance.varDevicePenalty,
             names=("device", "carrier", "terminal", "time"),
         )
-        varPenalty = varPenalty[:, "el", "out", :]
-        self._dfPenalty = self._addToDf(
-            self._dfPenalty, varPenalty, timelimit, timeshift
-        )
+        if not varPenalty.empty:
+            varPenalty = varPenalty[:, "el", "out", :]
+            self._dfPenalty = self._addToDf(
+                self._dfPenalty, varPenalty, timelimit, timeshift
+            )
 
         # Revenue from exported energy
         df_exportRevenue = pd.DataFrame()
