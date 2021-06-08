@@ -222,6 +222,21 @@ class Optimiser:
 
         # specify variables:
         model.varEdgeFlow = pyo.Var(model.setEdge, model.setHorizon, within=pyo.Reals)
+        model.varEdgeFlow12 = pyo.Var(
+            model.setEdge, model.setHorizon, within=pyo.NonNegativeReals
+        )
+        model.varEdgeFlow21 = pyo.Var(
+            model.setEdge, model.setHorizon, within=pyo.NonNegativeReals
+        )
+        model.varEdgeLoss = pyo.Var(
+            model.setEdge, model.setHorizon, within=pyo.NonNegativeReals, initialize=0
+        )
+        model.varEdgeLoss12 = pyo.Var(
+            model.setEdge, model.setHorizon, within=pyo.NonNegativeReals, initialize=0
+        )
+        model.varEdgeLoss21 = pyo.Var(
+            model.setEdge, model.setHorizon, within=pyo.NonNegativeReals, initialize=0
+        )
         model.varDeviceIsPrep = pyo.Var(
             model.setDevice, model.setHorizon, within=pyo.Binary, initialize=0
         )

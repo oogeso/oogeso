@@ -85,6 +85,48 @@ class NetworkEdge:
             expr = pyo.inequality(0, model.varEdgeFlow[edge, t], pmax)
         return expr
 
+    def _ruleEdgeFlowAndLoss(self, model, t, i):
+        """Split edge flow into positive and negative part, for loss calculations"""
+        edge = self.id
+        if i == 1:
+            expr = (
+                model.varEdgeFlow[edge, t]
+                == model.varEdgeFlow12[edge, t] - model.varEdgeFlow21[edge, t]
+            )
+        elif i == 2:
+            expr = (
+                model.varEdgeLoss[edge, t]
+                == model.varEdgeLoss12[edge, t] + model.varEdgeLoss21[edge, t]
+            )
+        return expr
+
+    def _loss_function_constraint(self, i):
+        # Piecewise constraints require independent variable to be bounded:
+        self.pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)
+        # Losses on cables are: P_loss = R/V^2 * P^2, i.e. quadratic function of power flow
+        # Losses in transformers are: P_loss = ...
+        lookup_table = self.edge_data.power_loss_function
+        pw_x = lookup_table[0]
+        pw_y = lookup_table[1]
+        if i == 1:
+            var_x = self.pyomo_model.varEdgeFlow12
+            var_y = self.pyomo_model.varEdgeLoss12
+        elif i == 2:
+            var_x = self.pyomo_model.varEdgeFlow21
+            var_y = self.pyomo_model.varEdgeLoss21
+        pw_repn = self.optimiser.optimisation_parameters.piecewise_repn
+        constr_penalty = pyo.Piecewise(
+            [self.id],
+            self.pyomo_model.setHorizon,
+            var_y,
+            var_x,
+            pw_repn=pw_repn,
+            pw_constr_type="EQ",
+            pw_pts=pw_x,
+            f_rule=pw_y,
+        )
+        return constr_penalty
+
     def defineConstraints(self):
         """Returns the set of constraints for the node."""
 
@@ -102,6 +144,28 @@ class NetworkEdge:
             self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowEquations
         )
         setattr(self.pyomo_model, "constrE_{}_{}".format(self.id, "flow"), constr_flow)
+
+        # Power loss on electrical connections:
+        if (self.edge_data.carrier == "el") and (
+            self.edge_data.power_loss_function is not None
+        ):
+            # First, connecting variables (flow in different directions and loss variables)
+            constr_loss = pyo.Constraint(
+                self.pyomo_model.setHorizon,
+                pyo.RangeSet(1, 2),
+                rule=self._ruleEdgeFlowAndLoss,
+            )
+            setattr(
+                self.pyomo_model, "constrE_{}_{}".format(self.id, "loss"), constr_loss
+            )
+            # Then, add equations for losses vs power flow (piecewise linear equations):
+            for i in range(1, 2):
+                constr_loss_function = self._loss_function_constraint(i)
+                setattr(
+                    self.pyomo_model,
+                    "constrE_{}_{}_{}".format(self.id, "lossfunction", i),
+                    constr_loss_function,
+                )
 
     def _compute_exps_and_k(self, carrier_data):
         """Derive exp_s and k parameters for Weymouth equation"""
