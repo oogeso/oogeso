@@ -5,7 +5,6 @@ import pyomo.environ as pyo
 from oogeso.dto.oogeso_input_data_objects import EnergySystemData
 
 from .optimiser import Optimiser
-from .util import reshape_timeseries
 import logging
 
 # get progress bar:

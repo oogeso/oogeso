@@ -1,5 +1,5 @@
 from oogeso.dto.oogeso_input_data_objects import TimeSeriesData
-from typing import List, Dict
+from typing import List
 import logging
 import pandas as pd
 
