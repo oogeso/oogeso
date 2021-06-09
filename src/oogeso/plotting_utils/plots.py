@@ -120,7 +120,7 @@ def plot_deviceprofile(
                 row=1,
                 col=1,
             )
-            if includeOnOff & (dev_data.model == "gasturbine"):
+            if includeOnOff & (dev_data.start_stop is not None):
                 fig.add_scatter(
                     x=df2.index,
                     y=df2[col],
@@ -133,7 +133,7 @@ def plot_deviceprofile(
                     col=1,
                     showlegend=False,
                 )
-            if includePrep & (dev_data.model == "gasturbine"):
+            if includePrep & (dev_data.start_stop is not None):
                 fig.add_scatter(
                     x=dfPrep.index,
                     y=dfPrep[col],
@@ -987,7 +987,7 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
                     maxValue = (
                         maxValue * mc._df_profiles_actual.loc[timerange, extprofile]
                     )
-            if devmodel in ["gasturbine"]:
+            if dev_data.start_stop is not None:  # devmodel in ["gasturbine"]:
                 ison = mc._dfDeviceIsOn[d]
                 maxValue = ison * maxValue
             elif devmodel in ["storage_el"]:

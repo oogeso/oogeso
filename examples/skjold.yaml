@@ -32,7 +32,7 @@ edges:
     node_from: external
     node_to: skjold_A
     length_km: 1 # ??
-    power_loss_function: [[0, 25, 50], [0, 0.5, 5]] # power enering edge vs power loss
+    power_loss_function: [[0, 25, 50], [0, 0.5, 5]] # power enering edge (MW) vs power loss (MW) -> fraction (0-1)
     #power_loss_function: [[0, 50], [0, 1]]
     #power_loss_function: [[0, 50], [0, 0]] # no loss
   - id: e2
@@ -97,40 +97,64 @@ devices:
     node_id: skjold_A
     flow_max: 20 # MW (power available to the rest of the system)
     penalty_function: # power output vs penalty
-      [[0.0, 0.1, 10.0, 20.0], [0.0, 75000.0, 80000.0, 130000.0]]
+      [[0.0, 0.1, 10.0, 20.0], [75000.0, 75000.0, 80000.0, 130000.0]]
     reserve_factor: 1 # unused capacity contributes 100% to reserve
+    start_stop:
+      is_on_init: True
+      penalty_start: 10000
+      penalty_stop: 10000
   - id: GT_A2
     model: powersource
     node_id: skjold_A
     flow_max: 20 # MW (power available to the rest of the system)
+    flow_min: 3 # MW
     penalty_function:
       [[0.0, 0.1, 10.0, 20.0], [0.0, 75000.0, 80000.0, 130000.0]]
     reserve_factor: 1
+    start_stop:
+      is_on_init: True
+      penalty_start: 10000
+      penalty_stop: 10000
   - id: GT_A3
     model: powersource
     node_id: skjold_A
     flow_max: 15 # MW (power available to the rest of the system)
+    flow_min: 3 # MW
     penalty_function:
       [[0.0, 0.1, 10.0, 15.0], [0.0, 60000.0, 70000.0, 100000.0]]
     reserve_factor: 1
+    start_stop:
+      is_on_init: True
+      penalty_start: 10000
+      penalty_stop: 10000
   - id: GT_A4
     model: powersource
     node_id: skjold_A
     flow_max: 15 # MW (power available to the rest of the system)
+    flow_min: 3 # MW
     penalty_function:
       [[0.0, 0.1, 10.0, 15.0], [0.0, 60000.0, 70000.0, 100000.0]]
     reserve_factor: 1
+    start_stop:
+      is_on_init: True
+      penalty_start: 10000
+      penalty_stop: 10000
 
   - id: GT_C1
     model: powersource
     node_id: skjold_C
     flow_max: 30 # MW (power available to the rest of the system)
+    flow_min: 3 # MW
     penalty_function:
       [
         [0.00, 0.10, 5.00, 15.00, 20.00, 25.00, 30.00],
         [0.0, 84000.0, 84000.0, 120000.0, 150000.0, 160000.0, 180000.0],
       ]
     reserve_factor: 1
+    start_stop:
+      is_on_init: True
+      penalty_start: 10000
+      penalty_stop: 10000
 
 profiles:
   # time between timesteps is given by the parameter "time_delta_minutes" (see beginning of file)

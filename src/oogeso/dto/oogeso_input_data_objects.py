@@ -28,6 +28,16 @@ class NodeData:
 
 
 @dataclass
+class StartStopData:
+    is_on_init: bool = False  # Initial on/off status
+    penalty_start: float = 0  # Startup "cost"
+    penalty_stop: float = 0  # Shutdown "cost"
+    delay_start_minutes: int = 0  # Delay from activation to online
+    minimum_time_on: float = 0  # Minimum on-time once started
+    minimum_time_off: float = 0  # Minimum off-time once stopped
+
+
+@dataclass
 class DeviceData:  # Parent class - use subclasses instead
     id: str
     node_id: str
@@ -38,6 +48,7 @@ class DeviceData:  # Parent class - use subclasses instead
     flow_max: Optional[float] = None
     max_ramp_down: Optional[float] = None
     max_ramp_up: Optional[float] = None
+    start_stop: Optional[StartStopData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
     op_cost: Optional[float] = None
     model: str = field(init=False)  # model name is derived from class name
@@ -138,10 +149,10 @@ class DeviceGasturbineData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None
     eta_heat: float = None
-    is_on_init: bool = False
-    startup_cost: float = None
-    startup_delay: float = None  # Minutes from activation to power delivery
-    shutdown_cost: float = None
+    #    is_on_init: bool = False
+    #    startup_cost: float = None
+    #    startup_delay: float = None  # Minutes from activation to power delivery
+    #    shutdown_cost: float = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
@@ -421,6 +432,10 @@ class DataclassJSONDecoder(json.JSONDecoder):
     def _newDevice(self, dct):
         logging.debug(dct)
         model = dct.pop("model")  # gets and deletes model from dictionary
+        startstop = dct.pop("start_stop", None)
+        if startstop is not None:
+            startstop_obj = StartStopData(**startstop)
+            dct["start_stop"] = startstop_obj
         dev_class_str = "Device{}Data".format(model.capitalize())
         dev_class = globals()[dev_class_str]
         return dev_class(**dct)

@@ -56,8 +56,9 @@ devices:
     model: gasturbine
     name: gas turbine1
     node_id: powersupply
-    startup_cost: 2000 # NOK
-    startup_delay: 30 # min
+    start_stop:
+        penalty_start: 2000 # NOK
+        delay_start_minutes: 30 # min
 
   - id: Gen2
     flow_max: 21.8
@@ -71,8 +72,9 @@ devices:
     model: gasturbine
     name: gas turbine2
     node_id: powersupply
-    startup_cost: 2000
-    startup_delay: 30
+    start_stop:
+        penalty_start: 2000 # NOK
+        delay_start_minutes: 30 # min
 
   - id: Gen3
     flow_max: 21.8
@@ -86,8 +88,9 @@ devices:
     model: gasturbine
     name: gas turbine3
     node_id: powersupply
-    startup_cost: 2000
-    startup_delay: 30
+    start_stop:
+        penalty_start: 2000 # NOK
+        delay_start_minutes: 30 # min
 
   - id: wind
     flow_max: 32
