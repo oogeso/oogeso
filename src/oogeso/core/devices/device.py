@@ -328,8 +328,9 @@ class Device:
         return profile
 
     def compute_penalty(self, timesteps):
-        # compute penalty (cost/emission or similar) as defined by penalty function
-        this_penalty = 0
+        """Compute average penalty rate (cost, emission or similar per second)
+        as defined by penalty functions and start/stop penalties"""
+        penalty_rate = 0
         if (
             hasattr(self.dev_data, "penalty_function")
             and self.dev_data.penalty_function is not None
@@ -350,6 +351,16 @@ class Device:
                 + (self.pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
                 for t in timesteps
             )
+            # divide by number of timesteps to get average penalty rate (penalty per sec):
+            penalty_rate = this_penalty / len(timesteps)
+
         start_stop_penalty = self.compute_startup_penalty(timesteps)
-        penalty = this_penalty + start_stop_penalty
-        return penalty
+        # get average per second:
+        timestep_duration_sec = (
+            self.optimiser.optimisation_parameters.time_delta_minutes * 60
+        )
+        time_interval_sec = len(timesteps) * timestep_duration_sec
+        start_stop_penalty_rate = start_stop_penalty / time_interval_sec
+
+        sum_penalty_rate = penalty_rate + start_stop_penalty_rate
+        return sum_penalty_rate

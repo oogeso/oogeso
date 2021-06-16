@@ -426,10 +426,10 @@ class Optimiser:
         if not first:
             t_prev = opt_timesteps - 1
             for dev, dev_obj in self.all_devices.items():
-                # On/off status:
-                self.pyomo_instance.paramDeviceIsOnInitially[
-                    dev
-                ] = self.pyomo_instance.varDeviceIsOn[dev, t_prev]
+                # On/off status: (round because solver doesn't alwasy return an integer)
+                self.pyomo_instance.paramDeviceIsOnInitially[dev] = round(
+                    pyo.value(self.pyomo_instance.varDeviceIsOn[dev, t_prev])
+                )
                 self.pyomo_instance.paramDevicePrepTimestepsInitially[
                     dev
                 ] = _updateOnTimesteps(t_prev, dev)
@@ -478,8 +478,6 @@ class Optimiser:
             dev = self.all_devices[d]
             this_penalty = dev.compute_penalty(timesteps)
             sum_penalty = sum_penalty + this_penalty
-        # Average per s
-        sum_penalty = sum_penalty / len(timesteps)
         return sum_penalty
 
     def _rule_objective_co2(self, model):
