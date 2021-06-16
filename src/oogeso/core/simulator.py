@@ -45,6 +45,7 @@ class Simulator:
         self._dfDeviceStarting = None
         self._dfDeviceStopping = None
         self._dfEdgeFlow = None
+        self._dfEdgeLoss = None
         self._dfElVoltageAngle = None
         self._dfTerminalPressure = None
         self._dfTerminalFlow = None
@@ -62,7 +63,7 @@ class Simulator:
         self._df_profiles_actual = pd.DataFrame()
         for prof in data.profiles:
             self._df_profiles_forecast[prof.id] = prof.data
-            if prof.data is not None:
+            if prof.data_nowcast is not None:
                 self._df_profiles_actual[prof.id] = prof.data_nowcast
         # self._df_profiles_forecast = profiles["forecast"]
         # self._df_profiles_actual = profiles["actual"]
@@ -188,6 +189,9 @@ class Simulator:
         )
         varEdgeFlow = self._getVarValues(
             pyomo_instance.varEdgeFlow, names=("edge", "time")
+        )
+        varEdgeLoss = self._getVarValues(
+            pyomo_instance.varEdgeLoss, names=("edge", "time")
         )
         varElVoltageAngle = self._getVarValues(
             pyomo_instance.varElVoltageAngle, names=("node", "time")
@@ -347,6 +351,9 @@ class Simulator:
         )
         self._dfEdgeFlow = self._addToDf(
             self._dfEdgeFlow, varEdgeFlow, timelimit, timeshift
+        )
+        self._dfEdgeLoss = self._addToDf(
+            self._dfEdgeLoss, varEdgeLoss, timelimit, timeshift
         )
         self._dfElVoltageAngle = self._addToDf(
             self._dfElVoltageAngle, varElVoltageAngle, timelimit, timeshift

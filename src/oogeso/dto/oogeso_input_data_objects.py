@@ -32,7 +32,7 @@ class StartStopData:
     is_on_init: bool = False  # Initial on/off status
     penalty_start: float = 0  # Startup "cost"
     penalty_stop: float = 0  # Shutdown "cost"
-    delay_start_minutes: int = 0  # Delay from activation to online
+    delay_start_minutes: int = 0  # Delay in minutes from activation to online
     minimum_time_on: float = 0  # Minimum on-time once started
     minimum_time_off: float = 0  # Minimum off-time once stopped
 
@@ -46,6 +46,7 @@ class DeviceData:  # Parent class - use subclasses instead
     profile: Optional[str] = None  # reference to time-series
     flow_min: Optional[float] = None  # Energy or fluid flow limit
     flow_max: Optional[float] = None
+    # Ramp rates are given as change relative to capacity per minute, 1=100%/min:
     max_ramp_down: Optional[float] = None
     max_ramp_up: Optional[float] = None
     start_stop: Optional[StartStopData] = None
@@ -62,9 +63,8 @@ class DeviceData:  # Parent class - use subclasses instead
 
 @dataclass
 class DevicePowersourceData(DeviceData):
-    penalty_function: Tuple[
-        List[float], List[float]
-    ] = None  # Penalty may be fuel, emissions, cost and combinations of these
+    # Penalty may be fuel, emissions, cost and combinations of these
+    penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
@@ -221,7 +221,7 @@ class EdgeData:
     id: str
     node_from: str
     node_to: str
-    length_km: float
+    length_km: Optional[float] = None
     flow_max: float = None  # Maximum flow (MW or Sm3/s)
     bidirectional: Optional[bool] = True
     include: bool = True  # whether to include object in problem formulation
@@ -237,7 +237,12 @@ class EdgeElData(EdgeData):
     resistance: float = 0  # ohm per km
     reactance: float = 0  # ohm per km
     # Voltage for line (single value) or transformer (tuple)
-    voltage: Union[float, Tuple] = None  # kV.
+    voltage: Union[float, Tuple[float, float]] = None  # kV.
+    # Power loss in MW as function of power transfer in MW:
+    # Alternatively, vcould do:
+    #   Power loss fraction (0-1) as function of transferred power
+    #   Note: The loss curve is internally converted to a curve for powr loss
+    #   in MW (y-> x*y), so a linear  loss fraction curve gives a second-order loss curve
     power_loss_function: Optional[Tuple[List[float], List[float]]] = None
 
 
