@@ -103,11 +103,19 @@ class NetworkEdge:
     def _loss_function_constraint(self, i):
         # Piecewise constraints require independent variable to be bounded:
         self.pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)
+        self.pyomo_model.varEdgeFlow21[self.id, :].setub(self.edge_data.flow_max)
         # Losses on cables are: P_loss = R/V^2 * P^2, i.e. quadratic function of power flow
         # Losses in transformers are: P_loss = ...
         lookup_table = self.edge_data.power_loss_function
         pw_x = lookup_table[0]
         pw_y = lookup_table[1]
+        # # If we use loss function giving loss fraction instead of absolute loss in MW:
+        # pw_y_fraction = lookup_table[1]
+        # # Lookup table gives losses as a fraction, so to get absolute values we need
+        # # to multiply by power transfer
+        # # NOTE: This changes a linear curve to a second order curve, so need more than
+        # # two x-points to represent it properly.
+        # pw_y = [pw_y_fraction[i] * pw_x[i] for i in len(pw_x)]
         if i == 1:
             var_x = self.pyomo_model.varEdgeFlow12
             var_y = self.pyomo_model.varEdgeLoss12
@@ -159,7 +167,7 @@ class NetworkEdge:
                 self.pyomo_model, "constrE_{}_{}".format(self.id, "loss"), constr_loss
             )
             # Then, add equations for losses vs power flow (piecewise linear equations):
-            for i in range(1, 2):
+            for i in pyo.RangeSet(1, 2):
                 constr_loss_function = self._loss_function_constraint(i)
                 setattr(
                     self.pyomo_model,

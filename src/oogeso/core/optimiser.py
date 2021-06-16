@@ -426,10 +426,10 @@ class Optimiser:
         if not first:
             t_prev = opt_timesteps - 1
             for dev, dev_obj in self.all_devices.items():
-                # On/off status:
-                self.pyomo_instance.paramDeviceIsOnInitially[
-                    dev
-                ] = self.pyomo_instance.varDeviceIsOn[dev, t_prev]
+                # On/off status: (round because solver doesn't alwasy return an integer)
+                self.pyomo_instance.paramDeviceIsOnInitially[dev] = round(
+                    pyo.value(self.pyomo_instance.varDeviceIsOn[dev, t_prev])
+                )
                 self.pyomo_instance.paramDevicePrepTimestepsInitially[
                     dev
                 ] = _updateOnTimesteps(t_prev, dev)
@@ -478,8 +478,6 @@ class Optimiser:
             dev = self.all_devices[d]
             this_penalty = dev.compute_penalty(timesteps)
             sum_penalty = sum_penalty + this_penalty
-        # Average per s
-        sum_penalty = sum_penalty / len(timesteps)
         return sum_penalty
 
     def _rule_objective_co2(self, model):
@@ -496,7 +494,7 @@ class Optimiser:
     def _rule_objective_costs(self, model):
         """costs (co2 price, operating costs, startstop, storage depletaion)
         per second (assuming fixed oil/gas production)"""
-        startupCosts = self.compute_startup_costs(model)  # kr/s
+        startupCosts = self.compute_startup_penalty(model)  # kr/s
         storageDepletionCosts = self.compute_costForDepletedStorage(model)
         opCosts = self.compute_operatingCosts(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
@@ -509,7 +507,7 @@ class Optimiser:
         """revenue from exported oil and gas minus costs (co2 price and
         operating costs) per second"""
         sumRevenue = self.compute_exportRevenue(model)  # kr/s
-        startupCosts = self.compute_startup_costs(model)  # kr/s
+        startupCosts = self.compute_startup_penalty(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
         co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
         co2Cost = co2 * co2_tax  # kr/s
@@ -599,7 +597,7 @@ class Optimiser:
             co2intensity = None
         return co2intensity
 
-    def compute_startup_costs(self, model, devices=None, timesteps=None):
+    def compute_startup_penalty(self, model, devices=None, timesteps=None):
         """startup costs (average per sec)"""
         if timesteps is None:
             timesteps = model.setHorizon
@@ -608,7 +606,7 @@ class Optimiser:
         start_stop_costs = 0
         for d in devices:
             dev_obj = self.all_devices[d]
-            thisCost = dev_obj.compute_startup_costs(timesteps)
+            thisCost = dev_obj.compute_startup_penalty(timesteps)
             start_stop_costs += thisCost
         # get average per sec:
         deltaT = self.optimisation_parameters.time_delta_minutes * 60

@@ -45,6 +45,7 @@ class Simulator:
         self._dfDeviceStarting = None
         self._dfDeviceStopping = None
         self._dfEdgeFlow = None
+        self._dfEdgeLoss = None
         self._dfElVoltageAngle = None
         self._dfTerminalPressure = None
         self._dfTerminalFlow = None
@@ -62,7 +63,7 @@ class Simulator:
         self._df_profiles_actual = pd.DataFrame()
         for prof in data.profiles:
             self._df_profiles_forecast[prof.id] = prof.data
-            if prof.data is not None:
+            if prof.data_nowcast is not None:
                 self._df_profiles_actual[prof.id] = prof.data_nowcast
         # self._df_profiles_forecast = profiles["forecast"]
         # self._df_profiles_actual = profiles["actual"]
@@ -189,6 +190,9 @@ class Simulator:
         varEdgeFlow = self._getVarValues(
             pyomo_instance.varEdgeFlow, names=("edge", "time")
         )
+        varEdgeLoss = self._getVarValues(
+            pyomo_instance.varEdgeLoss, names=("edge", "time")
+        )
         varElVoltageAngle = self._getVarValues(
             pyomo_instance.varElVoltageAngle, names=("node", "time")
         )
@@ -272,15 +276,21 @@ class Simulator:
         )
 
         # Penalty values per device
-        varPenalty = self._getVarValues(
-            pyomo_instance.varDevicePenalty,
-            names=("device", "carrier", "terminal", "time"),
-        )
-        if not varPenalty.empty:
-            varPenalty = varPenalty[:, "el", "out", :]
-            self._dfPenalty = self._addToDf(
-                self._dfPenalty, varPenalty, timelimit, timeshift
-            )
+        if self._dfPenalty is None:
+            self._dfPenalty = pd.DataFrame()
+        for d, dev in self.optimiser.all_devices.items():
+            for t in range(timelimit):
+                this_penalty = pyo.value(dev.compute_penalty([t]))
+                self._dfPenalty.loc[t + timestep, d] = this_penalty
+        # varPenalty = self._getVarValues(
+        #     pyomo_instance.varDevicePenalty,
+        #     names=("device", "carrier", "terminal", "time"),
+        # )
+        # if not varPenalty.empty:
+        #     varPenalty = varPenalty[:, "el", "out", :]
+        #     self._dfPenalty = self._addToDf(
+        #         self._dfPenalty, varPenalty, timelimit, timeshift
+        #     )
 
         # Revenue from exported energy
         df_exportRevenue = pd.DataFrame()
@@ -341,6 +351,9 @@ class Simulator:
         )
         self._dfEdgeFlow = self._addToDf(
             self._dfEdgeFlow, varEdgeFlow, timelimit, timeshift
+        )
+        self._dfEdgeLoss = self._addToDf(
+            self._dfEdgeLoss, varEdgeLoss, timelimit, timeshift
         )
         self._dfElVoltageAngle = self._addToDf(
             self._dfElVoltageAngle, varElVoltageAngle, timelimit, timeshift

@@ -108,7 +108,7 @@ def plot_deviceprofile(
         for col in df:
             dev = col
             dev_data = optimiser.all_devices[dev].dev_data
-            k = k + 1
+            k = (k + 1) % len(colour)  # repeat colour cycle if necessary
             fig.add_scatter(
                 x=df.index,
                 y=df[col],
@@ -120,7 +120,7 @@ def plot_deviceprofile(
                 row=1,
                 col=1,
             )
-            if includeOnOff & (dev_data.model == "gasturbine"):
+            if includeOnOff & (dev_data.start_stop is not None):
                 fig.add_scatter(
                     x=df2.index,
                     y=df2[col],
@@ -133,7 +133,7 @@ def plot_deviceprofile(
                     col=1,
                     showlegend=False,
                 )
-            if includePrep & (dev_data.model == "gasturbine"):
+            if includePrep & (dev_data.start_stop is not None):
                 fig.add_scatter(
                     x=dfPrep.index,
                     y=dfPrep[col],
@@ -356,7 +356,7 @@ def plot_SumPowerMix(
             for d, d_obj in optimiser.all_devices.items()
             if d_obj.dev_data.model == "gasturbine"
         ]
-        logging.info(devs_shareload)
+        logging.debug("Shared load=", devs_shareload)
     if devs_shareload:  # list is non-empty
         devs_online = (dfF_out[devs_shareload] > 0).sum(axis=1)
         devs_sum = dfF_out[devs_shareload].sum(axis=1)
@@ -558,24 +558,32 @@ def plot_CO2_intensity(mc, filename=None):
     return fig
 
 
-def plotProfiles(profiles, curves=None, filename=None):
+def plotProfiles(profiles, filename=None):
     """Plot profiles (forecast and actual)"""
-
-    if curves is None:
-        curves = profiles["actual"].columns
-    if plotter == "plotly":
-        pd.concat(profiles).unstack(0).melt()
+    fig = None
+    if isinstance(profiles, list):
+        # list of TimeSeriesData objects
+        df = pd.DataFrame()
+        for d in profiles:
+            df[(d.id, "forecast")] = d.data
+            if d.data_nowcast is not None:
+                df[(d, "nowcast")] = d.data_nowcast
+        df.index.name = "timestep"
+        df.columns = pd.MultiIndex.from_tuples(df.columns, names=("variable", "type"))
+        df = df.stack("type")
+    elif isinstance(profiles, dict):
         df = pd.concat(
             {
-                "actual": profiles["actual"][curves],
-                "forecast": profiles["forecast"][curves],
+                "nowcast": profiles["actual"],
+                "forecast": profiles["forecast"],
             }
         )
-        df = (
-            df.reset_index()
-            .rename(columns={"level_0": "type"})
-            .melt(id_vars=["type", "timestep"])
-        )
+        df.index.names = ["type", "timestep"]
+    else:
+        raise Exception("profiles must be input data format or internal format")
+    if plotter == "plotly":
+        df = df.reset_index()
+        df = df.melt(id_vars=["type", "timestep"])
         fig = px.line(
             df,
             x="timestep",
@@ -584,23 +592,20 @@ def plotProfiles(profiles, curves=None, filename=None):
             color="variable",
             line_dash="type",
         )
-        fig.show()
     elif plotter == "matplotlib":
         plt.figure(figsize=(12, 4))
         ax = plt.gca()
-        profiles["actual"][curves].plot(ax=ax)
+        df[df.index.get_level_values("type") == "forecast"].plot(ax=ax)
         # reset color cycle (so using the same as for the actual plot):
         ax.set_prop_cycle(None)
-        profiles["forecast"][curves].plot(ax=ax, linestyle=":")
-        labels = curves
-        ax.legend(
-            labels=labels, loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False
-        )
+        df[df.index.get_level_values("type") == "nowcast"].plot(ax=ax, linestyle=":")
+        ax.legend(loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
         plt.xlabel("Timestep")
         plt.ylabel("Relative value")
-        plt.title("Actual vs forecast profile (actual=sold line)")
+        plt.title("Forecast and nowcast profile (forecast=sold line)")
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+    return fig
 
 
 def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=None):
@@ -863,6 +868,8 @@ def plotNetwork(
         for i, edge_obj in optimiser.all_edges.items():
             edge_data = edge_obj.edge_data
             if edge_data.carrier == carrier:
+                headlabel = ""
+                taillabel = ""
                 if timestep is None:
                     edgelabel = ""
                     if hasattr(edge_data, "pressure_from"):
@@ -876,6 +883,22 @@ def plotNetwork(
                     edgelabel = numberformat.format(
                         simulator._dfEdgeFlow[(i, timestep)]
                     )
+                    # Add loss
+                    if (simulator._dfEdgeLoss is not None) and (
+                        (i, timestep) in simulator._dfEdgeLoss
+                    ):
+                        # taillabel = " " + edgelabel
+                        losslabel = numberformat.format(
+                            simulator._dfEdgeLoss[(i, timestep)]
+                        )
+                        # headlabel = (
+                        #    numberformat.format(
+                        #        simulator._dfEdgeFlow[(i, timestep)]
+                        #        - simulator._dfEdgeLoss[(i, timestep)]
+                        #    )
+                        #    + " "
+                        # )
+                        edgelabel = "{} [{}]".format(edgelabel, losslabel)
                 n_from = edge_data.node_from
                 n_to = edge_data.node_to
                 n_from_obj = optimiser.all_nodes[n_from]
@@ -897,6 +920,8 @@ def plotNetwork(
                         color='"{0}:invis:{0}"'.format(col["e"][carrier]),
                         fontcolor=col["e"][carrier],
                         label=edgelabel,
+                        taillabel=taillabel,
+                        headlabel=headlabel,
                     )
                 )
 
@@ -979,7 +1004,7 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
             maxValue = dev_data.flow_max
             if dev_data.profile is not None:
                 extprofile = dev_data.profile
-                if useForecast:
+                if useForecast or (extprofile not in mc._df_profiles_actual):
                     maxValue = (
                         maxValue * mc._df_profiles_forecast.loc[timerange, extprofile]
                     )
@@ -987,7 +1012,7 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
                     maxValue = (
                         maxValue * mc._df_profiles_actual.loc[timerange, extprofile]
                     )
-            if devmodel in ["gasturbine"]:
+            if dev_data.start_stop is not None:  # devmodel in ["gasturbine"]:
                 ison = mc._dfDeviceIsOn[d]
                 maxValue = ison * maxValue
             elif devmodel in ["storage_el"]:

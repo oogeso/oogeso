@@ -28,6 +28,16 @@ class NodeData:
 
 
 @dataclass
+class StartStopData:
+    is_on_init: bool = False  # Initial on/off status
+    penalty_start: float = 0  # Startup "cost"
+    penalty_stop: float = 0  # Shutdown "cost"
+    delay_start_minutes: int = 0  # Delay in minutes from activation to online
+    minimum_time_on: float = 0  # Minimum on-time once started
+    minimum_time_off: float = 0  # Minimum off-time once stopped
+
+
+@dataclass
 class DeviceData:  # Parent class - use subclasses instead
     id: str
     node_id: str
@@ -36,8 +46,10 @@ class DeviceData:  # Parent class - use subclasses instead
     profile: Optional[str] = None  # reference to time-series
     flow_min: Optional[float] = None  # Energy or fluid flow limit
     flow_max: Optional[float] = None
+    # Ramp rates are given as change relative to capacity per minute, 1=100%/min:
     max_ramp_down: Optional[float] = None
     max_ramp_up: Optional[float] = None
+    start_stop: Optional[StartStopData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
     op_cost: Optional[float] = None
     model: str = field(init=False)  # model name is derived from class name
@@ -51,9 +63,8 @@ class DeviceData:  # Parent class - use subclasses instead
 
 @dataclass
 class DevicePowersourceData(DeviceData):
-    penalty_function: Tuple[
-        List[float], List[float]
-    ] = None  # Penalty may be fuel, emissions, cost and combinations of these
+    # Penalty may be fuel, emissions, cost and combinations of these
+    penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
@@ -138,10 +149,10 @@ class DeviceGasturbineData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None
     eta_heat: float = None
-    is_on_init: bool = False
-    startup_cost: float = None
-    startup_delay: float = None  # Minutes from activation to power delivery
-    shutdown_cost: float = None
+    #    is_on_init: bool = False
+    #    startup_cost: float = None
+    #    startup_delay: float = None  # Minutes from activation to power delivery
+    #    shutdown_cost: float = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
@@ -210,7 +221,7 @@ class EdgeData:
     id: str
     node_from: str
     node_to: str
-    length_km: float
+    length_km: Optional[float] = None
     flow_max: float = None  # Maximum flow (MW or Sm3/s)
     bidirectional: Optional[bool] = True
     include: bool = True  # whether to include object in problem formulation
@@ -226,7 +237,12 @@ class EdgeElData(EdgeData):
     resistance: float = 0  # ohm per km
     reactance: float = 0  # ohm per km
     # Voltage for line (single value) or transformer (tuple)
-    voltage: Union[float, Tuple] = None  # kV.
+    voltage: Union[float, Tuple[float, float]] = None  # kV.
+    # Power loss in MW as function of power transfer in MW:
+    # Alternatively, vcould do:
+    #   Power loss fraction (0-1) as function of transferred power
+    #   Note: The loss curve is internally converted to a curve for powr loss
+    #   in MW (y-> x*y), so a linear  loss fraction curve gives a second-order loss curve
     power_loss_function: Optional[Tuple[List[float], List[float]]] = None
 
 
@@ -421,6 +437,10 @@ class DataclassJSONDecoder(json.JSONDecoder):
     def _newDevice(self, dct):
         logging.debug(dct)
         model = dct.pop("model")  # gets and deletes model from dictionary
+        startstop = dct.pop("start_stop", None)
+        if startstop is not None:
+            startstop_obj = StartStopData(**startstop)
+            dct["start_stop"] = startstop_obj
         dev_class_str = "Device{}Data".format(model.capitalize())
         dev_class = globals()[dev_class_str]
         return dev_class(**dct)
