@@ -51,7 +51,7 @@ class NetworkNode:
             self.devices_serial[carrier][device_id] = device
 
     def addEdge(self, edge: NetworkEdge, to_from: str):
-        carrier = edge.edge_data.model
+        carrier = edge.edge_data.carrier
         edge_id = edge.id
         if to_from == "to":
             if carrier not in self.edges_to:
@@ -97,14 +97,17 @@ class NetworkNode:
             Pinj -= model.varTerminalFlow[self.id, carrier, t]
 
         # edges:
+        # losses are zero for all but "el" edges
+        # "in": edgeFlow12 - loss12 - edgeFlow21 = edgeFlow - loss12
+        # "out": edgeFlow12 - (edgeFlow21-loss21) = edgeFlow + loss21
         if (terminal == "in") and (carrier in self.edges_to):
             for edge_id, edge in self.edges_to[carrier].items():
                 # power into node from edge
-                Pinj += model.varEdgeFlow[edge_id, t]
+                Pinj += model.varEdgeFlow[edge_id, t] - model.varEdgeLoss12[edge_id, t]
         elif (terminal == "out") and (carrier in self.edges_from):
             for edge_id, edge in self.edges_from[carrier].items():
                 # power out of node into edge
-                Pinj += model.varEdgeFlow[edge_id, t]
+                Pinj += model.varEdgeFlow[edge_id, t] + model.varEdgeLoss21[edge_id, t]
 
         # if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
         #     for edg in model.paramNodeEdgesTo[(carrier,node)]:
@@ -121,7 +124,8 @@ class NetworkNode:
         return expr
 
     def _rule_elVoltageReference(self, model, t):
-        n = self.optimiser.optimisation_parameters.reference_node
+        el_carrier = self.optimiser.all_carriers["el"]
+        n = el_carrier.reference_node
         expr = model.varElVoltageAngle[n, t] == 0
         return expr
 
@@ -190,14 +194,16 @@ class NetworkNode:
             constrTerminalEnergyBalance,
         )
 
-        constr_ElVoltageReference = pyo.Constraint(
-            model.setHorizon, rule=self._rule_elVoltageReference
-        )
-        setattr(
-            model,
-            "constrN_{}_{}".format(self.id, "voltageref"),
-            constr_ElVoltageReference,
-        )
+        el_carrier = self.optimiser.all_carriers["el"]
+        if el_carrier.powerflow_method == "dc-pf":
+            constr_ElVoltageReference = pyo.Constraint(
+                model.setHorizon, rule=self._rule_elVoltageReference
+            )
+            setattr(
+                model,
+                "constrN_{}_{}".format(self.id, "voltageref"),
+                constr_ElVoltageReference,
+            )
 
         constrPressureAtNode = pyo.Constraint(
             model.setCarrier, model.setHorizon, rule=self._rule_pressureAtNode

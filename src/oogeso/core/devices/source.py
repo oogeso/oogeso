@@ -67,11 +67,7 @@ class Powersource(Device):
         pw_y = lookup_table[1]
         var_x = self.pyomo_model.varDeviceFlow  # [self.dev_id, "el", "out", :]
         var_y = self.pyomo_model.varDevicePenalty  # [self.dev_id, "el", "out", :]
-        pw_repn = "SOS2"
-        if "piecewise_repn" in self.optimiser.optimisation_parameters:
-            pw_repn = self.optimiser.optimisation_parameters["piecewise_repn"]
-        else:
-            logging.info("Using default SOS2 piecewise constraint implementation")
+        pw_repn = self.optimiser.optimisation_parameters.piecewise_repn
         constr_penalty = pyo.Piecewise(
             [self.id],
             ["el"],
@@ -88,24 +84,6 @@ class Powersource(Device):
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
-
-    # overriding default
-    def compute_CO2(self, timesteps):
-        # co2 content in fuel combustion
-        # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
-        # need to convert co2em to kgCO2/(MW*s)
-        thisCO2 = 0
-        if self.dev_data.co2em is not None:
-            thisCO2 = (
-                sum(
-                    self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
-                    * self.dev_data.co2em
-                    for t in timesteps
-                )
-                * 1
-                / 3600
-            )
-        return thisCO2
 
 
 class Source_gas(Device):

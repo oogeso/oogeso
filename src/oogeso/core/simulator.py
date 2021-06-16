@@ -1,9 +1,9 @@
 import pandas as pd
 import pyomo.environ as pyo
 
-from oogeso.core.devices.gasturbine import Gasturbine
+# from oogeso.core.devices.gasturbine import Gasturbine
+from oogeso.dto.oogeso_input_data_objects import EnergySystemData
 
-# from . import file_io
 from .optimiser import Optimiser
 import logging
 
@@ -24,11 +24,17 @@ ZERO_WARNING_THRESHOLD = 1e-6
 class Simulator:
     """Main class for Oogeso energy system simulations"""
 
-    def __init__(self, optimiser):
-        """Create Simulator object"""
+    def __init__(self, data: EnergySystemData):
+        """Create Simulator object
+
+        Parameters
+        ----------
+        data : EnergySystemData
+            Data object (nodes, edges, devices, profiles)
+        """
 
         # Abstract pyomo model formulation
-        self.optimiser: Optimiser = optimiser
+        self.optimiser = Optimiser(data)
 
         # Dataframes keeping track of simulation results:
         self._dfDeviceFlow = None
@@ -49,6 +55,17 @@ class Simulator:
         self._dfElReserve = None  # Reserve capacity
         self._dfElBackup = None  # Backup capacity (handling faults)
         self._dfDuals = None
+        self._dfPenalty = None
+
+        # These are used only when plotting afterwards
+        self._df_profiles_forecast = pd.DataFrame()
+        self._df_profiles_actual = pd.DataFrame()
+        for prof in data.profiles:
+            self._df_profiles_forecast[prof.id] = prof.data
+            if prof.data is not None:
+                self._df_profiles_actual[prof.id] = prof.data_nowcast
+        # self._df_profiles_forecast = profiles["forecast"]
+        # self._df_profiles_actual = profiles["actual"]
 
     def setOptimiser(self, optimiser):
         self.optimiser = optimiser
@@ -56,7 +73,6 @@ class Simulator:
     def runSimulation(
         self,
         solver,
-        profiles,
         timerange=None,
         timelimit=None,
         store_duals=None,
@@ -68,14 +84,10 @@ class Simulator:
         ----------
         solver : string
             Name of solver ("cbc", "gurobi")
-        profiles : {'actual': dataframe1, 'forecast':dataframe2}
-            Dataframes with actual and forecast timeseries
-        timerange : list = [start,end]
-            List of two elments giving the timestep start and end of
-            the time window to investigate - timesteps are defined by
-            the timeseries profiles used (timestep=row)
         write_yaml : boolean
             Whether to save problem to yaml file (for debugging)
+        timerange : [int,int]
+            Limit to this number of timesteps
         timelimit : int
             Time limit spent on each optimisation (sec)
         store_duals : dict
@@ -86,17 +98,17 @@ class Simulator:
             store_duals = {'elcost':{constr=constrDevicePmin, indx:('util',None)}
         """
 
-        # These are used only when plotting afterwards
-        self._df_profiles_forecast = profiles["forecast"]
-        self._df_profiles_actual = profiles["actual"]
-
         steps = self.optimiser.optimisation_parameters.optimisation_timesteps
         horizon = self.optimiser.optimisation_parameters.planning_horizon
+        profiles = {
+            "actual": self._df_profiles_actual,
+            "forecast": self._df_profiles_forecast,
+        }
         if timelimit is not None:
             logging.debug("Using solver timelimit={}".format(timelimit))
         if timerange is None:
             time_start = 0
-            time_end = profiles["forecast"].index.max() + 1 - horizon
+            time_end = self._df_profiles_forecast.index.max() + 1 - horizon
         else:
             time_start = timerange[0]
             time_end = timerange[1]
@@ -258,6 +270,17 @@ class Simulator:
                 ),
             ]
         )
+
+        # Penalty values per device
+        varPenalty = self._getVarValues(
+            pyomo_instance.varDevicePenalty,
+            names=("device", "carrier", "terminal", "time"),
+        )
+        if not varPenalty.empty:
+            varPenalty = varPenalty[:, "el", "out", :]
+            self._dfPenalty = self._addToDf(
+                self._dfPenalty, varPenalty, timelimit, timeshift
+            )
 
         # Revenue from exported energy
         df_exportRevenue = pd.DataFrame()

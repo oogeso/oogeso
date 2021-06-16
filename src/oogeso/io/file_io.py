@@ -1,42 +1,37 @@
 """This module contains methods to read and save to file"""
 
 import yaml
-import pandas as pd
-import numpy as np
-import logging
-from ..dto import oogeso_input_data_objects as io_obj
 import json
-
-# from oogeso.core import electricalsystem
-# from core import milp_compute
-
-
-def _convert_xls_input(df, columns, index_col="id"):
-    """Convert from XLSX format input to flat DataFrame"""
-    df[columns] = df[columns].fillna(method="ffill")
-    if index_col is None:
-        df.reset_index(drop=True)
-
-    df2 = df[[index_col, "param_id", "param_value"]].set_index([index_col, "param_id"])
-    df2 = df2.squeeze().unstack()
-    df2 = df2.dropna(axis=1, how="all")
-    df4 = df[columns].set_index(index_col)
-    # drop duplicate (indices):
-    df4 = df4.loc[~df4.index.duplicated(keep="first")]
-    df5 = df4.join(df2)
-    return df5
+import logging
+import pandas as pd
+from oogeso.dto.oogeso_input_data_objects import (
+    EnergySystemData,
+    DataclassJSONDecoder,
+)
+from typing import Dict, List
 
 
-def read_data_from_yaml(filename):
+def read_data_from_yaml(
+    filename, profiles=None, profiles_nowcast=None
+) -> EnergySystemData:
     """Read input data from yaml file"""
     data_dict = None
     with open(filename, "r") as text_file:
         data_dict = yaml.safe_load(text_file)
 
+    if profiles is not None:
+        logging.debug("Adding profiles to data in yaml file")
+        if "profiles" in data_dict:
+            logging.warning("Overiding profile data in yaml file")
+        data_dict["profiles"] = profiles
+    if profiles_nowcast is not None:
+        logging.debug("Adding profiles to data in yaml file")
+        if "profiles_nowcast" in data_dict:
+            logging.warning("Overiding profile data in yaml file")
+        data_dict["profiles_nowcast"] = profiles_nowcast
     json_str = json.dumps(data_dict)
-    decoder = io_obj.DataclassJSONDecoder()
+    decoder = DataclassJSONDecoder()
     energy_system = decoder.decode(json_str)
-    # return data_dict
     return energy_system
 
 
@@ -80,19 +75,29 @@ def read_profiles_from_xlsx(
 
 def read_profiles_from_csv(
     filename_forecasts,
-    filename_nowcasts,
-    exclude_cols=[],
+    filename_nowcasts=None,
+    timestamp_col="timestamp",
+    dayfirst=True,
+    exclude_cols=None,
 ):
     """Read input data profiles from CSV to a dicitonary of pandas dataframes"""
-    df_profiles = pd.read_csv(
-        filename_nowcasts,
-        index_col="timestep",
-        usecols=lambda col: col not in exclude_cols,
-    )
+    if exclude_cols is None:
+        exclude_cols = []
     df_profiles_forecast = pd.read_csv(
         filename_forecasts,
-        index_col="timestep",
+        index_col=timestamp_col,
+        parse_dates=[timestamp_col],
+        dayfirst=dayfirst,
         usecols=lambda col: col not in exclude_cols,
     )
-    profiles = {"actual": df_profiles, "forecast": df_profiles_forecast}
-    return profiles
+    df_profiles_nowcast = pd.DataFrame()  # empty dataframe
+    if filename_nowcasts is not None:
+        df_profiles_nowcast = pd.read_csv(
+            filename_nowcasts,
+            index_col=timestamp_col,
+            parse_dates=[timestamp_col],
+            dayfirst=dayfirst,
+            usecols=lambda col: col not in exclude_cols,
+        )
+
+    return {"forecast": df_profiles_forecast, "nowcast": df_profiles_nowcast}

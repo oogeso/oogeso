@@ -649,9 +649,8 @@ def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=No
 
 
 def plotNetwork(
-    optimiser=None,
-    simulator=None,
-    timestep=0,
+    simulator,
+    timestep=None,
     filename=None,
     prog="dot",
     only_carrier=None,
@@ -662,7 +661,6 @@ def plotNetwork(
 ):
     """Plot energy network
 
-    optimiser : Optimiser object
     simulator : Simulator object
     timestep : int
         which timestep to show values for
@@ -682,10 +680,7 @@ def plotNetwork(
     # terminal (left or irght), depends on whether it is an input or output
     # of a majority of the connected devices.
 
-    if simulator is not None:
-        if optimiser is not None:
-            logging.warning("Ignoring optimiser argument")
-        optimiser = simulator.optimiser
+    optimiser = simulator.optimiser
     model = optimiser.pyomo_instance
 
     cluster = {}
@@ -867,7 +862,7 @@ def plotNetwork(
     for carrier in carriers:
         for i, edge_obj in optimiser.all_edges.items():
             edge_data = edge_obj.edge_data
-            if edge_data.model == carrier:
+            if edge_data.carrier == carrier:
                 if timestep is None:
                     edgelabel = ""
                     if hasattr(edge_data, "pressure_from"):
