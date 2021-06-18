@@ -1,6 +1,6 @@
 import logging
 from dataclasses import asdict
-
+import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 
@@ -15,6 +15,8 @@ from .networks.network_node import NetworkNode
 
 class Optimiser:
     """Class for MILP optimisation model"""
+
+    ZERO_WARNING_THRESHOLD = 1e-6
 
     def __init__(self, data: EnergySystemData):
         """Create optimisation problem formulation with supplied data"""
@@ -180,17 +182,14 @@ class Optimiser:
             node.addEdge(edge, "to")
 
         # specify sets:
-        # energycarriers=['el','heat','gas','oil','water','wellstream','hydrogen']
         energycarriers = self.all_carriers.keys()
-        model.setCarrier = pyo.Set(initialize=energycarriers, doc="energy carriers")
-        model.setTerminal = pyo.Set(initialize=["in", "out"], doc="terminals")
-        model.setNode = pyo.Set(initialize=self.all_nodes.keys(), doc="nodes")
-        model.setDevice = pyo.Set(initialize=self.all_devices.keys(), doc="devices")
-        model.setEdge = pyo.Set(initialize=self.all_edges.keys(), doc="edges")
-        # model.setFlowComponent= pyo.Set(initialize=['oil','gas','water'])
-        model.setHorizon = pyo.Set(ordered=True, initialize=timerange)
-        # model.setParameters = pyo.Set()
-        model.setProfile = pyo.Set(initialize=profiles_in_use)
+        model.setCarrier = pyo.Set(initialize=energycarriers, doc="carrier")
+        model.setTerminal = pyo.Set(initialize=["in", "out"], doc="terminal")
+        model.setNode = pyo.Set(initialize=self.all_nodes.keys(), doc="node")
+        model.setDevice = pyo.Set(initialize=self.all_devices.keys(), doc="device")
+        model.setEdge = pyo.Set(initialize=self.all_edges.keys(), doc="edge")
+        model.setHorizon = pyo.Set(ordered=True, initialize=timerange, doc="time")
+        model.setProfile = pyo.Set(initialize=profiles_in_use, doc="profile")
 
         # specify mutable parameters:
         # (will be modified between successive optimisations)
@@ -385,19 +384,19 @@ class Optimiser:
         """
         opt_timesteps = self.optimisation_parameters.optimisation_timesteps
         horizon = self.optimisation_parameters.planning_horizon
-        timesteps_use_actual = self.optimisation_parameters.forecast_timesteps
-        self._timestep = timestep
-        # Update profile (using actual for first 4 timesteps, forecast for rest)
+        timesteps_use_nowcast = self.optimisation_parameters.forecast_timesteps
+        # self._timestep = timestep
+        # Update profile (using nowcast for first 4 timesteps, forecast for rest)
         # -this is because for the first timesteps, we tend to have updated
         #  and quite good forecasts - for example, it may become apparent
         #  that there will be much less wind power than previously forecasted
         #
         for prof in self.pyomo_instance.setProfile:
-            for t in range(timesteps_use_actual):  # 0,1,2,3
-                self.pyomo_instance.paramProfiles[prof, t] = profiles["actual"].loc[
+            for t in range(timesteps_use_nowcast):  # 0,1,2,3
+                self.pyomo_instance.paramProfiles[prof, t] = profiles["nowcast"].loc[
                     timestep + t, prof
                 ]
-            for t in range(timesteps_use_actual, horizon):
+            for t in range(timesteps_use_nowcast, horizon):
                 self.pyomo_instance.paramProfiles[prof, t] = profiles["forecast"].loc[
                     timestep + t, prof
                 ]
@@ -721,3 +720,59 @@ class Optimiser:
         self.pyomo_instance.write(
             filename=filename, io_options={"symbolic_solver_labels": True}
         )
+
+    def extract_all_variable_values(self, timelimit=None, timeshift=0):
+        """Extract variable values and return as a dictionary of pandas dataframes"""
+        ins = self.pyomo_instance
+        all_vars = [
+            ins.varEdgeFlow,
+            ins.varEdgeLoss,
+            ins.varDeviceIsPrep,
+            ins.varDeviceIsOn,
+            ins.varDeviceStarting,
+            ins.varDeviceStopping,
+            ins.varDeviceStorageEnergy,
+            ins.varDeviceStoragePmax,
+            ins.varPressure,
+            ins.varElVoltageAngle,
+            ins.varDeviceFlow,
+            ins.varTerminalFlow,
+            ins.varDevicePenalty,
+        ]
+        # all_vars = self.pyomo_instance.component_objects(pyo.Var, active=True)
+        all_values = {}
+        for myvar in all_vars:
+            # extract the variable index names in the right order
+            indices = [index_set.doc for index_set in myvar._implicit_subsets]
+            var_values = myvar.get_values()
+            df = pd.DataFrame.from_dict(var_values, orient="index", columns=["value"])[
+                "value"
+            ]
+            df.index = pd.MultiIndex.from_tuples(df.index, names=indices)
+            # check that all vales are non-negative for deviceflow and give warning otherwise
+            if (myvar == ins.varDeviceFlow) and (
+                df < -self.ZERO_WARNING_THRESHOLD
+            ).any():
+                ind = df[df < -self.ZERO_WARNING_THRESHOLD].index[0]
+                logging.warning(
+                    "Negative number in varDeviceFlow - set to zero ({}:{})".format(
+                        ind, df[ind]
+                    )
+                )
+                df = df.clip(lower=0)
+
+            # ignore NA values
+            df = df.dropna()
+            # df = df.unstack("time").T
+
+            if timelimit is not None:
+                mask = df.index.get_level_values("time") < timelimit
+                df = df[mask]
+            if timeshift > 0:
+                level_time = df.index.names.index("time")
+                new_values = df.index.levels[level_time] + timeshift
+                new_index = df.index.set_levels(new_values, level="time")
+                df.index = new_index
+
+            all_values[myvar.name] = df
+        return all_values

@@ -36,7 +36,7 @@ def plot_df(df, id_var, filename=None, title=None, ylabel="value"):
 
 
 def plot_deviceprofile(
-    simulator,
+    sim_result,
     devs,
     filename=None,
     reverseLegend=True,
@@ -49,7 +49,7 @@ def plot_deviceprofile(
 
     Parameters
     ==========
-    simulator : Oogeso Simulator object
+    sim_results : SimulationResults object
     devs : list
         which devices to include
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
@@ -61,14 +61,14 @@ def plot_deviceprofile(
         this is included in the plots. Default: gas turbine
 
     """
-    mc = simulator
-    optimiser = simulator.optimiser
+    res = sim_result
+    optimiser = sim_result.optimiser
     if type(devs) is not list:
         devs = [devs]
     if includeForecasts & (len(devs) > 1):
         print("Can only plot one device when showing forecasts")
         return
-    df = mc._dfDeviceFlow.unstack(["carrier", "terminal"])[("el", "out")].unstack(
+    df = res.dfDeviceFlow.unstack(["carrier", "terminal"])[("el", "out")].unstack(
         "device"
     )
     if devs_shareload is None:
@@ -94,9 +94,9 @@ def plot_deviceprofile(
         nrows = nrows + 1
     if includePrep:
         nrows = nrows + 1
-    df2 = mc._dfDeviceIsOn.unstack("device")[devs]
-    dfPrep = mc._dfDeviceIsPrep.unstack("device")[devs]
-    timerange = list(mc._dfExportRevenue.index)
+    df2 = res.dfDeviceIsOn.unstack("device")[devs]
+    dfPrep = res.dfDeviceIsPrep.unstack("device")[devs]
+    timerange = list(res.dfExportRevenue.index)
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=nrows, cols=1, shared_xaxes=True)
         colour = plotly.colors.DEFAULT_PLOTLY_COLORS
@@ -151,7 +151,7 @@ def plot_deviceprofile(
                 devPmax = dev_data.flow_max
                 fig.add_scatter(
                     x=timerange,
-                    y=mc._df_profiles_actual.loc[timerange, curve] * devPmax,
+                    y=res.df_profiles_actual.loc[timerange, curve] * devPmax,
                     line_shape="hv",
                     line=dict(color=colour[k + 1]),
                     name="--nowcast",
@@ -161,7 +161,7 @@ def plot_deviceprofile(
                 )
                 fig.add_scatter(
                     x=timerange,
-                    y=mc._df_profiles_forecast.loc[timerange, curve] * devPmax,
+                    y=res.df_profiles_forecast.loc[timerange, curve] * devPmax,
                     line_shape="hv",
                     line=dict(color=colour[k + 2]),
                     name="--forecast",
@@ -192,7 +192,7 @@ def plot_deviceprofile(
             devname = "{}:{}".format(dev, dev_param["name"])
             devPmax = dev_param["Pmax"]
             # el power out:
-            # df= mc._dfDeviceFlow.unstack([1,2])[('el','out')].unstack(0)[dev]
+            # df= res.dfDeviceFlow.unstack([1,2])[('el','out')].unstack(0)[dev]
             # df.name = devname
             df[dev].plot(ax=ax)
             # get the color of the last plotted line (the one just plotted)
@@ -200,16 +200,16 @@ def plot_deviceprofile(
             labels = labels + [devname]
             if "profile" in dev_param:
                 curve = dev_param["profile"]
-                (mc._df_profiles_actual.loc[timerange, curve] * devPmax).plot(
+                (res.df_profiles_actual.loc[timerange, curve] * devPmax).plot(
                     ax=ax, linestyle="--"
                 )
                 # ax.set_prop_cycle(None)
-                (mc._df_profiles_forecast.loc[timerange, curve] * devPmax).plot(
+                (res.df_profiles_forecast.loc[timerange, curve] * devPmax).plot(
                     ax=ax, linestyle=":"
                 )
                 labels = labels + ["--nowcast", "--forecast"]
             if dev_param["model"] == "gasturbine":
-                # df2=mc._dfDeviceIsOn.unstack(0)[dev]+offset_online
+                # df2=res.dfDeviceIsOn.unstack(0)[dev]+offset_online
                 offset_online += 0.1
                 df2[dev].plot(ax=ax, linestyle="--", color=col)
                 labels = labels + ["--online"]
@@ -220,10 +220,10 @@ def plot_deviceprofile(
     return fig
 
 
-def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=None):
+def plot_devicePowerEnergy(sim_result, dev, filename=None, energy_fill_opacity=None):
     """Plot power in/out of device and storage level (if any)"""
-    optimiser = simulator.optimiser
-    model = optimiser.pyomo_instance
+    res = sim_result
+    optimiser = res.optimiser
     dev_data = optimiser.all_devices[dev].dev_data
     devname = "{}:{}".format(dev, dev_data.name)
 
@@ -236,15 +236,16 @@ def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=No
         Ptitle = "Power (MW)"
         Etitle = "Energy storage (MWh)"
     # Power flow in/out
-    dfF = simulator._dfDeviceFlow[dev, carrier].unstack("terminal")
-    dfE = pd.DataFrame()
-    if dev in simulator._dfDeviceStorageEnergy:
-        dfE = pd.DataFrame(simulator._dfDeviceStorageEnergy[dev])
+    dfF = res.dfDeviceFlow[dev, carrier].unstack("terminal")
+    dfE = res.dfDeviceStorageEnergy.unstack("device")
+    # dfE = pd.DataFrame()
+    if dev in dfE:
+        dfE = dfE[dev]
         # Shift time by one, since the dfDeviceEnergy[t] is the energy _after_
         # timestep t:
         #        dfE = dfE.unstack().T
         dfE.index = dfE.index + 1
-        dfE = dfE.rename(columns={0: "storage"})
+        # dfE = dfE.rename(columns={0: "storage"})
         # dfE.loc[dfE.index.min()-1,dev] = mc.instance.param
 
     if plotter == "plotly":
@@ -261,7 +262,7 @@ def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=No
         if not dfE.empty:
             fig.add_scatter(
                 x=dfE.index,
-                y=dfE["storage"],
+                y=dfE,
                 name="storage",
                 secondary_y=False,
                 fill="tozeroy",
@@ -307,7 +308,7 @@ def plot_devicePowerEnergy(simulator, dev, filename=None, energy_fill_opacity=No
 
 
 def plot_SumPowerMix(
-    simulator,
+    sim_result,
     carrier,
     filename=None,
     reverseLegend=True,
@@ -319,7 +320,7 @@ def plot_SumPowerMix(
 
     Parameters
     ==========
-    simulator : Simulator object
+    sim_result : SimulationResult object
     carrier : string
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
         list of devices for which power should be shared evenly (typically gas turbines)
@@ -328,9 +329,11 @@ def plot_SumPowerMix(
         frequency droop settings. Rather than imposing this in the optimisation,
         this is included in the plots.
     """
-    optimiser = simulator.optimiser
+    # optimiser = simulator.optimiser
+    res = sim_result
+    optimiser = sim_result.optimiser
     # Power flow in/out
-    dfF = simulator._dfDeviceFlow
+    dfF = res.dfDeviceFlow
     tmin = dfF.index.get_level_values("time").min()
     tmax = dfF.index.get_level_values("time").max() + 1
     mask_carrier = dfF.index.get_level_values("carrier") == carrier
@@ -432,9 +435,10 @@ def plot_SumPowerMix(
     return fig
 
 
-def plot_ExportRevenue(mc, filename=None, currency="$"):
+def plot_ExportRevenue(sim_result, filename=None, currency="$"):
+    res = sim_result
     if plotter == "plotly":
-        dfplot = mc._dfExportRevenue.loc[:, mc._dfExportRevenue.sum() > 0]
+        dfplot = res.dfExportRevenue.loc[:, res.dfExportRevenue.sum() > 0]
         fig = px.area(dfplot)
         fig.update_xaxes(title_text="Timestep")
         fig.update_yaxes(title_text="Revenue ({}/s)".format(currency))
@@ -444,7 +448,7 @@ def plot_ExportRevenue(mc, filename=None, currency="$"):
         ax = plt.gca()
         ax.set_ylabel("{}/s".format(currency))
         ax.set_xlabel("Timestep")
-        (mc._dfExportRevenue.loc[:, mc._dfExportRevenue.sum() > 0]).plot.area(
+        (res.dfExportRevenue.loc[:, res.dfExportRevenue.sum() > 0]).plot.area(
             ax=ax, linewidth=0
         )
         if filename is not None:
@@ -452,32 +456,32 @@ def plot_ExportRevenue(mc, filename=None, currency="$"):
     return fig
 
 
-def plot_CO2rate(mc, filename=None):
+def plot_CO2rate(sim_result, filename=None):
     plt.figure(figsize=(12, 4))
     plt.title("CO2 emission rate (kgCO2/s)")
     ax = plt.gca()
     ax.set_ylabel("kgCO2/s")
     ax.set_xlabel("Timestep")
-    mc._dfCO2rate.plot()
+    sim_result.dfCO2rate.plot()
     if filename is not None:
         plt.savefig(filename, bbox_inches="tight")
 
 
 def plot_CO2rate_per_dev(
-    simulator, filename=None, reverseLegend=False, devs_shareload=[]
+    sim_result, filename=None, reverseLegend=False, devs_shareload=[]
 ):
 
     # df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
     # labels = (df_info.index.astype(str))# +'_'+df_info['name'])
-    dfplot = simulator._dfCO2rate_per_dev.loc[
-        :, ~(simulator._dfCO2rate_per_dev == 0).all()
-    ].copy()
+    res = sim_result
+    all_devices = res.optimiser.all_devices
+    dfplot = res.dfCO2rate_per_dev.loc[:, ~(res.dfCO2rate_per_dev == 0).all()].copy()
 
     if devs_shareload is None:
         # gas turbines:
         devs_shareload = [
             d
-            for d, d_obj in simulator.optimiser.all_devices.items()
+            for d, d_obj in all_devices.items()
             if d_obj.dev_data.model == "gasturbine"
         ]
     #        devs_shareload = [d for d in mc.instance.setDevice
@@ -535,11 +539,11 @@ def plot_CO2rate_per_dev(
     return fig
 
 
-def plot_CO2_intensity(mc, filename=None):
+def plot_CO2_intensity(sim_result, filename=None):
     title = "CO2 intensity (kgCO2/Sm3oe)"
     xlabel = "Timestep"
     ylabel = "CO2 intensity (kgCO2/Sm3oe)"
-    dfplot = mc._dfCO2intensity
+    dfplot = sim_result.dfCO2intensity
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
         # ,shared_xaxes=True,vertical_spacing=0.05)
@@ -608,10 +612,10 @@ def plotProfiles(profiles, filename=None):
     return fig
 
 
-def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=None):
-    mc = simulator
-    # model = simulator.optimiser.pyomo_instance
-    dev_obj = simulator.optimiser.all_devices[dev]
+def plotDevicePowerFlowPressure(sim_result, dev, carriers_inout=None, filename=None):
+    res = sim_result
+    all_devices = res.optimiser.all_devices
+    dev_obj = all_devices[dev]
     dev_data = dev_obj.dev_data
     node = dev_data.node_id
     devname = "{}:{}".format(dev, dev_data.name)
@@ -623,7 +627,7 @@ def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=No
 
     plt.figure(figsize=(12, 4))
     ax = plt.gca()
-    # ax.plot(mc._dfDevicePower.unstack(0)[dev],'-.',label="DevicePower")
+    # ax.plot(res.dfDevicePower.unstack(0)[dev],'-.',label="DevicePower")
     for inout, carriers in carriers_inout.items():
         if inout == "in":
             ls = "--"
@@ -631,7 +635,7 @@ def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=No
             ls = ":"
         for carr in carriers:
             ax.plot(
-                mc._dfDeviceFlow.unstack([0, 1, 2])[(dev, carr, inout)],
+                res.dfDeviceFlow.unstack([0, 1, 2])[(dev, carr, inout)],
                 ls,
                 label="DeviceFlow ({},{})".format(carr, inout),
             )
@@ -640,7 +644,7 @@ def plotDevicePowerFlowPressure(simulator, dev, carriers_inout=None, filename=No
         for carr in carriers:
             if carr != "el":
                 ax.plot(
-                    mc._dfTerminalPressure.unstack(0)[node].unstack([0, 1])[
+                    res.dfTerminalPressure.unstack(0)[node].unstack([0, 1])[
                         (carr, inout)
                     ],
                     label="TerminalPressure ({},{})".format(carr, inout),
@@ -666,7 +670,7 @@ def plotNetwork(
 ):
     """Plot energy network
 
-    simulator : Simulator object
+    simulator : Simulation object
     timestep : int
         which timestep to show values for
     filename : string
@@ -687,6 +691,7 @@ def plotNetwork(
 
     optimiser = simulator.optimiser
     model = optimiser.pyomo_instance
+    res = simulator.result_object
 
     cluster = {}
     col = {
@@ -758,7 +763,7 @@ def plotNetwork(
                         if timestep is None:
                             devedgelabel = ""
                         else:
-                            f_in = simulator._dfDeviceFlow[(d, carrier, "in", timestep)]
+                            f_in = res.dfDeviceFlow[(d, carrier, "in", timestep)]
                             devedgelabel = numberformat.format(f_in)
                         if carrier in node_obj.devices_serial:
                             n_in = n_id + "_" + carrier + "_in"
@@ -778,9 +783,7 @@ def plotNetwork(
                         if timestep is None:
                             devedgelabel = ""
                         else:
-                            f_out = simulator._dfDeviceFlow[
-                                (d, carrier, "out", timestep)
-                            ]
+                            f_out = res.dfDeviceFlow[(d, carrier, "out", timestep)]
                             devedgelabel = numberformat.format(f_out)
                         if carrier in node_obj.devices_serial:
                             n_out = n_id + "_" + carrier + "_out"
@@ -806,18 +809,18 @@ def plotNetwork(
                     pass
                 elif carrier in ["gas", "wellstream", "oil", "water"]:
                     label_in += numberformat.format(
-                        simulator._dfTerminalPressure[(n_id, carrier, "in", timestep)]
+                        res.dfTerminalPressure[(n_id, carrier, "in", timestep)]
                     )
                     label_out += numberformat.format(
-                        simulator._dfTerminalPressure[(n_id, carrier, "out", timestep)]
+                        res.dfTerminalPressure[(n_id, carrier, "out", timestep)]
                     )
                 elif carrier == "el":
                     if optimiser.all_carriers["el"].powerflow_method == "dc-pf":
                         label_in += numberformat.format(
-                            simulator._dfElVoltageAngle[(n_id, timestep)]
+                            res.dfElVoltageAngle[(n_id, timestep)]
                         )
                         label_out += numberformat.format(
-                            simulator._dfElVoltageAngle[(n_id, timestep)]
+                            res.dfElVoltageAngle[(n_id, timestep)]
                         )
                 # Add two terminals if there are serial devices, otherwise one:
                 if carrier in node_obj.devices_serial:
@@ -880,21 +883,17 @@ def plotNetwork(
                         )
                         # edgelabel = "{}-{}".format(edgelabel, edge_data.pressure["to"])
                 else:
-                    edgelabel = numberformat.format(
-                        simulator._dfEdgeFlow[(i, timestep)]
-                    )
+                    edgelabel = numberformat.format(res.dfEdgeFlow[(i, timestep)])
                     # Add loss
-                    if (simulator._dfEdgeLoss is not None) and (
-                        (i, timestep) in simulator._dfEdgeLoss
+                    if (res.dfEdgeLoss is not None) and (
+                        (i, timestep) in res.dfEdgeLoss
                     ):
                         # taillabel = " " + edgelabel
-                        losslabel = numberformat.format(
-                            simulator._dfEdgeLoss[(i, timestep)]
-                        )
+                        losslabel = numberformat.format(res.dfEdgeLoss[(i, timestep)])
                         # headlabel = (
                         #    numberformat.format(
-                        #        simulator._dfEdgeFlow[(i, timestep)]
-                        #        - simulator._dfEdgeLoss[(i, timestep)]
+                        #        res.dfEdgeFlow[(i, timestep)]
+                        #        - res.dfEdgeLoss[(i, timestep)]
                         #    )
                         #    + " "
                         # )
@@ -988,12 +987,12 @@ def plotGasTurbineEfficiency(
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=False):
+def plotReserve(sim_result, includeMargin=True, dynamicMargin=True, useForecast=False):
     """Plot unused online capacity by all el devices"""
     df_devs = pd.DataFrame()
-    mc = simulator
-    optimiser = simulator.optimiser
-    timerange = list(mc._dfExportRevenue.index)
+    res = sim_result
+    optimiser = sim_result.optimiser
+    timerange = list(res.dfExportRevenue.index)
     marginIncr = pd.DataFrame(0, index=timerange, columns=["margin"])
     for d, dev_obj in optimiser.all_devices.items():
         dev_data = dev_obj.dev_data
@@ -1004,19 +1003,19 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
             maxValue = dev_data.flow_max
             if dev_data.profile is not None:
                 extprofile = dev_data.profile
-                if useForecast or (extprofile not in mc._df_profiles_actual):
+                if useForecast or (extprofile not in res.df_profiles_nowcast):
                     maxValue = (
-                        maxValue * mc._df_profiles_forecast.loc[timerange, extprofile]
+                        maxValue * res.df_profiles_forecast.loc[timerange, extprofile]
                     )
                 else:
                     maxValue = (
-                        maxValue * mc._df_profiles_actual.loc[timerange, extprofile]
+                        maxValue * res.df_profiles_nowcast.loc[timerange, extprofile]
                     )
             if dev_data.start_stop is not None:  # devmodel in ["gasturbine"]:
-                ison = mc._dfDeviceIsOn[d]
+                ison = res.dfDeviceIsOn[d]
                 maxValue = ison * maxValue
             elif devmodel in ["storage_el"]:
-                maxValue = mc._dfDeviceStoragePmax[d] + mc._dfDeviceFlow[d, "el", "in"]
+                maxValue = res.dfDeviceStoragePmax[d] + res.dfDeviceFlow[d, "el", "in"]
             if dev_data.reserve_factor is not None:
                 reserve_factor = dev_data.reserve_factor
                 if reserve_factor == 0:
@@ -1029,7 +1028,7 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
                 else:
                     maxValue = maxValue * reserve_factor
             cap_avail = rf * maxValue
-            p_generating = rf * mc._dfDeviceFlow[d, "el", "out"]
+            p_generating = rf * res.dfDeviceFlow[d, "el", "out"]
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
@@ -1058,10 +1057,11 @@ def plotReserve(simulator, includeMargin=True, dynamicMargin=True, useForecast=F
     return fig
 
 
-def plotElBackup(mc, filename=None, showMargin=False, returnMargin=False):
+def plotElBackup(sim_result, filename=None, showMargin=False, returnMargin=False):
     """plot reserve capacity vs device power output"""
-    res_dev = mc._dfElBackup
-    dfP = mc._dfDeviceFlow.copy()
+    res = sim_result
+    res_dev = res.dfElBackup
+    dfP = res.dfDeviceFlow.copy()
     carrier = "el"
     mask_carrier = dfP.index.get_level_values("carrier") == carrier
     mask_out = dfP.index.get_level_values("terminal") == "out"
@@ -1127,16 +1127,18 @@ def plotElBackup(mc, filename=None, showMargin=False, returnMargin=False):
     return fig
 
 
-def recompute_elBackup(mc):
+def recompute_elBackup(res):
     """Compute reserve
     should give the same as mc.compute_elReserve"""
-    model = mc.instance
+    optimiser = res.optimiser
+    model = res.optimiser.pyomo_instance
+    all_devices = optimiser.all_devices
 
     # used capacity for all (relevant) devices:
     carrier = "el"
-    devices_elin = mc.getDevicesInout(carrier_in=carrier)
-    devices_elout = mc.getDevicesInout(carrier_out=carrier)
-    dfP = mc._dfDeviceFlow
+    devices_elin = optimiser.getDevicesInout(carrier_in=carrier)
+    devices_elout = optimiser.getDevicesInout(carrier_out=carrier)
+    dfP = res.dfDeviceFlow
     mask_carrier = dfP.index.get_level_values("carrier") == carrier
     mask_out = dfP.index.get_level_values("terminal") == "out"
     mask_in = dfP.index.get_level_values("terminal") == "out"
@@ -1151,18 +1153,19 @@ def recompute_elBackup(mc):
 
     # reserve (unused) capacity by other devices:
     res_dev = pd.DataFrame(columns=dfPout.columns, index=dfPout.index)
-    df_ison = mc._dfDeviceIsOn.unstack(0)
+    df_ison = res.dfDeviceIsOn.unstack(0)
     for dev in devices_elout:
         otherdevs = [d for d in devices_elout if d != dev]
         cap_avail = 0
         for d in otherdevs:
-            devmodel = model.paramDevice[d]["model"]
-            maxValue = model.paramDevice[d]["Pmax"]
-            if "profile" in model.paramDevice[d]:
-                extprofile = model.paramDevice[d]["profile"]
-                maxValue = maxValue * mc._df_profiles_actual[extprofile]
+            dev2 = all_devices[d].dev_data
+            devmodel = dev2.model
+            maxValue = dev2.flow_max
+            if dev2.profile is not None:
+                extprofile = dev2.profile
+                maxValue = maxValue * res.df_profiles_actual[extprofile]
             ison = 1
-            if devmodel in ["gasturbine"]:
+            if dev2.start_stop is not None:
                 ison = df_ison[d]
             cap_avail += ison * maxValue
         otherdevs_in = [d for d in devices_elin if d != dev]
@@ -1177,7 +1180,8 @@ def plotElBackup2(mc, filename=None):
     plt.figure(figsize=(12, 4))
     ax = plt.gca()
     # default line zorder=2
-    res_dev.plot(ax=ax, linestyle="-", legend=True, alpha=0.5)
+    # res_dev.plot(ax=ax, linestyle="-", legend=True, alpha=0.5)
+    res_dev.plot(ax=ax, drawstyle="steps-post", linestyle="-", legend=True, alpha=0.5)
     #    # critical is the largest load:
     #    c_critical = dfP.idxmax(axis=1)
     # critical is the smallest reserve margin:
@@ -1189,7 +1193,8 @@ def plotElBackup2(mc, filename=None):
 
     # use the same colors
     plt.gca().set_prop_cycle(None)
-    dfP.plot(ax=ax, linestyle=":", legend=False, alpha=0.5)
+    # dfP.plot(ax=ax, linestyle=":", legend=False, alpha=0.5)
+    dfP.plot(ax=ax, drawstyle="steps-post", linestyle=":", legend=False, alpha=0.5)
 
     #    pd.Series(dfP.lookup(dfP.index,c_critical)).plot(ax=ax,
     #             linestyle=':',legend=False,linewidth=2,
@@ -1204,3 +1209,4 @@ def plotElBackup2(mc, filename=None):
     #               frameon=False)
     if filename is not None:
         plt.savefig(filename, bbox_inches="tight")
+    return ax
