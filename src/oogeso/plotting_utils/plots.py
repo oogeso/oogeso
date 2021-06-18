@@ -151,7 +151,7 @@ def plot_deviceprofile(
                 devPmax = dev_data.flow_max
                 fig.add_scatter(
                     x=timerange,
-                    y=res.df_profiles_actual.loc[timerange, curve] * devPmax,
+                    y=res.df_profiles_nowcast.loc[timerange, curve] * devPmax,
                     line_shape="hv",
                     line=dict(color=colour[k + 1]),
                     name="--nowcast",
