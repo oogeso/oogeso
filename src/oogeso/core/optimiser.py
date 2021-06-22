@@ -122,6 +122,7 @@ class Optimiser:
             logging.debug("Device model={}".format(device_model))
             Devclass = getattr(devices, device_model.capitalize())
             new_device = Devclass(model, self, dev_data_obj)
+            new_device.setFlowUpperBound(data.profiles)
             self.all_devices[dev_id] = new_device
 
         for node_data_obj in energy_system_data.nodes:

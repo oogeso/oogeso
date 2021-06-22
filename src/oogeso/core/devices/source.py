@@ -44,12 +44,13 @@ class Powersource(Device):
 
         super().defineConstraints()
 
-        constr_penalty = self._penaltyConstraint()
-        setattr(
-            self.pyomo_model,
-            "constrPW_{}_{}".format(self.id, "penalty"),
-            constr_penalty,
-        )
+        if self.dev_data.penalty_function is not None:
+            constr_penalty = self._penaltyConstraint()
+            setattr(
+                self.pyomo_model,
+                "constrPW_{}_{}".format(self.id, "penalty"),
+                constr_penalty,
+            )
 
     # TODO: Make piecewise constraint implementation more elegant
     # The varDevicePenalty seem to be required to have the same indices as the varDeviceFlow.
@@ -58,10 +59,10 @@ class Powersource(Device):
     # used with p_max / q_max / penalty_function
     def _penaltyConstraint(self):
         # Piecewise constraints require independent variable to be bounded:
+        # ub = self.dev_data.flow_max
+        ub = self.getFlowUpperBound()
         self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setlb(0)
-        self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setub(
-            self.dev_data.flow_max
-        )
+        self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setub(ub)
         lookup_table = self.dev_data.penalty_function
         pw_x = lookup_table[0]
         pw_y = lookup_table[1]
