@@ -17,6 +17,8 @@ class Device:
         self.pyomo_model = pyomo_model
         self.optimiser = optimiser
         self.dev_constraints = None
+        # parameter keeping track of upper bound (needed in piecewise linear constraints):
+        self._flow_upper_bound = None
 
     def setInitValues(self):
         # Method invoked to specify optimisation problem initial value parameters
@@ -37,15 +39,17 @@ class Device:
         power = self.getFlowVar(t)
         if power is None:
             return pyo.Constraint.Skip
-        maxValue = self.dev_data.flow_max
-        if self.dev_data.profile is not None:
-            # use an availability profile if provided
-            extprofile = self.dev_data.profile
-            maxValue = maxValue * model.paramProfiles[extprofile, t]
-        ison = 1
-        if self.dev_data.start_stop is not None:
-            ison = model.varDeviceIsOn[self.id, t]
-        expr = power <= ison * maxValue
+        maxValue = self.getMaxP(t)
+        expr = power <= maxValue
+        # maxValue = self.dev_data.flow_max
+        # if self.dev_data.profile is not None:
+        #     # use an availability profile if provided
+        #     extprofile = self.dev_data.profile
+        #     maxValue = maxValue * model.paramProfiles[extprofile, t]
+        # ison = 1
+        # if self.dev_data.start_stop is not None:
+        #     ison = model.varDeviceIsOn[self.id, t]
+        # expr = power <= ison * maxValue
         return expr
 
     def _rule_devicePmin(self, model, t):
@@ -206,7 +210,7 @@ class Device:
         raise NotImplementedError()
 
     def getMaxP(self, t):
-        """get available capacity at given timestep"""
+        """get available capacity at given timestep, use t=None to get max for entire timeseries"""
         model = self.pyomo_model
         maxValue = self.dev_data.flow_max
         if self.dev_data.profile is not None:
@@ -216,6 +220,31 @@ class Device:
             ison = self.pyomo_model.varDeviceIsOn[self.id, t]
             maxValue = ison * maxValue
         return maxValue
+
+    def setFlowUpperBound(self, profiles):
+        """Maximum flow value through entire profile. Product of flox_max parameter and profile values"""
+        ub = self.dev_data.flow_max
+        if self.dev_data.profile is not None:
+            extprofile = self.dev_data.profile
+            prof_max = None
+            for prof in profiles:
+                if prof.id == extprofile:
+                    prof_max = max(prof.data)
+                    if prof.data_nowcast is not None:
+                        prof_nowcast_max = max(prof.data_nowcast)
+                        prof_max = max(prof_max, prof_nowcast_max)
+                    ub = ub * prof_max
+                    break
+            if prof_max is None:
+                logging.warning(
+                    "Profile (%s) defined for device %s was not found",
+                    extprofile,
+                    self.dev_data.id,
+                )
+        self._flow_upper_bound = ub
+
+    def getFlowUpperBound(self):
+        return self._flow_upper_bound
 
     def compute_CO2(self, timesteps):
         return 0

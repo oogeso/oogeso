@@ -100,11 +100,12 @@ devices:
     eta_heat: 0.5
     max_ramp_up: 0.5
     max_ramp_down: 1
-    startup_delay: 45 # min
-    startup_cost: 200
+    start_stop:
+        delay_start_minutes: 45 # min
+        penalty_start: 200
+        is_on_init: True
     flow_max: 20
     flow_min: 5
-    is_on_init: True
 
   - id: GT2
     include: 1
@@ -116,11 +117,12 @@ devices:
     eta_heat: 0.5
     max_ramp_up: 0.5
     max_ramp_down: 1
-    startup_delay: 45 # min
-    startup_cost: 200
+    start_stop:
+        delay_start_minutes: 45 # min
+        penalty_start: 200
+        is_on_init: True
     flow_max: 20
     flow_min: 5
-    is_on_init: True
 
   - id: GT3
     include: 1
@@ -132,8 +134,9 @@ devices:
     eta_heat: 0.5
     max_ramp_up: 0.5
     max_ramp_down: 1
-    startup_delay: 45 # min
-    startup_cost: 200
+    start_stop:
+        delay_start_minutes: 45 # min
+        penalty_start: 200
     flow_max: 20
     flow_min: 5
 

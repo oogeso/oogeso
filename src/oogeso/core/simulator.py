@@ -1,11 +1,9 @@
+from dataclasses import dataclass, fields
+import logging
 import pandas as pd
 import pyomo.environ as pyo
-
-# from oogeso.core.devices.gasturbine import Gasturbine
 from oogeso.dto.oogeso_input_data_objects import EnergySystemData
-
 from .optimiser import Optimiser
-import logging
 
 # get progress bar:
 try:
@@ -18,7 +16,45 @@ except:
     has_tqdm = False
 
 
-ZERO_WARNING_THRESHOLD = 1e-6
+@dataclass
+class SimulationResult:
+    """Results from oogeso simulation"""
+
+    # Dataframes keeping track of simulation results:
+    dfDeviceFlow: pd.DataFrame = None
+    dfDeviceIsPrep: pd.DataFrame = None
+    dfDeviceIsOn: pd.DataFrame = None
+    dfDeviceStorageEnergy: pd.DataFrame = None
+    dfDeviceStoragePmax: pd.DataFrame = None
+    dfDeviceStarting: pd.DataFrame = None
+    dfDeviceStopping: pd.DataFrame = None
+    dfPenalty: pd.DataFrame = None
+    dfEdgeFlow: pd.DataFrame = None
+    dfEdgeLoss: pd.DataFrame = None
+    dfElVoltageAngle: pd.DataFrame = None
+    dfTerminalPressure: pd.DataFrame = None
+    dfTerminalFlow: pd.DataFrame = None
+    dfCO2rate: pd.DataFrame = None  # co2 emission sum per timestep
+    dfCO2rate_per_dev: pd.DataFrame = None  # co2 emission per device per timestep
+    dfExportRevenue: pd.DataFrame = None  # revenue from exported energy
+    dfCO2intensity: pd.DataFrame = None
+    dfElReserve: pd.DataFrame = None  # Reserve capacity
+    dfElBackup: pd.DataFrame = None  # Backup capacity (handling faults)
+    dfDuals: pd.DataFrame = None
+    # Time-series profiles used in simulatin:
+    df_profiles_forecast: pd.DataFrame = None
+    df_profiles_nowcast: pd.DataFrame = None
+    optimiser: Optimiser = None  # reference to optimiser object
+
+    def append_results(self, sim_res):
+        exclude_list = ["optimiser", "df_profiles_forecast", "df_profiles_forecast"]
+        for my_field in fields(self):
+            field_name = my_field.name
+            if field_name not in exclude_list:
+                my_df = getattr(self, field_name)
+                other_df = getattr(sim_res, field_name)
+                if other_df is not None:
+                    setattr(self, field_name, pd.concat([my_df, other_df]).sort_index())
 
 
 class Simulator:
@@ -36,37 +72,19 @@ class Simulator:
         # Abstract pyomo model formulation
         self.optimiser = Optimiser(data)
 
-        # Dataframes keeping track of simulation results:
-        self._dfDeviceFlow = None
-        self._dfDeviceIsPrep = None
-        self._dfDeviceIsOn = None
-        self._dfDeviceStorageEnergy = None
-        self._dfDeviceStoragePmax = None
-        self._dfDeviceStarting = None
-        self._dfDeviceStopping = None
-        self._dfEdgeFlow = None
-        self._dfEdgeLoss = None
-        self._dfElVoltageAngle = None
-        self._dfTerminalPressure = None
-        self._dfTerminalFlow = None
-        self._dfCO2rate = None  # co2 emission sum per timestep
-        self._dfCO2rate_per_dev = None  # co2 emission per device per timestep
-        self._dfExportRevenue = None  # revenue from exported energy
-        self._dfCO2intensity = None
-        self._dfElReserve = None  # Reserve capacity
-        self._dfElBackup = None  # Backup capacity (handling faults)
-        self._dfDuals = None
-        self._dfPenalty = None
+        self.result_object = None
 
-        # These are used only when plotting afterwards
-        self._df_profiles_forecast = pd.DataFrame()
-        self._df_profiles_actual = pd.DataFrame()
+        # Storing time-series profiles:
+        _df_profiles_forecast = pd.DataFrame()
+        _df_profiles_nowcast = pd.DataFrame()
         for prof in data.profiles:
-            self._df_profiles_forecast[prof.id] = prof.data
+            _df_profiles_forecast[prof.id] = prof.data
             if prof.data_nowcast is not None:
-                self._df_profiles_actual[prof.id] = prof.data_nowcast
-        # self._df_profiles_forecast = profiles["forecast"]
-        # self._df_profiles_actual = profiles["actual"]
+                _df_profiles_nowcast[prof.id] = prof.data_nowcast
+        self.profiles = {
+            "nowcast": _df_profiles_nowcast,
+            "forecast": _df_profiles_forecast,
+        }
 
     def setOptimiser(self, optimiser):
         self.optimiser = optimiser
@@ -101,18 +119,22 @@ class Simulator:
 
         steps = self.optimiser.optimisation_parameters.optimisation_timesteps
         horizon = self.optimiser.optimisation_parameters.planning_horizon
-        profiles = {
-            "actual": self._df_profiles_actual,
-            "forecast": self._df_profiles_forecast,
-        }
         if timelimit is not None:
             logging.debug("Using solver timelimit={}".format(timelimit))
         if timerange is None:
+            # use the entire timeseries
             time_start = 0
-            time_end = self._df_profiles_forecast.index.max() + 1 - horizon
+            time_end = self.profiles["forecast"].index.max() + 1 - horizon
         else:
             time_start = timerange[0]
             time_end = timerange[1]
+
+        result_object = SimulationResult(
+            optimiser=self.optimiser,
+            df_profiles_nowcast=self.profiles["nowcast"],
+            df_profiles_forecast=self.profiles["forecast"],
+        )
+        self.result_object = result_object
 
         first = True
         for step in trange(time_start, time_end, steps):
@@ -120,31 +142,19 @@ class Simulator:
                 # no progress bar
                 logging.info("Solving timestep={}".format(step))
             # 1. Update problem formulation
-            self.optimiser.updateOptimisationModel(step, first=first, profiles=profiles)
+            self.optimiser.updateOptimisationModel(
+                step, first=first, profiles=self.profiles
+            )
             # 2. Solve for planning horizon
             self.optimiser.solve(
                 solver=solver, write_yaml=write_yaml, timelimit=timelimit
             )
             # 3. Save results (for later analysis)
-            self._saveOptimisationResult(step, store_duals)
+            new_results = self._saveOptimisationResult(step, store_duals)
+            result_object.append_results(new_results)
             first = False
 
-    def _getVarValues(self, variable, names):
-        """Extract MILP problem variable values as dataframe"""
-        df = pd.DataFrame.from_dict(variable.get_values(), orient="index")
-        df.index = pd.MultiIndex.from_tuples(df.index, names=names)
-        return df[0].dropna()
-
-    def _addToDf(self, df_prev, df_new, timelimit, timeshift):
-        """Add to dataframes storing results (only the decision variables)"""
-        level = df_new.index.names.index("time")
-        df_new = df_new[df_new.index.get_level_values(level) < timelimit]
-        df_new.index.set_levels(
-            df_new.index.levels[level] + timeshift, level=level, inplace=True
-        )
-        df = pd.concat([df_prev, df_new])
-        df.sort_index(inplace=True)
-        return df
+        return result_object
 
     def _saveOptimisationResult(self, timestep, store_duals=None):
         """save results of optimisation for later analysis"""
@@ -155,53 +165,8 @@ class Simulator:
         timelimit = self.optimiser.optimisation_parameters.optimisation_timesteps
         timeshift = timestep
 
-        # Retrieve variable values
-        varDeviceFlow = self._getVarValues(
-            pyomo_instance.varDeviceFlow,
-            names=("device", "carrier", "terminal", "time"),
-        )
-        if (varDeviceFlow < -ZERO_WARNING_THRESHOLD).any():
-            # get first index where this is true
-            ind = varDeviceFlow[varDeviceFlow < -ZERO_WARNING_THRESHOLD].index[0]
-            logging.warning(
-                "Negative number in varDeviceFlow - set to zero ({}:{})".format(
-                    ind, varDeviceFlow[ind]
-                )
-            )
-            varDeviceFlow = varDeviceFlow.clip(lower=0)
-        varDeviceIsPrep = self._getVarValues(
-            pyomo_instance.varDeviceIsPrep, names=("device", "time")
-        )
-        varDeviceIsOn = self._getVarValues(
-            pyomo_instance.varDeviceIsOn, names=("device", "time")
-        )
-        varDeviceStorageEnergy = self._getVarValues(
-            pyomo_instance.varDeviceStorageEnergy, names=("device", "time")
-        )
-        varDeviceStoragePmax = self._getVarValues(
-            pyomo_instance.varDeviceStoragePmax, names=("device", "time")
-        )
-        varDeviceStarting = self._getVarValues(
-            pyomo_instance.varDeviceStarting, names=("device", "time")
-        )
-        varDeviceStopping = self._getVarValues(
-            pyomo_instance.varDeviceStopping, names=("device", "time")
-        )
-        varEdgeFlow = self._getVarValues(
-            pyomo_instance.varEdgeFlow, names=("edge", "time")
-        )
-        varEdgeLoss = self._getVarValues(
-            pyomo_instance.varEdgeLoss, names=("edge", "time")
-        )
-        varElVoltageAngle = self._getVarValues(
-            pyomo_instance.varElVoltageAngle, names=("node", "time")
-        )
-        varPressure = self._getVarValues(
-            pyomo_instance.varPressure, names=("node", "carrier", "terminal", "time")
-        )
-        varTerminalFlow = self._getVarValues(
-            pyomo_instance.varTerminalFlow, names=("node", "carrier", "time")
-        )
+        # Retrieve variable values as dictionary with dataframes
+        res = self.optimiser.extract_all_variable_values(timelimit, timeshift)
 
         if store_duals is not None:
             # Save dual values
@@ -209,8 +174,7 @@ class Simulator:
             #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}
             #   }
             horizon_steps = self.optimiser.optimisation_parameters.planning_horizon
-            if self._dfDuals is None:
-                self._dfDuals = pd.DataFrame(columns=store_duals.keys())
+            df_duals = pd.DataFrame(columns=store_duals.keys())
             for key, val in store_duals.items():
                 # vrs=('util',None)
                 vrs = val["indx"]
@@ -234,63 +198,34 @@ class Simulator:
                     # the constraint not just in the single timestep, but in
                     # all timesteps we therefore scale up the dual value
                     dual = dual * horizon_steps
-                    self._dfDuals.loc[timeshift + t, key] = dual
-
-        # CO2 emission rate (sum all emissions)
-        co2 = [
-            pyo.value(self.optimiser.compute_CO2(pyomo_instance, timesteps=[t]))
-            for t in range(timelimit)
-        ]
-        self._dfCO2rate = pd.concat(
-            [
-                self._dfCO2rate,
-                pd.Series(data=co2, index=range(timestep, timestep + timelimit)),
-            ]
-        )
+                    df_duals.loc[timeshift + t, key] = dual
 
         # CO2 emission rate per device:
-        df_co2 = pd.DataFrame()
+        df_co2_rate_dev = pd.DataFrame()
         for d in pyomo_instance.setDevice:
             for t in range(timelimit):
                 co2_dev = self.optimiser.compute_CO2(
                     pyomo_instance, devices=[d], timesteps=[t]
                 )
-                df_co2.loc[t + timestep, d] = pyo.value(co2_dev)
-        self._dfCO2rate_per_dev = pd.concat([self._dfCO2rate_per_dev, df_co2])
-        # self._dfCO2dev.sort_index(inplace=True)
+                df_co2_rate_dev.loc[t + timestep, d] = pyo.value(co2_dev)
 
-        # CO2 emission intensity (sum)
-        df_df_co2intensity = [
-            pyo.value(
+        # CO2 emission intensity (sum) and emission rate
+        df_co2intensity = pd.Series()
+        df_co2_rate_sum = pd.Series()
+        for t in range(timelimit):
+            df_co2intensity.loc[t + timestep] = pyo.value(
                 self.optimiser.compute_CO2_intensity(pyomo_instance, timesteps=[t])
             )
-            for t in range(timelimit)
-        ]
-        self._dfCO2intensity = pd.concat(
-            [
-                self._dfCO2intensity,
-                pd.Series(
-                    data=df_df_co2intensity, index=range(timestep, timestep + timelimit)
-                ),
-            ]
-        )
+            df_co2_rate_sum.loc[t + timestep] = pyo.value(
+                self.optimiser.compute_CO2(pyomo_instance, timesteps=[t])
+            )
 
         # Penalty values per device
-        if self._dfPenalty is None:
-            self._dfPenalty = pd.DataFrame()
+        df_penalty = pd.DataFrame()
         for d, dev in self.optimiser.all_devices.items():
             for t in range(timelimit):
-                this_penalty = pyo.value(dev.compute_penalty([t]))
-                self._dfPenalty.loc[t + timestep, d] = this_penalty
-        # varPenalty = self._getVarValues(
-        #     pyomo_instance.varDevicePenalty,
-        #     names=("device", "carrier", "terminal", "time"),
-        # )
-        # if not varPenalty.empty:
-        #     varPenalty = varPenalty[:, "el", "out", :]
-        #     self._dfPenalty = self._addToDf(
-        #         self._dfPenalty, varPenalty, timelimit, timeshift
-        #     )
+                this_penalty = dev.compute_penalty([t])
+                df_penalty.loc[t + timestep, d] = pyo.value(this_penalty)
 
         # Revenue from exported energy
         df_exportRevenue = pd.DataFrame()
@@ -300,20 +235,15 @@ class Simulator:
                     pyomo_instance, carriers=[c], timesteps=[t]
                 )
                 df_exportRevenue.loc[t + timestep, c] = pyo.value(exportRevenue_dev)
-        self._dfExportRevenue = pd.concat([self._dfExportRevenue, df_exportRevenue])
 
         # Reserve capacity
-        # for all generators, should have reserve_excl_generator>p_out
         df_reserve = pd.DataFrame()
         for t in range(timelimit):
             rescap = pyo.value(self.optimiser.compute_elReserve(pyomo_instance, t))
             df_reserve.loc[t + timestep, "reserve"] = rescap
-        self._dfElReserve = pd.concat([self._dfElReserve, df_reserve])
 
         # Backup capacity
-        # for all generators, should have reserve_excl_generator>p_out
         df_backup = pd.DataFrame()
-        # devs_elout = self.getDevicesInout(carrier_out='el')
         devs_elout = []
         for dev_id, dev_obj in self.optimiser.all_devices.items():
             if "el" in dev_obj.carrier_out:
@@ -326,132 +256,30 @@ class Simulator:
                     )
                 )
                 df_backup.loc[t + timestep, d] = rescap
-        self._dfElBackup = pd.concat([self._dfElBackup, df_backup])
 
-        self._dfDeviceFlow = self._addToDf(
-            self._dfDeviceFlow, varDeviceFlow, timelimit, timeshift
+        result_object = SimulationResult(
+            dfDeviceFlow=res["varDeviceFlow"],
+            dfDeviceIsPrep=res["varDeviceIsPrep"],
+            dfDeviceIsOn=res["varDeviceIsOn"],
+            dfDeviceStarting=res["varDeviceStarting"],
+            dfDeviceStopping=res["varDeviceStopping"],
+            dfDeviceStorageEnergy=res["varDeviceStorageEnergy"],
+            dfDeviceStoragePmax=res["varDeviceStoragePmax"],
+            dfEdgeFlow=res["varEdgeFlow"],
+            dfEdgeLoss=res["varEdgeLoss"],
+            dfTerminalFlow=res["varTerminalFlow"],
+            dfTerminalPressure=res["varPressure"],
+            dfElVoltageAngle=res["varElVoltageAngle"],
+            # dfPenalty=res["varDevicePenalty"], # this does not include start/stop penalty
+            dfPenalty=df_penalty,
+            dfElReserve=df_reserve,
+            dfElBackup=df_backup,
+            dfExportRevenue=df_exportRevenue,
+            dfCO2rate=df_co2_rate_sum,
+            dfCO2intensity=df_co2intensity,
+            dfCO2rate_per_dev=df_co2_rate_dev,
+            dfDuals=None,
+            df_profiles_forecast=None,
+            df_profiles_nowcast=None,
         )
-        self._dfDeviceIsOn = self._addToDf(
-            self._dfDeviceIsOn, varDeviceIsOn, timelimit, timeshift
-        )
-        self._dfDeviceIsPrep = self._addToDf(
-            self._dfDeviceIsPrep, varDeviceIsPrep, timelimit, timeshift
-        )
-        self._dfDeviceStorageEnergy = self._addToDf(
-            self._dfDeviceStorageEnergy, varDeviceStorageEnergy, timelimit, timeshift
-        )
-        self._dfDeviceStoragePmax = self._addToDf(
-            self._dfDeviceStoragePmax, varDeviceStoragePmax, timelimit, timeshift
-        )
-        self._dfDeviceStarting = self._addToDf(
-            self._dfDeviceStarting, varDeviceStarting, timelimit, timeshift
-        )
-        self._dfDeviceStopping = self._addToDf(
-            self._dfDeviceStopping, varDeviceStopping, timelimit, timeshift
-        )
-        self._dfEdgeFlow = self._addToDf(
-            self._dfEdgeFlow, varEdgeFlow, timelimit, timeshift
-        )
-        self._dfEdgeLoss = self._addToDf(
-            self._dfEdgeLoss, varEdgeLoss, timelimit, timeshift
-        )
-        self._dfElVoltageAngle = self._addToDf(
-            self._dfElVoltageAngle, varElVoltageAngle, timelimit, timeshift
-        )
-        self._dfTerminalPressure = self._addToDf(
-            self._dfTerminalPressure, varPressure, timelimit, timeshift
-        )
-        self._dfTerminalFlow = self._addToDf(
-            self._dfTerminalFlow, varTerminalFlow, timelimit, timeshift
-        )
-        return
-
-    def compute_kpis(self, windturbines=[]):
-        """Compute key indicators of simulation results"""
-        hour_per_year = 8760
-        sec_per_year = 3600 * hour_per_year
-        kpi = {}
-        mc = self
-
-        num_sim_timesteps = mc._dfCO2rate.shape[0]
-        timesteps = mc._dfCO2rate.index
-        td_min = self.optimiser.optimisation_parameters.time_delta_minutes
-        kpi["hours_simulated"] = num_sim_timesteps * td_min / 60
-
-        # CO2 emissions
-        kpi["kgCO2_per_year"] = mc._dfCO2rate.mean() * sec_per_year
-        kpi["kgCO2_per_Sm3oe"] = mc._dfCO2intensity.mean()
-
-        # hours with reduced load
-        #        kpi['reducedload_hours_per_year'] = None
-
-        # hours with load shedding
-        #        kpi['loadshed_hours_per_year'] = None
-
-        # fuel consumption
-        gasturbines = [
-            g.id
-            for i, g in self.optimiser.all_devices.items()
-            # if isinstance(g, Gasturbine) # why doesn't isinstance work?
-            if g.dev_data.model == "gasturbine"
-        ]
-        g_type = type(self.optimiser.all_devices["Gen1"])
-        logging.debug("Gas turbines: {}, type={}".format(gasturbines, g_type))
-        mask_gt = mc._dfDeviceFlow.index.get_level_values("device").isin(gasturbines)
-        gtflow = mc._dfDeviceFlow[mask_gt]
-        fuel = (
-            gtflow.unstack("carrier")["gas"]
-            .unstack("terminal")["in"]
-            .unstack()
-            .mean(axis=1)
-        )
-        kpi["gt_fuel_sm3_per_year"] = fuel.sum() * sec_per_year
-
-        # electric power consumption
-        el_dem = (
-            mc._dfDeviceFlow.unstack("carrier")["el"]
-            .unstack("terminal")["in"]
-            .dropna()
-            .unstack()
-            .mean(axis=1)
-        )
-        kpi["elconsumption_mwh_per_year"] = el_dem.sum() * hour_per_year
-        kpi["elconsumption_avg_mw"] = el_dem.sum()
-
-        # number of generator starts
-        gt_starts = mc._dfDeviceStarting.unstack().sum(axis=1)[gasturbines].sum()
-        kpi["gt_starts_per_year"] = gt_starts * hour_per_year / kpi["hours_simulated"]
-
-        # number of generator stops
-        gt_stops = mc._dfDeviceStopping.unstack().sum(axis=1)[gasturbines].sum()
-        kpi["gt_stops_per_year"] = gt_stops * hour_per_year / kpi["hours_simulated"]
-
-        # running hours of generators
-        gt_ison_tsteps = mc._dfDeviceIsOn.unstack().sum(axis=1)[gasturbines].sum()
-        gt_ison = gt_ison_tsteps * td_min / 60
-        kpi["gt_hoursrunning_per_year"] = (
-            gt_ison * hour_per_year / kpi["hours_simulated"]
-        )
-
-        # wind power output
-        el_sup = (
-            mc._dfDeviceFlow.unstack("carrier")["el"]
-            .unstack("terminal")["out"]
-            .dropna()
-            .unstack()
-        )
-        p_wind = el_sup.T[windturbines]
-        kpi["wind_output_mwh_per_year"] = p_wind.sum(axis=1).mean() * hour_per_year
-
-        # curtailed wind energy
-        p_avail = pd.DataFrame(index=timesteps)
-        for d in windturbines:
-            devparam = self.optimiser.all_devices[d].dev_data
-            Pmax = devparam.flow_max
-            p_avail[d] = Pmax
-            if devparam.profile is not None:
-                profile_ref = devparam.profile
-                p_avail[d] = Pmax * mc._df_profiles_actual.loc[timesteps, profile_ref]
-        p_curtailed = (p_avail - p_wind).sum(axis=1)
-        kpi["wind_curtailed_mwh_per_year"] = p_curtailed.mean() * hour_per_year
-        return kpi
+        return result_object
