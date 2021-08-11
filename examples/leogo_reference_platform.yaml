@@ -110,6 +110,7 @@ devices:
     model: storage_el
     name: battery
     node_id: powersupply
+    reserve_factor: 1 #contributes to spinning reserve
 
   - id: loadshed
     # A "generator" to cover otherwise unmet el demand - representing load shed
