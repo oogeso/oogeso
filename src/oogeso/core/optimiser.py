@@ -394,7 +394,11 @@ class Optimiser:
         #
         for prof in self.pyomo_instance.setProfile:
             for t in range(timesteps_use_nowcast):  # 0,1,2,3
-                self.pyomo_instance.paramProfiles[prof, t] = profiles["nowcast"].loc[
+                profile_str = "nowcast"
+                if prof not in profiles["nowcast"]:
+                    # no nowcast, use forecast instead
+                    profile_str = "forecast"
+                self.pyomo_instance.paramProfiles[prof, t] = profiles[profile_str].loc[
                     timestep + t, prof
                 ]
             for t in range(timesteps_use_nowcast, horizon):

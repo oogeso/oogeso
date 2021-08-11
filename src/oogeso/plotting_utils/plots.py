@@ -571,10 +571,10 @@ def plotProfiles(profiles, filename=None):
         for d in profiles:
             df[(d.id, "forecast")] = d.data
             if d.data_nowcast is not None:
-                df[(d, "nowcast")] = d.data_nowcast
+                df[(d.id, "nowcast")] = d.data_nowcast
         df.index.name = "timestep"
         df.columns = pd.MultiIndex.from_tuples(df.columns, names=("variable", "type"))
-        df = df.stack("type")
+        # df = df.stack("type")
     elif isinstance(profiles, dict):
         df = pd.concat(
             {
@@ -587,7 +587,7 @@ def plotProfiles(profiles, filename=None):
         raise Exception("profiles must be input data format or internal format")
     if plotter == "plotly":
         df = df.reset_index()
-        df = df.melt(id_vars=["type", "timestep"])
+        df = df.melt(id_vars=["timestep"])
         fig = px.line(
             df,
             x="timestep",
@@ -595,14 +595,17 @@ def plotProfiles(profiles, filename=None):
             line_group="type",
             color="variable",
             line_dash="type",
+            line_shape="hv",
         )
     elif plotter == "matplotlib":
         plt.figure(figsize=(12, 4))
         ax = plt.gca()
-        df[df.index.get_level_values("type") == "forecast"].plot(ax=ax)
+        df.loc[:, df.columns.get_level_values("type") == "forecast"].plot(ax=ax)
         # reset color cycle (so using the same as for the actual plot):
         ax.set_prop_cycle(None)
-        df[df.index.get_level_values("type") == "nowcast"].plot(ax=ax, linestyle=":")
+        df.loc[:, df.columns.get_level_values("type") == "nowcast"].plot(
+            ax=ax, linestyle=":"
+        )
         ax.legend(loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
         plt.xlabel("Timestep")
         plt.ylabel("Relative value")
@@ -987,7 +990,13 @@ def plotGasTurbineEfficiency(
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plotReserve(sim_result, includeMargin=True, dynamicMargin=True, useForecast=False):
+def plotReserve(
+    sim_result,
+    includeMargin=True,
+    dynamicMargin=True,
+    useForecast=False,
+    includeSum=True,
+):
     """Plot unused online capacity by all el devices"""
     df_devs = pd.DataFrame()
     res = sim_result
@@ -1033,13 +1042,14 @@ def plotReserve(sim_result, includeMargin=True, dynamicMargin=True, useForecast=
             df_devs[d] = reserv
     df_devs.columns.name = "device"
     fig = px.area(df_devs, line_shape="hv")
-    fig.add_scatter(
-        x=df_devs.index,
-        y=df_devs.sum(axis=1),
-        name="SUM",
-        line=dict(dash="dot", color="black"),
-        line_shape="hv",
-    )
+    if includeSum:
+        fig.add_scatter(
+            x=df_devs.index,
+            y=df_devs.sum(axis=1),
+            name="SUM",
+            line=dict(dash="dot", color="black"),
+            line_shape="hv",
+        )
     if includeMargin:
         margin = optimiser.optimisation_parameters.el_reserve_margin
         # wind contribution (cf compute reserve)
