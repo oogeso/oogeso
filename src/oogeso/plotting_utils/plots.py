@@ -149,16 +149,17 @@ def plot_deviceprofile(
             if includeForecasts & (dev_data.profile is not None):
                 curve = dev_data.profile
                 devPmax = dev_data.flow_max
-                fig.add_scatter(
-                    x=timerange,
-                    y=res.df_profiles_nowcast.loc[timerange, curve] * devPmax,
-                    line_shape="hv",
-                    line=dict(color=colour[k + 1]),
-                    name="--nowcast",
-                    legendgroup=col,
-                    row=1,
-                    col=1,
-                )
+                if curve in res.df_profiles_nowcast:
+                    fig.add_scatter(
+                        x=timerange,
+                        y=res.df_profiles_nowcast.loc[timerange, curve] * devPmax,
+                        line_shape="hv",
+                        line=dict(color=colour[k + 1]),
+                        name="--nowcast",
+                        legendgroup=col,
+                        row=1,
+                        col=1,
+                    )
                 fig.add_scatter(
                     x=timerange,
                     y=res.df_profiles_forecast.loc[timerange, curve] * devPmax,
