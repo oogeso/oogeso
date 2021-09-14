@@ -56,9 +56,8 @@ class Storage_el(_StorageDevice):
             ub = dev_data.flow_max
             return model.varDeviceFlow[dev, "el", "out", t] <= ub
         elif i == 4:
-            # return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
-            # charging power limit
-            # ub = model.paramDevice[dev]['Pmax']
+            # charging power limit - required because the generic flow max/min constraint
+            # concerns dis-charging [dev,"el","out",t], cf getFlowVar()
             if dev_data.flow_min is not None:
                 ub = -dev_data.flow_min
             else:
@@ -211,10 +210,28 @@ class Storage_hydrogen(_StorageDevice):
         return self.pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
     def compute_costForDepletedStorage(self, timesteps):
+        return self.compute_costForDepletedStorage_alt2(timesteps)
+
+    def compute_costForDepletedStorage_alt1(self, timesteps):
         # cost if storage level at end of optimisation deviates from
         # target profile (user input based on expectations)
+        # absolute value of deviation (filling too much also a cost)
+        # - avoids over-filling storage
         dev = self.id
         dev_data = self.dev_data
         deviation = self.pyomo_model.varDeviceStorageDeviationFromTarget[dev]
         stor_cost = dev_data.E_cost * deviation
+        return stor_cost
+
+    def compute_costForDepletedStorage_alt2(self, timesteps):
+        # cost rate kr/s
+        # Cost associated with deviation from target value
+        # below target = cost, above target = benefit   => gives signal to fill storage
+        dev_data = self.dev_data
+        E_target = dev_data.E_max
+        t_end = timesteps[-1]
+        varE = self.pyomo_model.varDeviceStorageEnergy[self.id, t_end]
+        stor_cost = dev_data.E_cost * (E_target - varE)
+        # from cost (kr) to cost rate (kr/s):
+        stor_cost = stor_cost / len(timesteps)
         return stor_cost

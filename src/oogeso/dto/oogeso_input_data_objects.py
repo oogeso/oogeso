@@ -131,6 +131,7 @@ class DeviceCompressor_gasData(DeviceData):
 @dataclass
 class DeviceElectrolyserData(DeviceData):
     eta: float = None  # efficiency
+    eta_heat: float = None  # heat recovery efficiency
 
 
 @dataclass
@@ -191,6 +192,7 @@ class DeviceStorage_elData(DeviceData):
     E_cost: Optional[float] = None  # cost for non-ful storage
     eta: float = 1  # efficiency
     target_profile: Optional[str] = None
+    E_init: Optional[float] = 0
 
 
 @dataclass
@@ -200,6 +202,7 @@ class DeviceStorage_hydrogenData(DeviceData):
     eta: float = 1  # efficiency
     target_profile: Optional[str] = None  # target profile for use of (seasonal) storage
     E_cost: float = 0  # cost for depleting storage
+    E_init: float = 0
 
 
 @dataclass
@@ -306,7 +309,7 @@ class CarrierHeatData(CarrierData):
 
 @dataclass
 class CarrierHydrogenData(CarrierData):
-    pass
+    energy_value: float = 13  # MJ/Sm3 (calorific value) -> 13 MJ/Sm3
 
 
 @dataclass

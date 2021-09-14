@@ -103,11 +103,21 @@ class NetworkNode:
         if (terminal == "in") and (carrier in self.edges_to):
             for edge_id, edge in self.edges_to[carrier].items():
                 # power into node from edge
-                Pinj += model.varEdgeFlow[edge_id, t] - model.varEdgeLoss12[edge_id, t]
+                if edge.has_loss():
+                    Pinj += (
+                        model.varEdgeFlow[edge_id, t] - model.varEdgeLoss12[edge_id, t]
+                    )
+                else:
+                    Pinj += model.varEdgeFlow[edge_id, t]
         elif (terminal == "out") and (carrier in self.edges_from):
             for edge_id, edge in self.edges_from[carrier].items():
                 # power out of node into edge
-                Pinj += model.varEdgeFlow[edge_id, t] + model.varEdgeLoss21[edge_id, t]
+                if edge.has_loss():
+                    Pinj += (
+                        model.varEdgeFlow[edge_id, t] + model.varEdgeLoss21[edge_id, t]
+                    )
+                else:
+                    Pinj += model.varEdgeFlow[edge_id, t]
 
         # if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
         #     for edg in model.paramNodeEdgesTo[(carrier,node)]:

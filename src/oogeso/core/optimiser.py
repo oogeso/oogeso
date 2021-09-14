@@ -452,7 +452,7 @@ class Optimiser:
                         dev_obj.dev_data.target_profile is not None
                     ):
                         prof = dev_obj.dev_data.target_profile
-                        max_E = dev_obj.dev_data.max_E
+                        max_E = dev_obj.dev_data.E_max
                         self.pyomo_instance.paramDeviceEnergyTarget[dev] = (
                             max_E * profiles["forecast"].loc[timestep + horizon, prof]
                         )

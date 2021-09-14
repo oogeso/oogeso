@@ -76,13 +76,21 @@ class NetworkEdge:
 
     def _ruleEdgeFlowMaxMin(self, model, t):
         edge = self.id
-        pmax = self.edge_data.flow_max
-        if self.edge_data.bidirectional:
-            # electricity (can flow either way) (-max <= flow <= max)
-            expr = pyo.inequality(-pmax, model.varEdgeFlow[edge, t], pmax)
+        # if non-bidirectional, lower bound=0, if bidirectional, bound=+- pmax
+        if self.edge_data.flow_max is None:
+            if self.edge_data.bidirectional:
+                # unconstrained
+                expr = pyo.Constraint.Skip
+            else:
+                # one-directional, so lower bound 0 (no upper bound specified)
+                # expr = pyo.inequality(0, model.varEdgeFlow[edge, t], None)
+                expr = model.varEdgeFlow[edge, t] >= 0
         else:
-            # flow only in specified direction (0 <= flow <= max)
-            expr = pyo.inequality(0, model.varEdgeFlow[edge, t], pmax)
+            pmax = self.edge_data.flow_max
+            if self.edge_data.bidirectional:
+                expr = pyo.inequality(-pmax, model.varEdgeFlow[edge, t], pmax)
+            else:
+                expr = pyo.inequality(0, model.varEdgeFlow[edge, t], pmax)
         return expr
 
     def _ruleEdgeFlowAndLoss(self, model, t, i):
@@ -99,6 +107,15 @@ class NetworkEdge:
                 == model.varEdgeLoss12[edge, t] + model.varEdgeLoss21[edge, t]
             )
         return expr
+
+    # def _ruleEdgeNoLoss(self, model, t, i):
+    #     """Enforce zero losses"""
+    #     edge = self.id
+    #     if i == 1:
+    #         expr = model.varEdgeLoss12[edge, t] == 0
+    #     elif i == 2:
+    #         expr = model.varEdgeLoss21[edge, t] == 0
+    #     return expr
 
     def _loss_function_constraint(self, i):
         # Piecewise constraints require independent variable to be bounded:
@@ -138,15 +155,14 @@ class NetworkEdge:
     def defineConstraints(self):
         """Returns the set of constraints for the node."""
 
-        if self.edge_data.flow_max is not None:
-            constr_edge_bounds = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin
-            )
-            setattr(
-                self.pyomo_model,
-                "constrE_{}_{}".format(self.id, "bounds"),
-                constr_edge_bounds,
-            )
+        constr_edge_bounds = pyo.Constraint(
+            self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin
+        )
+        setattr(
+            self.pyomo_model,
+            "constrE_{}_{}".format(self.id, "bounds"),
+            constr_edge_bounds,
+        )
 
         constr_flow = pyo.Constraint(
             self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowEquations
@@ -154,9 +170,7 @@ class NetworkEdge:
         setattr(self.pyomo_model, "constrE_{}_{}".format(self.id, "flow"), constr_flow)
 
         # Power loss on electrical connections:
-        if (self.edge_data.carrier == "el") and (
-            self.edge_data.power_loss_function is not None
-        ):
+        if self.has_loss():
             # First, connecting variables (flow in different directions and loss variables)
             constr_loss = pyo.Constraint(
                 self.pyomo_model.setHorizon,
@@ -174,6 +188,29 @@ class NetworkEdge:
                     "constrE_{}_{}_{}".format(self.id, "lossfunction", i),
                     constr_loss_function,
                 )
+
+    #        else:
+    #            # No losses
+    #            pass
+    # constr_noloss = pyo.Constraint(
+    #     self.pyomo_model.setHorizon,
+    #     pyo.RangeSet(1, 2),
+    #     rule=self._ruleEdgeNoLoss,
+    # )
+    # setattr(
+    #     self.pyomo_model,
+    #     "constrE_{}_{}".format(self.id, "noloss"),
+    #     constr_noloss,
+    # )
+
+    def has_loss(self):
+        #        if (self.edge_data.carrier == "el") and (
+        #            self.edge_data.power_loss_function is not None
+        #        ):
+        hasloss = hasattr(self.edge_data, "power_loss_function") and (
+            self.edge_data.power_loss_function is not None
+        )
+        return hasloss
 
     def _compute_exps_and_k(self, carrier_data):
         """Derive exp_s and k parameters for Weymouth equation"""

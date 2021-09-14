@@ -42,6 +42,8 @@ carriers:
     darcy_friction: 0.0136
     pressure_method: darcy-weissbach
     rho_density: 5.63 # kg/m3 (dependent on wellstream composition)
+  - id: hydrogen
+    energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
 
 devices:
   - id: Gen1
@@ -267,6 +269,7 @@ devices:
     gas_oil_ratio: 500
     water_cut: 0.6
     flow_max: 15 # Sm3/s
+    flow_min: 15
     f_inj: 220 # gas injection rate as fraction of production rate
     injection_pressure: 20 # MPa
     separator_pressure: 2 # MPa
@@ -280,9 +283,49 @@ devices:
     gas_oil_ratio: 500
     water_cut: 0.6
     flow_max: 35 # Sm3/s
+    flow_min: 35
     f_inj: 220
     injection_pressure: 20
     separator_pressure: 2
+
+  - id: electrolyser
+    include: 1
+    model: electrolyser
+    name: electrolyser
+    node_id: h2storage
+    flow_max: 60 # MW el
+    eta: 0.64 #efficiency (el to h2)
+    eta_heat: 0 # heat recovery ratio
+    reserve_factor: 1 #contributes to spinning reserve
+    op_cost: -0.02 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
+
+  - id: fuelcell
+    include: 1
+    model: fuelcell
+    name: fuelcell
+    node_id: h2storage
+    flow_max: 45 # MW el
+    eta: 0.60 #efficiency (h2 to el)
+    eta_heat: 0 #heat recovery ratio
+    op_cost: 0.03 # NOK/MJ (100 NOK/MWh = 0.03 NOK/MJ) #higher than wind, to favour wind when possible
+    reserve_factor: 1 #contributes to spinning reserve
+
+  - id: h2storage
+    include: 1
+    model: storage_hydrogen
+    name: h2storage
+    node_id: h2storage
+    E_max: 1000000 # Sm3  # 13 MJ/Sm3 => 3611 MWh (around 4 days at 40 MW)
+    E_init: 500000
+    eta: 1
+    #target_profile: h2target # "H2target", for planning beyond optimisation window
+    #target_value: 500000 # Sm3, same as E_init
+    #E_cost: 0.001 # NOK/Sm3 deviation at end of optimization horizon
+    # 100 EUR/MWh = 1000 kr/MWh = 1 kr/kWh = 1/3.6 kr/MJ = 0.277 kr/MJ = 0.2777/13 kr/Sm3 = 0.021 kr/Sm3H2
+    # gas 4.19 NOK/Sm3 = 4.14/40 kr/MJ = 0.1035*3600 kr/MWh = 372.6 kr/MWh (selling price = cost for gas)
+    # -with efficiency 0.3 this becomes about 1000 kr/MWh_el
+    # reasonable that storage cost is e.g. 1/10 of cost for gas turbines 
+
 
 edges:
   - id: cL1
@@ -525,6 +568,11 @@ edges:
     node_from: separator
     node_to: water_disp
     carrier: water
+    
+  - id: elhyd
+    node_from: powersupply
+    node_to: h2storage
+    carrier: el
 
 nodes:
   - id: compressor_gas
@@ -543,3 +591,4 @@ nodes:
   - id: water_intake
   - id: waterlift
   - id: wells
+  - id: h2storage

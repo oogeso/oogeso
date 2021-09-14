@@ -32,7 +32,7 @@ class Electrolyser(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
         super().defineConstraints()
-        model = self.optimiser.pyomo_model
+        model = self.pyomo_model
         constr = pyo.Constraint(model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
         # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
