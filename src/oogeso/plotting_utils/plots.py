@@ -189,9 +189,10 @@ def plot_deviceprofile(
         offset_online = 0
         # df.plot(ax=ax)
         for dev in devs:
-            dev_param = mc.instance.paramDevice[dev]
-            devname = "{}:{}".format(dev, dev_param["name"])
-            devPmax = dev_param["Pmax"]
+            # dev_param = mc.instance.paramDevice[dev]
+            dev_data = optimiser.all_devices[dev].dev_data
+            devname = "{}:{}".format(dev, dev_data.name)
+            devPmax = dev_data.flow_max
             # el power out:
             # df= res.dfDeviceFlow.unstack([1,2])[('el','out')].unstack(0)[dev]
             # df.name = devname
@@ -199,9 +200,9 @@ def plot_deviceprofile(
             # get the color of the last plotted line (the one just plotted)
             col = ax.get_lines()[-1].get_color()
             labels = labels + [devname]
-            if "profile" in dev_param:
-                curve = dev_param["profile"]
-                (res.df_profiles_actual.loc[timerange, curve] * devPmax).plot(
+            if includeForecasts & (dev_data.profile is not None):
+                curve = dev_data.profile
+                (res.df_profiles_nowcast.loc[timerange, curve] * devPmax).plot(
                     ax=ax, linestyle="--"
                 )
                 # ax.set_prop_cycle(None)
@@ -209,7 +210,7 @@ def plot_deviceprofile(
                     ax=ax, linestyle=":"
                 )
                 labels = labels + ["--nowcast", "--forecast"]
-            if dev_param["model"] == "gasturbine":
+            if includeOnOff & (dev_data.start_stop is not None):
                 # df2=res.dfDeviceIsOn.unstack(0)[dev]+offset_online
                 offset_online += 0.1
                 df2[dev].plot(ax=ax, linestyle="--", color=col)
@@ -670,6 +671,8 @@ def plotNetwork(
     rankdir="LR",
     plotDevName=False,
     numberformat="{:.2g}",
+    hide_losses=False,
+    hide_edgelabel=False,
     **kwargs
 ):
     """Plot energy network
@@ -685,6 +688,12 @@ def plotNetwork(
         Plotting direction TB=top to bottom, LR=left to right
     numberformat : str
         specify how numbers should be represented in plot
+    hide_losses : bool
+        Don't show losses on edges (if any)
+    hide_edgelabel : bool
+        Don't show any labels on edges
+    **kwargs :
+        Additional arguments passed on to pydot.Dot(...)
     """
 
     # Idea: in general, there are "in" and "out" terminals. If there are
@@ -807,8 +816,8 @@ def plotNetwork(
                 supp = ""
                 if carrier in node_obj.devices_serial:
                     supp = "_out"
-                label_in = carrier + "_in "
-                label_out = carrier + supp + " "
+                label_in = carrier  # + "_in "
+                label_out = carrier  # + supp + " "
                 if timestep is None:
                     pass
                 elif carrier in ["gas", "wellstream", "oil", "water"]:
@@ -877,9 +886,11 @@ def plotNetwork(
             if edge_data.carrier == carrier:
                 headlabel = ""
                 taillabel = ""
-                if timestep is None:
+                if hide_edgelabel:
                     edgelabel = ""
-                    if hasattr(edge_data, "pressure_from"):
+                elif timestep is None:
+                    edgelabel = ""
+                    if (not hide_edgelabel) and hasattr(edge_data, "pressure_from"):
                         edgelabel = "{} {}-{}".format(
                             edgelabel,
                             edge_data.pressure_from,
@@ -889,8 +900,10 @@ def plotNetwork(
                 else:
                     edgelabel = numberformat.format(res.dfEdgeFlow[(i, timestep)])
                     # Add loss
-                    if (res.dfEdgeLoss is not None) and (
-                        (i, timestep) in res.dfEdgeLoss
+                    if (
+                        (not hide_losses)
+                        and (res.dfEdgeLoss is not None)
+                        and ((i, timestep) in res.dfEdgeLoss)
                     ):
                         # taillabel = " " + edgelabel
                         losslabel = numberformat.format(res.dfEdgeLoss[(i, timestep)])
@@ -1042,29 +1055,43 @@ def plotReserve(
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
-    fig = px.area(df_devs, line_shape="hv")
-    if includeSum:
-        fig.add_scatter(
-            x=df_devs.index,
-            y=df_devs.sum(axis=1),
-            name="SUM",
-            line=dict(dash="dot", color="black"),
-            line_shape="hv",
-        )
-    if includeMargin:
-        margin = optimiser.optimisation_parameters.el_reserve_margin
-        # wind contribution (cf compute reserve)
-        marginIncr["margin"] = marginIncr["margin"] + margin
-        fig.add_scatter(
-            x=marginIncr.index,
-            y=marginIncr["margin"],
-            name="Margin",
-            line=dict(dash="dot", color="red"),
-            mode="lines",
-        )
-    fig.update_xaxes(title_text="Timestep")
-    fig.update_yaxes(title_text="Reserve (MW)")
-    #    return df_devs,marginIncr
+    if plotter == "plotly":
+        fig = px.area(df_devs, line_shape="hv")
+        if includeSum:
+            fig.add_scatter(
+                x=df_devs.index,
+                y=df_devs.sum(axis=1),
+                name="SUM",
+                line=dict(dash="dot", color="black"),
+                line_shape="hv",
+            )
+        if includeMargin:
+            margin = optimiser.optimisation_parameters.el_reserve_margin
+            # wind contribution (cf compute reserve)
+            marginIncr["margin"] = marginIncr["margin"] + margin
+            fig.add_scatter(
+                x=marginIncr.index,
+                y=marginIncr["margin"],
+                name="Margin",
+                line=dict(dash="dot", color="red"),
+                mode="lines",
+            )
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Reserve (MW)")
+        #    return df_devs,marginIncr
+    elif plotter == "matplotlib":
+        ax = df_devs.plot.area()
+        if includeSum:
+            df_devs.sum(axis=1).plot(style=":", color="black", drawstyle="steps-post")
+        if includeMargin:
+            margin = optimiser.optimisation_parameters.el_reserve_margin
+            # wind contribution (cf compute reserve)
+            marginIncr["margin"] = marginIncr["margin"] + margin
+            marginIncr[["margin"]].plot(style=":", color="red", ax=ax)
+
+        plt.xlabel("Timestep")
+        plt.ylabel("Reserve (MW)")
+        fig = plt.gcf()
     return fig
 
 

@@ -46,13 +46,17 @@ def create_timeseriesdata(
     # now, create Oogeso TimeSereriesData object
     profiles = []
     for col in df_new.columns:
-        curve = col[1]
-        list_data = list(df_new[("forecast", curve)])
-        list_data_nowcast = None
-        if ("nowcast", curve) in df_new.columns:
-            list_data_nowcast = list(df_new[("nowcast", curve)])
-        new_ts = TimeSeriesData(
-            id=curve, data=list_data, data_nowcast=list_data_nowcast
-        )
-        profiles.append(new_ts)
+        if col[0] == "forecast":
+            curve = col[1]
+            list_data = list(df_new[("forecast", curve)])
+            list_data_nowcast = None
+            if ("nowcast", curve) in df_new.columns:
+                list_data_nowcast = list(df_new[("nowcast", curve)])
+            new_ts = TimeSeriesData(
+                id=curve, data=list_data, data_nowcast=list_data_nowcast
+            )
+            profiles.append(new_ts)
+        elif col[0] == "nowcast":
+            if ("forecast", curve) not in df_new.columns:
+                logging.warning("Nowcast but no forecast profile for {}".format(curve))
     return profiles
