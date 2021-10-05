@@ -413,7 +413,7 @@ class Optimiser:
             docontinue = True
             for tt in range(t_prev, -1, -1):
                 # if (self.instance.varDeviceIsOn[dev,tt]==1):
-                if self.pyomo_instance.varDeviceIsPrep[dev, tt] == 1:
+                if pyo.value(self.pyomo_instance.varDeviceIsPrep[dev, tt]) == 1:
                     sum_on = sum_on + 1
                 else:
                     docontinue = False
@@ -461,7 +461,10 @@ class Optimiser:
         # (pyo.value(...) and/or if sentences...)
         for c in self.constraints_to_reconstruct:
             # logging.debug("reconstructing {}".format(c))
-            c.reconstruct()
+            # c.reconstruct() <- removed in Pyomo v.6
+            c.clear()
+            c._constructed = False
+            c.construct()
         return
 
     #        def storPmaxPushup(model):

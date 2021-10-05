@@ -104,10 +104,9 @@ class Device:
             #    for tau in range(0,Tdelay) )
             prevPart = model.varDeviceStarting[dev, t - Tdelay]
         else:
-            # OBS: for this to work as intended, need to reconstruct constraint
-            # pyo.value(...) not needed
-            # prepInit = pyo.value(model.paramDevicePrepTimestepsInitially[dev])
-            prepInit = model.paramDevicePrepTimestepsInitially[dev]
+            # NOTE: for this to work as intended, may need to reconstruct constraint
+            # pyo.value(...) needed in pyomo v6
+            prepInit = pyo.value(model.paramDevicePrepTimestepsInitially[dev])
             if prepInit + t == Tdelay:
                 prevPart = 1
         if t > 0:
