@@ -136,7 +136,13 @@ class Optimiser:
                 # skip this edge and move to next
                 continue
             edge_id = edge_data_obj.id
-            new_edge = networks.NetworkEdge(model, self, edge_data_obj)
+            carrier = edge_data_obj.carrier
+            if carrier in ["el", "heat", "hydrogen"]:
+                new_edge = networks.NetworkEdgeEnergy(model, self, edge_data_obj)
+            elif carrier in ["wellstream", "oil", "gas", "water"]:
+                new_edge = networks.NetworkEdgeFluid(model, self, edge_data_obj)
+            else:
+                raise Exception("Unknown edge carrier type")
             self.all_edges[edge_id] = new_edge
 
         for carrier_data_obj in data.carriers:
@@ -146,7 +152,7 @@ class Optimiser:
 
         if self.all_carriers["el"].powerflow_method == "dc-pf":
             logging.warning(
-                "TODO: code for electric powerflow calculations need improvement (pu conversion"
+                "TODO: code for electric powerflow calculations need improvement (pu conversion)"
             )
             nodelist = self.all_nodes.keys()
             edgelist_el = {
