@@ -300,6 +300,10 @@ class CarrierData:
 class CarrierElData(CarrierData):
     powerflow_method: str = "dc_pf"  # "transport","dc_pf"
     reference_node: str = None  # reference node for dc-pf electrical voltage angles
+    # required (globally) spinning reserve (MW), -1=no limit
+    el_reserve_margin: float = -1
+    # required backup margin (MW), -1=no limit
+    el_backup_margin: Optional[float] = -1  # MW, -1=no limit
 
 
 @dataclass
@@ -368,10 +372,6 @@ class OptimisationParametersData:
     time_reserve_minutes: Optional[int] = None
     # costs for co2 emissions (currency/kgCO2)
     co2_tax: Optional[float] = None
-    # required (globally) spinning reserve (MW), -1=no limit
-    el_reserve_margin: float = -1
-    # required backup margin (MW), -1=no limit
-    el_backup_margin: Optional[float] = -1  # MW, -1=no limit
     # global limit for allowable relative pressure deviation from nominal:
     max_pressure_deviation: float = -1
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
@@ -518,6 +518,7 @@ energy_system = EnergySystemData(
         CarrierElData(
             id="el",
             reference_node="node1",
+            el_reserve_margin=-1,
         ),
         CarrierHeatData("heat"),
         CarrierGasData(
@@ -570,7 +571,6 @@ energy_system = EnergySystemData(
         optimisation_timesteps=6,
         forecast_timesteps=6,
         time_reserve_minutes=30,
-        el_reserve_margin=-1,
         max_pressure_deviation=-1,
         co2_tax=30,
         objective="exportRevenue",

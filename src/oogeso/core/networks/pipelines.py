@@ -1,54 +1,60 @@
-from __future__ import annotations
 import pyomo.environ as pyo
 import logging
 import numpy as np
 import scipy
-from . import electricalsystem as el_calc
-from .network_edge import NetworkEdge
+
+from oogeso.dto.oogeso_input_data_objects import CarrierData, EdgeFluidData
+from .network import Network
 import typing
 
 if typing.TYPE_CHECKING:
     from oogeso.core.networks.network_node import NetworkNode
-    from ...dto.oogeso_input_data_objects import EdgeData, EdgeFluidData
 
 
-class NetworkEdgeFluid(NetworkEdge):
-    "Network edge - fluid flow in pipeline"
+class Fluid(Network):
+    def defineConstraints(self, pyomo_model):
+        super().defineConstraints(pyomo_model)
 
-    def defineConstraints(self):
-        """Builds the set of constraints for the edge."""
+        # additional
+        if self.carrier_data.pressure_method in ["weymouth", "darcy-weissbach"]:
+            edgelist = [e for e in self.edges.keys()]
+            if edgelist:
+                # non-empty list of edges
+                constr_flow = pyo.Constraint(
+                    edgelist,
+                    pyomo_model.setHorizon,
+                    rule=self._rulePipelineFlow,
+                )
+                setattr(
+                    pyomo_model,
+                    "constrE_{}_{}".format(self.carrier_id, "flow"),
+                    constr_flow,
+                )
 
-        super().defineConstraints()
-
-        constr_flow = pyo.Constraint(
-            self.pyomo_model.setHorizon, rule=self._rulePipelineFlow
-        )
-        setattr(self.pyomo_model, "constrE_{}_{}".format(self.id, "flow"), constr_flow)
-
-    def _rulePipelineFlow(self, model, t):
+    def _rulePipelineFlow(self, model, edge, t):
         """Pipeline flow vs pressure drop"""
-        edge = self.id
-        carrier = self.edge_data.carrier
-        n_from = self.edge_data.node_from
-        n_to = self.edge_data.node_to
+        # edge = self.id
+        edge_data = self.edges[edge].edge_data
+        carrier = edge_data.carrier
+        n_from = edge_data.node_from
+        n_to = edge_data.node_to
         print_log = True if t == 0 else False
 
         p1 = model.varPressure[(n_from, carrier, "out", t)]
         p2 = model.varPressure[(n_to, carrier, "in", t)]
         Q = model.varEdgeFlow[edge, t]
-        if self.edge_data.num_pipes is not None:
-            num_pipes = self.edge_data.num_pipes
+        if edge_data.num_pipes is not None:
+            num_pipes = edge_data.num_pipes
             if print_log:
                 logging.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
             Q = Q / num_pipes
         p2_computed = self.compute_edge_pressuredrop(
-            p1=p1, Q=Q, linear=True, print_log=print_log
+            edge_data, p1=p1, Q=Q, linear=True, print_log=print_log
         )
         return p2 == p2_computed
 
-    def _compute_exps_and_k(self, carrier_data):
+    def _compute_exps_and_k(self, edge_data: EdgeFluidData, carrier_data: CarrierData):
         """Derive exp_s and k parameters for Weymouth equation"""
-        edge_data: EdgeFluidData = self.edge_data
         # gas pipeline parameters - derive k and exp(s) parameters:
         ga = carrier_data
 
@@ -74,12 +80,13 @@ class NetworkEdgeFluid(NetworkEdge):
         return exp_s, k
 
     def compute_edge_pressuredrop(
-        self, p1, Q, method=None, linear=False, print_log=True
+        self, edge_data, p1, Q, method=None, linear=False, print_log=True
     ):
         """Compute pressure drop in pipe
 
         parameters
         ----------
+        edge_data : edge data object
         p1 : float
             pipe inlet pressure (MPa)
         Q : float
@@ -94,19 +101,20 @@ class NetworkEdgeFluid(NetworkEdge):
         p2 : float
             pipe outlet pressure (MPa)"""
 
-        edge = self.id
-        edge_data = self.edge_data
+        # edge = self.id
+        # edge_data = self.edge_data
+        edge_id = edge_data.id
         height_difference = edge_data.height_m
         method = None
         carrier = edge_data.carrier
-        carrier_data = self.optimiser.all_carriers[carrier]
+        carrier_data = self.carrier_data
         if carrier_data.pressure_method is not None:
             method = carrier_data.pressure_method
 
         n_from = edge_data.node_from
         n_to = edge_data.node_to
-        n_from_obj: NetworkNode = self.optimiser.all_nodes[n_from]
-        n_to_obj: NetworkNode = self.optimiser.all_nodes[n_to]
+        n_from_obj: NetworkNode = self.all_nodes[n_from]
+        n_to_obj: NetworkNode = self.all_nodes[n_to]
         p0_from = n_from_obj.get_nominal_pressure(carrier, "out")
         p0_to = n_to_obj.get_nominal_pressure(carrier, "in")
         if (p0_from is not None) and (p0_to is not None):
@@ -147,9 +155,9 @@ class NetworkEdgeFluid(NetworkEdge):
             Optimization. Springer Verlag, New York (2007),
             https://doi.org/10.1007/978-3-540-68783-2_16
             """
-            exp_s, k = self._compute_exps_and_k(carrier_data=carrier_data)
+            exp_s, k = self._compute_exps_and_k(edge_data, carrier_data=carrier_data)
             if print_log:
-                logging.debug("pipe {}: exp_s={}, k={}".format(edge, exp_s, k))
+                logging.debug("pipe {}: exp_s={}, k={}".format(edge_id, exp_s, k))
             if linear:
                 p_from = p1
                 #                p_from = model.varPressure[(n_from,carrier,'out',t)]
@@ -196,7 +204,7 @@ class NetworkEdgeFluid(NetworkEdge):
                             "derived pipe ({}) flow rate:"
                             " Q={}, linearQ0={:5.3g},"
                             " friction={:5.3g}"
-                        ).format(edge, Q, Q0, f)
+                        ).format(edge_id, Q, Q0, f)
                     )
                 p2 = p_from - 1e-6 * (Q - Q0) * 2 * sqrtX / k - (p0_from - p0_to)
                 # linearised darcy-weissbach:
@@ -213,6 +221,22 @@ class NetworkEdgeFluid(NetworkEdge):
                 "Unknown pressure drop calculation method ({})".format(method)
             )
         return p2
+
+
+class Gas(Fluid):
+    pass
+
+
+class Oil(Fluid):
+    pass
+
+
+class Water(Fluid):
+    pass
+
+
+class Wellstream(Fluid):
+    pass
 
 
 def darcy_weissbach_Q(p1, p2, f, rho, diameter_mm, length_km, height_difference_m=0):

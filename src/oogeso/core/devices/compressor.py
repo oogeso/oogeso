@@ -19,9 +19,8 @@ class Compressor_el(Device):
 
     def _rules(self, model, t, i):
         dev = self.id
-        dev_data: DeviceCompressor_elData = self.dev_data
-        node_obj: NetworkNode = self.optimiser.all_nodes[dev_data.node_id]
-        gas_data = self.optimiser.all_carriers["gas"]
+        node_obj: NetworkNode = self.node
+        gas_data = self.all_networks["gas"].carrier_data
         if i == 1:
             """gas flow in equals gas flow out (mass flow)"""
             lhs = model.varDeviceFlow[dev, "gas", "in", t]
@@ -38,7 +37,7 @@ class Compressor_el(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr_compressor_el = pyo.Constraint(
             self.pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules
@@ -49,6 +48,7 @@ class Compressor_el(Device):
             "constr_{}_{}".format(self.id, "compr"),
             constr_compressor_el,
         )
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]
@@ -81,11 +81,11 @@ class Compressor_gas(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr = pyo.Constraint(self.pyomo_model.setHorizon, rule=self._rules)
-        # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "compr"), constr)
+        return list_to_reconstruct
 
     # overriding default
     def compute_CO2(self, timesteps):

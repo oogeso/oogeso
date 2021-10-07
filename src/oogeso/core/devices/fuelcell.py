@@ -14,7 +14,7 @@ class Fuelcell(Device):
     def _rules(self, model, t, i):
         dev = self.id
         dev_data: DeviceFuelcellData = self.dev_data
-        param_hydrogen = self.optimiser.all_carriers["hydrogen"]
+        param_hydrogen = self.all_networks["hydrogen"].carrier_data
         energy_value = param_hydrogen.energy_value  # MJ/Sm3
         efficiency = dev_data.eta
         eta_heat = dev_data.eta_heat  # heat recovery efficiency
@@ -40,11 +40,12 @@ class Fuelcell(Device):
 
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
         model = self.pyomo_model
         constr = pyo.Constraint(model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
         # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]

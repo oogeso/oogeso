@@ -13,7 +13,7 @@ class _PumpDevice(Device):
     ):
         dev_data = self.dev_data
         node_id = dev_data.node_id
-        node_obj: NetworkNode = self.optimiser.all_nodes[node_id]
+        node_obj: NetworkNode = self.node
         # power demand vs flow rate and pressure difference
         # see eg. doi:10.1016/S0262-1762(07)70434-0
         # P = Q*(p_out-p_in)/eta
@@ -84,13 +84,14 @@ class _PumpDevice(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr = pyo.Constraint(
             self.pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump
         )
         # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]

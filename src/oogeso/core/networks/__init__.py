@@ -1,4 +1,5 @@
 from .network_node import NetworkNode
-from .network_edge_fluid import NetworkEdgeFluid
-from .network_edge_energy import NetworkEdgeEnergy
-from .energycarriers import EnergyCarrier
+from .network import Heat, Hydrogen
+from .edge import Edge
+from .electricity import El
+from .pipelines import Gas, Oil, Water, Wellstream

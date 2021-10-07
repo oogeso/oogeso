@@ -25,7 +25,7 @@ class Storage_el(_StorageDevice):
     def _rules(self, model, t, i):
         dev = self.id
         dev_data: DeviceStorage_elData = self.dev_data
-        generic_params = self.optimiser.optimisation_parameters
+        generic_params = self.optimisation_parameters
         if i == 1:
             # energy balance
             # (el_in*eta - el_out/eta)*dt = delta storage
@@ -105,13 +105,14 @@ class Storage_el(_StorageDevice):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr = pyo.Constraint(
             self.pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules
         )
         # add constraints to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
@@ -151,7 +152,7 @@ class Storage_hydrogen(_StorageDevice):
         dev = self.id
         dev_data: DeviceStorage_hydrogenData = self.dev_data
         # param_hydrogen = self.optimiser.all_carriers["hydrogen"]
-        generic_params = self.optimiser.optimisation_parameters
+        generic_params = self.optimisation_parameters
         if i == 1:
             # energy balance (delta E = in - out) (energy in Sm3)
             delta_t = generic_params.time_delta_minutes * 60  # seconds
@@ -202,13 +203,14 @@ class Storage_hydrogen(_StorageDevice):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr = pyo.Constraint(
             self.pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules
         )
         # add constraints to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]

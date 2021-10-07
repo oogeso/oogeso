@@ -239,7 +239,9 @@ class Simulator:
         # Reserve capacity
         df_reserve = pd.DataFrame()
         for t in range(timelimit):
-            rescap = pyo.value(self.optimiser.compute_elReserve(pyomo_instance, t))
+            rescap = pyo.value(
+                self.optimiser.all_networks["el"].compute_elReserve(pyomo_instance, t)
+            )
             df_reserve.loc[t + timestep, "reserve"] = rescap
 
         # Backup capacity
@@ -251,7 +253,7 @@ class Simulator:
         for t in range(timelimit):
             for d in devs_elout:
                 rescap = pyo.value(
-                    self.optimiser.compute_elReserve(
+                    self.optimiser.all_networks["el"].compute_elReserve(
                         pyomo_instance, t, exclude_device=d
                     )
                 )

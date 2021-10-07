@@ -1,49 +1,46 @@
-from __future__ import annotations
 import pyomo.environ as pyo
 import typing
 
-if typing.TYPE_CHECKING:
-    from oogeso.core.networks.network_node import NetworkNode
-    from ...dto.oogeso_input_data_objects import EdgeData, EdgeFluidData
+# if typing.TYPE_CHECKING:
+from ...dto.oogeso_input_data_objects import EdgeData
 
 
-class NetworkEdge:
+class Edge:
     "Network edge"
 
-    def __init__(self, pyomo_model, optimiser, edge_data_object: EdgeData):
+    def __init__(self, edge_data_object: EdgeData):
         self.id = edge_data_object.id
         self.edge_data = edge_data_object  # Edge data object as defined in the DTO
-        self.pyomo_model = pyomo_model
-        self.optimiser = optimiser
+        self.edges = {}
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Builds constraints for the edge"""
 
         constr_edge_bounds = pyo.Constraint(
-            self.pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin
+            pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin
         )
         setattr(
-            self.pyomo_model,
+            pyomo_model,
             "constrE_{}_{}".format(self.id, "bounds"),
             constr_edge_bounds,
         )
 
-        # Power loss on electrical connections:
+        # Losses (flow out of edge less than into edge)
         if self.has_loss():
             # First, connecting variables (flow in different directions and loss variables)
             constr_loss = pyo.Constraint(
-                self.pyomo_model.setHorizon,
+                pyomo_model.setHorizon,
                 pyo.RangeSet(1, 2),
                 rule=self._ruleEdgeFlowAndLoss,
             )
-            setattr(
-                self.pyomo_model, "constrE_{}_{}".format(self.id, "loss"), constr_loss
-            )
+            setattr(pyomo_model, "constrE_{}_{}".format(self.id, "loss"), constr_loss)
             # Then, add equations for losses vs power flow (piecewise linear equations):
             for i in pyo.RangeSet(1, 2):
-                constr_loss_function = self._loss_function_constraint(i)
+                constr_loss_function = self._loss_function_constraint(
+                    i, pyomo_model, self.optimisation_parameters.piecewise_repn
+                )
                 setattr(
-                    self.pyomo_model,
+                    pyomo_model,
                     "constrE_{}_{}_{}".format(self.id, "lossfunction", i),
                     constr_loss_function,
                 )
@@ -88,10 +85,13 @@ class NetworkEdge:
             )
         return expr
 
-    def _loss_function_constraint(self, i):
+    def _loss_function_constraint(self, i, pyomo_model):
+
+        piecewise_repn = self.optimisation_parameters.piecewise_repn
+
         # Piecewise constraints require independent variable to be bounded:
-        self.pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)
-        self.pyomo_model.varEdgeFlow21[self.id, :].setub(self.edge_data.flow_max)
+        pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)
+        pyomo_model.varEdgeFlow21[self.id, :].setub(self.edge_data.flow_max)
         # Losses on cables are: P_loss = R/V^2 * P^2, i.e. quadratic function of power flow
         # Losses in transformers are: P_loss = ...
         lookup_table = self.edge_data.power_loss_function
@@ -105,18 +105,17 @@ class NetworkEdge:
         # # two x-points to represent it properly.
         # pw_y = [pw_y_fraction[i] * pw_x[i] for i in len(pw_x)]
         if i == 1:
-            var_x = self.pyomo_model.varEdgeFlow12
-            var_y = self.pyomo_model.varEdgeLoss12
+            var_x = pyomo_model.varEdgeFlow12
+            var_y = pyomo_model.varEdgeLoss12
         elif i == 2:
-            var_x = self.pyomo_model.varEdgeFlow21
-            var_y = self.pyomo_model.varEdgeLoss21
-        pw_repn = self.optimiser.optimisation_parameters.piecewise_repn
+            var_x = pyomo_model.varEdgeFlow21
+            var_y = pyomo_model.varEdgeLoss21
         constr_penalty = pyo.Piecewise(
             [self.id],
-            self.pyomo_model.setHorizon,
+            pyomo_model.setHorizon,
             var_y,
             var_x,
-            pw_repn=pw_repn,
+            pw_repn=piecewise_repn,
             pw_constr_type="EQ",
             pw_pts=pw_x,
             f_rule=pw_y,

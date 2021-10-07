@@ -24,7 +24,7 @@ class Well_production(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr_well = pyo.Constraint(
             self.pyomo_model.setHorizon, rule=self._rule_well_production
@@ -35,6 +35,7 @@ class Well_production(Device):
             "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "wellstream", "out", t]
@@ -96,7 +97,7 @@ class Well_gaslift(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr_gaslift = pyo.Constraint(
             self.carrier_out,
@@ -110,6 +111,7 @@ class Well_gaslift(Device):
             "constr_{}_{}".format(self.id, "gaslift"),
             constr_gaslift,
         )
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         dev = self.id

@@ -1,6 +1,7 @@
 import pyomo.environ as pyo
 import logging
-from oogeso.core.networks.network_edge import NetworkEdge
+from oogeso.core.networks.edge import Edge
+from oogeso.core.devices.device import Device
 from oogeso.dto.oogeso_input_data_objects import NodeData
 
 
@@ -11,7 +12,8 @@ class NetworkNode:
         self.pyomo_model = pyomo_model
         self.node_data: NodeData = node_data
         self.id = node_data.id
-        self.optimiser = optimiser
+        # self.optimiser = optimiser
+        self.optimisation_parameters = optimiser.optimisation_parameters
         self.devices = {}
         self.devices_serial = {}  # devices with through-flow
         self.edges_from = {}
@@ -42,7 +44,7 @@ class NetworkNode:
             self.nominal_pressure[carrier] = {}
             self.nominal_pressure[carrier][term] = pressure
 
-    def addDevice(self, device_id, device):
+    def addDevice(self, device_id, device: Device):
         # logging.debug("addDevice: {},{}".format(self.id, device_id))
         self.devices[device_id] = device
         for carrier in device.serial:
@@ -50,7 +52,7 @@ class NetworkNode:
                 self.devices_serial[carrier] = {}
             self.devices_serial[carrier][device_id] = device
 
-    def addEdge(self, edge: NetworkEdge, to_from: str):
+    def addEdge(self, edge: Edge, to_from: str):
         carrier = edge.edge_data.carrier
         edge_id = edge.id
         if to_from == "to":
@@ -133,12 +135,6 @@ class NetworkNode:
             expr = pyo.Constraint.Skip
         return expr
 
-    def _rule_elVoltageReference(self, model, t):
-        el_carrier = self.optimiser.all_carriers["el"]
-        n = el_carrier.reference_node
-        expr = model.varElVoltageAngle[n, t] == 0
-        return expr
-
     def _rule_pressureAtNode(self, model, carrier, t):
         node = self.id
         if carrier in ["el", "heat"]:
@@ -160,7 +156,7 @@ class NetworkNode:
         node = self.id
         node_data: NodeData = self.node_data
         nominal_pressure = self.nominal_pressure
-        params_generic = self.optimiser.optimisation_parameters
+        params_generic = self.optimisation_parameters
         maxdev = None  # default is no constraint
         if carrier in nominal_pressure:
             if term in nominal_pressure[carrier]:
@@ -203,17 +199,6 @@ class NetworkNode:
             "constrN_{}_{}".format(self.id, "energybalance"),
             constrTerminalEnergyBalance,
         )
-
-        el_carrier = self.optimiser.all_carriers["el"]
-        if el_carrier.powerflow_method == "dc-pf":
-            constr_ElVoltageReference = pyo.Constraint(
-                model.setHorizon, rule=self._rule_elVoltageReference
-            )
-            setattr(
-                model,
-                "constrN_{}_{}".format(self.id, "voltageref"),
-                constr_ElVoltageReference,
-            )
 
         constrPressureAtNode = pyo.Constraint(
             model.setCarrier, model.setHorizon, rule=self._rule_pressureAtNode

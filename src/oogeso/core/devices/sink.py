@@ -52,7 +52,7 @@ class Sink_water(Device):
     def rule_devmodel_sink_water(self, model, t, i):
         dev = self.id
         dev_data = self.dev_data
-        param_generic = self.optimiser.optimisation_parameters
+        param_generic = self.optimisation_parameters
 
         if dev_data.flow_avg is None:
             return pyo.Constraint.Skip
@@ -84,7 +84,7 @@ class Sink_water(Device):
 
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr = pyo.Constraint(
             self.pyomo_model.setHorizon,
@@ -93,6 +93,7 @@ class Sink_water(Device):
         )
         # add constraints to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "flex"), constr)
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "water", "in", t]

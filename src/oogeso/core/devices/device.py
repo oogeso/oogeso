@@ -15,10 +15,16 @@ class Device:
         self.dev_data = dev_data
         self.id = dev_data.id
         self.pyomo_model = pyomo_model
-        self.optimiser = optimiser
+        self.all_networks = optimiser.all_networks
+        self.node = None
+        self.optimisation_parameters = optimiser.optimisation_parameters
         self.dev_constraints = None
         # parameter keeping track of upper bound (needed in piecewise linear constraints):
         self._flow_upper_bound = None
+
+    def addNode(self, node):
+        """associate node with device"""
+        self.node = node
 
     def setInitValues(self):
         # Method invoked to specify optimisation problem initial value parameters
@@ -71,7 +77,7 @@ class Device:
         """power ramp rate limit"""
         dev = self.id
         dev_data = self.dev_data
-        param_generic = self.optimiser.optimisation_parameters
+        param_generic = self.optimisation_parameters
 
         # If no ramp limits have been specified, skip constraint
         if self.dev_data.max_ramp_up is None:
@@ -93,7 +99,7 @@ class Device:
         """startup/shutdown constraint
         connecting starting, stopping, preparation, online stages of GTs"""
         dev = self.id
-        param_generic = self.optimiser.optimisation_parameters
+        param_generic = self.optimisation_parameters
         Tdelay_min = self.dev_data.start_stop.delay_start_minutes
         # Delay in timesteps, rounding down.
         # example: time_delta = 5 min, delay_start_minutes= 8 min => Tdelay=1
@@ -120,7 +126,7 @@ class Device:
     def _rule_startup_delay(self, model, t):
         """startup delay/preparation for GTs"""
         dev = self.id
-        param_generic = self.optimiser.optimisation_parameters
+        param_generic = self.optimisation_parameters
         Tdelay_min = self.dev_data.start_stop.delay_start_minutes
         # Delay in timesteps, rounding down.
         # example: time_delta = 5 min, startupDelay= 8 min => Tdelay=1
@@ -144,9 +150,12 @@ class Device:
         return lhs == rhs
 
     def defineConstraints(self):
-        """Returns a set of constraints for the device."""
+        """Build constraints for the device and add to pyomo model.
+        Returns list of constraints that need to be reconstructed between each
+        optimisation
+        """
 
-        # Generic constraints common for all device types:
+        list_to_reconstruct = []  # Default
 
         if self.dev_data.flow_max is not None:
             constrDevicePmax = pyo.Constraint(
@@ -197,12 +206,12 @@ class Device:
 
             # TODO: Add constraints for minimum up and down-time
 
-            # Because of logic that needs to be re-evalued, these constraints need
-            # to be reconstructed each optimisation:
-            self.optimiser.constraints_to_reconstruct.append(
-                constrDevice_startup_shutdown
-            )
-            self.optimiser.constraints_to_reconstruct.append(constrDevice_startup_delay)
+            # return list of constraints that need to be reconstructed:
+            list_to_reconstruct = [
+                constrDevice_startup_shutdown,
+                constrDevice_startup_delay,
+            ]
+        return list_to_reconstruct
 
     def getFlowVar(self, t) -> float:
         logging.error("Device: no getFlowVar defined for {}".format(self.id))
@@ -384,9 +393,7 @@ class Device:
 
         start_stop_penalty = self.compute_startup_penalty(timesteps)
         # get average per second:
-        timestep_duration_sec = (
-            self.optimiser.optimisation_parameters.time_delta_minutes * 60
-        )
+        timestep_duration_sec = self.optimisation_parameters.time_delta_minutes * 60
         time_interval_sec = len(timesteps) * timestep_duration_sec
         start_stop_penalty_rate = start_stop_penalty / time_interval_sec
 

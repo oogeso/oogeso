@@ -26,11 +26,12 @@ class Gasheater(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr = pyo.Constraint(self.pyomo_model.setHorizon, rule=self._rules)
         # add constraint to model:
         setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
+        return list_to_reconstruct
 
     def getFlowVar(self, t):
         # using heat output as dimensioning variable

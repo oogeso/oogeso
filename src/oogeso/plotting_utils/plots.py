@@ -182,9 +182,12 @@ def plot_deviceprofile(
         fig.update_layout(height=600)
         # fig.show()
     elif plotter == "matplotlib":
-
-        fig = plt.figure(figsize=(12, 4))
-        ax = plt.gca()
+        fig, axs = plt.subplots(
+            nrows=nrows, ncols=1, shared_xaxes=True, figsize=(12, 1 + 3 * nrows)
+        )
+        #
+        #        fig = plt.figure()
+        ax = axs[0]
         labels = []
         offset_online = 0
         # df.plot(ax=ax)
@@ -828,7 +831,10 @@ def plotNetwork(
                         res.dfTerminalPressure[(n_id, carrier, "out", timestep)]
                     )
                 elif carrier == "el":
-                    if optimiser.all_carriers["el"].powerflow_method == "dc-pf":
+                    if (
+                        optimiser.all_networks["el"].carrier_data.powerflow_method
+                        == "dc-pf"
+                    ):
                         label_in += numberformat.format(
                             res.dfElVoltageAngle[(n_id, timestep)]
                         )
@@ -1066,7 +1072,7 @@ def plotReserve(
                 line_shape="hv",
             )
         if includeMargin:
-            margin = optimiser.optimisation_parameters.el_reserve_margin
+            margin = optimiser.all_networks["el"].carrier_data.el_reserve_margin
             # wind contribution (cf compute reserve)
             marginIncr["margin"] = marginIncr["margin"] + margin
             fig.add_scatter(
@@ -1084,7 +1090,7 @@ def plotReserve(
         if includeSum:
             df_devs.sum(axis=1).plot(style=":", color="black", drawstyle="steps-post")
         if includeMargin:
-            margin = optimiser.optimisation_parameters.el_reserve_margin
+            margin = optimiser.all_networks["el"].carrier_data.el_reserve_margin
             # wind contribution (cf compute reserve)
             marginIncr["margin"] = marginIncr["margin"] + margin
             marginIncr[["margin"]].plot(style=":", color="red", ax=ax)

@@ -71,7 +71,7 @@ class Separator(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr_separator = pyo.Constraint(
             self.pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator
@@ -82,6 +82,7 @@ class Separator(Device):
             "constr_{}_{}".format(self.id, "separator"),
             constr_separator,
         )
+        return list_to_reconstruct
 
 
 class Separator2(Device):
@@ -95,7 +96,7 @@ class Separator2(Device):
     def _rule_separator2_flow(self, model, fc, t, i):
         dev = self.id
         node = self.dev_data.node_id
-        node_obj: NetworkNode = self.optimiser.all_nodes[node]
+        node_obj: NetworkNode = self.node
         # wellstream_prop=self.pyomo_model.all_carriers['wellstream']
         # flow_in = sum(model.varDeviceFlow[dev,f,'in',t]
         #                for f in['oil','gas','water'])
@@ -131,7 +132,7 @@ class Separator2(Device):
     def defineConstraints(self):
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints()
 
         constr_separator2_flow = pyo.Constraint(
             ["oil", "gas", "water"],
@@ -157,3 +158,4 @@ class Separator2(Device):
             "constr_{}_{}".format(self.id, "energy"),
             constr_separator2_energy,
         )
+        return list_to_reconstruct
