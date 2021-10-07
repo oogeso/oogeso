@@ -5,8 +5,6 @@ parameters:
   forecast_timesteps: 4 # timesteps beyond which forecast (instead of nowcast) profile is used
   time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   co2_tax: 0.04 # $/kgCO2
-  el_backup_margin: -1 # MW, -1=no limit
-  el_reserve_margin: 5 # MWm -1=no limit
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
   max_pressure_deviation: -1 # global limit for allowable relative pressure deviation from nominal
@@ -14,6 +12,8 @@ parameters:
 
 carriers:
   - id: el
+    el_backup_margin: -1 # MW, -1=no limit
+    el_reserve_margin: 5 # MWm -1=no limit
     powerflow_method: "transport"
     reference_node: node1 # for electrical voltage angle
   - id: gas

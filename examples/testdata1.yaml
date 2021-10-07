@@ -1,0 +1,49 @@
+parameters:
+  time_delta_minutes: 15 # minutes per timestep
+  planning_horizon: 2 #8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 1 #4 # timesteps between each optimisation
+  forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
+  time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
+  objective: penalty # select objective function to use
+
+carriers:
+  - id: el
+    el_reserve_margin: 2 # MWm -1=no limit
+    powerflow_method: "transport"
+
+nodes:
+  - id: node1
+  - id: node2
+
+edges:
+  - id: el1
+    include: True
+    carrier: el
+    node_from: node1
+    node_to: node2
+
+devices:
+  - id: source1
+    include: 1
+    node_id: node1
+    model: powersource
+    name: Source
+    flow_max: 20
+    flow_min: 0
+#    max_ramp_up: 0.5
+#    max_ramp_down: 1
+#    start_stop:
+#        delay_start_minutes: 45 # min
+#        penalty_start: 200
+#        is_on_init: True
+    penalty_function: [[0,20],[0,5]]
+
+
+  - id: dem
+    include: True
+    node_id: node2
+    model: sink_el
+    name: "El demand"
+    flow_min: 15
+    flow_max: 15
+    #profile: demand
