@@ -12,6 +12,8 @@ from . import devices, networks
 from .networks import electricalsystem as el_calc
 from .networks.network_node import NetworkNode
 
+logger = logging.getLogger(__name__)
+
 
 class Optimiser:
     """Class for MILP optimisation model"""
@@ -51,7 +53,7 @@ class Optimiser:
                 opt.options["timelimit"] = timelimit
             elif solver == "glpk":
                 opt.options["tmlim"] = timelimit
-        logging.debug("Solving...")
+        logger.debug("Solving...")
         sol = opt.solve(self.pyomo_instance)
 
         if write_yaml:
@@ -60,13 +62,13 @@ class Optimiser:
         if (sol.solver.status == pyopt.SolverStatus.ok) and (
             sol.solver.termination_condition == pyopt.TerminationCondition.optimal
         ):
-            logging.debug("Solved OK")
+            logger.debug("Solved OK")
             pass
         elif sol.solver.termination_condition == pyopt.TerminationCondition.infeasible:
             raise Exception("Infeasible solution")
         else:
             # Something else is wrong
-            logging.info("Solver Status:{}".format(sol.solver.status))
+            logger.info("Solver Status:{}".format(sol.solver.status))
         return sol
 
     def _setNodePressureFromEdgeData(self):
@@ -115,12 +117,12 @@ class Optimiser:
             dev_id = dev_data_obj.id
             if dev_data_obj.include == False:
                 # skip this edge and move to next
-                logging.debug("Excluding device {}".format(dev_id))
+                logger.debug("Excluding device {}".format(dev_id))
                 continue
             device_model = dev_data_obj.model
             # The class corresponding to the device type should always have a
             # name identical to the type (but capitalized):
-            logging.debug("Device model={}".format(device_model))
+            logger.debug("Device model={}".format(device_model))
             Devclass = getattr(devices, device_model.capitalize())
             new_device = Devclass(model, self, dev_data_obj)
             new_device.setFlowUpperBound(data.profiles)
@@ -169,19 +171,19 @@ class Optimiser:
             )
             self.all_networks[carrier_model] = new_network
 
-        # logging.debug(self.all_nodes.keys())
-        # logging.debug(self.all_edges.keys())
-        # logging.debug(self.all_devices.keys())
+        # logger.debug(self.all_nodes.keys())
+        # logger.debug(self.all_edges.keys())
+        # logger.debug(self.all_devices.keys())
 
         timerange = range(data.parameters.planning_horizon)
         profiles_in_use = list(
             set(d.profile for d in data.devices if d.profile is not None)
         )
-        logging.info("profiles in use: {}".format(profiles_in_use))
+        logger.info("profiles in use: {}".format(profiles_in_use))
 
         # Make network connections between nodes, edges and devices
         for dev_id, dev in self.all_devices.items():
-            logging.debug("Node-device: {},{}".format(dev_id, dev))
+            logger.debug("Node-device: {},{}".format(dev_id, dev))
             node_id_where_connected = dev.dev_data.node_id
             node = self.all_nodes[node_id_where_connected]
             node.addDevice(dev_id, dev)
@@ -319,8 +321,8 @@ class Optimiser:
             rule = self._rule_objective_co2intensity
         else:
             raise Exception("Objective '{}' has not been implemented".format(obj))
-        logging.info("Using objective function: {}".format(obj))
-        # logging.info(rule)
+        logger.info("Using objective function: {}".format(obj))
+        # logger.info(rule)
         model.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
 
         # Specify initial values from input data
@@ -360,7 +362,7 @@ class Optimiser:
                 model.setHorizon, rule=self._rule_emissionRateLimit
             )
         else:
-            logging.info("No emission_rate_max limit specified")
+            logger.info("No emission_rate_max limit specified")
         if (params_generic.emission_intensity_max is not None) and (
             params_generic.emission_intensity_max >= 0
         ):
@@ -368,7 +370,7 @@ class Optimiser:
                 model.setHorizon, rule=self._rule_emissionIntensityLimit
             )
         else:
-            logging.info("No emission_intensity_max limit specified")
+            logger.info("No emission_intensity_max limit specified")
 
     def updateOptimisationModel(self, timestep, profiles, first=False):
         """Update Pyomo model instance
@@ -380,17 +382,16 @@ class Optimiser:
         profiles : pandas dataframe
             Time series profiles
         first : booblean
-            True if it is the first timestep in rolling optimisation
+            True if it is the first time the model is updated (simulation start)
         """
         opt_timesteps = self.optimisation_parameters.optimisation_timesteps
         horizon = self.optimisation_parameters.planning_horizon
         timesteps_use_nowcast = self.optimisation_parameters.forecast_timesteps
-        # self._timestep = timestep
+
         # Update profile (using nowcast for first 4 timesteps, forecast for rest)
         # -this is because for the first timesteps, we tend to have updated
         #  and quite good forecasts - for example, it may become apparent
         #  that there will be much less wind power than previously forecasted
-        #
         for prof in self.pyomo_instance.setProfile:
             for t in range(timesteps_use_nowcast):  # 0,1,2,3
                 profile_str = "nowcast"
@@ -459,7 +460,7 @@ class Optimiser:
         # These constraints need to be reconstructed to update properly
         # (pyo.value(...) and/or if sentences...)
         for c in self.constraints_to_reconstruct:
-            # logging.debug("reconstructing {}".format(c))
+            # logger.debug("reconstructing {}".format(c))
             # c.reconstruct() <- removed in Pyomo v.6
             c.clear()
             c._constructed = False
@@ -563,7 +564,7 @@ class Optimiser:
         if pyo.value(flow_oilequivalents_m3_per_time) != 0:
             co2intensity = co2_kg_per_time / flow_oilequivalents_m3_per_time
         if pyo.value(flow_oilequivalents_m3_per_time) == 0:
-            # logging.debug("zero export, so co2 intensity set to None")
+            # logger.debug("zero export, so co2 intensity set to None")
             co2intensity = None
         return co2intensity
 
@@ -584,7 +585,7 @@ class Optimiser:
         start_stop_costs = start_stop_costs / sumTime
         return start_stop_costs
 
-    logging.info("TODO: operating cost for el storage - needs improvement")
+    logger.info("TODO: operating cost for el storage - needs improvement")
 
     def compute_operatingCosts(self, model):
         """term in objective function to represent fuel costs or similar
@@ -704,7 +705,7 @@ class Optimiser:
                 df < -self.ZERO_WARNING_THRESHOLD
             ).any():
                 ind = df[df < -self.ZERO_WARNING_THRESHOLD].index[0]
-                logging.warning(
+                logger.warning(
                     "Negative number in varDeviceFlow - set to zero ({}:{})".format(
                         ind, df[ind]
                     )

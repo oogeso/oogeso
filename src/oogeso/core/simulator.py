@@ -5,13 +5,15 @@ from oogeso.dto.oogeso_input_data_objects import EnergySystemData
 from oogeso.dto.oogeso_output_data_objects import SimulationResult
 from .optimiser import Optimiser
 
+logger = logging.getLogger(__name__)
+
 # get progress bar:
 try:
     from tqdm import trange
 
     has_tqdm = True
 except:
-    logging.info("Consider installing tqdm to get progress bar")
+    logger.info("Consider installing tqdm to get progress bar")
     trange = range
     has_tqdm = False
 
@@ -79,7 +81,7 @@ class Simulator:
         steps = self.optimiser.optimisation_parameters.optimisation_timesteps
         horizon = self.optimiser.optimisation_parameters.planning_horizon
         if timelimit is not None:
-            logging.debug("Using solver timelimit={}".format(timelimit))
+            logger.debug("Using solver timelimit={}".format(timelimit))
         if timerange is None:
             # use the entire timeseries
             time_start = 0
@@ -98,7 +100,7 @@ class Simulator:
         for step in trange(time_start, time_end, steps):
             if not has_tqdm:
                 # no progress bar
-                logging.info("Solving timestep={}".format(step))
+                logger.info("Solving timestep={}".format(step))
             # 1. Update problem formulation
             self.optimiser.updateOptimisationModel(
                 step, first=first, profiles=self.profiles
@@ -125,8 +127,8 @@ class Simulator:
         timeshift = timestep
 
         # TODO: Implement possibility to store subset of the data
-        if data_to_keep != "all":
-            logging.warn("Storing none or a subset of the data not implemented yet.")
+        if data_to_keep is not None:
+            logger.warn("Storing only a subset of the data not implemented yet.")
 
         # Retrieve variable values as dictionary with dataframes
         res = self.optimiser.extract_all_variable_values(timelimit, timeshift)
@@ -142,13 +144,13 @@ class Simulator:
                 # vrs=('util',None)
                 vrs = val["indx"]
                 constr = getattr(pyomo_instance, val["constr"])
-                logging.info(constr)
+                logger.info(constr)
                 sumduals = 0
                 for t in range(timelimit):
                     # Replace None by the timestep, ('util',None) -> ('util',t)
                     vrs1 = tuple(x if x is not None else t for x in vrs)
-                    logging.info(vrs1)
-                    logging.info(constr[vrs1])
+                    logger.info(vrs1)
+                    logger.info(constr[vrs1])
                     dual = pyomo_instance.dual[constr[vrs1]]
                     # The dual gives the improvement in the objective function
                     # if the constraint is relaxed by one unit.

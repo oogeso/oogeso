@@ -3,6 +3,8 @@ from typing import List
 import logging
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 
 def create_timeseriesdata(
     df_forecast: pd.DataFrame,
@@ -41,7 +43,7 @@ def create_timeseriesdata(
         mask = df_new.index <= time_end
         df_new = df_new[mask]
     if df_new.isna().any().any():
-        logging.warning("Profiles contain NA")
+        logger.warning("Profiles contain NA")
 
     # now, create Oogeso TimeSereriesData object
     profiles = []
@@ -58,5 +60,5 @@ def create_timeseriesdata(
             profiles.append(new_ts)
         elif col[0] == "nowcast":
             if ("forecast", curve) not in df_new.columns:
-                logging.warning("Nowcast but no forecast profile for {}".format(curve))
+                logger.warning("Nowcast but no forecast profile for {}".format(curve))
     return profiles

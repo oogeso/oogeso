@@ -1,6 +1,4 @@
 import pyomo.environ as pyo
-import logging
-
 from oogeso.dto.oogeso_input_data_objects import (
     DeviceStorage_elData,
     DeviceStorage_hydrogenData,
@@ -117,7 +115,7 @@ class Storage_el(_StorageDevice):
     def getFlowVar(self, t):
         return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
-    def getMaxP(self, t):
+    def getMaxFlow(self, t):
         # available power may be limited by energy in the storage
         # charging also contributes (can be reversed)
         # (it can go to e.g. -2 MW to +2MW => 4 MW,

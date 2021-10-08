@@ -1,8 +1,9 @@
 import pyomo.environ as pyo
 import logging
-
 from oogeso.core.networks.network_node import NetworkNode
 from . import Device
+
+logger = logging.getLogger(__name__)
 
 
 class _PumpDevice(Device):
@@ -39,7 +40,7 @@ class _PumpDevice(Device):
             # linearised equations around operating point
             # p1=p10, p2=p20, Q=Q0
             if t == 0:
-                logging.debug(
+                logger.debug(
                     "Node:{}, nominal pressures={}".format(
                         node_id, node_obj.nominal_pressure
                     )

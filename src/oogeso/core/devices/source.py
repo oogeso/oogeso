@@ -1,8 +1,6 @@
 from pyomo.core.base.piecewise import PWRepn
 import pyomo.environ as pyo
-import logging
 from . import Device
-import numpy as np
 
 
 class Source_el(Device):

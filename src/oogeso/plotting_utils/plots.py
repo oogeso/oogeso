@@ -8,6 +8,7 @@ import seaborn as sns
 import pydot
 import logging
 
+logger = logging.getLogger(__name__)
 
 sns.set_style("whitegrid")
 # sns.set_palette("dark")
@@ -348,13 +349,13 @@ def plot_SumPowerMix(
     dfF_out.index = dfF_out.index.droplevel(level=("carrier", "terminal"))
     dfF_out = dfF_out.unstack(0)
     keepcols = optimiser.getDevicesInout(carrier_out=carrier)
-    # logging.info("in: {}".format(keepcols))
+    # logger.info("in: {}".format(keepcols))
     dfF_out = dfF_out[keepcols]
     dfF_in = dfF[mask_carrier & mask_in]
     dfF_in.index = dfF_in.index.droplevel(level=("carrier", "terminal"))
     dfF_in = dfF_in.unstack(0)
     keepcols = optimiser.getDevicesInout(carrier_in=carrier)
-    # logging.info("out: {}".format(keepcols))
+    # logger.info("out: {}".format(keepcols))
     dfF_in = dfF_in[keepcols]
 
     if (devs_shareload is None) and (carrier in ["el", "heat"]):
@@ -364,7 +365,7 @@ def plot_SumPowerMix(
             for d, d_obj in optimiser.all_devices.items()
             if d_obj.dev_data.model == "gasturbine"
         ]
-        logging.debug("Shared load=", devs_shareload)
+        logger.debug("Shared load=", devs_shareload)
     if devs_shareload:  # list is non-empty
         devs_online = (dfF_out[devs_shareload] > 0).sum(axis=1)
         devs_sum = dfF_out[devs_shareload].sum(axis=1)

@@ -4,6 +4,8 @@ from oogeso.core.networks.edge import Edge
 from oogeso.core.devices.device import Device
 from oogeso.dto.oogeso_input_data_objects import NodeData
 
+logger = logging.getLogger(__name__)
+
 
 class NetworkNode:
     "Network node"
@@ -45,7 +47,7 @@ class NetworkNode:
             self.nominal_pressure[carrier][term] = pressure
 
     def addDevice(self, device_id, device: Device):
-        # logging.debug("addDevice: {},{}".format(self.id, device_id))
+        # logger.debug("addDevice: {},{}".format(self.id, device_id))
         self.devices[device_id] = device
         for carrier in device.serial:
             if carrier not in self.devices_serial:
@@ -167,7 +169,7 @@ class NetworkNode:
                     ):
                         maxdev = node_data.maxdeviation_pressure[carrier][term]
                         if t == 0:
-                            logging.debug(
+                            logger.debug(
                                 "Using individual pressure limit for: {}, {}, {}, {}".format(
                                     node, carrier, term, maxdev
                                 )

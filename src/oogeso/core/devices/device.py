@@ -1,6 +1,8 @@
 import pyomo.environ as pyo
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 class Device:
     "Parent class from which all device types derive"
@@ -18,7 +20,6 @@ class Device:
         self.all_networks = optimiser.all_networks
         self.node = None
         self.optimisation_parameters = optimiser.optimisation_parameters
-        self.dev_constraints = None
         # parameter keeping track of upper bound (needed in piecewise linear constraints):
         self._flow_upper_bound = None
 
@@ -27,8 +28,8 @@ class Device:
         self.node = node
 
     def setInitValues(self):
-        # Method invoked to specify optimisation problem initial value parameters
-        # TODO: move this to each subclass instead
+        """Method invoked to specify optimisation problem initial value parameters"""
+        # TODO: move this to each subclass instead?
         dev_id = self.id
         pyomo_model = self.pyomo_model
         dev_data = self.dev_data
@@ -41,24 +42,15 @@ class Device:
         if hasattr(dev_data, "P_init"):
             pyomo_model.paramDevicePowerInitially[dev_id] = dev_data.P_init
 
-    def _rule_devicePmax(self, model, t):
+    def _rule_deviceFlowMax(self, model, t):
         power = self.getFlowVar(t)
         if power is None:
             return pyo.Constraint.Skip
-        maxValue = self.getMaxP(t)
+        maxValue = self.getMaxFlow(t)
         expr = power <= maxValue
-        # maxValue = self.dev_data.flow_max
-        # if self.dev_data.profile is not None:
-        #     # use an availability profile if provided
-        #     extprofile = self.dev_data.profile
-        #     maxValue = maxValue * model.paramProfiles[extprofile, t]
-        # ison = 1
-        # if self.dev_data.start_stop is not None:
-        #     ison = model.varDeviceIsOn[self.id, t]
-        # expr = power <= ison * maxValue
         return expr
 
-    def _rule_devicePmin(self, model, t):
+    def _rule_deviceFlowMin(self, model, t):
         power = self.getFlowVar(t)
         if power is None:
             return pyo.Constraint.Skip
@@ -159,20 +151,20 @@ class Device:
 
         if self.dev_data.flow_max is not None:
             constrDevicePmax = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_devicePmax
+                self.pyomo_model.setHorizon, rule=self._rule_deviceFlowMax
             )
             setattr(
                 self.pyomo_model,
-                "constr_{}_{}".format(self.id, "Pmax"),
+                "constr_{}_{}".format(self.id, "flowMax"),
                 constrDevicePmax,
             )
         if self.dev_data.flow_min is not None:
             constrDevicePmin = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_devicePmin
+                self.pyomo_model.setHorizon, rule=self._rule_deviceFlowMin
             )
             setattr(
                 self.pyomo_model,
-                "constr_{}_{}".format(self.id, "Pmin"),
+                "constr_{}_{}".format(self.id, "flowMin"),
                 constrDevicePmin,
             )
         if (self.dev_data.max_ramp_up is not None) or (
@@ -214,11 +206,13 @@ class Device:
         return list_to_reconstruct
 
     def getFlowVar(self, t) -> float:
-        logging.error("Device: no getFlowVar defined for {}".format(self.id))
+        logger.error("Device: no getFlowVar defined for {}".format(self.id))
         raise NotImplementedError()
 
-    def getMaxP(self, t):
-        """get available capacity at given timestep, use t=None to get max for entire timeseries"""
+    def getMaxFlow(self, t):
+        """Return available capacity at given timestep.
+        This is given by the "flow_max" input parameter, profile value (if any), and
+        whether devie is on/off."""
         model = self.pyomo_model
         maxValue = self.dev_data.flow_max
         if self.dev_data.profile is not None:
@@ -230,7 +224,8 @@ class Device:
         return maxValue
 
     def setFlowUpperBound(self, profiles):
-        """Maximum flow value through entire profile. Product of flox_max parameter and profile values"""
+        """Maximum flow value through entire profile.
+        Given as the product of the "flow_max" parameter and profile values."""
         ub = self.dev_data.flow_max
         if self.dev_data.profile is not None:
             extprofile = self.dev_data.profile
@@ -244,7 +239,7 @@ class Device:
                     ub = ub * prof_max
                     break
             if prof_max is None:
-                logging.warning(
+                logger.warning(
                     "Profile (%s) defined for device %s was not found",
                     extprofile,
                     self.dev_data.id,
@@ -252,6 +247,8 @@ class Device:
         self._flow_upper_bound = ub
 
     def getFlowUpperBound(self):
+        """Returns the maximum possible flow given capacity and profile"""
+        # Used by piecewise linear constraints
         return self._flow_upper_bound
 
     def compute_CO2(self, timesteps):
@@ -302,7 +299,7 @@ class Device:
         p_generating = 0
         if "el" in self.carrier_out:
             # Generators and storage
-            maxValue = self.getMaxP(t)
+            maxValue = self.getMaxFlow(t)
             if self.dev_data.reserve_factor is not None:
                 # safety margin - only count a part of the forecast power
                 # towards the reserve, relevant for wind power
@@ -356,14 +353,6 @@ class Device:
     def compute_costForDepletedStorage(self, timesteps):
         return 0
 
-    def getProfile(self):
-        """Get device profile as list of values, or None if no profile is used"""
-        profile = None
-        if self.dev_data.profile is not None:
-            prof_id = self.dev_data.profile
-            profile = self.pyomo_model.paramProfiles[prof_id, :].value
-        return profile
-
     def compute_penalty(self, timesteps):
         """Compute average penalty rate (cost, emission or similar per second)
         as defined by penalty functions and start/stop penalties"""
@@ -373,8 +362,8 @@ class Device:
             and self.dev_data.penalty_function is not None
         ):
             if not hasattr(self, "_penaltyConstraint"):
-                logging.warning(
-                    "Penalty functin constraint not impelemented for %s", self.id
+                logger.warning(
+                    "Penalty function constraint not impelemented for %s", self.id
                 )
             # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
             # penalty for Pel > 0 only when device is actually online (penalty should be zero when
@@ -391,11 +380,14 @@ class Device:
             # divide by number of timesteps to get average penalty rate (penalty per sec):
             penalty_rate = this_penalty / len(timesteps)
 
-        start_stop_penalty = self.compute_startup_penalty(timesteps)
-        # get average per second:
-        timestep_duration_sec = self.optimisation_parameters.time_delta_minutes * 60
-        time_interval_sec = len(timesteps) * timestep_duration_sec
-        start_stop_penalty_rate = start_stop_penalty / time_interval_sec
+        start_stop_penalty_rate = 0
+        if self.dev_data.start_stop is not None:
+            # this sums up penalty over all timesteps in horizon:
+            start_stop_penalty = self.compute_startup_penalty(timesteps)
+            # get average per second:
+            timestep_duration_sec = self.optimisation_parameters.time_delta_minutes * 60
+            time_interval_sec = len(timesteps) * timestep_duration_sec
+            start_stop_penalty_rate = start_stop_penalty / time_interval_sec
 
         sum_penalty_rate = penalty_rate + start_stop_penalty_rate
         return sum_penalty_rate

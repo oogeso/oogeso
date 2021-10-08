@@ -10,6 +10,8 @@ import typing
 if typing.TYPE_CHECKING:
     from oogeso.core.networks.network_node import NetworkNode
 
+logger = logging.getLogger(__name__)
+
 
 class Fluid(Network):
     def defineConstraints(self, pyomo_model):
@@ -46,7 +48,7 @@ class Fluid(Network):
         if edge_data.num_pipes is not None:
             num_pipes = edge_data.num_pipes
             if print_log:
-                logging.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
+                logger.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
             Q = Q / num_pipes
         p2_computed = self.compute_edge_pressuredrop(
             edge_data, p1=p1, Q=Q, linear=True, print_log=print_log
@@ -121,14 +123,14 @@ class Fluid(Network):
             if linear & (p0_from == p0_to):
                 method = None
                 if print_log:
-                    logging.debug(
+                    logloggerging.debug(
                         ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(
                             n_from, n_to, p0_from, p0_to
                         )
                     )
         elif linear:
             # linear equations, but nominal values not given - assume no drop
-            # logging.debug("{}-{}: Aassuming no  pressure drop".format(n_from, n_to))
+            # logger.debug("{}-{}: Aassuming no  pressure drop".format(n_from, n_to))
             method = None
         else:
             # use non-linear equations, no nominal pressure required
@@ -157,13 +159,13 @@ class Fluid(Network):
             """
             exp_s, k = self._compute_exps_and_k(edge_data, carrier_data=carrier_data)
             if print_log:
-                logging.debug("pipe {}: exp_s={}, k={}".format(edge_id, exp_s, k))
+                logger.debug("pipe {}: exp_s={}, k={}".format(edge_id, exp_s, k))
             if linear:
                 p_from = p1
                 #                p_from = model.varPressure[(n_from,carrier,'out',t)]
                 #                p_to = model.varPressure[(n_to,carrier,'in',t)]
                 X0 = p0_from ** 2 - exp_s * p0_to ** 2
-                #                logging.info("edge {}-{}: X0={}, p1={},Q={}"
+                #                logger.info("edge {}-{}: X0={}, p1={},Q={}"
                 #                    .format(n_from,n_to,X0,p1,Q))
                 coeff = k * (X0) ** (-1 / 2)
                 #                Q_computed = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
@@ -199,7 +201,7 @@ class Fluid(Network):
                 )
                 Q0 = k * sqrtX
                 if print_log:
-                    logging.debug(
+                    logger.debug(
                         (
                             "derived pipe ({}) flow rate:"
                             " Q={}, linearQ0={:5.3g},"

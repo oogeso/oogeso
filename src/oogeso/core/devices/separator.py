@@ -1,5 +1,4 @@
 import pyomo.environ as pyo
-import logging
 from oogeso.core.networks.network_node import NetworkNode
 
 from oogeso.dto.oogeso_input_data_objects import (

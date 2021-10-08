@@ -1,5 +1,4 @@
 import pyomo.environ as pyo
-import logging
 from . import Device
 
 

@@ -13,6 +13,8 @@ import logging
 import pyomo.environ as pyo
 from typing import Dict
 
+logger = logging.getLogger(__name__)
+
 
 class El(Network):
     def __init__(
@@ -29,7 +31,7 @@ class El(Network):
         )
 
         if self.carrier_data.powerflow_method == "dc-pf":
-            logging.warning(
+            logger.warning(
                 "TODO: code for electric powerflow calculations need improvement (pu conversion)"
             )
             nodelist = self.all_nodes.keys()
@@ -53,7 +55,7 @@ class El(Network):
                 pyomo_model.setHorizon, rule=self._rule_elReserveMargin
             )
         else:
-            logging.info("No el_reserve_margin limit specified")
+            logger.info("No el_reserve_margin limit specified")
         if (el_backup_margin is not None) and (el_backup_margin >= 0):
             pyomo_model.constrO_elBackupMargin = pyo.Constraint(
                 pyomo_model.setDevice,
@@ -61,7 +63,7 @@ class El(Network):
                 rule=self._rule_elBackupMargin,
             )
         else:
-            logging.info("No el_backup_margin limit specified")
+            logger.info("No el_backup_margin limit specified")
 
         if self.carrier_data.powerflow_method == "dc-pf":
             # Reference voltage node:
@@ -158,6 +160,6 @@ class El(Network):
             loadreduction += reserve["loadreduction_available"]
 
         res_dev = (cap_avail - p_generating) + loadreduction
-        # logging.info("TODO: elReserve: Ignoring load reduction option")
+        # logger.info("TODO: elReserve: Ignoring load reduction option")
         # res_dev = (cap_avail-p_generating)
         return res_dev
