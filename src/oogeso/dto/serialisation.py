@@ -3,6 +3,7 @@ from dataclasses import dataclass, is_dataclass, asdict, field
 from typing import List, Optional, Tuple, Any, Dict, Union
 import logging
 from .oogeso_input_data_objects import *
+from .oogeso_output_data_objects import *
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -13,10 +14,10 @@ class DataclassJSONEncoder(json.JSONEncoder):
         if is_dataclass(obj=obj):
             dct = asdict(obj=obj)
             return dct
-        elif isinstance(obj, pd.Series):
-            dct = json.loads(obj.reset_index().to_json())
+        if isinstance(obj, pd.Series):
+            dct = obj.reset_index().to_json()
             return dct
-        elif isinstance(obj, pd.DataFrame):
+        if isinstance(obj, pd.DataFrame):
             dct = obj.reset_index().to_json()
             return dct
         return super().default(obj)
@@ -61,7 +62,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
             data_nowcast = dct["data_nowcast"]
         return TimeSeriesData(name, data, data_nowcast)
 
-    def object_hook(self, dct):
+    def object_hook(self, dct):  # pylint: disable=E0202
         carriers = []
         nodes = []
         edges = []
@@ -104,7 +105,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
     def default(self, obj: Any):
         if isinstance(obj, EnergySystemData):
             return EnergySystemData(obj=obj)
-        return super().default(obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def serialize_oogeso_data(energy_system_data: EnergySystemData):
@@ -115,6 +116,42 @@ def serialize_oogeso_data(energy_system_data: EnergySystemData):
 def deserialize_oogeso_data(json_data):
     energy_system_data = json.loads(json_data, cls=DataclassJSONDecoder)
     return energy_system_data
+
+
+# Deserialize result object
+class OogesoResultJSONDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, dct):  # pylint: disable=E0202
+        res_dfs = {}
+        # profiles_nowcast = {}
+        if "dfDeviceFlow" in dct:
+            # Top level
+            for k, val in dct.items():
+                print(k)
+                if val is None:
+                    res_dfs[k] = None
+                else:
+                    val2 = json.loads(val)
+                    print(type(val), type(val2))
+                    df = pd.DataFrame.from_dict(val2)
+                    multiind = [c for c in df.columns if c != "value"]
+                    df = df.set_index(multiind)
+                    res_dfs[k] = df
+            result_data = SimulationResult(**res_dfs)
+            return result_data
+        return dct
+
+    def default(self, obj: Any):
+        if isinstance(obj, SimulationResult):
+            return SimulationResult(obj=obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+def deserialize_oogeso_results(json_data):
+    result_data = json.loads(json_data, cls=OogesoResultJSONDecoder)
+    return result_data
 
 
 # Example:

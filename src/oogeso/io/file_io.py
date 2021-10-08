@@ -4,11 +4,16 @@ import yaml
 import json
 import logging
 import pandas as pd
-from oogeso.dto.oogeso_input_data_objects import (
-    EnergySystemData,
-    DataclassJSONDecoder,
-)
+from oogeso.dto import EnergySystemData
+from oogeso.dto.serialisation import DataclassJSONDecoder
+
+# from oogeso.dto.oogeso_input_data_objects import (
+#    EnergySystemData,
+#    DataclassJSONDecoder,
+# )
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 def read_data_from_yaml(
@@ -20,14 +25,14 @@ def read_data_from_yaml(
         data_dict = yaml.safe_load(text_file)
 
     if profiles is not None:
-        logging.debug("Adding profiles to data in yaml file")
+        logger.debug("Adding profiles to data in yaml file")
         if "profiles" in data_dict:
-            logging.warning("Overiding profile data in yaml file")
+            logger.warning("Overiding profile data in yaml file")
         data_dict["profiles"] = profiles
     if profiles_nowcast is not None:
-        logging.debug("Adding profiles to data in yaml file")
+        logger.debug("Adding profiles to data in yaml file")
         if "profiles_nowcast" in data_dict:
-            logging.warning("Overiding profile data in yaml file")
+            logger.warning("Overiding profile data in yaml file")
         data_dict["profiles_nowcast"] = profiles_nowcast
     json_str = json.dumps(data_dict)
     decoder = DataclassJSONDecoder()

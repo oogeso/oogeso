@@ -365,7 +365,7 @@ def plot_SumPowerMix(
             for d, d_obj in optimiser.all_devices.items()
             if d_obj.dev_data.model == "gasturbine"
         ]
-        logger.debug("Shared load=", devs_shareload)
+        logger.debug("Shared load=%s", devs_shareload)
     if devs_shareload:  # list is non-empty
         devs_online = (dfF_out[devs_shareload] > 0).sum(axis=1)
         devs_sum = dfF_out[devs_shareload].sum(axis=1)

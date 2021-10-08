@@ -696,6 +696,7 @@ class Optimiser:
                 # empty dictionary, so no variables to store
                 all_values[myvar.name] = None
                 continue
+            # This creates a pandas.Series:
             df = pd.DataFrame.from_dict(var_values, orient="index", columns=["value"])[
                 "value"
             ]

@@ -7,8 +7,10 @@ from oogeso.dto.oogeso_input_data_objects import CarrierData, EdgeFluidData
 from .network import Network
 import typing
 
-if typing.TYPE_CHECKING:
-    from oogeso.core.networks.network_node import NetworkNode
+from oogeso.core.networks.network_node import NetworkNode
+
+# if typing.TYPE_CHECKING:
+#    from oogeso.core.networks.network_node import NetworkNode
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +125,7 @@ class Fluid(Network):
             if linear & (p0_from == p0_to):
                 method = None
                 if print_log:
-                    logloggerging.debug(
+                    logger.debug(
                         ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(
                             n_from, n_to, p0_from, p0_to
                         )

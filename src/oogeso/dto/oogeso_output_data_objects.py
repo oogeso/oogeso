@@ -18,33 +18,33 @@ class SimulationResult:
     """
 
     # Input/output flow per device and network type:
-    dfDeviceFlow: pd.DataFrame = None
+    dfDeviceFlow: pd.Series = None
     # Device startup preparation status (boolean):
-    dfDeviceIsPrep: pd.DataFrame = None
+    dfDeviceIsPrep: pd.Series = None
     # Device on/off status (boolean):
-    dfDeviceIsOn: pd.DataFrame = None
+    dfDeviceIsOn: pd.Series = None
     # Device starting status (boolean):
-    dfDeviceStarting: pd.DataFrame = None
+    dfDeviceStarting: pd.Series = None
     # Device stopping status (boolean):
-    dfDeviceStopping: pd.DataFrame = None
+    dfDeviceStopping: pd.Series = None
     # Energy storage filling level (Sm3 or MJ)
-    dfDeviceStorageEnergy: pd.DataFrame = None
+    dfDeviceStorageEnergy: pd.Series = None
     # Max available "flow" (power/fluid) from storage (Sm3/s or MW):
-    dfDeviceStoragePmax: pd.DataFrame = None
-    # Device assosiated penalty rate (some unit per sec):
+    dfDeviceStoragePmax: pd.Series = None
+    # Device assosiated penalty rate (PENALTY_UNIT/s):
     dfPenalty: pd.DataFrame = None
     # Flow rate (Sm3/s or MW):
-    dfEdgeFlow: pd.DataFrame = None
+    dfEdgeFlow: pd.Series = None
     # Loss rate (MW) - only relevant for energy flow (el and heat):
-    dfEdgeLoss: pd.DataFrame = None
+    dfEdgeLoss: pd.Series = None
     # Voltage angle at node - only relevant for electricity floc computed via dc-pf:
-    dfElVoltageAngle: pd.DataFrame = None
+    dfElVoltageAngle: pd.Series = None
     # Pressure at node (MPa):
-    dfTerminalPressure: pd.DataFrame = None
+    dfTerminalPressure: pd.Series = None
     # Direct flow between in and out terminal of node - relevant if there is no device inbetween:
-    dfTerminalFlow: pd.DataFrame = None
+    dfTerminalFlow: pd.Series = None
     # Emission rate (sum of all devices) (kgCO2/s):
-    dfCO2rate: pd.DataFrame = None
+    dfCO2rate: pd.Series = None
     # Emission rate per device (kgCO2/s):
     dfCO2rate_per_dev: pd.DataFrame = None
     # Revenue rate for exported oil/gas (CURRENCY/s):
@@ -53,7 +53,7 @@ class SimulationResult:
     dfCO2intensity: pd.DataFrame = None
     # Available online electrical reserve capacity (MW):
     dfElReserve: pd.DataFrame = None
-    # Available online electrical backup margin (MW):
+    # Available online electrical backup per device (MW):
     dfElBackup: pd.DataFrame = None
     # Value of duals (associated with constraints)
     dfDuals: pd.DataFrame = None
