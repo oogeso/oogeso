@@ -13,7 +13,7 @@ class Edge:
         self.edge_data = edge_data_object  # Edge data object as defined in the DTO
         self.edges = {}
 
-    def defineConstraints(self, pyomo_model):
+    def defineConstraints(self, pyomo_model, piecewise_repn):
         """Builds constraints for the edge"""
 
         constr_edge_bounds = pyo.Constraint(
@@ -27,6 +27,7 @@ class Edge:
 
         # Losses (flow out of edge less than into edge)
         if self.has_loss():
+
             # First, connecting variables (flow in different directions and loss variables)
             constr_loss = pyo.Constraint(
                 pyomo_model.setHorizon,
@@ -35,9 +36,9 @@ class Edge:
             )
             setattr(pyomo_model, "constrE_{}_{}".format(self.id, "loss"), constr_loss)
             # Then, add equations for losses vs power flow (piecewise linear equations):
-            for i in pyo.RangeSet(1, 2):
+            for i in [1, 2]:
                 constr_loss_function = self._loss_function_constraint(
-                    i, pyomo_model, self.optimisation_parameters.piecewise_repn
+                    i, pyomo_model, piecewise_repn
                 )
                 setattr(
                     pyomo_model,
@@ -85,9 +86,7 @@ class Edge:
             )
         return expr
 
-    def _loss_function_constraint(self, i, pyomo_model):
-
-        piecewise_repn = self.optimisation_parameters.piecewise_repn
+    def _loss_function_constraint(self, i, pyomo_model, piecewise_repn):
 
         # Piecewise constraints require independent variable to be bounded:
         pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)

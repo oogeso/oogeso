@@ -27,7 +27,9 @@ class Network:
 
     def defineConstraints(self, pyomo_model):
         for edge_id, edge in self.edges.items():
-            edge.defineConstraints(pyomo_model)
+            edge.defineConstraints(
+                pyomo_model, self.optimisation_parameters.piecewise_repn
+            )
 
 
 class Heat(Network):
