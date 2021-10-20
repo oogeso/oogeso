@@ -27,7 +27,7 @@ def test_DevicePowersource():
         penalty_function=[[0, 50], [1, 20]],
     )
     pyomo_model = None
-    optimiser = None
+    # optimiser = oogeso.Optimiser(data=None)
 
     obj = oogeso.devices.Powersource(pyomo_model, optimiser, dev_data)
     assert isinstance(obj, oogeso.devices.Powersource)
