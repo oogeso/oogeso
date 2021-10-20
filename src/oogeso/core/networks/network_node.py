@@ -1,8 +1,11 @@
-import pyomo.environ as pyo
 import logging
-from oogeso.core.networks.edge import Edge
-from oogeso.core.devices.device import Device
-from oogeso.dto.oogeso_input_data_objects import NodeData
+import typing
+import pyomo.environ as pyo
+
+if typing.TYPE_CHECKING:
+    from oogeso.core.networks.edge import Edge
+    from oogeso.core.devices.device import Device
+    from oogeso.dto.oogeso_input_data_objects import NodeData
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +13,7 @@ logger = logging.getLogger(__name__)
 class NetworkNode:
     "Network node"
 
-    def __init__(self, pyomo_model, optimiser, node_data: NodeData):
+    def __init__(self, pyomo_model, optimiser, node_data: "NodeData"):
         self.pyomo_model = pyomo_model
         self.node_data: NodeData = node_data
         self.id = node_data.id
@@ -46,7 +49,7 @@ class NetworkNode:
             self.nominal_pressure[carrier] = {}
             self.nominal_pressure[carrier][term] = pressure
 
-    def addDevice(self, device_id, device: Device):
+    def addDevice(self, device_id, device: "Device"):
         # logger.debug("addDevice: {},{}".format(self.id, device_id))
         self.devices[device_id] = device
         for carrier in device.serial:
@@ -54,7 +57,7 @@ class NetworkNode:
                 self.devices_serial[carrier] = {}
             self.devices_serial[carrier][device_id] = device
 
-    def addEdge(self, edge: Edge, to_from: str):
+    def addEdge(self, edge: "Edge", to_from: str):
         carrier = edge.edge_data.carrier
         edge_id = edge.id
         if to_from == "to":

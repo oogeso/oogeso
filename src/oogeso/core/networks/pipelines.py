@@ -1,5 +1,5 @@
-import pyomo.environ as pyo
 import logging
+import pyomo.environ as pyo
 import numpy as np
 import scipy
 
@@ -13,6 +13,8 @@ from oogeso.core.networks.network_node import NetworkNode
 #    from oogeso.core.networks.network_node import NetworkNode
 
 logger = logging.getLogger(__name__)
+
+GRAVITY_ACCELERATION_CONSTANT = 9.8  # m/s^2
 
 
 class Fluid(Network):
@@ -108,7 +110,6 @@ class Fluid(Network):
         # edge = self.id
         # edge_data = self.edge_data
         edge_id = edge_data.id
-        height_difference = edge_data.height_m
         method = None
         carrier = edge_data.carrier
         carrier_data = self.carrier_data
@@ -175,15 +176,16 @@ class Fluid(Network):
             else:
                 # weymouth eqn (non-linear)
                 p2 = 1 / exp_s * (p1 ** 2 - Q ** 2 / k ** 2) ** (1 / 2)
+            return p2
 
         elif method == "darcy-weissbach":
-            grav = 9.98  # m/s^2
             rho = carrier_data.rho_density
             D = edge_data.diameter_mm / 1000
             L = edge_data.length_km * 1000
+            height_difference = edge_data.height_m
 
             if (carrier_data.viscosity is not None) & (not linear):
-                # compute darcy friction factor from flow rate and viscosity
+                # compute darcy friction factor from flow rate and viscosity (nonlinear)
                 mu = carrier_data.viscosity
                 Re = 2 * rho * Q / (np.pi * mu * D)
                 f = 1 / (0.838 * scipy.special.lambertw(0.629 * Re)) ** 2
@@ -195,36 +197,33 @@ class Fluid(Network):
                 raise Exception(
                     "Must provide viscosity or darcy_friction for {}".format(carrier)
                 )
-            if linear:
-                p_from = p1
-                k = np.sqrt(np.pi ** 2 * D ** 5 / (8 * f * rho * L))
-                sqrtX = np.sqrt(
-                    p0_from * 1e6 - p0_to * 1e6 - rho * grav * height_difference
+            (p2, Q0) = darcy_weissbach_p2(
+                Q,
+                p1 * 1e6,
+                f=f,
+                rho=rho,
+                diameter=D,
+                length=L,
+                height_difference=height_difference,
+                linear=linear,
+                p0_from=p0_from * 1e6,
+                p0_to=p0_to * 1e6,
+            )
+            p2 = p2 * 1e-6  # Convert to MPa
+            if print_log:
+                logger.debug(
+                    (
+                        "derived pipe ({}) flow rate:"
+                        " Q={}, linearQ0={:5.3g},"
+                        " friction={:5.3g}"
+                    ).format(edge_id, Q, Q0, f)
                 )
-                Q0 = k * sqrtX
-                if print_log:
-                    logger.debug(
-                        (
-                            "derived pipe ({}) flow rate:"
-                            " Q={}, linearQ0={:5.3g},"
-                            " friction={:5.3g}"
-                        ).format(edge_id, Q, Q0, f)
-                    )
-                p2 = p_from - 1e-6 * (Q - Q0) * 2 * sqrtX / k - (p0_from - p0_to)
-                # linearised darcy-weissbach:
-                # Q = Q0 + k/(2*sqrtX)*(p_from-p_to - (p0_from-p0_to))
-            else:
-                # darcy-weissbach eqn (non-linear)
-                p2 = 1e-6 * (
-                    p1 * 1e6
-                    - rho * grav * height_difference
-                    - 8 * f * rho * L * Q ** 2 / (np.pi ** 2 * D ** 5)
-                )
+
+            return p2
         else:
             raise Exception(
                 "Unknown pressure drop calculation method ({})".format(method)
             )
-        return p2
 
 
 class Gas(Fluid):
@@ -243,15 +242,76 @@ class Wellstream(Fluid):
     pass
 
 
-def darcy_weissbach_Q(p1, p2, f, rho, diameter_mm, length_km, height_difference_m=0):
-    """compute flow rate from darcy-weissbach eqn
+def darcy_weissbach_p2(
+    Q,
+    p1,
+    f,
+    rho,
+    diameter,
+    length,
+    height_difference=0,
+    linear=True,
+    p0_from=None,  # Pa
+    p0_to=None,  # Pa
+) -> typing.Tuple[float, float]:
+    """compute outlet pressure from darcy-weissbach equation
 
     parameters
     ----------
     p1 : float
-        pressure at pipe input (Pa)
+        pressure at pipe inlet (Pa)
+    Q : float
+        flow rate (Sm3/s)
+    f : float
+        friction factor
+    rho : float
+        fluid density (kg/m3)
+    diameter : float
+        pipe inner diameter (m)
+    length : float
+        pipe length (m)
+    height_difference : float
+        height difference outlet vs inlet (m)
+
+    """
+    D = diameter  # m
+    L = length  # m
+    grav = GRAVITY_ACCELERATION_CONSTANT
+    q0 = np.nan
+    if linear:
+        k2 = (8 * f * rho * L) / (np.pi ** 2 * D ** 5)
+        q0_squared = 1 / k2 * ((p0_from - p0_to) - rho * grav * height_difference)
+        if q0_squared < 0:
+            logging.error(
+                "Negative q0^2 (flow direction error) q0^2=%s p1=%s p2=%s rho=%s grav=%s z=%s",
+                q0_squared,
+                p0_from,
+                p0_to,
+                rho,
+                grav,
+                height_difference,
+            )
+        q0 = np.sqrt(q0_squared)
+        p2 = p1 - rho * grav * height_difference - k2 * (2 * q0 * Q - q0 ** 2)
+    else:
+        # Quadratic in Q
+        p2 = (
+            p1
+            - rho * grav * height_difference
+            - 8 * f * rho * L * Q ** 2 / (np.pi ** 2 * D ** 5)
+        )
+    return (p2, q0)
+
+
+def darcy_weissbach_Q(p1, p2, f, rho, diameter_mm, length_km, height_difference_m=0):
+    """compute flow rate from non-linear darcy-weissbach eqn
+
+    parameters
+    ----------
+    p1 : float
+        pressure at pipe input (MPa)
     p2 : float
-        pressure at pipe output (Pa)
+        pressure at pipe output (MPa)
     f : float
         friction factor
     rho : float

@@ -1,4 +1,5 @@
 import logging
+from numpy import float64
 import pandas as pd
 import pyomo.environ as pyo
 from oogeso.dto.oogeso_input_data_objects import EnergySystemData
@@ -130,7 +131,7 @@ class Simulator:
         if data_to_keep is not None:
             logger.warn("Storing only a subset of the data not implemented yet.")
 
-        # Retrieve variable values as dictionary with dataframes
+        # Retrieve variable values as dictionary with pandas series
         res = self.optimiser.extract_all_variable_values(timelimit, timeshift)
 
         if store_duals is not None:
@@ -175,8 +176,8 @@ class Simulator:
                 df_co2_rate_dev.loc[t + timestep, d] = pyo.value(co2_dev)
 
         # CO2 emission intensity (sum) and emission rate
-        df_co2intensity = pd.Series()
-        df_co2_rate_sum = pd.Series()
+        df_co2intensity = pd.Series(dtype=float64)
+        df_co2_rate_sum = pd.Series(dtype=float64)
         for t in range(timelimit):
             df_co2intensity.loc[t + timestep] = pyo.value(
                 self.optimiser.compute_CO2_intensity(pyomo_instance, timesteps=[t])
@@ -193,7 +194,7 @@ class Simulator:
                 this_penalty = dev.compute_penalty([t])
                 df_penalty.loc[t + timestep, d] = pyo.value(this_penalty)
 
-        # Revenue from exported energy
+        # Revenue from exported energy (per carrier)
         df_exportRevenue = pd.DataFrame()
         for c in pyomo_instance.setCarrier:
             for t in range(timelimit):

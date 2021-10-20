@@ -92,7 +92,7 @@ class Storage_el(_StorageDevice):
         elif i == 9:
             # constraint on storage end vs start
             # Adding this does not seem to improve result (not lower CO2)
-            if (dev_data.E_end is not None) and (t == model.setHorizon[-1]):
+            if (dev_data.E_end is not None) and (t == model.setHorizon.last()):
                 lhs = model.varDeviceStorageEnergy[dev, t]
                 # rhs = model.varDeviceStorageEnergy[dev,0] # end=start
                 rhs = dev_data.E_end
@@ -181,7 +181,7 @@ class Storage_hydrogen(_StorageDevice):
             # Xprime>(E_end-E_target)
             # should we instead use
             # Xprime >= 0 (we still need the lower limit (or bound) to avoid negative cost)
-            if t != model.setHorizon[-1]:
+            if t != model.setHorizon.last():
                 return pyo.Constraint.Skip
             Xprime = model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
@@ -190,7 +190,7 @@ class Storage_hydrogen(_StorageDevice):
             return Xprime >= deviation
         elif i == 4:
             # deviation from target and absolute value at the end of horizon
-            if t != model.setHorizon[-1]:
+            if t != model.setHorizon.last():
                 return pyo.Constraint.Skip
             Xprime = model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
@@ -234,7 +234,7 @@ class Storage_hydrogen(_StorageDevice):
         dev_data = self.dev_data
         E_target = dev_data.E_max
         E_target = self.pyomo_model.paramDeviceEnergyTarget[self.id]
-        t_end = timesteps[-1]
+        t_end = timesteps.last()
         varE = self.pyomo_model.varDeviceStorageEnergy[self.id, t_end]
         stor_cost = dev_data.E_cost * (E_target - varE)
         # from cost (kr) to cost rate (kr/s):

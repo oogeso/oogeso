@@ -62,13 +62,11 @@ class Compressor_gas(Device):
     def _rules(self, model, t):
         dev = self.id
         dev_data: DeviceCompressor_gasData = self.dev_data
-        node_obj = self.pyomo_model.all_nodes[dev_data.node_id]
-        param_gas = self.pyomo_model.all_carriers["gas"]
-        gas_energy_content = self.optimiser.all_carriers["gas"][
-            "energy_value"
-        ]  # MJ/Sm3
+        node_obj: NetworkNode = self.node
+        gas_data = self.all_networks["gas"].carrier_data
+        gas_energy_content = gas_data.energy_value  # MJ/Sm3
         powerdemand = compute_compressor_demand(
-            model, self, node_obj, param_gas, linear=True, t=t
+            model, self, node_obj, gas_data, linear=True, t=t
         )
         # matter conservation:
         lhs = model.varDeviceFlow[dev, "gas", "out", t]
@@ -90,8 +88,8 @@ class Compressor_gas(Device):
     def compute_CO2(self, timesteps):
         model = self.pyomo_model
         d = self.id
-        param_gas = self.optimiser.all_carriers["gas"]
-        gasflow_co2 = param_gas.CO2content  # kg/m3
+        gas_data = self.all_networks["gas"].carrier_data
+        gasflow_co2 = gas_data.CO2content  # kg/m3
         thisCO2 = (
             sum(
                 (

@@ -1,16 +1,20 @@
 import logging
-from dataclasses import asdict
 import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
-
-from oogeso.dto.oogeso_input_data_objects import (
-    EnergySystemData,
-    OptimisationParametersData,
-)
 from . import devices, networks
 from .networks import electricalsystem as el_calc
 from .networks.network_node import NetworkNode
+from typing import TYPE_CHECKING, Dict
+
+if TYPE_CHECKING:
+    from oogeso.dto.oogeso_input_data_objects import (
+        EnergySystemData,
+        OptimisationParametersData,
+    )
+    from oogeso.core.devices.device import Device
+    from oogeso.core.networks.edge import Edge
+    from oogeso.core.networks.network import Network
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +24,15 @@ class Optimiser:
 
     ZERO_WARNING_THRESHOLD = 1e-6
 
-    def __init__(self, data: EnergySystemData):
+    def __init__(self, data: "EnergySystemData"):
         """Create optimisation problem formulation with supplied data"""
 
         # dictionaries {key:object} for all devices, nodes and edges
-        self.all_devices = {}
-        self.all_nodes = {}
-        self.all_edges = {}
+        self.all_devices: Dict[str, Device] = {}
+        self.all_nodes: Dict[str, NetworkNode] = {}
+        self.all_edges: Dict[str, Edge] = {}
         #        self.all_carriers = {}
-        self.all_networks = {}
+        self.all_networks: Dict[str, Network] = {}
         self.optimisation_parameters: OptimisationParametersData = data.parameters
         self.pyomo_instance = None
         # List of constraints that need to be reconstructed for each optimisation:
@@ -87,7 +91,7 @@ class Optimiser:
                 p_to = edg.pressure_to
                 n_to.set_nominal_pressure(carrier, "in", p_to)
 
-    def createOptimisationModel(self, data: EnergySystemData):
+    def createOptimisationModel(self, data: "EnergySystemData"):
         """Create pyomo MILP model
 
         Parameters:

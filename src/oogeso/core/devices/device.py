@@ -1,5 +1,9 @@
 import pyomo.environ as pyo
 import logging
+from oogeso.core.networks.network import Network
+from oogeso.core.networks.network_node import NetworkNode
+from oogeso.dto.oogeso_input_data_objects import DeviceData, OptimisationParametersData
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +18,14 @@ class Device:
 
     def __init__(self, pyomo_model, optimiser, dev_data):
         """Device object constructor"""
-        self.dev_data = dev_data
+        self.dev_data: DeviceData = dev_data
         self.id = dev_data.id
         self.pyomo_model = pyomo_model
-        self.all_networks = optimiser.all_networks
-        self.node = None
-        self.optimisation_parameters = optimiser.optimisation_parameters
+        self.all_networks: Dict[str, Network] = optimiser.all_networks
+        self.node: NetworkNode = None
+        self.optimisation_parameters: OptimisationParametersData = (
+            optimiser.optimisation_parameters
+        )
         # parameter keeping track of upper bound (needed in piecewise linear constraints):
         self._flow_upper_bound = None
 
