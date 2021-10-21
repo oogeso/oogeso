@@ -38,6 +38,7 @@ def plot_df(df, id_var, filename=None, title=None, ylabel="value"):
 
 def plot_deviceprofile(
     sim_result,
+    optimisation_model,
     devs,
     filename=None,
     reverseLegend=True,
@@ -51,6 +52,7 @@ def plot_deviceprofile(
     Parameters
     ==========
     sim_results : SimulationResults object
+    optimisation_model : OptimisationModel object
     devs : list
         which devices to include
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
@@ -63,7 +65,7 @@ def plot_deviceprofile(
 
     """
     res = sim_result
-    optimiser = sim_result.optimiser
+    optimiser = optimisation_model
     if type(devs) is not list:
         devs = [devs]
     if includeForecasts & (len(devs) > 1):
@@ -226,10 +228,12 @@ def plot_deviceprofile(
     return fig
 
 
-def plot_devicePowerEnergy(sim_result, dev, filename=None, energy_fill_opacity=None):
+def plot_devicePowerEnergy(
+    sim_result, optimisation_model, dev, filename=None, energy_fill_opacity=None
+):
     """Plot power in/out of device and storage level (if any)"""
     res = sim_result
-    optimiser = res.optimiser
+    optimiser = optimisation_model
     dev_data = optimiser.all_devices[dev].dev_data
     devname = "{}:{}".format(dev, dev_data.name)
 
@@ -315,6 +319,7 @@ def plot_devicePowerEnergy(sim_result, dev, filename=None, energy_fill_opacity=N
 
 def plot_SumPowerMix(
     sim_result,
+    optimisation_model,
     carrier,
     filename=None,
     reverseLegend=True,
@@ -327,6 +332,7 @@ def plot_SumPowerMix(
     Parameters
     ==========
     sim_result : SimulationResult object
+    optimisation_model : Oogeso optimisation model
     carrier : string
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
         list of devices for which power should be shared evenly (typically gas turbines)
@@ -337,7 +343,7 @@ def plot_SumPowerMix(
     """
     # optimiser = simulator.optimiser
     res = sim_result
-    optimiser = sim_result.optimiser
+    optimiser = optimisation_model
     # Power flow in/out
     dfF = res.dfDeviceFlow
     tmin = dfF.index.get_level_values("time").min()
@@ -474,13 +480,17 @@ def plot_CO2rate(sim_result, filename=None):
 
 
 def plot_CO2rate_per_dev(
-    sim_result, filename=None, reverseLegend=False, devs_shareload=[]
+    sim_result,
+    optimisation_model,
+    filename=None,
+    reverseLegend=False,
+    devs_shareload=[],
 ):
 
     # df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
     # labels = (df_info.index.astype(str))# +'_'+df_info['name'])
     res = sim_result
-    all_devices = res.optimiser.all_devices
+    all_devices = optimisation_model.all_devices
     dfplot = res.dfCO2rate_per_dev.loc[:, ~(res.dfCO2rate_per_dev == 0).all()].copy()
 
     if devs_shareload is None:
@@ -621,9 +631,11 @@ def plotProfiles(profiles, filename=None):
     return fig
 
 
-def plotDevicePowerFlowPressure(sim_result, dev, carriers_inout=None, filename=None):
+def plotDevicePowerFlowPressure(
+    sim_result, optimisation_model, dev, carriers_inout=None, filename=None
+):
     res = sim_result
-    all_devices = res.optimiser.all_devices
+    all_devices = optimisation_model.all_devices
     dev_obj = all_devices[dev]
     dev_data = dev_obj.dev_data
     node = dev_data.node_id
@@ -1013,6 +1025,7 @@ def plotGasTurbineEfficiency(
 
 def plotReserve(
     sim_result,
+    optimisation_model,
     includeMargin=True,
     dynamicMargin=True,
     useForecast=False,
@@ -1021,7 +1034,7 @@ def plotReserve(
     """Plot unused online capacity by all el devices"""
     df_devs = pd.DataFrame()
     res = sim_result
-    optimiser = sim_result.optimiser
+    optimiser = optimisation_model
     timerange = list(res.dfExportRevenue.index)
     marginIncr = pd.DataFrame(0, index=timerange, columns=["margin"])
     for d, dev_obj in optimiser.all_devices.items():
@@ -1172,11 +1185,11 @@ def plotElBackup(sim_result, filename=None, showMargin=False, returnMargin=False
     return fig
 
 
-def recompute_elBackup(res):
+def recompute_elBackup(res, optimisation_model):
     """Compute reserve
     should give the same as mc.compute_elReserve"""
-    optimiser = res.optimiser
-    model = res.optimiser.pyomo_instance
+    optimiser = optimisation_model
+    model = optimiser.pyomo_instance
     all_devices = optimiser.all_devices
 
     # used capacity for all (relevant) devices:
