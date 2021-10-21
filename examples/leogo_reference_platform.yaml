@@ -36,7 +36,7 @@ carriers:
     darcy_friction: 0.01
     pressure_method: darcy-weissbach
     rho_density: 1000 # kg/m3
-    viscosity: 0.001 # kg/(m s)
+    #viscosity: 0.001 # kg/(m s) # use friction factor instead
   - id: wellstream
     darcy_friction: 0.0136
     pressure_method: darcy-weissbach
@@ -556,7 +556,7 @@ edges:
     node_from: pump_water
     node_to: water_injection
     num_pipes: 15
-    pressure_from: 27.0 # MPa
+    pressure_from: 25.12 #Harald changed from 27.0 # MPa
     pressure_to: 26.0 # MPa
     carrier: water
 
