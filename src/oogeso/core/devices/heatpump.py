@@ -15,15 +15,15 @@ class Heatpump(Device):
         rhs = model.varDeviceFlow[dev, "el", "in", t] * model.paramDevice[dev]["eta"]
         return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr = pyo.Constraint(model.setHorizon, rule=self._rules)
+        constr = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
         # add constraint to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.dev_id, "misc"), constr)
         return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.dev_id, "el", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.dev_id, "el", "in", t]

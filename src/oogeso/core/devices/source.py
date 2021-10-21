@@ -9,11 +9,11 @@ class Source_el(Device):
     carrier_out = ["el"]
     serial = []
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default
-    def compute_CO2(self, timesteps):
+    def compute_CO2(self, pyomo_model, timesteps):
         # co2 content in fuel combustion
         # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
         # need to convert co2em to kgCO2/(MW*s)
@@ -21,7 +21,7 @@ class Source_el(Device):
         if self.dev_data.co2em is not None:
             thisCO2 = (
                 sum(
-                    self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+                    pyomo_model.varDeviceFlow[self.id, "el", "out", t]
                     * self.dev_data.co2em
                     for t in timesteps
                 )
@@ -37,15 +37,15 @@ class Powersource(Device):
     carrier_out = ["el"]
     serial = []
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         if self.dev_data.penalty_function is not None:
-            constr_penalty = self._penaltyConstraint()
+            constr_penalty = self._penaltyConstraint(pyomo_model)
             setattr(
-                self.pyomo_model,
+                pyomo_model,
                 "constrPW_{}_{}".format(self.id, "penalty"),
                 constr_penalty,
             )
@@ -56,23 +56,23 @@ class Powersource(Device):
     # But only (device_id, time) is relevant
     # Could define a "varDevicePower" (or better name) representing the main variable
     # used with p_max / q_max / penalty_function
-    def _penaltyConstraint(self):
+    def _penaltyConstraint(self, pyomo_model):
         # Piecewise constraints require independent variable to be bounded:
         # ub = self.dev_data.flow_max
         ub = self.getFlowUpperBound()
-        self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setlb(0)
-        self.pyomo_model.varDeviceFlow[self.id, "el", "out", :].setub(ub)
+        pyomo_model.varDeviceFlow[self.id, "el", "out", :].setlb(0)
+        pyomo_model.varDeviceFlow[self.id, "el", "out", :].setub(ub)
         lookup_table = self.dev_data.penalty_function
         pw_x = lookup_table[0]
         pw_y = lookup_table[1]
-        var_x = self.pyomo_model.varDeviceFlow  # [self.dev_id, "el", "out", :]
-        var_y = self.pyomo_model.varDevicePenalty  # [self.dev_id, "el", "out", :]
-        pw_repn = self.optimisation_parameters.piecewise_repn
+        var_x = pyomo_model.varDeviceFlow  # [self.dev_id, "el", "out", :]
+        var_y = pyomo_model.varDevicePenalty  # [self.dev_id, "el", "out", :]
+        pw_repn = pyomo_model.paramPiecewiseRepn
         constr_penalty = pyo.Piecewise(
             [self.id],
             ["el"],
             ["out"],
-            self.pyomo_model.setHorizon,
+            pyomo_model.setHorizon,
             var_y,
             var_x,
             pw_repn=pw_repn,  # default "SOS2" does not work with CBC solver
@@ -82,8 +82,8 @@ class Powersource(Device):
         )
         return constr_penalty
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
 
 class Source_gas(Device):
@@ -98,22 +98,22 @@ class Source_gas(Device):
         rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
         # add generic device constraints:
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr_well = pyo.Constraint(self.pyomo_model.setHorizon, rule=self._rules)
+        constr_well = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
         # add constraint to model:
         setattr(
-            self.pyomo_model,
+            pyomo_model,
             "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
 
 
 class Source_oil(Device):
@@ -128,22 +128,22 @@ class Source_oil(Device):
         rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
         # add generic device constraints:
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr_well = pyo.Constraint(self.pyomo_model.setHorizon, rule=self._rules)
+        constr_well = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
         # add constraint to model:
         setattr(
-            self.pyomo_model,
+            pyomo_model,
             "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "oil", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "oil", "out", t]
 
 
 class Source_water(Device):
@@ -158,19 +158,19 @@ class Source_water(Device):
         rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
         # add generic device constraints:
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr_well = pyo.Constraint(self.pyomo_model.setHorizon, rule=self._rules)
+        constr_well = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
         # add constraint to model:
         setattr(
-            self.pyomo_model,
+            pyomo_model,
             "constr_{}_{}".format(self.id, "pressure"),
             constr_well,
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "water", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "water", "out", t]

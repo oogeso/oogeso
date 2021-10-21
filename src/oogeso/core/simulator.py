@@ -4,7 +4,7 @@ import pandas as pd
 import pyomo.environ as pyo
 from oogeso.dto.oogeso_input_data_objects import EnergySystemData
 from oogeso.dto.oogeso_output_data_objects import SimulationResult
-from .optimiser import Optimiser
+from .optimiser import OptimisationModel
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 try:
     from tqdm import trange
 
-    has_tqdm = True
-except:
+    HAS_TQDM = True
+except ImportError as err:
     logger.info("Consider installing tqdm to get progress bar")
     trange = range
-    has_tqdm = False
+    HAS_TQDM = False
 
 
 class Simulator:
@@ -28,11 +28,12 @@ class Simulator:
         Parameters
         ----------
         data : EnergySystemData
-            Data object (nodes, edges, devices, profiles)
+            Data object holding information about the system (nodes, edges, devices, profiles)
+            and parameter settings
         """
 
-        # Abstract pyomo model formulation
-        self.optimiser = Optimiser(data)
+        # Optimisation model object:
+        self.optimiser = OptimisationModel(data)
 
         self.result_object = None
 
@@ -48,8 +49,8 @@ class Simulator:
             "forecast": _df_profiles_forecast,
         }
 
-    def setOptimiser(self, optimiser):
-        self.optimiser = optimiser
+    #    def setOptimiser(self, optimiser):
+    #        self.optimiser = optimiser
 
     def runSimulation(
         self,
@@ -82,7 +83,7 @@ class Simulator:
         steps = self.optimiser.optimisation_parameters.optimisation_timesteps
         horizon = self.optimiser.optimisation_parameters.planning_horizon
         if timelimit is not None:
-            logger.debug("Using solver timelimit={}".format(timelimit))
+            logger.debug("Using solver timelimit=%s", timelimit)
         if timerange is None:
             # use the entire timeseries
             time_start = 0
@@ -99,9 +100,9 @@ class Simulator:
 
         first = True
         for step in trange(time_start, time_end, steps):
-            if not has_tqdm:
+            if not HAS_TQDM:
                 # no progress bar
-                logger.info("Solving timestep={}".format(step))
+                logger.info("Solving timestep=%s", step)
             # 1. Update problem formulation
             self.optimiser.updateOptimisationModel(
                 step, first=first, profiles=self.profiles
@@ -129,7 +130,7 @@ class Simulator:
 
         # TODO: Implement possibility to store subset of the data
         if data_to_keep is not None:
-            logger.warn("Storing only a subset of the data not implemented yet.")
+            logger.warning("Storing only a subset of the data not implemented yet.")
 
         # Retrieve variable values as dictionary with pandas series
         res = self.optimiser.extract_all_variable_values(timelimit, timeshift)
@@ -146,7 +147,7 @@ class Simulator:
                 vrs = val["indx"]
                 constr = getattr(pyomo_instance, val["constr"])
                 logger.info(constr)
-                sumduals = 0
+                # sumduals = 0
                 for t in range(timelimit):
                     # Replace None by the timestep, ('util',None) -> ('util',t)
                     vrs1 = tuple(x if x is not None else t for x in vrs)
@@ -191,7 +192,7 @@ class Simulator:
         df_penalty = pd.DataFrame()
         for d, dev in self.optimiser.all_devices.items():
             for t in range(timelimit):
-                this_penalty = dev.compute_penalty([t])
+                this_penalty = dev.compute_penalty(pyomo_instance, [t])
                 df_penalty.loc[t + timestep, d] = pyo.value(this_penalty)
 
         # Revenue from exported energy (per carrier)
@@ -207,21 +208,23 @@ class Simulator:
         df_reserve = pd.DataFrame()
         for t in range(timelimit):
             rescap = pyo.value(
-                self.optimiser.all_networks["el"].compute_elReserve(pyomo_instance, t)
+                self.optimiser.all_networks["el"].compute_elReserve(
+                    pyomo_instance, t, self.optimiser.all_devices
+                )
             )
             df_reserve.loc[t + timestep, "reserve"] = rescap
 
         # Backup capacity
         df_backup = pd.DataFrame()
         devs_elout = []
-        for dev_id, dev_obj in self.optimiser.all_devices.items():
+        for dev_obj in self.optimiser.all_devices.values():
             if "el" in dev_obj.carrier_out:
                 devs_elout.append(dev_obj.id)
         for t in range(timelimit):
             for d in devs_elout:
                 rescap = pyo.value(
                     self.optimiser.all_networks["el"].compute_elReserve(
-                        pyomo_instance, t, exclude_device=d
+                        pyomo_instance, t, self.optimiser.all_devices, exclude_device=d
                     )
                 )
                 df_backup.loc[t + timestep, d] = rescap

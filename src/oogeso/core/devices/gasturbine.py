@@ -11,7 +11,7 @@ class Gasturbine(Device):
 
     def _rules_misc(self, model, t, i):
         dev = self.id
-        param_gas = self.all_networks["gas"].carrier_data
+        param_gas = self.carrier_data["gas"]
         # elpower = model.varDeviceFlow[dev, "el", "out", t]
         gas_energy_content = param_gas.energy_value  # MJ/Sm3
         if i == 1:
@@ -37,26 +37,25 @@ class Gasturbine(Device):
             ) * self.dev_data.eta_heat
             return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         constr = pyo.Constraint(
-            self.pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_misc
+            pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_misc
         )
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default
-    def compute_CO2(self, timesteps):
-        model = self.pyomo_model
-        param_gas = self.all_networks["gas"].carrier_data
+    def compute_CO2(self, pyomo_model, timesteps):
+        param_gas = self.carrier_data["gas"]
         gasflow_co2 = param_gas.co2_content  # kg/m3
         thisCO2 = (
-            sum(model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps)
+            sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps)
             * gasflow_co2
         )
         return thisCO2

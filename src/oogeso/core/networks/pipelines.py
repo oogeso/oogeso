@@ -2,6 +2,7 @@ import logging
 import pyomo.environ as pyo
 import numpy as np
 import scipy
+from oogeso.core.networks.edge import Edge
 
 from oogeso.dto.oogeso_input_data_objects import CarrierData, EdgeFluidData
 from .network import Network
@@ -40,7 +41,8 @@ class Fluid(Network):
     def _rulePipelineFlow(self, model, edge, t):
         """Pipeline flow vs pressure drop"""
         # edge = self.id
-        edge_data = self.edges[edge].edge_data
+        edge_obj = self.edges[edge]
+        edge_data = edge_obj.edge_data
         carrier = edge_data.carrier
         n_from = edge_data.node_from
         n_to = edge_data.node_to
@@ -55,7 +57,7 @@ class Fluid(Network):
                 logger.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
             Q = Q / num_pipes
         p2_computed = self.compute_edge_pressuredrop(
-            edge_data, p1=p1, Q=Q, linear=True, print_log=print_log
+            edge_obj, p1=p1, Q=Q, linear=True, print_log=print_log
         )
         return p2 == p2_computed
 
@@ -86,13 +88,13 @@ class Fluid(Network):
         return exp_s, k
 
     def compute_edge_pressuredrop(
-        self, edge_data, p1, Q, method=None, linear=False, print_log=True
+        self, edge: "Edge", p1, Q, method=None, linear=False, print_log=True
     ):
         """Compute pressure drop in pipe
 
         parameters
         ----------
-        edge_data : edge data object
+        edge : edge object
         p1 : float
             pipe inlet pressure (MPa)
         Q : float
@@ -108,7 +110,7 @@ class Fluid(Network):
             pipe outlet pressure (MPa)"""
 
         # edge = self.id
-        # edge_data = self.edge_data
+        edge_data = edge.edge_data
         edge_id = edge_data.id
         method = None
         carrier = edge_data.carrier
@@ -118,10 +120,8 @@ class Fluid(Network):
 
         n_from = edge_data.node_from
         n_to = edge_data.node_to
-        n_from_obj: NetworkNode = self.all_nodes[n_from]
-        n_to_obj: NetworkNode = self.all_nodes[n_to]
-        p0_from = n_from_obj.get_nominal_pressure(carrier, "out")
-        p0_to = n_to_obj.get_nominal_pressure(carrier, "in")
+        p0_from = edge.node_from.get_nominal_pressure(carrier, "out")
+        p0_to = edge.node_to.get_nominal_pressure(carrier, "in")
         if (p0_from is not None) and (p0_to is not None):
             if linear & (p0_from == p0_to):
                 method = None

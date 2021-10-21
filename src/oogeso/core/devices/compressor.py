@@ -19,7 +19,7 @@ class Compressor_el(Device):
     def _rules(self, model, t, i):
         dev = self.id
         node_obj: NetworkNode = self.node
-        gas_data = self.all_networks["gas"].carrier_data
+        gas_data = self.carrier_data["gas"]
         if i == 1:
             """gas flow in equals gas flow out (mass flow)"""
             lhs = model.varDeviceFlow[dev, "gas", "in", t]
@@ -33,24 +33,24 @@ class Compressor_el(Device):
             )
             return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         constr_compressor_el = pyo.Constraint(
-            self.pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules
+            pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules
         )
         # add constraint to model:
         setattr(
-            self.pyomo_model,
+            pyomo_model,
             "constr_{}_{}".format(self.id, "compr"),
             constr_compressor_el,
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
 class Compressor_gas(Device):
@@ -63,7 +63,7 @@ class Compressor_gas(Device):
         dev = self.id
         dev_data: DeviceCompressor_gasData = self.dev_data
         node_obj: NetworkNode = self.node
-        gas_data = self.all_networks["gas"].carrier_data
+        gas_data = self.carrier_data["gas"]
         gas_energy_content = gas_data.energy_value  # MJ/Sm3
         powerdemand = compute_compressor_demand(
             model, self, node_obj, gas_data, linear=True, t=t
@@ -75,26 +75,25 @@ class Compressor_gas(Device):
         )
         return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr = pyo.Constraint(self.pyomo_model.setHorizon, rule=self._rules)
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "compr"), constr)
+        constr = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "compr"), constr)
         return list_to_reconstruct
 
     # overriding default
-    def compute_CO2(self, timesteps):
-        model = self.pyomo_model
+    def compute_CO2(self, pyomo_model, timesteps):
         d = self.id
-        gas_data = self.all_networks["gas"].carrier_data
+        gas_data = self.carrier_data["gas"]
         gasflow_co2 = gas_data.CO2content  # kg/m3
         thisCO2 = (
             sum(
                 (
-                    model.varDeviceFlow[d, "gas", "in", t]
-                    - model.varDeviceFlow[d, "gas", "out", t]
+                    pyomo_model.varDeviceFlow[d, "gas", "in", t]
+                    - pyomo_model.varDeviceFlow[d, "gas", "out", t]
                 )
                 for t in timesteps
             )

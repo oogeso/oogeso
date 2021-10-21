@@ -1,40 +1,32 @@
-from oogeso.core.networks.network_node import NetworkNode
-from ...dto.oogeso_input_data_objects import (
-    CarrierElData,
-    EdgeElData,
-    NodeData,
-    DeviceData,
-    OptimisationParametersData,
-)
 from .network import Network
 from dataclasses import asdict
 from . import electricalsystem as el_calc
 import logging
 import pyomo.environ as pyo
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
+
+if TYPE_CHECKING:
+    from oogeso.core.devices import Device
 
 logger = logging.getLogger(__name__)
 
 
 class El(Network):
-    def __init__(
-        self,
-        carrier_data: CarrierElData,
-        all_nodes: Dict[str, NodeData],
-        all_devices: Dict[str, DeviceData],
-        edges: Dict[str, EdgeElData],
-        optimisation_parameters: OptimisationParametersData,
-    ):
+    # def __init__(
+    #    self,
+    #    carrier_data: CarrierElData,
+    #    edges: Dict[str, EdgeElData],
+    # ):
+    #    super().__init__(carrier_data, edges)
 
-        super().__init__(
-            carrier_data, all_nodes, all_devices, edges, optimisation_parameters
-        )
+    def defineConstraints(self, pyomo_model):
+        super().defineConstraints(pyomo_model)
 
         if self.carrier_data.powerflow_method == "dc-pf":
             logger.warning(
                 "TODO: code for electric powerflow calculations need improvement (pu conversion)"
             )
-            nodelist = self.all_nodes.keys()
+            nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
             edgelist_el = {
                 edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()
             }
@@ -44,28 +36,6 @@ class El(Network):
             self.elFlowCoeffB = coeff_B
             self.elFlowCoeffDA = coeff_DA
 
-    def defineConstraints(self, pyomo_model):
-        super().defineConstraints(pyomo_model)
-
-        el_reserve_margin = self.carrier_data.el_reserve_margin
-        el_backup_margin = self.carrier_data.el_backup_margin
-
-        if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
-            pyomo_model.constrO_elReserveMargin = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_elReserveMargin
-            )
-        else:
-            logger.info("No el_reserve_margin limit specified")
-        if (el_backup_margin is not None) and (el_backup_margin >= 0):
-            pyomo_model.constrO_elBackupMargin = pyo.Constraint(
-                pyomo_model.setDevice,
-                pyomo_model.setHorizon,
-                rule=self._rule_elBackupMargin,
-            )
-        else:
-            logger.info("No el_backup_margin limit specified")
-
-        if self.carrier_data.powerflow_method == "dc-pf":
             # Reference voltage node:
             constr_ElVoltageReference = pyo.Constraint(
                 pyomo_model.setHorizon, rule=self._rule_elVoltageReference
@@ -105,45 +75,19 @@ class El(Network):
             )
         return lhs == rhs
 
-    def _rule_elReserveMargin(self, model, t):
-        """Reserve margin constraint (electrical supply)
-        Not used capacity by power suppliers/storage/load flexibility
-        must be larger than some specified margin
-        (to cope with unforeseen variations)
-        """
-        # exclude constraint for first timesteps since the point of the
-        # dispatch margin is exactly to cope with forecast errors
-        if t < self.optimisation_parameters.forecast_timesteps:
-            return pyo.Constraint.Skip
-
-        margin = self.carrier_data.el_reserve_margin
-        capacity_unused = self.compute_elReserve(model, t, self.all_devices)
-        expr = capacity_unused >= margin
-        return expr
-
-    def _rule_elBackupMargin(self, model, dev, t):
-        """Backup capacity constraint (electrical supply)
-        Not used capacity by other online power suppliers plus sheddable
-        load must be larger than power output of this device
-        (to take over in case of a fault)
-
-        elBackupMargin is zero or positive (if loss of load is acceptable)
-        """
-        dev_obj = self.all_devices[dev]
-        margin = self.carrier_data.el_backup_margin
-        if "el" not in dev_obj.carrier_out:
-            # this is not a power generator
-            return pyo.Constraint.Skip
-        res_otherdevs = self.compute_elReserve(model, t, exclude_device=dev)
-        expr = res_otherdevs - model.varDeviceFlow[dev, "el", "out", t] >= -margin
-        return expr
-
-    def compute_elReserve(self, pyomo_model, t, exclude_device=None):
+    def compute_elReserve(
+        self,
+        pyomo_model,
+        t,
+        all_devices: Dict[str, "Device"],
+        exclude_device: str = None,
+    ):
         """compute non-used generator capacity (and available loadflex)
         This is reserve to cope with forecast errors, e.g. because of wind
         variation or motor start-up
-        (does not include load reduction yet)
 
+        all_devices : dict
+            dictionary of all devices in the model {device_id:device_object}
         exclue_device : str (default None)
             compute reserve by devices excluding this one
         """
@@ -153,13 +97,11 @@ class El(Network):
         p_generating = 0
         loadreduction = 0
         for d in alldevs:
-            dev_obj = self.all_devices[d]
-            reserve = dev_obj.compute_elReserve(t)
+            dev_obj = all_devices[d]
+            reserve = dev_obj.compute_elReserve(pyomo_model, t)
             cap_avail += reserve["capacity_available"]
             p_generating += reserve["capacity_used"]
             loadreduction += reserve["loadreduction_available"]
 
         res_dev = (cap_avail - p_generating) + loadreduction
-        # logger.info("TODO: elReserve: Ignoring load reduction option")
-        # res_dev = (cap_avail-p_generating)
         return res_dev

@@ -1,17 +1,24 @@
-import pyomo.environ as pyo
 import typing
+import pyomo.environ as pyo
 
-# if typing.TYPE_CHECKING:
-from ...dto.oogeso_input_data_objects import EdgeData
+if typing.TYPE_CHECKING:
+    from ...dto.oogeso_input_data_objects import EdgeData
+    from oogeso.core.networks.network_node import NetworkNode
 
 
 class Edge:
     "Network edge"
 
-    def __init__(self, edge_data_object: EdgeData):
+    def __init__(self, edge_data_object: "EdgeData"):
         self.id = edge_data_object.id
         self.edge_data = edge_data_object  # Edge data object as defined in the DTO
         self.edges = {}
+        self.node_from: "NetworkNode" = None
+        self.node_to: "NetworkNode" = None
+
+    def addNodes(self, node_from: "NetworkNode", node_to: "NetworkNode"):
+        self.node_from = node_from
+        self.node_to = node_to
 
     def defineConstraints(self, pyomo_model, piecewise_repn):
         """Builds constraints for the edge"""

@@ -10,7 +10,7 @@ def test_simulator_create():
     simulator = oogeso.Simulator(data)
     # If not failed above, it's OK
     assert isinstance(simulator, oogeso.Simulator)
-    assert isinstance(simulator.optimiser, oogeso.Optimiser)
+    assert isinstance(simulator.optimiser, oogeso.OptimisationModel)
     # assert isinstance(simulator.optimiser.pyomo_instance)
 
 

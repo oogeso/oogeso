@@ -5,7 +5,10 @@ import pyomo.environ as pyo
 if typing.TYPE_CHECKING:
     from oogeso.core.networks.edge import Edge
     from oogeso.core.devices.device import Device
-    from oogeso.dto.oogeso_input_data_objects import NodeData
+    from oogeso.dto.oogeso_input_data_objects import (
+        NodeData,
+        OptimisationParametersData,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +16,9 @@ logger = logging.getLogger(__name__)
 class NetworkNode:
     "Network node"
 
-    def __init__(self, pyomo_model, optimiser, node_data: "NodeData"):
-        self.pyomo_model = pyomo_model
+    def __init__(self, node_data: "NodeData"):
         self.node_data: NodeData = node_data
         self.id = node_data.id
-        # self.optimiser = optimiser
-        self.optimisation_parameters = optimiser.optimisation_parameters
         self.devices = {}
         self.devices_serial = {}  # devices with through-flow
         self.edges_from = {}
@@ -161,7 +161,6 @@ class NetworkNode:
         node = self.id
         node_data: NodeData = self.node_data
         nominal_pressure = self.nominal_pressure
-        params_generic = self.optimisation_parameters
         maxdev = None  # default is no constraint
         if carrier in nominal_pressure:
             if term in nominal_pressure[carrier]:
@@ -179,7 +178,7 @@ class NetworkNode:
                             )
                     else:
                         # Using globally set pressure deviation limit
-                        maxdev = params_generic.max_pressure_deviation
+                        maxdev = model.paramMaxPressureDeviation
         if (maxdev is None) or (maxdev == -1):
             return pyo.Constraint.Skip
         lower_bound = nom_p * (1 - maxdev)
@@ -189,9 +188,9 @@ class NetworkNode:
         )
         return expr
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Returns the set of constraints for the node."""
-        model = self.pyomo_model
+        model = pyomo_model
 
         constrTerminalEnergyBalance = pyo.Constraint(
             model.setCarrier,
@@ -233,7 +232,7 @@ class NetworkNode:
             return True
         if carrier in self.edges_to:
             return True
-        for dev_id, dev_obj in self.devices.items():
+        for dev_obj in self.devices.values():
             # check if any devices are connected on this carrier
             if carrier in dev_obj.carrier_in:
                 return True
