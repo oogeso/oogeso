@@ -1,4 +1,5 @@
 import typing
+import pyomo.environ as pyo
 from ...dto.oogeso_input_data_objects import (
     CarrierData,
     OptimisationParametersData,
@@ -20,7 +21,7 @@ class Network:
         self.edges = edges
 
     def defineConstraints(self, pyomo_model):
-        piecewise_repn = pyomo_model.paramPiecewiseRepn
+        piecewise_repn = pyo.value(pyomo_model.paramPiecewiseRepn)
         for edge in self.edges.values():
             edge.defineConstraints(pyomo_model, piecewise_repn)
 
