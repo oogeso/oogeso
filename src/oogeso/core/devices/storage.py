@@ -1,6 +1,4 @@
 import pyomo.environ as pyo
-import logging
-
 from oogeso.dto.oogeso_input_data_objects import (
     DeviceStorage_elData,
     DeviceStorage_hydrogenData,
@@ -9,11 +7,10 @@ from . import Device
 
 
 class _StorageDevice(Device):
-    def __init__(self, pyomo_model, optimiser, dev_data):
+    # pass
+    def __init__(self, dev_data, carrier_data_dict):
         """Device object constructor"""
-        super().__init__(pyomo_model, optimiser, dev_data)
-        # Add this device to global list of storage devices:
-        optimiser.devices_with_storage.append(self)
+        super().__init__(dev_data, carrier_data_dict)
 
 
 class Storage_el(_StorageDevice):
@@ -25,12 +22,14 @@ class Storage_el(_StorageDevice):
     def _rules(self, model, t, i):
         dev = self.id
         dev_data: DeviceStorage_elData = self.dev_data
-        generic_params = self.optimiser.optimisation_parameters
+        time_delta_minutes = model.paramTimestepDeltaMinutes
+        time_reserve_minutes = model.paramTimeStorageReserveMinutes
+
         if i == 1:
             # energy balance
             # (el_in*eta - el_out/eta)*dt = delta storage
             # eta = efficiency charging and discharging
-            delta_t = generic_params.time_delta_minutes / 60  # hours
+            delta_t = time_delta_minutes / 60  # hours
             lhs = (
                 model.varDeviceFlow[dev, "el", "in", t] * dev_data.eta
                 - model.varDeviceFlow[dev, "el", "out", t] / dev_data.eta
@@ -56,9 +55,8 @@ class Storage_el(_StorageDevice):
             ub = dev_data.flow_max
             return model.varDeviceFlow[dev, "el", "out", t] <= ub
         elif i == 4:
-            # return pyo.Constraint.Skip # unnecessary -> generic Pmax/min constraints
-            # charging power limit
-            # ub = model.paramDevice[dev]['Pmax']
+            # charging power limit - required because the generic flow max/min constraint
+            # concerns dis-charging [dev,"el","out",t], cf getFlowVar()
             if dev_data.flow_min is not None:
                 ub = -dev_data.flow_min
             else:
@@ -75,7 +73,7 @@ class Storage_el(_StorageDevice):
             lhs = model.varDeviceStoragePmax[dev, t]
             # Parameter specifying for how long the power needs to be
             # sustained to count as reserve (e.g. similar to GT startup time)
-            dt_hours = generic_params.time_reserve_minutes / 60
+            dt_hours = time_reserve_minutes / 60
             rhs = model.varDeviceStorageEnergy[dev, t] / dt_hours
             return lhs <= rhs
         elif i == 7:
@@ -84,7 +82,7 @@ class Storage_el(_StorageDevice):
             rhs = dev_data.flow_max - bigM * (1 - model.varStorY[dev, t])
             return lhs >= rhs
         elif i == 8:
-            dt_hours = generic_params.time_reserve_minutes / 60
+            dt_hours = time_reserve_minutes / 60
             bigM = 10 * dev_data.E_max / dt_hours
             lhs = model.varDeviceStoragePmax[dev, t]
             rhs = (
@@ -95,7 +93,7 @@ class Storage_el(_StorageDevice):
         elif i == 9:
             # constraint on storage end vs start
             # Adding this does not seem to improve result (not lower CO2)
-            if (dev_data.E_end is not None) and (t == model.setHorizon[-1]):
+            if (dev_data.E_end is not None) and (t == model.setHorizon.last()):
                 lhs = model.varDeviceStorageEnergy[dev, t]
                 # rhs = model.varDeviceStorageEnergy[dev,0] # end=start
                 rhs = dev_data.E_end
@@ -103,33 +101,33 @@ class Storage_el(_StorageDevice):
             else:
                 return pyo.Constraint.Skip
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         constr = pyo.Constraint(
-            self.pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules
+            pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules
         )
         # add constraints to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
-    def getMaxP(self, t):
+    def getMaxFlow(self, pyomo_model, t):
         # available power may be limited by energy in the storage
         # charging also contributes (can be reversed)
         # (it can go to e.g. -2 MW to +2MW => 4 MW,
         # even if Pmax=2 MW)
-        model = self.pyomo_model
         maxValue = (
-            model.varDeviceStoragePmax[self.id, t]
-            + model.varDeviceFlow[self.id, "el", "in", t]
+            pyomo_model.varDeviceStoragePmax[self.id, t]
+            + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
         )
         return maxValue
 
-    def compute_costForDepletedStorage(self, timesteps):
+    def compute_costForDepletedStorage(self, pyomo_model, timesteps):
         stor_cost = 0
         dev_data = self.dev_data
         if dev_data.E_cost is not None:
@@ -137,7 +135,7 @@ class Storage_el(_StorageDevice):
         Emax = dev_data.E_max
         storCost = 0
         for t in timesteps:
-            varE = self.pyomo_model.varDeviceStorageEnergy[self.id, t]
+            varE = pyomo_model.varDeviceStorageEnergy[self.id, t]
             storCost += stor_cost * (Emax - varE)
         return storCost
 
@@ -152,10 +150,10 @@ class Storage_hydrogen(_StorageDevice):
         dev = self.id
         dev_data: DeviceStorage_hydrogenData = self.dev_data
         # param_hydrogen = self.optimiser.all_carriers["hydrogen"]
-        generic_params = self.optimiser.optimisation_parameters
+        time_delta_minutes = model.paramTimestepDeltaMinutes
         if i == 1:
             # energy balance (delta E = in - out) (energy in Sm3)
-            delta_t = generic_params.time_delta_minutes * 60  # seconds
+            delta_t = time_delta_minutes * 60  # seconds
             eta = 1
             if dev_data.eta is not None:
                 eta = dev_data.eta
@@ -179,7 +177,11 @@ class Storage_hydrogen(_StorageDevice):
             # see e.g. http://lpsolve.sourceforge.net/5.1/absolute.htm
             #
             # deviation from target and absolute value at the end of horizon
-            if t != model.setHorizon[-1]:
+            # TODO: Harald: is there any reason to penalise _positive_ deviation from the target?
+            # Xprime>(E_end-E_target)
+            # should we instead use
+            # Xprime >= 0 (we still need the lower limit (or bound) to avoid negative cost)
+            if t != model.setHorizon.last():
                 return pyo.Constraint.Skip
             Xprime = model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
@@ -188,7 +190,7 @@ class Storage_hydrogen(_StorageDevice):
             return Xprime >= deviation
         elif i == 4:
             # deviation from target and absolute value at the end of horizon
-            if t != model.setHorizon[-1]:
+            if t != model.setHorizon.last():
                 return pyo.Constraint.Skip
             Xprime = model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
@@ -196,25 +198,45 @@ class Storage_hydrogen(_StorageDevice):
             deviation = model.varDeviceStorageEnergy[dev, t] - target_value
             return Xprime >= -deviation
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         constr = pyo.Constraint(
-            self.pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules
+            pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules
         )
         # add constraints to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
-    def compute_costForDepletedStorage(self, timesteps):
+    def compute_costForDepletedStorage(self, pyomo_model, timesteps):
+        return self.compute_costForDepletedStorage_alt2(pyomo_model, timesteps)
+
+    def compute_costForDepletedStorage_alt1(self, pyomo_model, timesteps):
         # cost if storage level at end of optimisation deviates from
         # target profile (user input based on expectations)
+        # absolute value of deviation (filling too much also a cost)
+        # - avoids over-filling storage
         dev = self.id
         dev_data = self.dev_data
-        deviation = self.pyomo_model.varDeviceStorageDeviationFromTarget[dev]
+        deviation = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
         stor_cost = dev_data.E_cost * deviation
+        return stor_cost
+
+    def compute_costForDepletedStorage_alt2(self, pyomo_model, timesteps):
+        # cost rate kr/s
+        # Cost associated with deviation from target value
+        # below target = cost, above target = benefit   => gives signal to fill storage
+        dev_data = self.dev_data
+        E_target = dev_data.E_max
+        E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
+        t_end = timesteps.last()
+        varE = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
+        stor_cost = dev_data.E_cost * (E_target - varE)
+        # from cost (kr) to cost rate (kr/s):
+        stor_cost = stor_cost / len(timesteps)
         return stor_cost

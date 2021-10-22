@@ -3,7 +3,6 @@
 import pandas as pd
 import networkx as nx
 import scipy
-import logging
 
 elbase = {"baseMVA": 100, "baseAngle": 1}
 

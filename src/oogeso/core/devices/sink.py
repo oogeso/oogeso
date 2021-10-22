@@ -1,5 +1,4 @@
 import pyomo.environ as pyo
-import logging
 from . import Device
 
 
@@ -9,8 +8,8 @@ class Sink_el(Device):
     carrier_out = []
     serial = []
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
 class Sink_heat(Device):
@@ -19,8 +18,8 @@ class Sink_heat(Device):
     carrier_out = []
     serial = []
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "heat", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "heat", "in", t]
 
 
 class Sink_gas(Device):
@@ -29,8 +28,8 @@ class Sink_gas(Device):
     carrier_out = []
     serial = []
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
 
 
 class Sink_oil(Device):
@@ -39,8 +38,8 @@ class Sink_oil(Device):
     carrier_out = []
     serial = []
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
 
 
 class Sink_water(Device):
@@ -52,7 +51,7 @@ class Sink_water(Device):
     def rule_devmodel_sink_water(self, model, t, i):
         dev = self.id
         dev_data = self.dev_data
-        param_generic = self.optimiser.optimisation_parameters
+        time_delta_minutes = model.paramTimestepDeltaMinutes
 
         if dev_data.flow_avg is None:
             return pyo.Constraint.Skip
@@ -63,7 +62,7 @@ class Sink_water(Device):
         if i == 1:
             # FLEXIBILITY
             # (water_in-water_avg)*dt = delta buffer
-            delta_t = param_generic.time_delta_minutes / 60  # hours
+            delta_t = time_delta_minutes / 60  # hours
             lhs = (
                 model.varDeviceFlow[dev, "water", "in", t] - dev_data.flow_avg
             ) * delta_t
@@ -82,17 +81,18 @@ class Sink_water(Device):
         else:
             raise Exception("impossible")
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         constr = pyo.Constraint(
-            self.pyomo_model.setHorizon,
+            pyomo_model.setHorizon,
             pyo.RangeSet(1, 2),
             rule=self.rule_devmodel_sink_water,
         )
         # add constraints to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "flex"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "flex"), constr)
+        return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "water", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "water", "in", t]

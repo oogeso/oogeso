@@ -1,41 +1,54 @@
 import logging
-from dataclasses import asdict
 import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 
-from oogeso.dto.oogeso_input_data_objects import (
-    EnergySystemData,
-    OptimisationParametersData,
-)
+from oogeso.core.devices.storage import _StorageDevice
 from . import devices, networks
 from .networks import electricalsystem as el_calc
 from .networks.network_node import NetworkNode
+from typing import TYPE_CHECKING, Dict
+
+if TYPE_CHECKING:
+    from oogeso.dto.oogeso_input_data_objects import (
+        EnergySystemData,
+        OptimisationParametersData,
+    )
+    from oogeso.core.devices.device import Device
+    from oogeso.core.networks.edge import Edge
+    from oogeso.core.networks.network import Network
+
+logger = logging.getLogger(__name__)
 
 
-class Optimiser:
+class OptimisationModel:
     """Class for MILP optimisation model"""
 
     ZERO_WARNING_THRESHOLD = 1e-6
 
-    def __init__(self, data: EnergySystemData):
+    def __init__(self, data: "EnergySystemData"):
         """Create optimisation problem formulation with supplied data"""
 
         # dictionaries {key:object} for all devices, nodes and edges
-        self.all_devices = {}
-        self.all_nodes = {}
-        self.all_edges = {}
-        self.all_carriers = {}
+        self.all_devices: Dict[str, Device] = {}
+        self.all_nodes: Dict[str, NetworkNode] = {}
+        self.all_edges: Dict[str, Edge] = {}
+        #        self.all_carriers = {}
+        self.all_networks: Dict[str, Network] = {}
         self.optimisation_parameters: OptimisationParametersData = data.parameters
         self.pyomo_instance = None
         # List of constraints that need to be reconstructed for each optimisation:
         self.constraints_to_reconstruct = []
         # List of devices with storage
         self.devices_with_storage = []
+        profiles_in_use = list(
+            set(d.profile for d in data.devices if d.profile is not None)
+        )
+        logger.info("profiles in use: %s", profiles_in_use)
 
-        self.pyomo_instance = self.createOptimisationModel(data)
+        self._create_network_objects_from_data(data)
         self._setNodePressureFromEdgeData()
-        self._specifyConstraints()
+        self.pyomo_instance = self._create_pyomo_model(profiles_in_use)
 
     def solve(self, solver="gurobi", write_yaml=False, timelimit=None):
         """Solve problem for planning horizon at a single timestep"""
@@ -50,7 +63,7 @@ class Optimiser:
                 opt.options["timelimit"] = timelimit
             elif solver == "glpk":
                 opt.options["tmlim"] = timelimit
-        logging.debug("Solving...")
+        logger.debug("Solving...")
         sol = opt.solve(self.pyomo_instance)
 
         if write_yaml:
@@ -59,18 +72,18 @@ class Optimiser:
         if (sol.solver.status == pyopt.SolverStatus.ok) and (
             sol.solver.termination_condition == pyopt.TerminationCondition.optimal
         ):
-            logging.debug("Solved OK")
+            logger.debug("Solved OK")
             pass
         elif sol.solver.termination_condition == pyopt.TerminationCondition.infeasible:
             raise Exception("Infeasible solution")
         else:
             # Something else is wrong
-            logging.info("Solver Status:{}".format(sol.solver.status))
+            logger.info("Solver Status:{}".format(sol.solver.status))
         return sol
 
     def _setNodePressureFromEdgeData(self):
         # Set node terminal nominal pressure based on edge from/to pressure values
-        for i, edge in self.all_edges.items():
+        for edge in self.all_edges.values():
             edg = edge.edge_data
             carrier = edg.carrier
             # Setting nominal pressure levels at node terminals. Raise exception
@@ -84,23 +97,10 @@ class Optimiser:
                 p_to = edg.pressure_to
                 n_to.set_nominal_pressure(carrier, "in", p_to)
 
-    def createOptimisationModel(self, data: EnergySystemData):
-        """Create pyomo MILP model
+    def _create_network_objects_from_data(self, data: "EnergySystemData"):
+        """Create energy system objects, and populate local dictionaries
 
-        Parameters:
-        -----------
-            data: dict
-            input data as read from input file
-        """
-
-        model = pyo.ConcreteModel()
-
-        # TODO: Replace data dictionary with EnergySystemData object (cf DTO)
-        # edge: DONE
-        # carrier: DONE
-        # parameters: ...
-        # node: ...
-        # device: ...
+        self.all_devices, self.all_nodes, self.all_networks"""
 
         # json_str = json.dumps(data)
         # energy_system_data: inputdata.EnergySystemData = (
@@ -114,81 +114,103 @@ class Optimiser:
             dev_id = dev_data_obj.id
             if dev_data_obj.include == False:
                 # skip this edge and move to next
-                logging.debug("Excluding device {}".format(dev_id))
+                logger.debug("Excluding device {}".format(dev_id))
                 continue
             device_model = dev_data_obj.model
             # The class corresponding to the device type should always have a
             # name identical to the type (but capitalized):
-            logging.debug("Device model={}".format(device_model))
+            logger.debug("Device model={}".format(device_model))
             Devclass = getattr(devices, device_model.capitalize())
-            new_device = Devclass(model, self, dev_data_obj)
+            carrier_data_dict = {carr_obj.id: carr_obj for carr_obj in data.carriers}
+            new_device = Devclass(dev_data_obj, carrier_data_dict)
+            if isinstance(new_device, _StorageDevice):
+                # Add this device to global list of storage devices:
+                self.devices_with_storage.append(new_device)
+
             new_device.setFlowUpperBound(data.profiles)
             self.all_devices[dev_id] = new_device
 
         for node_data_obj in energy_system_data.nodes:
-            new_node = networks.NetworkNode(model, self, node_data_obj)
+            new_node = networks.NetworkNode(node_data_obj)
             node_id = new_node.id
-            # new_node = networks.NetworkNode(model, node_id, node_data, self)
             self.all_nodes[node_id] = new_node
 
+        edges_per_type = {}
         for edge_data_obj in data.edges:
             if edge_data_obj.include == False:
                 # skip this edge and move to next
                 continue
             edge_id = edge_data_obj.id
-            new_edge = networks.NetworkEdge(model, self, edge_data_obj)
+            carrier = edge_data_obj.carrier
+            new_edge = networks.Edge(edge_data_obj)
+            if carrier not in edges_per_type:
+                edges_per_type[carrier] = {}
+            edges_per_type[carrier][edge_id] = new_edge
             self.all_edges[edge_id] = new_edge
 
         for carrier_data_obj in data.carriers:
-            carrier_model = carrier_data_obj.id
-            new_carrier = carrier_data_obj
-            self.all_carriers[carrier_model] = new_carrier
-
-        if self.all_carriers["el"].powerflow_method == "dc-pf":
-            logging.warning(
-                "TODO: code for electric powerflow calculations need improvement (pu conversion"
+            carrier_model = carrier_data_obj.id  # el,heat,oil,gas,water,hydrogen,
+            # The network class corresponding to the carrier should always have a
+            # name identical to the id (but capitalized):
+            NetworkClass = getattr(networks, carrier_model.capitalize())
+            if carrier_model not in edges_per_type:
+                edges_per_type[carrier_model] = {}
+            new_network = NetworkClass(
+                carrier_data=carrier_data_obj,
+                edges=edges_per_type[carrier_model],
             )
-            nodelist = self.all_nodes.keys()
-            edgelist_el = {
-                edge_id: asdict(edge.edge_data)
-                for edge_id, edge in self.all_edges.items()
-                if edge.edge_data.carrier == "el"
-            }
-            coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(
-                nodelist, edgelist_el, baseZ=1
-            )
-            self.elFlowCoeffB = coeff_B
-            self.elFlowCoeffDA = coeff_DA
-
-        # logging.debug(self.all_nodes.keys())
-        # logging.debug(self.all_edges.keys())
-        # logging.debug(self.all_devices.keys())
-
-        timerange = range(data.parameters.planning_horizon)
-        profiles_in_use = list(
-            set(d.profile for d in data.devices if d.profile is not None)
-        )
-        logging.info("profiles in use: {}".format(profiles_in_use))
+            self.all_networks[carrier_model] = new_network
 
         # Make network connections between nodes, edges and devices
         for dev_id, dev in self.all_devices.items():
-            logging.debug("Node-device: {},{}".format(dev_id, dev))
+            logger.debug("Node-device: %s,%s", dev_id, dev)
             node_id_where_connected = dev.dev_data.node_id
             node = self.all_nodes[node_id_where_connected]
             node.addDevice(dev_id, dev)
+            dev.addNode(node)
         for edge_id, edge in self.all_edges.items():
-            node = self.all_nodes[edge.edge_data.node_from]
-            node.addEdge(edge, "from")
-            node = self.all_nodes[edge.edge_data.node_to]
-            node.addEdge(edge, "to")
+            node_from = self.all_nodes[edge.edge_data.node_from]
+            node_from.addEdge(edge, "from")
+            node_to = self.all_nodes[edge.edge_data.node_to]
+            node_to.addEdge(edge, "to")
+            edge.addNodes(node_from, node_to)
 
-        # specify sets:
-        energycarriers = self.all_carriers.keys()
+    def _create_pyomo_model(self, profiles_in_use):
+        """Create pyomo MILP model
+
+        Parameters:
+        -----------
+            planning_horizon: dict
+            input data as read from input file
+        """
+
+        model = pyo.ConcreteModel()
+        model = self._specify_sets_and_parameters(model, profiles_in_use)
+        model = self._specify_variables(model)
+        model = self._specify_objective(model)
+        model = self._specify_constraints(model)
+
+        # Specify initial values from input data
+        for dev in self.all_devices.values():
+            dev.setInitValues(model)
+
+        # Keep track of duals:
+        # WARNING:
+        # From Gurobi: "Shadow prices are not well-defined in mixed-integer
+        # problems, so we don't provide dual values for an integer program."
+        model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+
+        return model
+
+    def _specify_sets_and_parameters(self, model, profiles_in_use):
+        """specify pyomo model sets and parameters"""
+        energycarriers = self.all_networks.keys()
         model.setCarrier = pyo.Set(initialize=energycarriers, doc="carrier")
         model.setTerminal = pyo.Set(initialize=["in", "out"], doc="terminal")
         model.setNode = pyo.Set(initialize=self.all_nodes.keys(), doc="node")
         model.setDevice = pyo.Set(initialize=self.all_devices.keys(), doc="device")
         model.setEdge = pyo.Set(initialize=self.all_edges.keys(), doc="edge")
+        timerange = range(self.optimisation_parameters.planning_horizon)
         model.setHorizon = pyo.Set(ordered=True, initialize=timerange, doc="time")
         model.setProfile = pyo.Set(initialize=profiles_in_use, doc="profile")
 
@@ -220,7 +242,25 @@ class Optimiser:
             model.setDevice, mutable=True, within=pyo.Reals, initialize=0
         )
 
-        # specify variables:
+        # Specify handy immutable parameters (for easy access when building/updating model)
+        model.paramTimestepDeltaMinutes = pyo.Param(
+            within=pyo.Reals, default=self.optimisation_parameters.time_delta_minutes
+        )
+        model.paramTimeStorageReserveMinutes = pyo.Param(
+            default=self.optimisation_parameters.time_reserve_minutes
+        )
+        model.paramPiecewiseRepn = pyo.Param(
+            within=pyo.Any, default=self.optimisation_parameters.piecewise_repn
+        )
+        model.paramMaxPressureDeviation = pyo.Param(
+            within=pyo.Reals,
+            default=self.optimisation_parameters.max_pressure_deviation,
+        )
+
+        return model
+
+    def _specify_variables(self, model):
+        """specify pyomo model variables"""
         model.varEdgeFlow = pyo.Var(model.setEdge, model.setHorizon, within=pyo.Reals)
         model.varEdgeFlow12 = pyo.Var(
             model.setEdge, model.setHorizon, within=pyo.NonNegativeReals
@@ -293,8 +333,10 @@ class Optimiser:
             model.setHorizon,
             within=pyo.Reals,
         )
+        return model
 
-        # specify objective:
+    def _specify_objective(self, model):
+        """specify pyomo model objective"""
         obj = self.optimisation_parameters.objective
         if obj == "penalty":
             rule = self._rule_objective_penalty
@@ -308,34 +350,32 @@ class Optimiser:
             rule = self._rule_objective_co2intensity
         else:
             raise Exception("Objective '{}' has not been implemented".format(obj))
-        logging.info("Using objective function  {}".format(obj))
-        # logging.info(rule)
+        logger.info("Using objective function: {}".format(obj))
+        # logger.info(rule)
         model.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
-
-        # Specify initial values from input data
-        for i, dev in self.all_devices.items():
-            dev.setInitValues()
-
-        # Keep track of duals:
-        # WARNING:
-        # From Gurobi: "Shadow prices are not well-defined in mixed-integer
-        # problems, so we don't provide dual values for an integer program."
-        model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
-
         return model
 
-    def _specifyConstraints(self):
-        # specify constraints:
-        model = self.pyomo_instance
-        for dev_id, dev in self.all_devices.items():
-            dev.defineConstraints()
+    def _specify_constraints(self, model):
 
-        for node_id, node in self.all_nodes.items():
-            node.defineConstraints()
+        # 1. Constraints associated with each device:
+        for dev in self.all_devices.values():
+            list_to_reconstruct = dev.defineConstraints(model)
 
-        for edge_id, edge in self.all_edges.items():
-            edge.defineConstraints()
+            # Because of logic that needs to be re-evalued, these constraints need
+            # to be reconstructed each optimisation:
+            for constr in list_to_reconstruct:
+                self.constraints_to_reconstruct.append(constr)
 
+        # 2. Constraints associated with each node:
+        for node in self.all_nodes.values():
+            node.defineConstraints(model)
+
+        # 3. Constraints associated with each network type (and its edges):
+        for netw in self.all_networks.values():
+            netw.defineConstraints(model)
+
+        # 4. Global constraints:
+        # 4.1 max limit emission rate:
         params_generic = self.optimisation_parameters
         if (params_generic.emission_rate_max is not None) and (
             params_generic.emission_rate_max >= 0
@@ -344,7 +384,8 @@ class Optimiser:
                 model.setHorizon, rule=self._rule_emissionRateLimit
             )
         else:
-            logging.info("No emission_rate_max limit specified")
+            logger.debug("No emission_rate_max limit specified")
+        # 4.2 max limit emission intensity
         if (params_generic.emission_intensity_max is not None) and (
             params_generic.emission_intensity_max >= 0
         ):
@@ -352,24 +393,28 @@ class Optimiser:
                 model.setHorizon, rule=self._rule_emissionIntensityLimit
             )
         else:
-            logging.info("No emission_intensity_max limit specified")
-
-        if (params_generic.el_reserve_margin is not None) and (
-            params_generic.el_reserve_margin >= 0
-        ):
+            logger.debug("No emission_intensity_max limit specified")
+        # 4.3 electrical reserve margin:
+        el_parameters = self.all_networks["el"].carrier_data
+        el_reserve_margin = el_parameters.el_reserve_margin
+        el_backup_margin = el_parameters.el_backup_margin
+        if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
             model.constrO_elReserveMargin = pyo.Constraint(
                 model.setHorizon, rule=self._rule_elReserveMargin
             )
         else:
-            logging.info("No el_reserve_margin limit specified")
-        if (params_generic.el_backup_margin is not None) and (
-            params_generic.el_backup_margin >= 0
-        ):
+            logger.info("No el_reserve_margin limit specified")
+        # 4.4 electrical backup power margin
+        if (el_backup_margin is not None) and (el_backup_margin >= 0):
             model.constrO_elBackupMargin = pyo.Constraint(
-                model.setDevice, model.setHorizon, rule=self._rule_elBackupMargin
+                model.setDevice,
+                model.setHorizon,
+                rule=self._rule_elBackupMargin,
             )
         else:
-            logging.info("No el_backup_margin limit specified")
+            logger.debug("No el_backup_margin limit specified")
+
+        return model
 
     def updateOptimisationModel(self, timestep, profiles, first=False):
         """Update Pyomo model instance
@@ -381,20 +426,23 @@ class Optimiser:
         profiles : pandas dataframe
             Time series profiles
         first : booblean
-            True if it is the first timestep in rolling optimisation
+            True if it is the first time the model is updated (simulation start)
         """
         opt_timesteps = self.optimisation_parameters.optimisation_timesteps
         horizon = self.optimisation_parameters.planning_horizon
         timesteps_use_nowcast = self.optimisation_parameters.forecast_timesteps
-        # self._timestep = timestep
+
         # Update profile (using nowcast for first 4 timesteps, forecast for rest)
         # -this is because for the first timesteps, we tend to have updated
         #  and quite good forecasts - for example, it may become apparent
         #  that there will be much less wind power than previously forecasted
-        #
         for prof in self.pyomo_instance.setProfile:
             for t in range(timesteps_use_nowcast):  # 0,1,2,3
-                self.pyomo_instance.paramProfiles[prof, t] = profiles["nowcast"].loc[
+                profile_str = "nowcast"
+                if prof not in profiles["nowcast"]:
+                    # no nowcast, use forecast instead
+                    profile_str = "forecast"
+                self.pyomo_instance.paramProfiles[prof, t] = profiles[profile_str].loc[
                     timestep + t, prof
                 ]
             for t in range(timesteps_use_nowcast, horizon):
@@ -409,7 +457,7 @@ class Optimiser:
             docontinue = True
             for tt in range(t_prev, -1, -1):
                 # if (self.instance.varDeviceIsOn[dev,tt]==1):
-                if self.pyomo_instance.varDeviceIsPrep[dev, tt] == 1:
+                if pyo.value(self.pyomo_instance.varDeviceIsPrep[dev, tt]) == 1:
                     sum_on = sum_on + 1
                 else:
                     docontinue = False
@@ -437,7 +485,7 @@ class Optimiser:
                 if dev_obj.dev_data.max_ramp_up is not None:
                     self.pyomo_instance.paramDevicePowerInitially[
                         dev
-                    ] = dev_obj.getFlowVar(t_prev)
+                    ] = dev_obj.getFlowVar(self.pyomo_instance, t_prev)
                 # Energy storage:
                 if dev_obj in self.devices_with_storage:
                     self.pyomo_instance.paramDeviceEnergyInitially[
@@ -448,7 +496,7 @@ class Optimiser:
                         dev_obj.dev_data.target_profile is not None
                     ):
                         prof = dev_obj.dev_data.target_profile
-                        max_E = dev_obj.dev_data.max_E
+                        max_E = dev_obj.dev_data.E_max
                         self.pyomo_instance.paramDeviceEnergyTarget[dev] = (
                             max_E * profiles["forecast"].loc[timestep + horizon, prof]
                         )
@@ -456,8 +504,11 @@ class Optimiser:
         # These constraints need to be reconstructed to update properly
         # (pyo.value(...) and/or if sentences...)
         for c in self.constraints_to_reconstruct:
-            # logging.debug("reconstructing {}".format(c))
-            c.reconstruct()
+            # logger.debug("reconstructing {}".format(c))
+            # c.reconstruct() <- removed in Pyomo v.6
+            c.clear()
+            c._constructed = False
+            c.construct()
         return
 
     #        def storPmaxPushup(model):
@@ -476,7 +527,7 @@ class Optimiser:
         timesteps = model.setHorizon
         for d in model.setDevice:
             dev = self.all_devices[d]
-            this_penalty = dev.compute_penalty(timesteps)
+            this_penalty = dev.compute_penalty(model, timesteps)
             sum_penalty = sum_penalty + this_penalty
         return sum_penalty
 
@@ -538,15 +589,14 @@ class Optimiser:
         must be larger than some specified margin
         (to cope with unforeseen variations)
         """
-        params_generic = self.optimisation_parameters
         # exclude constraint for first timesteps since the point of the
         # dispatch margin is exactly to cope with forecast errors
-        # *2 to make sure there is time to start up gt
-        if t < params_generic.forecast_timesteps:
+        if t < self.optimisation_parameters.forecast_timesteps:
             return pyo.Constraint.Skip
 
-        margin = params_generic.el_reserve_margin
-        capacity_unused = self.compute_elReserve(model, t)
+        network_el = self.all_networks["el"]
+        margin = network_el.carrier_data.el_reserve_margin
+        capacity_unused = network_el.compute_elReserve(model, t, self.all_devices)
         expr = capacity_unused >= margin
         return expr
 
@@ -558,13 +608,15 @@ class Optimiser:
 
         elBackupMargin is zero or positive (if loss of load is acceptable)
         """
-        params_generic = self.optimisation_parameters
         dev_obj = self.all_devices[dev]
-        margin = params_generic.el_backup_margin
+        network_el = self.all_networks["el"]
+        margin = network_el.carrier_data.el_backup_margin
         if "el" not in dev_obj.carrier_out:
             # this is not a power generator
             return pyo.Constraint.Skip
-        res_otherdevs = self.compute_elReserve(model, t, exclude_device=dev)
+        res_otherdevs = network_el.compute_elReserve(
+            model, t, self.all_devices, exclude_device=dev
+        )
         expr = res_otherdevs - model.varDeviceFlow[dev, "el", "out", t] >= -margin
         return expr
 
@@ -577,7 +629,7 @@ class Optimiser:
         sumCO2 = 0
         for d in devices:
             dev = self.all_devices[d]
-            thisCO2 = dev.compute_CO2(timesteps)
+            thisCO2 = dev.compute_CO2(model, timesteps)
             sumCO2 = sumCO2 + thisCO2
         # Average per s
         sumCO2 = sumCO2 / len(timesteps)
@@ -593,7 +645,7 @@ class Optimiser:
         if pyo.value(flow_oilequivalents_m3_per_time) != 0:
             co2intensity = co2_kg_per_time / flow_oilequivalents_m3_per_time
         if pyo.value(flow_oilequivalents_m3_per_time) == 0:
-            # logging.debug("zero export, so co2 intensity set to None")
+            # logger.debug("zero export, so co2 intensity set to None")
             co2intensity = None
         return co2intensity
 
@@ -606,7 +658,7 @@ class Optimiser:
         start_stop_costs = 0
         for d in devices:
             dev_obj = self.all_devices[d]
-            thisCost = dev_obj.compute_startup_penalty(timesteps)
+            thisCost = dev_obj.compute_startup_penalty(model, timesteps)
             start_stop_costs += thisCost
         # get average per sec:
         deltaT = self.optimisation_parameters.time_delta_minutes * 60
@@ -614,7 +666,7 @@ class Optimiser:
         start_stop_costs = start_stop_costs / sumTime
         return start_stop_costs
 
-    logging.info("TODO: operating cost for el storage - needs improvement")
+    logger.info("TODO: operating cost for el storage - needs improvement")
 
     def compute_operatingCosts(self, model):
         """term in objective function to represent fuel costs or similar
@@ -627,7 +679,7 @@ class Optimiser:
         timesteps = model.setHorizon
         for dev in model.setDevice:
             dev_obj = self.all_devices[dev]
-            thisCost = dev_obj.compute_operatingCosts(timesteps)
+            thisCost = dev_obj.compute_operatingCosts(model, timesteps)
             sumCost += thisCost
         return sumCost
 
@@ -638,7 +690,7 @@ class Optimiser:
         timesteps = model.setHorizon
         for dev in model.setDevice:
             dev_obj = self.all_devices[dev]
-            thisCost = dev_obj.compute_costForDepletedStorage(timesteps)
+            thisCost = dev_obj.compute_costForDepletedStorage(model, timesteps)
             storCost += thisCost
         return storCost
 
@@ -674,37 +726,11 @@ class Optimiser:
         sumValue = 0
         for dev in model.setDevice:
             dev_obj = self.all_devices[dev]
-            thisValue = dev_obj.compute_export(value, carriers, timesteps)
+            thisValue = dev_obj.compute_export(model, value, carriers, timesteps)
             sumValue += thisValue
         # average per second (timedelta is not required)
         sumValue = sumValue / len(timesteps)
         return sumValue
-
-    def compute_elReserve(self, model, t, exclude_device=None):
-        """compute non-used generator capacity (and available loadflex)
-        This is reserve to cope with forecast errors, e.g. because of wind
-        variation or motor start-up
-        (does not include load reduction yet)
-
-        exclue_device : str (default None)
-            compute reserve by devices excluding this one
-        """
-        alldevs = [d for d in model.setDevice if d != exclude_device]
-        # relevant devices are devices with el output or input
-        cap_avail = 0
-        p_generating = 0
-        loadreduction = 0
-        for d in alldevs:
-            dev_obj = self.all_devices[d]
-            reserve = dev_obj.compute_elReserve(t)
-            cap_avail += reserve["capacity_available"]
-            p_generating += reserve["capacity_used"]
-            loadreduction += reserve["loadreduction_available"]
-
-        res_dev = (cap_avail - p_generating) + loadreduction
-        # logging.info("TODO: elReserve: Ignoring load reduction option")
-        # res_dev = (cap_avail-p_generating)
-        return res_dev
 
     def getDevicesInout(self, carrier_in=None, carrier_out=None):
         """devices that have the specified connections in and out"""
@@ -746,6 +772,12 @@ class Optimiser:
             # extract the variable index names in the right order
             indices = [index_set.doc for index_set in myvar._implicit_subsets]
             var_values = myvar.get_values()
+            if not var_values:
+                # print("var_values=", var_values)
+                # empty dictionary, so no variables to store
+                all_values[myvar.name] = None
+                continue
+            # This creates a pandas.Series:
             df = pd.DataFrame.from_dict(var_values, orient="index", columns=["value"])[
                 "value"
             ]
@@ -755,7 +787,7 @@ class Optimiser:
                 df < -self.ZERO_WARNING_THRESHOLD
             ).any():
                 ind = df[df < -self.ZERO_WARNING_THRESHOLD].index[0]
-                logging.warning(
+                logger.warning(
                     "Negative number in varDeviceFlow - set to zero ({}:{})".format(
                         ind, df[ind]
                     )

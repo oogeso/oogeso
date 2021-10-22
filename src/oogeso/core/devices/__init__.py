@@ -10,3 +10,4 @@ from .storage import Storage_el, Storage_hydrogen
 from .gasheater import Gasheater
 from .heatpump import Heatpump
 from .electrolyser import Electrolyser
+from .fuelcell import Fuelcell

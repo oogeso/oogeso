@@ -1,8 +1,19 @@
 import pandas as pd
+from oogeso.dto import SimulationResult, EnergySystemData
+from oogeso.core.devices import Device
+from typing import Dict
 
 
-def compute_kpis(sim_result, windturbines=None):
-    """Compute key indicators of simulation results"""
+def compute_kpis(
+    sim_result: SimulationResult,
+    sim_data: EnergySystemData,
+    windturbines=None,
+):
+    """Compute key indicators of simulation results
+
+    sim_result :
+
+    """
     hour_per_year = 8760
     sec_per_year = 3600 * hour_per_year
     kpi = {}
@@ -12,7 +23,7 @@ def compute_kpis(sim_result, windturbines=None):
 
     num_sim_timesteps = res.dfCO2rate.shape[0]
     timesteps = res.dfCO2rate.index
-    td_min = res.optimiser.optimisation_parameters.time_delta_minutes
+    td_min = sim_data.parameters.time_delta_minutes
     kpi["hours_simulated"] = num_sim_timesteps * td_min / 60
 
     # CO2 emissions
@@ -28,9 +39,9 @@ def compute_kpis(sim_result, windturbines=None):
     # fuel consumption
     gasturbines = [
         g.id
-        for i, g in res.optimiser.all_devices.items()
+        for g in sim_data.devices
         # if isinstance(g, Gasturbine) # why doesn't isinstance work?
-        if g.dev_data.model == "gasturbine"
+        if g.model == "gasturbine"
     ]
     mask_gt = res.dfDeviceFlow.index.get_level_values("device").isin(gasturbines)
     gtflow = res.dfDeviceFlow[mask_gt]
@@ -78,13 +89,14 @@ def compute_kpis(sim_result, windturbines=None):
 
     # curtailed wind energy
     p_avail = pd.DataFrame(index=timesteps)
-    for d in windturbines:
-        devparam = res.optimiser.all_devices[d].dev_data
-        Pmax = devparam.flow_max
-        p_avail[d] = Pmax
-        if devparam.profile is not None:
-            profile_ref = devparam.profile
-            p_avail[d] = Pmax * res.df_profiles_nowcast.loc[timesteps, profile_ref]
+    for devdata in sim_data.devices:
+        if devdata in windturbines:
+            d = devdata.id
+            Pmax = devdata.flow_max
+            p_avail[d] = Pmax
+            if devdata.profile is not None:
+                profile_ref = devdata.profile
+                p_avail[d] = Pmax * res.df_profiles_nowcast.loc[timesteps, profile_ref]
     p_curtailed = (p_avail - p_wind).sum(axis=1)
     kpi["wind_curtailed_mwh_per_year"] = p_curtailed.mean() * hour_per_year
     return kpi

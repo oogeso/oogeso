@@ -1,8 +1,9 @@
 import pyomo.environ as pyo
 import logging
-
 from oogeso.core.networks.network_node import NetworkNode
 from . import Device
+
+logger = logging.getLogger(__name__)
 
 
 class _PumpDevice(Device):
@@ -13,7 +14,7 @@ class _PumpDevice(Device):
     ):
         dev_data = self.dev_data
         node_id = dev_data.node_id
-        node_obj: NetworkNode = self.optimiser.all_nodes[node_id]
+        node_obj: NetworkNode = self.node
         # power demand vs flow rate and pressure difference
         # see eg. doi:10.1016/S0262-1762(07)70434-0
         # P = Q*(p_out-p_in)/eta
@@ -39,7 +40,7 @@ class _PumpDevice(Device):
             # linearised equations around operating point
             # p1=p10, p2=p20, Q=Q0
             if t == 0:
-                logging.debug(
+                logger.debug(
                     "Node:{}, nominal pressures={}".format(
                         node_id, node_obj.nominal_pressure
                     )
@@ -81,19 +82,20 @@ class _PumpDevice(Device):
             )
             return lhs == rhs
 
-    def defineConstraints(self):
+    def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        super().defineConstraints()
+        list_to_reconstruct = super().defineConstraints(pyomo_model)
 
         constr = pyo.Constraint(
-            self.pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump
+            pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump
         )
         # add constraint to model:
-        setattr(self.pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
 
-    def getFlowVar(self, t):
-        return self.pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+    def getFlowVar(self, pyomo_model, t):
+        return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
 class Pump_oil(_PumpDevice):

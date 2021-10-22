@@ -1,0 +1,593 @@
+parameters:
+  time_delta_minutes: 5 # minutes per timestep
+  planning_horizon: 24 # timesteps in each rolling optimisation
+  optimisation_timesteps: 6 # timesteps between each optimisation
+  forecast_timesteps: 2 #6 # timesteps beyond which forecast (instead of nowcast) profile is used
+  time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
+  co2_tax: 0.8 # NOK/kgCO2
+  emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
+  emission_rate_max: -1 # kgCO2/hour, -1=no limit
+  max_pressure_deviation: -1 # global limit for allowable relative pressure deviation from nominal
+  objective: exportRevenue # select objective function to use
+
+carriers:
+  - id: el
+    powerflow_method: transport # transport, None, dc-pf
+    el_backup_margin: -1 # MW, -1=no limit
+    el_reserve_margin: 5 # MWm -1=no limit
+  - id: gas
+    co2_content: 2.34 # kg/Sm3 - see SSB 2016 report
+    G_gravity: 0.6
+    Pb_basepressure_MPa: 0.101 # MPa
+    R_individual_gas_constant: 500 # J/(kg K)
+    Tb_basetemp_K: 288 # K = 15 degC
+    Z_compressibility: 0.9
+    energy_value: 40 # MJ/Sm3 (calorific value)
+    k_heat_capacity_ratio: 1.27
+    pressure_method: weymouth
+    rho_density: 0.84 # kg/m3
+  - id: heat
+  - id: oil
+    darcy_friction: 0.02
+    pressure_method: darcy-weissbach
+    rho_density: 900 # kg/m3
+    viscosity: 0.0026 # kg/(m s)
+  - id: water
+    darcy_friction: 0.01
+    pressure_method: darcy-weissbach
+    rho_density: 1000 # kg/m3
+    #viscosity: 0.001 # kg/(m s) # use friction factor instead
+  - id: wellstream
+    darcy_friction: 0.0136
+    pressure_method: darcy-weissbach
+    rho_density: 5.63 # kg/m3 (dependent on wellstream composition)
+  - id: hydrogen
+    energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
+
+devices:
+  - id: Gen1
+    flow_max: 21.8
+    flow_min: 3.5
+    eta_heat: 0.5
+    fuel_A: 2.350
+    fuel_B: 0.530
+    include: 1
+    max_ramp_down: 1 # change relative to capacity per minute, 1=100%/min
+    max_ramp_up: 0.5 # 100%/min
+    model: gasturbine
+    name: gas turbine1
+    node_id: powersupply
+    start_stop:
+        penalty_start: 2000 # NOK
+        delay_start_minutes: 30 # min
+
+  - id: Gen2
+    flow_max: 21.8
+    flow_min: 3.5
+    eta_heat: 0.5
+    fuel_A: 2.351
+    fuel_B: 0.531
+    include: 1
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine2
+    node_id: powersupply
+    start_stop:
+        penalty_start: 2000 # NOK
+        delay_start_minutes: 30 # min
+
+  - id: Gen3
+    flow_max: 21.8
+    flow_min: 3.5
+    eta_heat: 0.5
+    fuel_A: 2.352
+    fuel_B: 0.532
+    include: 1
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine3
+    node_id: powersupply
+    start_stop:
+        penalty_start: 2000 # NOK
+        delay_start_minutes: 30 # min
+
+  - id: wind
+    flow_max: 32
+    co2em: 0 # kgCO2/MWh_el
+    op_cost: 0.003 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
+    include: 1
+    model: source_el
+    name: wind turb
+    node_id: powersupply
+    profile: curve_wind
+
+  - id: battery
+    E_max: 4
+    flow_max: 4
+    eta: 0.9
+    include: 0
+    model: storage_el
+    name: battery
+    node_id: powersupply
+    reserve_factor: 1 #contributes to spinning reserve
+
+  - id: loadshed
+    # A "generator" to cover otherwise unmet el demand - representing load shed
+    include: 0
+    model: source_el
+    node_id: powersupply
+    name: Loadshedding (dummy)
+    flow_max: 1000
+    # high operating (energy) cost to avoid using it unless necessary
+    op_cost: 10 # NOK/MJ (= 10*3600s/h NOK/MWs = 36000 NOK/MWh)
+    co2em: 0
+    reserve_factor: 0 #does not contribute towards reserve
+
+  - id: PQ_load
+    flow_max: 3
+    flow_min: 3
+    include: 1
+    model: sink_el
+    name: general el load
+    node_id: utility
+    reserve_factor: 0
+
+  - id: ACO
+    flow_max: 3.5
+    flow_min: 3.5
+    include: 1
+    model: sink_el
+    name: air compressors
+    node_id: utility
+    reserve_factor: 0
+
+  - id: OEX
+    eta: 0.6
+    include: 1
+    model: pump_oil
+    name: oil export pump
+    node_id: pump_oil
+    reserve_factor: 0
+
+  - id: REC
+    Q0: 45.7 # Sm3/s - nominal flow rate (used in linearisation)
+    eta: 0.65
+    include: 1
+    model: compressor_el
+    name: compressor
+    node_id: compressor_gas
+    reserve_factor: 0
+    temp_in: 300
+
+  - id: SEP_2
+    el_demand_factor: 0.05
+    heat_demand_factor: 0.07
+    include: 1
+    model: separator2
+    name: separator
+    node_id: separator
+    reserve_factor: 0
+
+  - id: SWL
+    flow_max: 1000
+    flow_min: 0
+    eta: 0.8
+    include: 1
+    model: pump_water
+    name: seawater lift
+    node_id: waterlift
+    reserve_factor: 0
+
+  - id: WIN
+    flow_max: 1000
+    flow_min: 0
+    eta: 0.8
+    include: 1
+    model: pump_water
+    name: water injection pump
+    node_id: pump_water
+    reserve_factor: 0
+
+  - id: WST_lift
+    Q0: 5
+    eta: 0.65
+    include: 1
+    model: compressor_el
+    name: lift compressor
+    node_id: compressor_lift
+    reserve_factor: 0
+    temp_in: 300
+
+  - id: ex_g
+    include: 1
+    model: sink_gas
+    name: gas EXPORT
+    node_id: export
+    price: { "gas": 4.19 } # NOK/Sm3
+
+  - id: ex_o
+    include: 1
+    model: sink_oil
+    name: oil EXPORT
+    node_id: export
+    price: { "oil": 4190 } # NOK/Sm3
+
+  - id: heat1
+    flow_max: 3
+    flow_min: 3
+    include: 1
+    model: sink_heat
+    name: heat demand
+    node_id: utility
+
+  - id: heatdump
+    flow_max: 100
+    flow_min: 0
+    include: 1
+    model: sink_heat
+    name: heat dump
+    node_id: powersupply
+
+  - id: injectionwell
+    # injectionrate was 1.3
+    # 0.3 is estimated roughly to give same injection volume as extraction volume
+    flow_max: 0.346 # multiplied by 0.8 from profile
+    flow_min: 0.346
+    #Qavg: 0.3
+    #Vmax: 0
+    #pressure: 6
+    include: 1
+    model: sink_water
+    name: water injection
+    node_id: water_injection
+    profile: waterinj
+
+  - id: seawater
+    flow_max: 5
+    include: 1
+    model: source_water
+    name: water wells
+    naturalpressure: 0.1
+    node_id: water_intake
+
+  - id: water_disp
+    include: 1
+    model: sink_water
+    name: water disposal
+    node_id: water_disp
+    price: { "water": -0.1 } # NOK/Sm3 (cost to discourage water disposal)
+
+  - id: wellL1
+    include: 1
+    model: well_gaslift
+    name: well1
+    node_id: wells
+    profile: oilgas
+    gas_oil_ratio: 500
+    water_cut: 0.6
+    flow_max: 15 # Sm3/s
+    flow_min: 15
+    f_inj: 220 # gas injection rate as fraction of production rate
+    injection_pressure: 20 # MPa
+    separator_pressure: 2 # MPa
+
+  - id: wellL2
+    include: 1
+    model: well_gaslift
+    name: well2
+    node_id: wells
+    profile: oilgas
+    gas_oil_ratio: 500
+    water_cut: 0.6
+    flow_max: 35 # Sm3/s
+    flow_min: 35
+    f_inj: 220
+    injection_pressure: 20
+    separator_pressure: 2
+
+  - id: electrolyser
+    include: 1
+    model: electrolyser
+    name: electrolyser
+    node_id: h2storage
+    flow_max: 60 # MW el
+    eta: 0.64 #efficiency (el to h2)
+    eta_heat: 0 # heat recovery ratio
+    reserve_factor: 1 #contributes to spinning reserve
+    op_cost: -0.02 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
+
+  - id: fuelcell
+    include: 1
+    model: fuelcell
+    name: fuelcell
+    node_id: h2storage
+    flow_max: 45 # MW el
+    eta: 0.60 #efficiency (h2 to el)
+    eta_heat: 0 #heat recovery ratio
+    op_cost: 0.03 # NOK/MJ (100 NOK/MWh = 0.03 NOK/MJ) #higher than wind, to favour wind when possible
+    reserve_factor: 1 #contributes to spinning reserve
+
+  - id: h2storage
+    include: 1
+    model: storage_hydrogen
+    name: h2storage
+    node_id: h2storage
+    E_max: 1000000 # Sm3  # 13 MJ/Sm3 => 3611 MWh (around 4 days at 40 MW)
+    E_init: 500000
+    eta: 1
+    #target_profile: h2target # "H2target", for planning beyond optimisation window
+    #target_value: 500000 # Sm3, same as E_init
+    #E_cost: 0.001 # NOK/Sm3 deviation at end of optimization horizon
+    # 100 EUR/MWh = 1000 kr/MWh = 1 kr/kWh = 1/3.6 kr/MJ = 0.277 kr/MJ = 0.2777/13 kr/Sm3 = 0.021 kr/Sm3H2
+    # gas 4.19 NOK/Sm3 = 4.14/40 kr/MJ = 0.1035*3600 kr/MWh = 372.6 kr/MWh (selling price = cost for gas)
+    # -with efficiency 0.3 this becomes about 1000 kr/MWh_el
+    # reasonable that storage cost is e.g. 1/10 of cost for gas turbines 
+
+
+edges:
+  - id: cL1
+    height_m: 0.0
+    include: 1
+    length_km: 1.0
+    node_from: compressor_lift
+    node_to: wells
+    pressure_from: 20.0
+    pressure_to: 20.0
+    carrier: gas
+  - id: cL2g
+    height_m: 0.0
+    include: 1
+    length_km: 1.0
+    node_from: wells
+    node_to: separator
+    carrier: gas
+  - id: cL2o
+    height_m: 0.0
+    include: 1
+    length_km: 1.0
+    node_from: wells
+    node_to: separator
+    carrier: oil
+  - id: cL2w
+    height_m: 0.0
+    include: 1
+    length_km: 1.0
+    node_from: wells
+    node_to: separator
+    carrier: water
+
+  - id: e1
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: utility
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: e2
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: separator
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: e3
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: pump_water
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: e4
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: compressor_gas
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: e5
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: pump_oil
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: e7
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: waterlift
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: eL1
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: compressor_lift
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
+  - id: g1
+    diameter_mm: 500.0
+    height_m: 0.0
+    include: 1
+    length_km: 0.01
+    node_from: separator
+    node_to: compressor_gas
+    pressure_from: 2.0
+    pressure_to: 2.0
+    temperature_K: 300.0
+    carrier: gas
+
+  - id: g2
+    diameter_mm: 200.0
+    height_m: 0.0
+    include: 1
+    length_km: 5.0
+    node_from: compressor_gas
+    node_to: export
+    pressure_from: 10.0
+    pressure_to: 6.0
+    temperature_K: 300.0
+    carrier: gas
+
+  - id: g3
+    diameter_mm: 100.0
+    height_m: 0.0
+    include: 1
+    length_km: 0.01
+    node_from: separator
+    node_to: powersupply
+    pressure_from: 2.0
+    pressure_to: 2.0
+    temperature_K: 300.0
+    carrier: gas
+
+  - id: gL1
+    #diameter_mm: 500.0
+    #temperature_K: 300.0
+    height_m: 0.0
+    include: 1
+    length_km: 1.0
+    node_from: separator
+    node_to: compressor_lift
+    pressure_from: 2.0
+    pressure_to: 2.0
+    carrier: gas
+
+  - id: h1
+    flow_max: 500.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: utility
+    carrier: heat
+
+  - id: h2
+    flow_max: 1000.0
+    include: 1
+    length_km: 0.01
+    node_from: powersupply
+    node_to: separator
+    carrier: heat
+
+  - id: o1
+    diameter_mm: 200.0
+    height_m: 0.0
+    include: 1
+    length_km: 0.01
+    node_from: separator
+    node_to: pump_oil
+    pressure_from: 0.3
+    pressure_to: 0.3
+    carrier: oil
+
+  - id: o2
+    diameter_mm: 200.0
+    height_m: 0.0
+    include: 1
+    length_km: 5.0
+    node_from: pump_oil
+    node_to: export
+    pressure_from: 5.0
+    pressure_to: 3.0
+    carrier: oil
+
+  - id: w0
+    diameter_mm: 200.0
+    height_m: 0.0
+    include: 1
+    length_km: 0.01
+    node_from: water_intake
+    node_to: waterlift
+    pressure_from: 0.1
+    pressure_to: 0.1
+    carrier: water
+
+  - id: w1
+    diameter_mm: 200.0
+    height_m: 40.0
+    include: 1
+    length_km: 0.01
+    node_from: waterlift
+    node_to: pump_water
+    num_pipes: 3
+    pressure_from: 1.14 # MPa
+    pressure_to: 0.7 # MPa
+    carrier: water
+
+  - id: w2
+    diameter_mm: 200.0
+    height_m: 0.0
+    include: 1
+    length_km: 0.01
+    node_from: separator
+    node_to: pump_water
+    pressure_from: 0.7 # MPa
+    pressure_to: 0.7 # MPa
+    carrier: water
+
+  - id: w3
+    diameter_mm: 135.0
+    height_m: -100.0
+    include: 1
+    length_km: 1.0
+    node_from: pump_water
+    node_to: water_injection
+    num_pipes: 15
+    pressure_from: 25.12 #Harald changed from 27.0 # MPa
+    pressure_to: 26.0 # MPa
+    carrier: water
+
+  - id: w5
+    height_m: 0.0
+    include: 1
+    length_km: 1.0
+    node_from: separator
+    node_to: water_disp
+    carrier: water
+    
+  - id: elhyd
+    node_from: powersupply
+    node_to: h2storage
+    carrier: el
+
+nodes:
+  - id: compressor_gas
+  - id: compressor_lift
+  - id: export
+    maxdeviation_pressure: { "gas": { "in": 0.0 }, "oil": { "in": 0.0 } }
+  - id: powersupply
+  - id: pump_oil
+  - id: pump_water
+  - id: separator
+    maxdeviation_pressure: { "wellstream": { "in": 0.0 } }
+  - id: utility
+  - id: water_disp
+  - id: water_injection
+    maxdeviation_pressure: { "water": { "in": 0.0 } }
+  - id: water_intake
+  - id: waterlift
+  - id: wells
+  - id: h2storage

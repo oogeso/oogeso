@@ -1,5 +1,15 @@
 import pyomo.environ as pyo
 import logging
+from oogeso.core.networks.network import Network
+from oogeso.core.networks.network_node import NetworkNode
+from oogeso.dto.oogeso_input_data_objects import (
+    CarrierData,
+    DeviceData,
+    OptimisationParametersData,
+)
+from typing import Dict
+
+logger = logging.getLogger(__name__)
 
 
 class Device:
@@ -10,21 +20,22 @@ class Device:
     carrier_out = []
     serial = []
 
-    def __init__(self, pyomo_model, optimiser, dev_data):
+    def __init__(self, dev_data, carrier_data_dict):
         """Device object constructor"""
-        self.dev_data = dev_data
+        self.dev_data: DeviceData = dev_data
         self.id = dev_data.id
-        self.pyomo_model = pyomo_model
-        self.optimiser = optimiser
-        self.dev_constraints = None
-        # parameter keeping track of upper bound (needed in piecewise linear constraints):
+        self.carrier_data = carrier_data_dict
+        self.node: NetworkNode = None
         self._flow_upper_bound = None
 
-    def setInitValues(self):
-        # Method invoked to specify optimisation problem initial value parameters
-        # TODO: move this to each subclass instead
+    def addNode(self, node):
+        """associate node with device"""
+        self.node = node
+
+    def setInitValues(self, pyomo_model):
+        """Method invoked to specify optimisation problem initial value parameters"""
+        # TODO: move this to each subclass instead?
         dev_id = self.id
-        pyomo_model = self.pyomo_model
         dev_data = self.dev_data
         if hasattr(dev_data, "E_init"):
             pyomo_model.paramDeviceEnergyInitially[dev_id] = dev_data.E_init
@@ -35,54 +46,44 @@ class Device:
         if hasattr(dev_data, "P_init"):
             pyomo_model.paramDevicePowerInitially[dev_id] = dev_data.P_init
 
-    def _rule_devicePmax(self, model, t):
-        power = self.getFlowVar(t)
+    def _rule_deviceFlowMax(self, pyomo_model, t):
+        power = self.getFlowVar(pyomo_model, t)
         if power is None:
             return pyo.Constraint.Skip
-        maxValue = self.getMaxP(t)
+        maxValue = self.getMaxFlow(pyomo_model, t)
         expr = power <= maxValue
-        # maxValue = self.dev_data.flow_max
-        # if self.dev_data.profile is not None:
-        #     # use an availability profile if provided
-        #     extprofile = self.dev_data.profile
-        #     maxValue = maxValue * model.paramProfiles[extprofile, t]
-        # ison = 1
-        # if self.dev_data.start_stop is not None:
-        #     ison = model.varDeviceIsOn[self.id, t]
-        # expr = power <= ison * maxValue
         return expr
 
-    def _rule_devicePmin(self, model, t):
-        power = self.getFlowVar(t)
+    def _rule_deviceFlowMin(self, pyomo_model, t):
+        power = self.getFlowVar(pyomo_model, t)
         if power is None:
             return pyo.Constraint.Skip
         minValue = self.dev_data.flow_min
         if self.dev_data.profile is not None:
             # use an availability profile if provided
             extprofile = self.dev_data.profile
-            minValue = minValue * model.paramProfiles[extprofile, t]
+            minValue = minValue * pyomo_model.paramProfiles[extprofile, t]
         ison = 1
         if self.dev_data.start_stop is not None:
-            ison = model.varDeviceIsOn[self.id, t]
+            ison = pyomo_model.varDeviceIsOn[self.id, t]
         expr = power >= ison * minValue
         return expr
 
-    def _rule_ramprate(self, model, t):
+    def _rule_ramprate(self, pyomo_model, t):
         """power ramp rate limit"""
         dev = self.id
         dev_data = self.dev_data
-        param_generic = self.optimiser.optimisation_parameters
 
         # If no ramp limits have been specified, skip constraint
         if self.dev_data.max_ramp_up is None:
             return pyo.Constraint.Skip
         if t > 0:
-            p_prev = self.getFlowVar(t - 1)
+            p_prev = self.getFlowVar(pyomo_model, t - 1)
         else:
-            p_prev = model.paramDevicePowerInitially[dev]
-        p_this = self.getFlowVar(t)
+            p_prev = pyomo_model.paramDevicePowerInitially[dev]
+        p_this = self.getFlowVar(pyomo_model, t)
         deltaP = p_this - p_prev
-        delta_t = param_generic.time_delta_minutes
+        delta_t = pyomo_model.paramTimestepDeltaMinutes
         maxP = dev_data.flow_max
         max_neg = -dev_data.max_ramp_down * maxP * delta_t
         max_pos = dev_data.max_ramp_up * maxP * delta_t
@@ -93,21 +94,20 @@ class Device:
         """startup/shutdown constraint
         connecting starting, stopping, preparation, online stages of GTs"""
         dev = self.id
-        param_generic = self.optimiser.optimisation_parameters
         Tdelay_min = self.dev_data.start_stop.delay_start_minutes
+        time_delta_minutes = model.paramTimestepDeltaMinutes
         # Delay in timesteps, rounding down.
         # example: time_delta = 5 min, delay_start_minutes= 8 min => Tdelay=1
-        Tdelay = int(Tdelay_min / param_generic.time_delta_minutes)
+        Tdelay = int(Tdelay_min / time_delta_minutes)
         prevPart = 0
         if t >= Tdelay:
             # prevPart = sum( model.varDeviceStarting[dev,t-tau]
             #    for tau in range(0,Tdelay) )
             prevPart = model.varDeviceStarting[dev, t - Tdelay]
         else:
-            # OBS: for this to work as intended, need to reconstruct constraint
-            # pyo.value(...) not needed
-            # prepInit = pyo.value(model.paramDevicePrepTimestepsInitially[dev])
-            prepInit = model.paramDevicePrepTimestepsInitially[dev]
+            # NOTE: for this to work as intended, may need to reconstruct constraint
+            # pyo.value(...) needed in pyomo v6
+            prepInit = pyo.value(model.paramDevicePrepTimestepsInitially[dev])
             if prepInit + t == Tdelay:
                 prevPart = 1
         if t > 0:
@@ -121,11 +121,11 @@ class Device:
     def _rule_startup_delay(self, model, t):
         """startup delay/preparation for GTs"""
         dev = self.id
-        param_generic = self.optimiser.optimisation_parameters
+        time_delta_minutes = model.paramTimestepDeltaMinutes
         Tdelay_min = self.dev_data.start_stop.delay_start_minutes
         # Delay in timesteps, rounding down.
         # example: time_delta = 5 min, startupDelay= 8 min => Tdelay=1
-        Tdelay = int(Tdelay_min / param_generic.time_delta_minutes)
+        Tdelay = int(Tdelay_min / time_delta_minutes)
         if Tdelay == 0:
             return pyo.Constraint.Skip
         # determine if was in preparation previously
@@ -144,85 +144,90 @@ class Device:
         rhs = sum(model.varDeviceStarting[dev, t - tau] for tau in tau_range) + prevPart
         return lhs == rhs
 
-    def defineConstraints(self):
-        """Returns a set of constraints for the device."""
+    def defineConstraints(self, pyomo_model):
+        """Build constraints for the device and add to pyomo model.
+        Returns list of constraints that need to be reconstructed between each
+        optimisation
+        """
 
-        # Generic constraints common for all device types:
+        list_to_reconstruct = []  # Default
 
         if self.dev_data.flow_max is not None:
             constrDevicePmax = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_devicePmax
+                pyomo_model.setHorizon, rule=self._rule_deviceFlowMax
             )
             setattr(
-                self.pyomo_model,
-                "constr_{}_{}".format(self.id, "Pmax"),
+                pyomo_model,
+                "constr_{}_{}".format(self.id, "flowMax"),
                 constrDevicePmax,
             )
         if self.dev_data.flow_min is not None:
             constrDevicePmin = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_devicePmin
+                pyomo_model.setHorizon, rule=self._rule_deviceFlowMin
             )
             setattr(
-                self.pyomo_model,
-                "constr_{}_{}".format(self.id, "Pmin"),
+                pyomo_model,
+                "constr_{}_{}".format(self.id, "flowMin"),
                 constrDevicePmin,
             )
         if (self.dev_data.max_ramp_up is not None) or (
             self.dev_data.max_ramp_down is not None
         ):
             constrDevice_ramprate = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_ramprate
+                pyomo_model.setHorizon, rule=self._rule_ramprate
             )
             setattr(
-                self.pyomo_model,
+                pyomo_model,
                 "constr_{}_{}".format(self.id, "ramprate"),
                 constrDevice_ramprate,
             )
         if self.dev_data.start_stop is not None:
             constrDevice_startup_shutdown = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_startup_shutdown
+                pyomo_model.setHorizon, rule=self._rule_startup_shutdown
             )
             setattr(
-                self.pyomo_model,
+                pyomo_model,
                 "constr_{}_{}".format(self.id, "startstop"),
                 constrDevice_startup_shutdown,
             )
             constrDevice_startup_delay = pyo.Constraint(
-                self.pyomo_model.setHorizon, rule=self._rule_startup_delay
+                pyomo_model.setHorizon, rule=self._rule_startup_delay
             )
             setattr(
-                self.pyomo_model,
+                pyomo_model,
                 "constr_{}_{}".format(self.id, "startdelay"),
                 constrDevice_startup_delay,
             )
 
             # TODO: Add constraints for minimum up and down-time
 
-            # Because of logic that needs to be re-evalued, these constraints need
-            # to be reconstructed each optimisation:
-            self.optimiser.constraints_to_reconstruct.append(
-                constrDevice_startup_shutdown
-            )
-            self.optimiser.constraints_to_reconstruct.append(constrDevice_startup_delay)
+            # return list of constraints that need to be reconstructed:
+            list_to_reconstruct = [
+                constrDevice_startup_shutdown,
+                constrDevice_startup_delay,
+            ]
+        return list_to_reconstruct
 
-    def getFlowVar(self, t) -> float:
-        logging.error("Device: no getFlowVar defined for {}".format(self.id))
+    def getFlowVar(self, pyomo_model, t) -> float:
+        logger.error("Device: no getFlowVar defined for {}".format(self.id))
         raise NotImplementedError()
 
-    def getMaxP(self, t):
-        """get available capacity at given timestep, use t=None to get max for entire timeseries"""
-        model = self.pyomo_model
+    def getMaxFlow(self, pyomo_model, t):
+        """Return available capacity at given timestep.
+        This is given by the "flow_max" input parameter, profile value (if any), and
+        whether devie is on/off."""
         maxValue = self.dev_data.flow_max
         if self.dev_data.profile is not None:
             extprofile = self.dev_data.profile
-            maxValue = maxValue * model.paramProfiles[extprofile, t]
+            maxValue = maxValue * pyomo_model.paramProfiles[extprofile, t]
         if self.dev_data.start_stop is not None:
-            ison = self.pyomo_model.varDeviceIsOn[self.id, t]
+            ison = pyomo_model.varDeviceIsOn[self.id, t]
             maxValue = ison * maxValue
         return maxValue
 
     def setFlowUpperBound(self, profiles):
-        """Maximum flow value through entire profile. Product of flox_max parameter and profile values"""
+        """Maximum flow value through entire profile.
+        Given as the product of the "flow_max" parameter and profile values."""
         ub = self.dev_data.flow_max
         if self.dev_data.profile is not None:
             extprofile = self.dev_data.profile
@@ -236,7 +241,7 @@ class Device:
                     ub = ub * prof_max
                     break
             if prof_max is None:
-                logging.warning(
+                logger.warning(
                     "Profile (%s) defined for device %s was not found",
                     extprofile,
                     self.dev_data.id,
@@ -244,12 +249,14 @@ class Device:
         self._flow_upper_bound = ub
 
     def getFlowUpperBound(self):
+        """Returns the maximum possible flow given capacity and profile"""
+        # Used by piecewise linear constraints
         return self._flow_upper_bound
 
-    def compute_CO2(self, timesteps):
+    def compute_CO2(self, pyomo_model, timesteps):
         return 0
 
-    def compute_export(self, value, carriers, timesteps):
+    def compute_export(self, pyomo_model, value, carriers, timesteps):
         """Compute average export (volume or revenue)
 
         Parameters:
@@ -269,7 +276,7 @@ class Device:
             if self.dev_data.price is not None:
                 if carrier in self.dev_data.price:
                     inflow = sum(
-                        self.pyomo_model.varDeviceFlow[self.id, carrier, "in", t]
+                        pyomo_model.varDeviceFlow[self.id, carrier, "in", t]
                         for t in timesteps
                     )
                     if value == "revenue":
@@ -281,20 +288,19 @@ class Device:
                         sumValue += inflow * volumefactor
         return sumValue
 
-    def compute_elReserve(self, t):
+    def compute_elReserve(self, model, t):
         """Compute available reserve power from this device
 
         device parameter "reserve_factor" specifies how large part of the
         available capacity should count towards the reserve (1=all, 0=none)
         """
-        model = self.pyomo_model
         rf = 1
         loadreduction = 0
         cap_avail = 0
         p_generating = 0
         if "el" in self.carrier_out:
             # Generators and storage
-            maxValue = self.getMaxP(t)
+            maxValue = self.getMaxFlow(model, t)
             if self.dev_data.reserve_factor is not None:
                 # safety margin - only count a part of the forecast power
                 # towards the reserve, relevant for wind power
@@ -321,9 +327,9 @@ class Device:
         return reserve
 
     # start/stop penalty - generalised from gas turbine startup cost
-    def compute_startup_penalty(self, timesteps):
+    def compute_startup_penalty(self, pyomo_model, timesteps):
         penalty = 0
-        model = self.pyomo_model
+        model = pyomo_model
         if self.dev_data.start_stop is not None:
             penalty = (
                 sum(model.varDeviceStarting[self.id, t] for t in timesteps)
@@ -333,30 +339,22 @@ class Device:
             )
         return penalty
 
-    def compute_operatingCosts(self, timesteps):
+    def compute_operatingCosts(self, pyomo_model, timesteps):
         """average operating cost within selected timespan"""
         sumCost = 0
         if self.dev_data.op_cost is not None:
             opcost = self.dev_data.op_cost
-            for t in self.pyomo_model.setHorizon:
-                varP = self.getFlowVar(t)
+            for t in pyomo_model.setHorizon:
+                varP = self.getFlowVar(pyomo_model, t)
                 sumCost += opcost * varP
         # average per sec (simulation timestep drops out)
         avgCost = sumCost / len(timesteps)
         return avgCost
 
-    def compute_costForDepletedStorage(self, timesteps):
+    def compute_costForDepletedStorage(self, pyomo_model, timesteps):
         return 0
 
-    def getProfile(self):
-        """Get device profile as list of values, or None if no profile is used"""
-        profile = None
-        if self.dev_data.profile is not None:
-            prof_id = self.dev_data.profile
-            profile = self.pyomo_model.paramProfiles[prof_id, :].value
-        return profile
-
-    def compute_penalty(self, timesteps):
+    def compute_penalty(self, pyomo_model, timesteps):
         """Compute average penalty rate (cost, emission or similar per second)
         as defined by penalty functions and start/stop penalties"""
         penalty_rate = 0
@@ -365,8 +363,8 @@ class Device:
             and self.dev_data.penalty_function is not None
         ):
             if not hasattr(self, "_penaltyConstraint"):
-                logging.warning(
-                    "Penalty functin constraint not impelemented for %s", self.id
+                logger.warning(
+                    "Penalty function constraint not impelemented for %s", self.id
                 )
             # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
             # penalty for Pel > 0 only when device is actually online (penalty should be zero when
@@ -376,20 +374,22 @@ class Device:
                 # penalty_offset = penalty(Pel=0)
                 penalty_offset = self.dev_data.penalty_function[1][0]
             this_penalty = sum(
-                self.pyomo_model.varDevicePenalty[self.id, "el", "out", t]
-                + (self.pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
+                pyomo_model.varDevicePenalty[self.id, "el", "out", t]
+                + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
                 for t in timesteps
             )
             # divide by number of timesteps to get average penalty rate (penalty per sec):
             penalty_rate = this_penalty / len(timesteps)
 
-        start_stop_penalty = self.compute_startup_penalty(timesteps)
-        # get average per second:
-        timestep_duration_sec = (
-            self.optimiser.optimisation_parameters.time_delta_minutes * 60
-        )
-        time_interval_sec = len(timesteps) * timestep_duration_sec
-        start_stop_penalty_rate = start_stop_penalty / time_interval_sec
+        start_stop_penalty_rate = 0
+        if self.dev_data.start_stop is not None:
+            # this sums up penalty over all timesteps in horizon:
+            start_stop_penalty = self.compute_startup_penalty(pyomo_model, timesteps)
+            # get average per second:
+            time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
+            timestep_duration_sec = time_delta_minutes * 60
+            time_interval_sec = len(timesteps) * timestep_duration_sec
+            start_stop_penalty_rate = start_stop_penalty / time_interval_sec
 
         sum_penalty_rate = penalty_rate + start_stop_penalty_rate
         return sum_penalty_rate
