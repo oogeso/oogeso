@@ -1,6 +1,6 @@
 import oogeso
-import oogeso.core.util
-import oogeso.io.file_io
+import oogeso.utils
+import oogeso.io
 import pandas as pd
 import pytest
 
@@ -14,14 +14,14 @@ def test_file_input():
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
-    profiles_json = oogeso.core.util.create_timeseriesdata(
+    profiles_json = oogeso.utils.create_timeseriesdata(
         profiles_dfs["forecast"],
         profiles_dfs["nowcast"],
         time_start=None,
         time_end=None,
         timestep_minutes=15,
     )
-    data0 = oogeso.io.file_io.read_data_from_yaml("examples/test case2.yaml")
+    data0 = oogeso.io.read_data_from_yaml("examples/test case2.yaml")
     data0.profiles = profiles_json
 
     # If not failed above, it's OK
@@ -33,9 +33,9 @@ def test_hdf_profiles():
         import tables
     except ImportError as e:
         print("Pytables not installed")
-        pytest.skip("pytables not installed")
+        pytest.skip("pytables not installed, skipping test")
 
-    profiles_dfs = oogeso.io.file_io.read_profiles_from_csv(
+    profiles_dfs = oogeso.io.read_profiles_from_csv(
         filename_forecasts="examples/testcase2_profiles_forecasts.csv",
         filename_nowcasts="examples/testcase2_profiles_nowcasts.csv",
         timestamp_col="timestamp",

@@ -1,12 +1,12 @@
 import oogeso
-import oogeso.core.util
-import oogeso.io.file_io
-import oogeso.dto.oogeso_input_data_objects as dto
+import oogeso.io
 import pyomo.opt as pyopt
+import pyomo.environ as pyo
+import pytest
 
 
 def test_simulator_create():
-    data = oogeso.io.file_io.read_data_from_yaml("tests/testdata1.yaml")
+    data = oogeso.io.read_data_from_yaml("tests/testdata1.yaml")
     simulator = oogeso.Simulator(data)
     # If not failed above, it's OK
     assert isinstance(simulator, oogeso.Simulator)
@@ -15,8 +15,13 @@ def test_simulator_create():
 
 
 def test_simulator_run():
-    data = oogeso.io.file_io.read_data_from_yaml("tests/testdata1.yaml")
+    data = oogeso.io.read_data_from_yaml("tests/testdata1.yaml")
     simulator = oogeso.Simulator(data)
+    # Continue test only if cbc executable is present
+    opt = pyo.SolverFactory("cbc")
+    if not opt.available():
+        pytest.skip("CBC executable not found. Skipping test")
+
     sol = simulator.optimiser.solve(solver="cbc", timelimit=20)
     assert (
         sol.solver.termination_condition == pyopt.TerminationCondition.optimal
