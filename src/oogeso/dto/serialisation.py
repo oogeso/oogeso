@@ -3,6 +3,7 @@ from dataclasses import dataclass, is_dataclass, asdict, field
 from typing import List, Optional, Tuple, Any, Dict, Union
 import logging
 from .oogeso_input_data_objects import *
+from .oogeso_input_data_objects_multienergy import *
 from .oogeso_output_data_objects import *
 import pandas as pd
 

@@ -54,7 +54,7 @@ class DevicePowersourceData(DeviceData):
 
 
 @dataclass
-class DeviceSink_elData(DeviceData):
+class DevicePowersinkData(DeviceData):
     pass
 
 

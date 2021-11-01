@@ -3,8 +3,7 @@ import pyomo.environ as pyo
 import numpy as np
 import scipy
 from oogeso.core.networks.edge import Edge
-
-from oogeso.dto.oogeso_input_data_objects import CarrierData, EdgeFluidData
+from oogeso.dto import CarrierData, EdgeFluidData
 from .network import Network
 import typing
 

@@ -12,6 +12,10 @@ class Sink_el(Device):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
+# Just another name (to mirror Powersource):
+Powersink = Sink_el
+
+
 class Sink_heat(Device):
     "Generic heat consumption"
     carrier_in = ["heat"]

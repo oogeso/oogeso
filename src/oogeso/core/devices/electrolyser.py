@@ -1,5 +1,5 @@
 import pyomo.environ as pyo
-from oogeso.dto.oogeso_input_data_objects import DeviceElectrolyserData
+from oogeso.dto import DeviceElectrolyserData
 from . import Device
 
 

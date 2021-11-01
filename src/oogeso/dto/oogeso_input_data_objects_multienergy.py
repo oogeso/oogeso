@@ -28,6 +28,11 @@ class DeviceSource_waterData(DeviceData):
 
 
 @dataclass
+class DeviceSink_elData(DeviceData):
+    pass
+
+
+@dataclass
 class DeviceSink_heatData(DeviceData):
     pass
 

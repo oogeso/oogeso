@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 from oogeso.core.networks.network_node import NetworkNode
 
-from oogeso.dto.oogeso_input_data_objects import (
+from oogeso.dto import (
     CarrierWellstreamData,
     DeviceSeparator2Data,
     DeviceSeparatorData,
