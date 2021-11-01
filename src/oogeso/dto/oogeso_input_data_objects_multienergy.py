@@ -171,6 +171,9 @@ class EdgeFluidData(EdgeData):
     height_m: float = 0
     num_pipes: Optional[int] = None
     bidirectional: bool = False
+    # allovable relative deviation of pressure from nominal values,
+    pressure_from_maxdeviation: Optional[float] = None
+    pressure_to_maxdeviation: Optional[float] = None
 
 
 @dataclass

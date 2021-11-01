@@ -17,37 +17,48 @@ class NetworkNode:
     "Network node"
 
     def __init__(self, node_data: "NodeData"):
-        self.node_data: NodeData = node_data
+        self.node_data: "NodeData" = node_data
         self.id = node_data.id
         self.devices = {}
         self.devices_serial = {}  # devices with through-flow
         self.edges_from = {}
         self.edges_to = {}
-        self.nominal_pressure = {}
+        self.pressure_nominal = {}
+        self.pressure_maxdeviation = {}
 
-    def get_nominal_pressure(self, carrier, term):
-        if (carrier in self.nominal_pressure) and (
-            term in self.nominal_pressure[carrier]
+    def get_pressure_nominal(self, carrier, term):
+        if (carrier in self.pressure_nominal) and (
+            term in self.pressure_nominal[carrier]
         ):
-            return self.nominal_pressure[carrier][term]
+            return self.pressure_nominal[carrier][term]
         return None
 
-    def set_nominal_pressure(self, carrier, term, pressure):
-        if carrier in self.nominal_pressure:
-            if term in self.nominal_pressure[carrier]:
+    def _set_pressure_parameter(self, carrier, term, parameter, value):
+        if carrier in parameter:
+            if term in parameter[carrier]:
                 # pressure has already been set, so check consistency:
-                p_exst = self.nominal_pressure[carrier][term]
-                if p_exst != pressure:
+                p_exst = parameter[carrier][term]
+                if p_exst != value:
                     raise Exception(
-                        "Inconsistent pressure level for node {}:{} vs {}".format(
-                            self.id, p_exst, pressure
+                        "Inconsistent pressure values for node {}:{} vs {}".format(
+                            self.id, p_exst, value
                         )
                     )
             else:
-                self.nominal_pressure[carrier][term] = pressure
+                parameter[carrier][term] = value
         else:
-            self.nominal_pressure[carrier] = {}
-            self.nominal_pressure[carrier][term] = pressure
+            parameter[carrier] = {}
+            parameter[carrier][term] = value
+
+    def set_pressure_nominal(self, carrier, term, pressure):
+        self._set_pressure_parameter(
+            carrier, term, parameter=self.pressure_nominal, value=pressure
+        )
+
+    def set_pressure_maxdeviation(self, carrier, term, value):
+        self._set_pressure_parameter(
+            carrier, term, parameter=self.pressure_maxdeviation, value=value
+        )
 
     def addDevice(self, device_id, device: "Device"):
         # logger.debug("addDevice: {},{}".format(self.id, device_id))
@@ -159,17 +170,16 @@ class NetworkNode:
 
     def _rule_pressureBounds(self, model, term, carrier, t):
         node = self.id
-        node_data: NodeData = self.node_data
-        nominal_pressure = self.nominal_pressure
+        nominal_pressure = self.pressure_nominal
         maxdev = None  # default is no constraint
         if carrier in nominal_pressure:
             if term in nominal_pressure[carrier]:
                 nom_p = nominal_pressure[carrier][term]
                 if nom_p is not None:
-                    if (carrier in node_data.maxdeviation_pressure) and (
-                        term in node_data.maxdeviation_pressure[carrier]
+                    if (carrier in self.pressure_maxdeviation) and (
+                        term in self.pressure_maxdeviation[carrier]
                     ):
-                        maxdev = node_data.maxdeviation_pressure[carrier][term]
+                        maxdev = self.pressure_maxdeviation[carrier][term]
                         if t == 0:
                             logger.debug(
                                 "Using individual pressure limit for: {}, {}, {}, {}".format(

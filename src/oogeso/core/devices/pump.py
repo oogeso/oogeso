@@ -42,11 +42,11 @@ class _PumpDevice(Device):
             if t == 0:
                 logger.debug(
                     "Node:{}, nominal pressures={}".format(
-                        node_id, node_obj.nominal_pressure
+                        node_id, node_obj.pressure_nominal
                     )
                 )
-            p10 = node_obj.nominal_pressure[carrier]["in"]
-            p20 = node_obj.nominal_pressure[carrier]["out"]
+            p10 = node_obj.pressure_nominal[carrier]["in"]
+            p20 = node_obj.pressure_nominal[carrier]["out"]
             delta_p = p20 - p10
             #            Q0 = model.paramDevice[dev]['Q0']
             # P = (Q*(p20-p10)+Q0*(p10-p1))/eta

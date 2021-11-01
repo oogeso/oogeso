@@ -7,9 +7,6 @@ import re
 class NodeData:
     # unique identifier:
     id: str
-    # allovable relative deviation of pressure from nominal values,
-    # specified as dictionary, example {"gas":0.1, "water":0.1}:
-    maxdeviation_pressure: Optional[Dict] = field(default_factory=lambda: {})
 
 
 @dataclass

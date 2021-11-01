@@ -52,17 +52,17 @@ class Separator(Device):
         elif i == 6:
             # gas pressure out = nominal
             lhs = model.varPressure[(node, "gas", "out", t)]
-            rhs = node_obj.get_nominal_pressure("gas", "out")
+            rhs = node_obj.get_pressure_nominal("gas", "out")
             return lhs == rhs
         elif i == 7:
             # oil pressure out = nominal
             lhs = model.varPressure[(node, "oil", "out", t)]
-            rhs = node_obj.get_nominal_pressure("oil", "out")
+            rhs = node_obj.get_pressure_nominal("oil", "out")
             return lhs == rhs
         elif i == 8:
             # water pressure out = nominal
             lhs = model.varPressure[(node, "water", "out", t)]
-            rhs = node_obj.get_nominal_pressure("water", "out")
+            rhs = node_obj.get_pressure_nominal("water", "out")
             return lhs == rhs
 
     def defineConstraints(self, pyomo_model):
@@ -105,7 +105,7 @@ class Separator2(Device):
         elif i == 2:
             # pressure out is nominal
             lhs = model.varPressure[(node, fc, "out", t)]
-            rhs = node_obj.get_nominal_pressure(fc, "out")
+            rhs = node_obj.get_pressure_nominal(fc, "out")
             return lhs == rhs
 
     def _rule_separator2_energy(self, model, t, i):

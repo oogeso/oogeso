@@ -119,8 +119,8 @@ class Fluid(Network):
 
         n_from = edge_data.node_from
         n_to = edge_data.node_to
-        p0_from = edge.node_from.get_nominal_pressure(carrier, "out")
-        p0_to = edge.node_to.get_nominal_pressure(carrier, "in")
+        p0_from = edge.node_from.get_pressure_nominal(carrier, "out")
+        p0_to = edge.node_to.get_pressure_nominal(carrier, "in")
         if (p0_from is not None) and (p0_to is not None):
             if linear & (p0_from == p0_to):
                 method = None

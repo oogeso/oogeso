@@ -141,8 +141,8 @@ def compute_compressor_demand(
     if linear:
         # linearised equations around operating point
         # p1=p10, p2=p20, Q=Q0
-        p10 = node_obj.nominal_pressure["gas"]["in"]
-        p20 = node_obj.nominal_pressure["gas"]["out"]
+        p10 = node_obj.pressure_nominal["gas"]["in"]
+        p20 = node_obj.pressure_nominal["gas"]["out"]
         Q0 = dev_data.Q0
         P = c * (
             a * (p20 / p10) ** a * Q0 * (p2 / p20 - p1 / p10)
