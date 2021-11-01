@@ -36,11 +36,6 @@ carriers:
     darcy_friction: 0.01
     pressure_method: darcy-weissbach
     rho_density: 1000 # kg/m3
-    #viscosity: 0.001 # kg/(m s) # use friction factor instead
-  - id: wellstream
-    darcy_friction: 0.0136
-    pressure_method: darcy-weissbach
-    rho_density: 5.63 # kg/m3 (dependent on wellstream composition)
   - id: hydrogen
     energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
 
@@ -449,6 +444,7 @@ edges:
     node_to: export
     pressure_from: 10.0
     pressure_to: 6.0
+    pressure_to_maxdeviation: 0.0
     temperature_K: 300.0
     carrier: gas
 
@@ -512,6 +508,7 @@ edges:
     node_to: export
     pressure_from: 5.0
     pressure_to: 3.0
+    pressure_to_maxdeviation: 0.0
     carrier: oil
 
   - id: w0
@@ -558,6 +555,7 @@ edges:
     num_pipes: 15
     pressure_from: 25.12 #Harald changed from 27.0 # MPa
     pressure_to: 26.0 # MPa
+    pressure_to_maxdeviation: 0.0
     carrier: water
 
   - id: w5
@@ -577,16 +575,13 @@ nodes:
   - id: compressor_gas
   - id: compressor_lift
   - id: export
-    maxdeviation_pressure: { "gas": { "in": 0.0 }, "oil": { "in": 0.0 } }
   - id: powersupply
   - id: pump_oil
   - id: pump_water
   - id: separator
-    maxdeviation_pressure: { "wellstream": { "in": 0.0 } }
   - id: utility
   - id: water_disp
   - id: water_injection
-    maxdeviation_pressure: { "water": { "in": 0.0 } }
   - id: water_intake
   - id: waterlift
   - id: wells
