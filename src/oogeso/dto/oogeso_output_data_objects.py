@@ -6,7 +6,7 @@ from dataclasses import dataclass, fields
 class SimulationResult:
     """Results from oogeso simulation
 
-    The results are stored in a set of multi-index Dataframes, with
+    The results are stored in a set of multi-index Series, with
     index names indicating what they are:
 
     device - device identifier
@@ -32,7 +32,7 @@ class SimulationResult:
     # Max available "flow" (power/fluid) from storage (Sm3/s or MW):
     dfDeviceStoragePmax: pd.Series = None
     # Device assosiated penalty rate (PENALTY_UNIT/s):
-    dfPenalty: pd.DataFrame = None
+    dfPenalty: pd.Series = None
     # Flow rate (Sm3/s or MW):
     dfEdgeFlow: pd.Series = None
     # Loss rate (MW) - only relevant for energy flow (el and heat):
@@ -46,23 +46,23 @@ class SimulationResult:
     # Emission rate (sum of all devices) (kgCO2/s):
     dfCO2rate: pd.Series = None
     # Emission rate per device (kgCO2/s):
-    dfCO2rate_per_dev: pd.DataFrame = None
+    dfCO2rate_per_dev: pd.Series = None
     # Revenue rate for exported oil/gas (CURRENCY/s):
-    dfExportRevenue: pd.DataFrame = None
+    dfExportRevenue: pd.Series = None
     # CO2 intensity of exported oil/gas (kgCO2/Sm3oe):
-    dfCO2intensity: pd.DataFrame = None
+    dfCO2intensity: pd.Series = None
     # Available online electrical reserve capacity (MW):
-    dfElReserve: pd.DataFrame = None
+    dfElReserve: pd.Series = None
     # Available online electrical backup per device (MW):
-    dfElBackup: pd.DataFrame = None
+    dfElBackup: pd.Series = None
     # Value of duals (associated with constraints)
-    dfDuals: pd.DataFrame = None
+    dfDuals: pd.Series = None
     # Time-series profiles used in simulation (copied from the input)
     df_profiles_forecast: pd.DataFrame = None
     df_profiles_nowcast: pd.DataFrame = None
 
     def append_results(self, sim_res):
-        exclude_list = ["optimiser", "df_profiles_forecast", "df_profiles_forecast"]
+        exclude_list = ["df_profiles_forecast", "df_profiles_forecast"]
         for my_field in fields(self):
             field_name = my_field.name
             if field_name not in exclude_list:

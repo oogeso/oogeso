@@ -748,8 +748,10 @@ class OptimisationModel:
             filename=filename, io_options={"symbolic_solver_labels": True}
         )
 
-    def extract_all_variable_values(self, timelimit=None, timeshift=0):
-        """Extract variable values and return as a dictionary of pandas dataframes"""
+    def extract_all_variable_values(
+        self, timelimit: int = None, timeshift: int = 0
+    ) -> Dict[str, pd.Series]:
+        """Extract variable values and return as a dictionary of pandas milti-index series"""
         ins = self.pyomo_instance
         all_vars = [
             ins.varEdgeFlow,
