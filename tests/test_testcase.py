@@ -1,3 +1,4 @@
+from pathlib import Path
 import oogeso
 import oogeso.io
 import pyomo.opt as pyopt
@@ -5,8 +6,11 @@ import pyomo.environ as pyo
 import pytest
 
 
+TEST_DATA_ROOT_PATH = Path(__file__).parent
+
+
 def test_simulator_create():
-    data = oogeso.io.read_data_from_yaml("tests/testdata1.yaml")
+    data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testdata1.yaml")
     simulator = oogeso.Simulator(data)
     # If not failed above, it's OK
     assert isinstance(simulator, oogeso.Simulator)
@@ -15,7 +19,7 @@ def test_simulator_create():
 
 
 def test_simulator_run():
-    data = oogeso.io.read_data_from_yaml("tests/testdata1.yaml")
+    data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testdata1.yaml")
     simulator = oogeso.Simulator(data)
     # Continue test only if cbc executable is present
     opt = pyo.SolverFactory("cbc")
