@@ -17,11 +17,18 @@ Part of the [Low Emission Centre](https://www.sintef.no/en/projects/lowemission-
 
 ## Getting started
 
-Clone or download the code and install it as a python package. I.e. navigate to the folder with the MANIFEST.in file and type:  
-`pip install --editable .`
+Clone or download the code and install it as a python package. I.e. navigate to the folder with the MANIFEST.in file and type:
 
-(Installing as _editable_ means a link will be created from the python package directory to the code located here, and you can modify the code without the
-need to re-install.)
+
+1. Install [Poetry](https://python-poetry.org/docs/#installation).
+2. `poetry install --no-root`  Alternatively for plotting and dashboarding: `poetry install --no-root --optional`
+3. `poetry shell`
+4. `poetry run pytests tests`
+
+Installing as --no-root means means that you only install the dependencies and not the source code. 
+This way you can modify the code without the need to re-install.
+
+Alternatively you can run and develop the code using docker and the Dockerfile in the root folder.
 
 Check out the examples:
 
