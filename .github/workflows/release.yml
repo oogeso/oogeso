@@ -1,0 +1,95 @@
+name: Create Release
+
+on:
+  push:
+    # Run when a tag matches v*, i.e. v0.1.0, v.1.30, etc.
+    tags:
+      - 'v*'
+
+jobs:
+  autorelease:
+    name: Create Release
+    runs-on: 'ubuntu-latest'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2.4.0
+        with:
+          fetch-depth: 0
+
+      # We run the  oldest LTS version for now: https://endoflife.date/python
+      - name: Setup Python 3.7
+        uses: actions/setup-python@v2.3.0
+        with:
+          python-version: '3.7'
+
+      # Create cache so that we don't have to do this for each step in the matrix.
+      - name: Create cache for Poetry
+        id: cache-poetry
+        uses: actions/cache@v2.1.6
+        with:
+          path: ~/.poetry
+          key: poetry
+
+      # Install latest Poetry if cache has changed.
+      - name: Install latest version of Poetry
+        if: steps.cache-poetry.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+
+      # Add Poetry to github_path
+      - name: Add Poetry to $PATH
+        run: |
+          echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+
+      - name: Add project version to environment vars
+        run: |
+          PROJECT_VERSION=$(poetry version --short)
+          echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_ENV
+
+      - name: Check if tag version matches project version
+        run: |
+          TAG=$(git describe HEAD --tags --abbrev=0)
+          echo $TAG
+          echo $PROJECT_VERSION
+          if [[ "$TAG" != "v$PROJECT_VERSION" ]]; then exit 1; fi
+      
+      - name: Get Poetry version
+        run: poetry --version
+
+      - name: Check pyproject.toml validity
+        run: poetry check --no-interaction
+
+      - name: Cache dependencies
+        id: cache-deps
+        uses: actions/cache@v2.1.6
+        with:
+          path: ${{github.workspace}}/.venv
+          key: poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: poetry-
+
+      - name: Install dependencies  # if cache has changed
+        if: steps.cache-deps.cache-hit != 'true'
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction
+
+      - name: Run tests
+        run: poetry run pytest -v
+
+      - name: Build
+        run: poetry build
+
+      - name: Release Notes
+        run: git log $(git describe HEAD~ --tags --abbrev=0)..HEAD --pretty='format:* %h %s%n  * %an <%ae>' --no-merges >> ".github/RELEASE-TEMPLATE.md"
+
+      - name: Create Release Draft
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: ".github/RELEASE-TEMPLATE.md"
+          draft: true
+          files: |
+            dist/random_standup-${{env.PROJECT_VERSION}}-py3-none-any.whl
+            dist/random-standup-${{env.PROJECT_VERSION}}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

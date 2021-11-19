@@ -1,0 +1,67 @@
+name: PyPI Publish
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2.4.0
+        with:
+          fetch-depth: 0
+
+      # We run the  oldest LTS version for now: https://endoflife.date/python
+      - name: Setup Python 3.7
+        uses: actions/setup-python@v2.3.0
+        with:
+          python-version: '3.7'
+
+      # Create cache so that we don't have to do this for each step in the matrix.
+      - name: Create cache for Poetry
+        id: cache-poetry
+        uses: actions/cache@v2.1.6
+        with:
+          path: ~/.poetry
+          key: poetry
+
+      # Install latest Poetry if cache has changed.
+      - name: Install latest version of Poetry
+        if: steps.cache-poetry.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+
+      # Add Poetry to github_path
+      - name: Add Poetry to $PATH
+        run: |
+          echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+
+      - name: Get Poetry version
+        run: poetry --version
+
+      - name: Check pyproject.toml validity
+        run: poetry check --no-interaction
+
+      - name: Cache dependencies
+        id: cache-deps
+        uses: actions/cache@v2.1.6
+        with:
+          path: ${{github.workspace}}/.venv
+          key: poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: poetry-
+
+      - name: Install dependencies  # if cache has changed
+        if: steps.cache-deps.cache-hit != 'true'
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction
+
+      - name: Publish to PyPI
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          poetry config pypi-token.pypi $PYPI_TOKEN
+          poetry publish --build
