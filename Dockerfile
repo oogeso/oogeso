@@ -1,19 +1,28 @@
 FROM python:3.9 as dev
-RUN apt-get update && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+  apt-get -y upgrade && \
+  rm -rf /var/lib/apt/lists/* \
+
+ARG INSTALL_DEV=false
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /code
 
 COPY pyproject.toml poetry.lock ./
 
-RUN pip install --upgrade pip poetry && poetry config virtualenvs.create false && poetry install --no-root
+RUN pip install poetry && poetry config virtualenvs.create false
 
-FROM dev AS build
+WORKDIR /code
 
-COPY ./ ./
-RUN pip install --upgrade pip poetry && poetry config virtualenvs.create false && poetry install --optional
+COPY pyproject.toml poetry.lock ./
+
+RUN bash -c "if [ INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
+
+ENV PYTHONPATH=/code
 
 FROM build AS tests
 
-RUN poetry run pytest tests
+COPY ./ ./
+
+RUN poetry install --no-dev
