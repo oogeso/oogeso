@@ -49,13 +49,14 @@ def test_hdf_profiles():
         exclude_cols=["timestep"],
     )
 
-    tmp_file = tempfile.mkstemp(suffix="h5")[1]
+    tmp_file = tempfile.mkstemp(suffix=".h5")[1]
+
     oogeso.io.file_io.save_profiles_to_hd5(
         filename=tmp_file, profiles=profiles_dfs
     )
 
     profiles_dfs2 = oogeso.io.file_io.read_profiles_from_hd5(
-        filename=tmp_file
+        filename=tmp_file, key_forecast="forecast", key_actual="nowcast"  # Fixme: Is this intended?
     )
     assert isinstance(profiles_dfs2["forecast"], pd.DataFrame)
-    assert isinstance(profiles_dfs2["nowcast"], pd.DataFrame)
+    assert isinstance(profiles_dfs2["actual"], pd.DataFrame)

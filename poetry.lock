@@ -50,10 +50,7 @@ platformdirs = ">=2"
 regex = ">=2021.4.4"
 tomli = ">=0.2.6,<2.0.0"
 typed-ast = {version = ">=1.4.2", markers = "python_version < \"3.8\" and implementation_name == \"cpython\""}
-typing-extensions = [
-    {version = ">=3.10.0.0", markers = "python_version < \"3.10\""},
-    {version = "!=3.10.0.1", markers = "python_version >= \"3.10\""},
-]
+typing-extensions = ">=3.10.0.0"
 
 [package.extras]
 colorama = ["colorama (>=0.4.3)"]
@@ -277,7 +274,6 @@ numpy = [
     {version = ">=1.17.3", markers = "platform_machine != \"aarch64\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
     {version = ">=1.19.2", markers = "platform_machine == \"aarch64\" and python_version < \"3.10\""},
     {version = ">=1.20.0", markers = "platform_machine == \"arm64\" and python_version < \"3.10\""},
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
 ]
 python-dateutil = ">=2.7.3"
 pytz = ">=2017.3"
@@ -386,11 +382,11 @@ typing-extensions = {version = ">=3.10.0", markers = "python_version < \"3.10\""
 
 [[package]]
 name = "pyomo"
-version = "6.1.2"
+version = "6.2"
 description = "Pyomo: Python Optimization Modeling Objects"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.6, <3.10"
 
 [package.dependencies]
 ply = "*"
@@ -622,8 +618,8 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 
 [metadata]
 lock-version = "1.1"
-python-versions = ">=3.7.1,<3.11"
-content-hash = "c9ce8c3bc74a4b5077a48c59fcc00a295bac3ddefe14b14e9bc419f4740a26bd"
+python-versions = ">=3.7.1,<3.10"
+content-hash = "ff8f6b6c219492f84a8fb5c7d075e9cca3e8e203ae6837fc3f37cd33b0cf6183"
 
 [metadata.files]
 astroid = [
@@ -992,19 +988,19 @@ pylint = [
     {file = "pylint-2.11.1.tar.gz", hash = "sha256:2c9843fff1a88ca0ad98a256806c82c5a8f86086e7ccbdb93297d86c3f90c436"},
 ]
 pyomo = [
-    {file = "Pyomo-6.1.2-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:e815fdbb654efa9d340f147ec930ea4dc3cdbb42bc83c085480e6bede69780ac"},
-    {file = "Pyomo-6.1.2-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:4193846490c110a34da35e2a1a67c2d129690240ce0c3fc7a87c30dab47857e2"},
-    {file = "Pyomo-6.1.2-cp36-cp36m-win_amd64.whl", hash = "sha256:675abd452e97e8661822f2e2b10112e9599021effa5eb08fd233c0b00500a991"},
-    {file = "Pyomo-6.1.2-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:8c232e009caa97b2eb44b186c1c6d17a37b18762a192db884f2409cd7e569e03"},
-    {file = "Pyomo-6.1.2-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:dec96708cf5478e4cb5b8837669860b280f775a1119f2d33fd80c3430aaa3f55"},
-    {file = "Pyomo-6.1.2-cp37-cp37m-win_amd64.whl", hash = "sha256:df51cba9e76d8e990945e4aba2ab0153d5d876408200f36daeb55df79ee84f37"},
-    {file = "Pyomo-6.1.2-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:9596c45c6e5d8542fd0e9c02aca62f138fdf3cde4a92ae66fd18ebb14e7f0689"},
-    {file = "Pyomo-6.1.2-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:ba7c8bfa35a64400a3bcc2c0bd901f2b561fdf16e3b2f046c677d89090052d5f"},
-    {file = "Pyomo-6.1.2-cp38-cp38-win_amd64.whl", hash = "sha256:5633e2bf54c39cf7d8c5b0d8cae95f024f82938d11379590e9f72a7be062020b"},
-    {file = "Pyomo-6.1.2-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:ba761089b8f5b9a07ba95f942c7d4e74d5a5127a718a2decea81a010a09f0f37"},
-    {file = "Pyomo-6.1.2-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:a4582ccffe83d0d0876a3cf87e56b9346045b4cb335ac8bd7c141f5ca897a73d"},
-    {file = "Pyomo-6.1.2-cp39-cp39-win_amd64.whl", hash = "sha256:9623c29d6d98171dfa5ab489435232fe6fbcec07fb8ad672a9417b93b1125f18"},
-    {file = "Pyomo-6.1.2.tar.gz", hash = "sha256:f2a58977c3c72e706aef7ab7d016bdf66df85df8ea5b25cc0ba387e2cef880bb"},
+    {file = "Pyomo-6.2-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:78f0c148772a9fcce77c39b37e5ec4c191b8fbdb74b79eea96185446bc2df92c"},
+    {file = "Pyomo-6.2-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:835123dc6fe69d4f4d72dc0aa924f7c5381b5786ecc0be59b2d4ac3814fb78f9"},
+    {file = "Pyomo-6.2-cp36-cp36m-win_amd64.whl", hash = "sha256:7ee43ca4dac4284fb85ba2b8a9fa1ce0aac8ff4e0fdc91d0f7afceb09a3f090f"},
+    {file = "Pyomo-6.2-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:3578340d579461dc8962913e435f0a0ee098518eaef86577484a3f1bc2e12cce"},
+    {file = "Pyomo-6.2-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:457a937e664707939f5a4bebbce1eeeb9eb32f540a4c3dc47016f4f644ac1fe9"},
+    {file = "Pyomo-6.2-cp37-cp37m-win_amd64.whl", hash = "sha256:aa97dda55cbc5aadc493f3e266a63fc4f6f8c3bb499ef85e11559eea95278e02"},
+    {file = "Pyomo-6.2-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:cd955be68feea82adde14159df27e952231a5e3ed5b1a242ad7d81ee34f4fac7"},
+    {file = "Pyomo-6.2-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:cd5f102ff7ad3b5fe2822e2baf95e91c7bd9858e341f4d400445fe65664956c1"},
+    {file = "Pyomo-6.2-cp38-cp38-win_amd64.whl", hash = "sha256:2115197295b62a7d60934d15d9b151d0384dee433df461e95d26557f0f6cfdc3"},
+    {file = "Pyomo-6.2-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:219884334cdc1a15aa79a2a5adf654b06452592f6aa93a97eb01f47e60da3e89"},
+    {file = "Pyomo-6.2-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:748b245c1a77ce7353c58f219d3f5518a6875db30c2515b455eb0d2737ef652c"},
+    {file = "Pyomo-6.2-cp39-cp39-win_amd64.whl", hash = "sha256:e93694a4e836af8c6f54ae7889f9a2fd302edd23949d0fa948dfcdbb522f296d"},
+    {file = "Pyomo-6.2.tar.gz", hash = "sha256:89bc69a9a0afe10f5d229abe508b04ebbd3d2e213aa6c8ec2db2562798fa0400"},
 ]
 pyparsing = [
     {file = "pyparsing-3.0.6-py3-none-any.whl", hash = "sha256:04ff808a5b90911829c55c4e26f75fa5ca8a2f5f36aa3a51f68e27033341d3e4"},
