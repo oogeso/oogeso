@@ -19,8 +19,8 @@ jobs:
       matrix:
         os:
           - 'ubuntu-latest'
-          # - 'macos-latest'  # Need to remove hd5 to build properly on MacOS
-          # - 'windows-latest'  # Need to remove hd5 to build properly on Windows
+          - 'macos-latest'
+          - 'windows-latest'
         python-version:
           - '3.7'
           - '3.8'
