@@ -5,6 +5,7 @@ import oogeso.utils
 import oogeso.io
 import pandas as pd
 import pytest
+import tempfile
 
 
 EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
@@ -47,12 +48,14 @@ def test_hdf_profiles():
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
+
+    tmp_file = tempfile.mkstemp(suffix="h5")[1]
     oogeso.io.file_io.save_profiles_to_hd5(
-        filename=TEST_DATA_ROOT_PATH / "profiles.hd5", profiles=profiles_dfs
+        filename=tmp_file, profiles=profiles_dfs
     )
 
     profiles_dfs2 = oogeso.io.file_io.read_profiles_from_hd5(
-        filename=TEST_DATA_ROOT_PATH / "profiles.hd5"
+        filename=tmp_file
     )
     assert isinstance(profiles_dfs2["forecast"], pd.DataFrame)
     assert isinstance(profiles_dfs2["nowcast"], pd.DataFrame)
