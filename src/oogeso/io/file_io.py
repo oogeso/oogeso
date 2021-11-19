@@ -60,7 +60,7 @@ def read_profiles_from_parquet(filename: Union[Path, str], keys: List[str]) -> D
 
     profiles = {}
     for key in keys:
-        profiles[key] = pd.read_parquet(f"filename_{key}{suffix}")
+        profiles[key] = pd.read_parquet(f"{filename.with_suffix('')}_{key}{suffix}")
     return profiles
 
 
@@ -74,14 +74,14 @@ def save_profiles_to_parquet(filename: Union[Path, str], profiles: Dict[str, pd.
     Fixme: Refactor to avoid this complexity if not needed.
     """
     if not isinstance(filename, Path):
-        filename =Path(filename)
+        filename = Path(filename)
 
     suffix = ""
     if "." in filename.name:
         suffix = filename.suffix
 
     for key in profiles:
-        profiles[key].to_parquet(f"filename_{key}{suffix}")
+        profiles[key].to_parquet(f"{filename.with_suffix('')}_{key}{suffix}")
     return
 
 

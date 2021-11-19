@@ -44,13 +44,14 @@ def test_write_read_parquet():
 
     }
 
+    filename = tempfile.mkstemp(suffix=".parquet")[1]
     oogeso.io.save_profiles_to_parquet(
-        filename="test_file.parquet",
+        filename=filename,
         profiles=profiles
     )
 
     profiles_out = oogeso.io.read_profiles_from_parquet(
-        filename="test_file.parquet",
+        filename=filename,
         keys=["actual", "forecast"]
     )
 
