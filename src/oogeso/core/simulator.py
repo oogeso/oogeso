@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, Optional
 from numpy import float64
 import pandas as pd
 import pyomo.environ as pyo
@@ -58,9 +58,9 @@ class Simulator:
         self,
         solver: str,
         timerange: Tuple[int, int] = None,
-        timelimit: int = None,
-        return_variables: Sequence[str] = None,
-        store_duals: dict = None,
+        timelimit: Optional[int] = None,
+        return_variables: Optional[Sequence[str]] = None,
+        store_duals: Optional[dict] = None,
         write_yaml: bool = False,
     ) -> SimulationResult:
         """Solve problem over many timesteps
@@ -149,48 +149,26 @@ class Simulator:
         return result_object
 
     def _saveOptimisationResult(
-        self, timestep, return_variables, store_duals=None
+        self,
+        timestep: int,
+        return_variables: Optional[Sequence[str]] = None,
+        store_duals: Optional[dict] = None,
     ) -> SimulationResult:
         """extract results of optimisation for later analysis"""
 
-        # TODO: Implement result storage
-        # hdf5? https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py)
         pyomo_instance = self.optimiser.pyomo_instance
         timelimit = self.optimiser.optimisation_parameters.optimisation_timesteps
 
-        all_available_variables = [
-            "dfDeviceFlow",
-            "dfDeviceIsPrep",
-            "dfDeviceIsOn",
-            "dfDeviceStarting",
-            "dfDeviceStopping",
-            "dfDeviceStorageEnergy",
-            "dfDeviceStoragePmax",
-            "dfEdgeFlow",
-            "dfEdgeLoss",
-            "dfTerminalFlow",
-            "dfTerminalPressure",
-            "dfElVoltageAngle",
-            "dfPenalty",
-            "dfElReserve",
-            "dfElBackup",
-            "dfExportRevenue",
-            "dfCO2rate",
-            "dfCO2intensity",
-            "dfCO2rate_per_dev",
-            "dfDuals",
-            # "df_profiles_forecast",
-            # "df_profiles_nowcast",
-        ]
-        if return_variables is None:
-            return_variables = all_available_variables
+        return_all = False
+        if not return_variables:
+            return_all = True
         else:
             logger.debug("Storing only a subset of the data generated.")
 
         # Retrieve variable values as dictionary with pandas series
         res = self.optimiser.extract_all_variable_values(timelimit, timestep)
 
-        if ("dfDuals" in return_variables) and (store_duals is not None):
+        if (return_all or "dfDuals" in return_variables) and (store_duals is not None):
             # Save dual values
             # store_duals = {
             #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}
@@ -227,7 +205,7 @@ class Simulator:
             df_duals = None
 
         # CO2 emission rate per device:
-        if "dfCO2rate_per_dev" in return_variables:
+        if return_all or "dfCO2rate_per_dev" in return_variables:
             df_co2_rate_dev = pd.DataFrame(
                 index=range(timestep, timestep + timelimit),
                 columns=pyomo_instance.setDevice,
@@ -245,7 +223,7 @@ class Simulator:
             df_co2_rate_dev = None
 
         # CO2 emission rate (sum)
-        if "dfCO2rate" in return_variables:
+        if return_all or "dfCO2rate" in return_variables:
             df_co2_rate_sum = pd.Series(
                 dtype=float64, index=range(timestep, timestep + timelimit)
             )
@@ -258,7 +236,7 @@ class Simulator:
             df_co2_rate_sum = None
 
         # CO2 emission intensity (sum)
-        if "dfCO2intensity" in return_variables:
+        if return_all or "dfCO2intensity" in return_variables:
             df_co2intensity = pd.Series(
                 dtype=float64, index=range(timestep, timestep + timelimit)
             )
@@ -272,7 +250,7 @@ class Simulator:
 
         # Penalty values per device
         # df_penalty=res["varDevicePenalty"], # this does not include start/stop penalty
-        if "dfPenalty" in return_variables:
+        if return_all or "dfPenalty" in return_variables:
             df_penalty = pd.DataFrame(
                 dtype=float64,
                 index=range(timestep, timestep + timelimit),
@@ -289,7 +267,7 @@ class Simulator:
             df_penalty = None
 
         # Revenue from exported energy (per carrier)
-        if "dfExportRevenue" in return_variables:
+        if return_all or "dfExportRevenue" in return_variables:
             df_exportRevenue = pd.DataFrame(
                 dtype=float64,
                 index=range(timestep, timestep + timelimit),
@@ -308,7 +286,7 @@ class Simulator:
             df_exportRevenue = None
 
         # Reserve capacity
-        if "dfElReserve" in return_variables:
+        if return_all or "dfElReserve" in return_variables:
             df_reserve = pd.Series(
                 dtype=float64, index=range(timestep, timestep + timelimit)
             )
@@ -324,7 +302,7 @@ class Simulator:
             df_reserve = None
 
         # Backup capacity
-        if "dfElBackup" in return_variables:
+        if return_all or "dfElBackup" in return_variables:
             devs_elout = []
             for dev_obj in self.optimiser.all_devices.values():
                 if "el" in dev_obj.carrier_out:
@@ -351,40 +329,64 @@ class Simulator:
             df_backup = None
 
         dfDeviceFlow = (
-            res["varDeviceFlow"] if "dfDeviceFlow" in return_variables else None
+            res["varDeviceFlow"]
+            if (return_all or "dfDeviceFlow" in return_variables)
+            else None
         )
         dfDeviceIsOn = (
-            res["varDeviceIsOn"] if "dfDeviceIsOn" in return_variables else None
+            res["varDeviceIsOn"]
+            if (return_all or "dfDeviceIsOn" in return_variables)
+            else None
         )
         dfDeviceIsPrep = (
-            res["varDeviceIsPrep"] if "dfDeviceIsPrep" in return_variables else None
+            res["varDeviceIsPrep"]
+            if (return_all or "dfDeviceIsPrep" in return_variables)
+            else None
         )
         dfDeviceStarting = (
-            res["varDeviceStarting"] if "dfDeviceStarting" in return_variables else None
+            res["varDeviceStarting"]
+            if (return_all or "dfDeviceStarting" in return_variables)
+            else None
         )
         dfDeviceStopping = (
-            res["varDeviceStopping"] if "dfDeviceStopping" in return_variables else None
+            res["varDeviceStopping"]
+            if (return_all or "dfDeviceStopping" in return_variables)
+            else None
         )
         dfDeviceStorageEnergy = (
             res["varDeviceStorageEnergy"]
-            if "dfDeviceStorageEnergy" in return_variables
+            if (return_all or "dfDeviceStorageEnergy" in return_variables)
             else None
         )
         dfDeviceStoragePmax = (
             res["varDeviceStoragePmax"]
-            if "dfDeviceStoragePmax" in return_variables
+            if (return_all or "dfDeviceStoragePmax" in return_variables)
             else None
         )
-        dfEdgeFlow = res["varEdgeFlow"] if "dfEdgeFlow" in return_variables else None
-        dfEdgeLoss = res["varEdgeLoss"] if "dfEdgeLoss" in return_variables else None
+        dfEdgeFlow = (
+            res["varEdgeFlow"]
+            if (return_all or "dfEdgeFlow" in return_variables)
+            else None
+        )
+        dfEdgeLoss = (
+            res["varEdgeLoss"]
+            if (return_all or "dfEdgeLoss" in return_variables)
+            else None
+        )
         dfTerminalFlow = (
-            res["varTerminalFlow"] if "dfTerminalFlow" in return_variables else None
+            res["varTerminalFlow"]
+            if (return_all or "dfTerminalFlow" in return_variables)
+            else None
         )
         dfTerminalPressure = (
-            res["varPressure"] if "dfTerminalPressure" in return_variables else None
+            res["varPressure"]
+            if (return_all or "dfTerminalPressure" in return_variables)
+            else None
         )
         dfElVoltageAngle = (
-            res["varElVoltageAngle"] if "dfElVoltageAngle" in return_variables else None
+            res["varElVoltageAngle"]
+            if (return_all or "dfElVoltageAngle" in return_variables)
+            else None
         )
 
         result_object = SimulationResult(
