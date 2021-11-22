@@ -99,7 +99,7 @@ def plot_deviceprofile(
         nrows = nrows + 1
     df2 = res.dfDeviceIsOn.unstack("device")[devs]
     dfPrep = res.dfDeviceIsPrep.unstack("device")[devs]
-    timerange = list(res.dfExportRevenue.index)
+    timerange = list(res.dfDeviceIsOn.index.get_level_values("time"))
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=nrows, cols=1, shared_xaxes=True)
         colour = plotly.colors.DEFAULT_PLOTLY_COLORS
@@ -448,9 +448,9 @@ def plot_SumPowerMix(
 
 
 def plot_ExportRevenue(sim_result, filename=None, currency="$"):
-    res = sim_result
+    export_revenue = sim_result.dfExportRevenue.unstack("carrier")
     if plotter == "plotly":
-        dfplot = res.dfExportRevenue.loc[:, res.dfExportRevenue.sum() > 0]
+        dfplot = export_revenue.loc[:, export_revenue.sum() > 0]
         fig = px.area(dfplot)
         fig.update_xaxes(title_text="Timestep")
         fig.update_yaxes(title_text="Revenue ({}/s)".format(currency))
@@ -460,9 +460,7 @@ def plot_ExportRevenue(sim_result, filename=None, currency="$"):
         ax = plt.gca()
         ax.set_ylabel("{}/s".format(currency))
         ax.set_xlabel("Timestep")
-        (res.dfExportRevenue.loc[:, res.dfExportRevenue.sum() > 0]).plot.area(
-            ax=ax, linewidth=0
-        )
+        (export_revenue.loc[:, export_revenue.sum() > 0]).plot.area(ax=ax, linewidth=0)
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
     return fig
@@ -489,9 +487,9 @@ def plot_CO2rate_per_dev(
 
     # df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
     # labels = (df_info.index.astype(str))# +'_'+df_info['name'])
-    res = sim_result
+    dfco2rate = sim_result.dfCO2rate_per_dev.unstack("device")
     all_devices = optimisation_model.all_devices
-    dfplot = res.dfCO2rate_per_dev.loc[:, ~(res.dfCO2rate_per_dev == 0).all()].copy()
+    dfplot = dfco2rate.loc[:, ~(dfco2rate == 0).all()].copy()
 
     if devs_shareload is None:
         # gas turbines:
@@ -1035,7 +1033,7 @@ def plotReserve(
     df_devs = pd.DataFrame()
     res = sim_result
     optimiser = optimisation_model
-    timerange = list(res.dfExportRevenue.index)
+    timerange = list(res.dfElReserve.index)
     marginIncr = pd.DataFrame(0, index=timerange, columns=["margin"])
     for d, dev_obj in optimiser.all_devices.items():
         dev_data = dev_obj.dev_data
