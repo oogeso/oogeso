@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 from . import Device
 
 
-class Sink_el(Device):
+class Powersink(Device):
     "Generic electricity consumption"
     carrier_in = ["el"]
     carrier_out = []
@@ -10,6 +10,11 @@ class Sink_el(Device):
 
     def getFlowVar(self, pyomo_model, t):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+
+
+# Just another name for powersink
+class Sink_el(Powersink):
+    pass
 
 
 class Sink_heat(Device):

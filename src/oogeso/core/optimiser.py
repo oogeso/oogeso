@@ -91,11 +91,25 @@ class OptimisationModel:
             if (hasattr(edg, "pressure_from")) and (edg.pressure_from is not None):
                 n_from: NetworkNode = self.all_nodes[edg.node_from]
                 p_from = edg.pressure_from
-                n_from.set_nominal_pressure(carrier, "out", p_from)
+                n_from.set_pressure_nominal(carrier, "out", p_from)
             if (hasattr(edg, "pressure_to")) and (edg.pressure_to is not None):
                 n_to: NetworkNode = self.all_nodes[edg.node_to]
                 p_to = edg.pressure_to
-                n_to.set_nominal_pressure(carrier, "in", p_to)
+                n_to.set_pressure_nominal(carrier, "in", p_to)
+            # Setting max pressure deviation values at node terminals. Raise exception
+            # if inconsistencies are found
+            if (hasattr(edg, "pressure_from_maxdeviation")) and (
+                edg.pressure_from_maxdeviation is not None
+            ):
+                n_from: NetworkNode = self.all_nodes[edg.node_fom]
+                p_maxdev_from = edg.pressure_from_maxdeviation
+                n_from.set_pressure_maxdeviation(carrier, "out", p_maxdev_from)
+            if (hasattr(edg, "pressure_to_maxdeviation")) and (
+                edg.pressure_to_maxdeviation is not None
+            ):
+                n_to: NetworkNode = self.all_nodes[edg.node_to]
+                p_maxdev_to = edg.pressure_to_maxdeviation
+                n_to.set_pressure_maxdeviation(carrier, "in", p_maxdev_to)
 
     def _create_network_objects_from_data(self, data: "EnergySystemData"):
         """Create energy system objects, and populate local dictionaries

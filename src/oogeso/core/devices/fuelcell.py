@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-from oogeso.dto.oogeso_input_data_objects import DeviceFuelcellData
+from oogeso.dto import DeviceFuelcellData
 from . import Device
 
 

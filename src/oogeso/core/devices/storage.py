@@ -1,5 +1,5 @@
 import pyomo.environ as pyo
-from oogeso.dto.oogeso_input_data_objects import (
+from oogeso.dto import (
     DeviceStorage_elData,
     DeviceStorage_hydrogenData,
 )
