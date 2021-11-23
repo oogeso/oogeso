@@ -127,3 +127,6 @@ venv.bak/
 # vscode
 .vscode/settings.json
 examples/result/
+
+# Temporary data
+.tmp

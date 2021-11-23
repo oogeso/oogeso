@@ -4,8 +4,10 @@ import yaml
 import json
 import logging
 import pandas as pd
+from typing import Optional, Union
 from oogeso.dto import EnergySystemData
 from oogeso.dto.serialisation import DataclassJSONDecoder
+from pathlib import Path
 
 # from oogeso.dto.oogeso_input_data_objects import (
 #    EnergySystemData,
@@ -40,27 +42,55 @@ def read_data_from_yaml(
     return energy_system
 
 
-def read_profiles_from_hd5(filename, key_actual="actual", key_forecast="forecast"):
-    """Read input data profiles from HDF5 file"""
+def read_profiles_from_parquet(filename: Union[Path, str], keys: List[str]) -> Dict[str, pd.DataFrame]:
+    """
+    Read input data profiles from parquet file
+
+    Reading from the given filename with _<key name><suffix>.
+    This is to give legacy support for the hdf5 format where you have keys.
+
+    Fixme: Refactor to avoid this complexity if not needed.
+    """
+    if not isinstance(filename, Path):
+        filename =Path(filename)
+
+    suffix = ""
+    if "." in filename.name:
+        suffix = filename.suffix
+
     profiles = {}
-    profiles["actual"] = pd.read_hdf(filename, key=key_actual)
-    profiles["forecast"] = pd.read_hdf(filename, key=key_forecast)
+    for key in keys:
+        profiles[key] = pd.read_parquet(f"{filename.with_suffix('')}_{key}{suffix}")
     return profiles
 
 
-def save_profiles_to_hd5(filename, profiles):
-    """Save profiles to HDF5"""
-    for k in profiles:
-        profiles[k].to_hdf(filename, key=k, mode="a")
+def save_profiles_to_parquet(filename: Union[Path, str], profiles: Dict[str, pd.DataFrame]) -> None:
+    """
+    Save profiles to parquet
+
+    Writing to the given filename with _<key name><suffix>.
+    This is to give legacy support for the hdf5 format where you have keys.
+
+    Fixme: Refactor to avoid this complexity if not needed.
+    """
+    if not isinstance(filename, Path):
+        filename = Path(filename)
+
+    suffix = ""
+    if "." in filename.name:
+        suffix = filename.suffix
+
+    for key in profiles:
+        profiles[key].to_parquet(f"{filename.with_suffix('')}_{key}{suffix}")
     return
 
 
 def read_profiles_from_xlsx(
-    filename,
-    sheet_forecast="profiles",
-    sheet_nowcast="profiles_forecast",
-    exclude_cols=[],
-):
+    filename: Path,
+    sheet_forecast: str ="profiles",
+    sheet_nowcast: str ="profiles_forecast",
+    exclude_cols: Optional[List] = None,
+) -> Dict[str, pd.DataFrame]:
     """Read input data profiles from XLSX to a dicitonary of pandas dataframes"""
     df_profiles = pd.read_excel(
         filename,

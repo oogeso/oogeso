@@ -24,8 +24,8 @@ def test_file_input():
     profiles_json = oogeso.utils.create_timeseriesdata(
         profiles_dfs["forecast"],
         profiles_dfs["nowcast"],
-        time_start=None,
-        time_end=None,
+        time_start="",
+        time_end="",
         timestep_minutes=15,
     )
     data0 = oogeso.io.read_data_from_yaml(EXAMPLE_DATA_ROOT_PATH / "test case2.yaml")
@@ -35,12 +35,32 @@ def test_file_input():
     assert True
 
 
-def test_hdf_profiles():
-    try:
-        import tables
-    except ImportError as e:
-        print("Pytables not installed")
-        pytest.skip("pytables not installed, skipping test")
+def test_write_read_parquet():
+    idx = pd.date_range(start="2020-01-01", end="2021-01-01", freq="D")
+
+    profiles = {
+        "forecast": pd.DataFrame(index=idx, columns=["forecast"], data=1),
+        "actual": pd.DataFrame(index=idx, columns=["actual"], data=3),
+
+    }
+
+    filename = tempfile.mkstemp(suffix=".parquet")[1]
+    oogeso.io.save_profiles_to_parquet(
+        filename=filename,
+        profiles=profiles
+    )
+
+    profiles_out = oogeso.io.read_profiles_from_parquet(
+        filename=filename,
+        keys=["actual", "forecast"]
+    )
+
+    for key in ["actual", "forecast"]:
+        # Asserting that the DataFrames are indeed equal after a round-trip to Parquet.
+        assert profiles[key].equals(profiles_out[key])
+
+
+def test_parquet_profiles():
 
     profiles_dfs = oogeso.io.read_profiles_from_csv(
         filename_forecasts=EXAMPLE_DATA_ROOT_PATH / "testcase2_profiles_forecasts.csv",
@@ -49,14 +69,14 @@ def test_hdf_profiles():
         exclude_cols=["timestep"],
     )
 
-    tmp_file = tempfile.mkstemp(suffix=".h5")[1]
+    tmp_file = tempfile.mkstemp(suffix=".parquet")[1]
 
-    oogeso.io.file_io.save_profiles_to_hd5(
+    oogeso.io.file_io.save_profiles_to_parquet(
         filename=tmp_file, profiles=profiles_dfs
     )
 
-    profiles_dfs2 = oogeso.io.file_io.read_profiles_from_hd5(
-        filename=tmp_file, key_forecast="forecast", key_actual="nowcast"  # Fixme: Is this intended?
+    profiles_dfs2 = oogeso.io.file_io.read_profiles_from_parquet(
+        filename=tmp_file, keys=["forecast", "nowcast"]
     )
     assert isinstance(profiles_dfs2["forecast"], pd.DataFrame)
-    assert isinstance(profiles_dfs2["actual"], pd.DataFrame)
+    assert isinstance(profiles_dfs2["nowcast"], pd.DataFrame)
