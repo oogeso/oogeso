@@ -19,48 +19,48 @@ class SimulationResult:
     """
 
     # Input/output flow per device and network type:
-    dfDeviceFlow: pd.Series
+    device_flow: Optional[pd.Series] = None
     # Device startup preparation status (boolean):
-    dfDeviceIsPrep: pd.Series
+    device_is_prep: Optional[pd.Series] = None
     # Device on/off status (boolean):
-    dfDeviceIsOn: pd.Series
+    device_is_on: Optional[pd.Series] = None
     # Device starting status (boolean):
-    dfDeviceStarting: pd.Series
+    device_starting: Optional[pd.Series] = None
     # Device stopping status (boolean):
-    dfDeviceStopping: pd.Series
+    device_stopping: Optional[pd.Series] = None
     # Energy storage filling level (Sm3 or MJ)
-    dfDeviceStorageEnergy: pd.Series
+    device_storage_energy: Optional[pd.Series] = None
     # Max available "flow" (power/fluid) from storage (Sm3/s or MW):
-    dfDeviceStoragePmax: pd.Series
+    device_storage_pmax: Optional[pd.Series] = None
     # Device assosiated penalty rate (PENALTY_UNIT/s):
-    dfPenalty: pd.Series
+    penalty: Optional[pd.Series] = None
     # Flow rate (Sm3/s or MW):
-    dfEdgeFlow: pd.Series
+    edge_flow: Optional[pd.Series] = None
     # Loss rate (MW) - only relevant for energy flow (el and heat):
-    dfEdgeLoss: pd.Series
+    edge_loss: Optional[pd.Series] = None
     # Voltage angle at node - only relevant for electricity floc computed via dc-pf:
-    dfElVoltageAngle: pd.Series
+    el_voltage_angle: Optional[pd.Series] = None
     # Pressure at node (MPa):
-    dfTerminalPressure: pd.Series
+    terminal_pressure: Optional[pd.Series] = None
     # Direct flow between in and out terminal of node - relevant if there is no device inbetween:
-    dfTerminalFlow: pd.Series
+    terminal_flow: Optional[pd.Series] = None
     # Emission rate (sum of all devices) (kgCO2/s):
-    dfCO2rate: pd.Series
+    co2_rate: Optional[pd.Series] = None
     # Emission rate per device (kgCO2/s):
-    dfCO2rate_per_dev: pd.Series
+    co2_rate_per_dev: Optional[pd.Series] = None
     # Revenue rate for exported oil/gas (CURRENCY/s):
-    dfExportRevenue: pd.Series
+    export_revenue: Optional[pd.Series] = None
     # CO2 intensity of exported oil/gas (kgCO2/Sm3oe):
-    dfCO2intensity: pd.Series
+    co2_intensity: Optional[pd.Series] = None
     # Available online electrical reserve capacity (MW):
-    dfElReserve: pd.Series
+    el_reserve: Optional[pd.Series] = None
     # Available online electrical backup per device (MW):
-    dfElBackup: pd.Series
+    el_backup: Optional[pd.Series] = None
     # Value of duals (associated with constraints)
-    dfDuals: pd.Series
+    duals: Optional[pd.Series] = None
     # Time-series profiles used in simulation (copied from the input)
-    df_profiles_forecast: Optional[pd.DataFrame] = None
-    df_profiles_nowcast: Optional[pd.DataFrame] = None
+    profiles_forecast: Optional[pd.DataFrame] = None
+    profiles_nowcast: Optional[pd.DataFrame] = None
 
     def append_results(self, sim_res):
         exclude_list = ["df_profiles_forecast", "df_profiles_forecast"]

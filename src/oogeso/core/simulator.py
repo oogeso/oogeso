@@ -85,26 +85,26 @@ class Simulator:
             Whether to save problem to yaml file (for debugging)
 
         Available return variables are:
-            "dfDeviceFlow",
-            "dfDeviceIsPrep",
-            "dfDeviceIsOn",
-            "dfDeviceStarting",
-            "dfDeviceStopping",
-            "dfDeviceStorageEnergy",
-            "dfDeviceStoragePmax",
-            "dfEdgeFlow",
-            "dfEdgeLoss",
-            "dfTerminalFlow",
-            "dfTerminalPressure",
-            "dfElVoltageAngle",
-            "dfPenalty",
-            "dfElReserve",
-            "dfElBackup",
-            "dfExportRevenue",
-            "dfCO2rate",
-            "dfCO2intensity",
-            "dfCO2rate_per_dev",
-            "dfDuals",
+            "device_flow",
+            "device_is_prep",
+            "device_is_on",
+            "device_starting",
+            "device_stopping",
+            "device_storage_energy",
+            "device_storage_pmax",
+            "edge_flow",
+            "edge_loss",
+            "terminal_flow",
+            "terminal_pressure",
+            "el_voltage_angle",
+            "penalty",
+            "el_reserve",
+            "el_backup",
+            "export_revenue",
+            "co2_rate",
+            "co2_intensity",
+            "co2_rate_per_dev",
+            "duals",
 
         """
 
@@ -121,8 +121,8 @@ class Simulator:
             time_end = timerange[1]
 
         result_object = SimulationResult(
-            df_profiles_nowcast=self.profiles["nowcast"],
-            df_profiles_forecast=self.profiles["forecast"],
+            profiles_nowcast=self.profiles["nowcast"],
+            profiles_forecast=self.profiles["forecast"],
         )
         self.result_object = result_object
 
@@ -205,7 +205,7 @@ class Simulator:
             df_duals = None
 
         # CO2 emission rate per device:
-        if return_all or "dfCO2rate_per_dev" in return_variables:
+        if return_all or "co2_rate_per_dev" in return_variables:
             df_co2_rate_dev = pd.DataFrame(
                 index=range(timestep, timestep + timelimit),
                 columns=pyomo_instance.setDevice,
@@ -223,7 +223,7 @@ class Simulator:
             df_co2_rate_dev = None
 
         # CO2 emission rate (sum)
-        if return_all or "dfCO2rate" in return_variables:
+        if return_all or "co2_rate" in return_variables:
             df_co2_rate_sum = pd.Series(
                 dtype=float64, index=range(timestep, timestep + timelimit)
             )
@@ -236,7 +236,7 @@ class Simulator:
             df_co2_rate_sum = None
 
         # CO2 emission intensity (sum)
-        if return_all or "dfCO2intensity" in return_variables:
+        if return_all or "co2_intensity" in return_variables:
             df_co2intensity = pd.Series(
                 dtype=float64, index=range(timestep, timestep + timelimit)
             )
@@ -250,7 +250,7 @@ class Simulator:
 
         # Penalty values per device
         # df_penalty=res["varDevicePenalty"], # this does not include start/stop penalty
-        if return_all or "dfPenalty" in return_variables:
+        if return_all or "penalty" in return_variables:
             df_penalty = pd.DataFrame(
                 dtype=float64,
                 index=range(timestep, timestep + timelimit),
@@ -267,7 +267,7 @@ class Simulator:
             df_penalty = None
 
         # Revenue from exported energy (per carrier)
-        if return_all or "dfExportRevenue" in return_variables:
+        if return_all or "export_revenue" in return_variables:
             df_exportRevenue = pd.DataFrame(
                 dtype=float64,
                 index=range(timestep, timestep + timelimit),
@@ -286,7 +286,7 @@ class Simulator:
             df_exportRevenue = None
 
         # Reserve capacity
-        if return_all or "dfElReserve" in return_variables:
+        if return_all or "el_reserve" in return_variables:
             df_reserve = pd.Series(
                 dtype=float64, index=range(timestep, timestep + timelimit)
             )
@@ -302,7 +302,7 @@ class Simulator:
             df_reserve = None
 
         # Backup capacity
-        if return_all or "dfElBackup" in return_variables:
+        if return_all or "el_backup" in return_variables:
             devs_elout = []
             for dev_obj in self.optimiser.all_devices.values():
                 if "el" in dev_obj.carrier_out:
@@ -330,87 +330,87 @@ class Simulator:
 
         dfDeviceFlow = (
             res["varDeviceFlow"]
-            if (return_all or "dfDeviceFlow" in return_variables)
+            if (return_all or "device_flow" in return_variables)
             else None
         )
         dfDeviceIsOn = (
             res["varDeviceIsOn"]
-            if (return_all or "dfDeviceIsOn" in return_variables)
+            if (return_all or "device_is_on" in return_variables)
             else None
         )
         dfDeviceIsPrep = (
             res["varDeviceIsPrep"]
-            if (return_all or "dfDeviceIsPrep" in return_variables)
+            if (return_all or "device_is_prep" in return_variables)
             else None
         )
         dfDeviceStarting = (
             res["varDeviceStarting"]
-            if (return_all or "dfDeviceStarting" in return_variables)
+            if (return_all or "device_starting" in return_variables)
             else None
         )
         dfDeviceStopping = (
             res["varDeviceStopping"]
-            if (return_all or "dfDeviceStopping" in return_variables)
+            if (return_all or "device_stopping" in return_variables)
             else None
         )
         dfDeviceStorageEnergy = (
             res["varDeviceStorageEnergy"]
-            if (return_all or "dfDeviceStorageEnergy" in return_variables)
+            if (return_all or "device_storage_energy" in return_variables)
             else None
         )
         dfDeviceStoragePmax = (
             res["varDeviceStoragePmax"]
-            if (return_all or "dfDeviceStoragePmax" in return_variables)
+            if (return_all or "device_storage_pmax" in return_variables)
             else None
         )
         dfEdgeFlow = (
             res["varEdgeFlow"]
-            if (return_all or "dfEdgeFlow" in return_variables)
+            if (return_all or "edge_flow" in return_variables)
             else None
         )
         dfEdgeLoss = (
             res["varEdgeLoss"]
-            if (return_all or "dfEdgeLoss" in return_variables)
+            if (return_all or "edge_loss" in return_variables)
             else None
         )
         dfTerminalFlow = (
             res["varTerminalFlow"]
-            if (return_all or "dfTerminalFlow" in return_variables)
+            if (return_all or "terminal_flow" in return_variables)
             else None
         )
         dfTerminalPressure = (
             res["varPressure"]
-            if (return_all or "dfTerminalPressure" in return_variables)
+            if (return_all or "terminal_pressure" in return_variables)
             else None
         )
         dfElVoltageAngle = (
             res["varElVoltageAngle"]
-            if (return_all or "dfElVoltageAngle" in return_variables)
+            if (return_all or "el_voltage_angle" in return_variables)
             else None
         )
 
         result_object = SimulationResult(
-            dfDeviceFlow=dfDeviceFlow,
-            dfDeviceIsPrep=dfDeviceIsPrep,
-            dfDeviceIsOn=dfDeviceIsOn,
-            dfDeviceStarting=dfDeviceStarting,
-            dfDeviceStopping=dfDeviceStopping,
-            dfDeviceStorageEnergy=dfDeviceStorageEnergy,
-            dfDeviceStoragePmax=dfDeviceStoragePmax,
-            dfEdgeFlow=dfEdgeFlow,
-            dfEdgeLoss=dfEdgeLoss,
-            dfTerminalFlow=dfTerminalFlow,
-            dfTerminalPressure=dfTerminalPressure,
-            dfElVoltageAngle=dfElVoltageAngle,
-            dfPenalty=df_penalty,
-            dfElReserve=df_reserve,
-            dfElBackup=df_backup,
-            dfExportRevenue=df_exportRevenue,
-            dfCO2rate=df_co2_rate_sum,
-            dfCO2intensity=df_co2intensity,
-            dfCO2rate_per_dev=df_co2_rate_dev,
-            dfDuals=df_duals,
-            df_profiles_forecast=None,
-            df_profiles_nowcast=None,
+            device_flow=dfDeviceFlow,
+            device_is_prep=dfDeviceIsPrep,
+            device_is_on=dfDeviceIsOn,
+            device_starting=dfDeviceStarting,
+            device_stopping=dfDeviceStopping,
+            device_storage_energy=dfDeviceStorageEnergy,
+            device_storage_pmax=dfDeviceStoragePmax,
+            edge_flow=dfEdgeFlow,
+            edge_loss=dfEdgeLoss,
+            terminal_flow=dfTerminalFlow,
+            terminal_pressure=dfTerminalPressure,
+            el_voltage_angle=dfElVoltageAngle,
+            penalty=df_penalty,
+            el_reserve=df_reserve,
+            el_backup=df_backup,
+            export_revenue=df_exportRevenue,
+            co2_rate=df_co2_rate_sum,
+            co2_intensity=df_co2intensity,
+            co2_rate_per_dev=df_co2_rate_dev,
+            duals=df_duals,
+            profiles_forecast=None,
+            profiles_nowcast=None,
         )
         return result_object

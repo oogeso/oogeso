@@ -31,8 +31,7 @@ def test_simulator_run():
         sol.solver.termination_condition == pyopt.TerminationCondition.optimal
     ), "Optimisation with CBC failed"
     res = simulator.runSimulation("cbc", timerange=[0, 1], timelimit=20)
-    # print(res.dfDeviceFlow)
     assert (
-        res.dfDeviceFlow.loc[("dem", "el", "in", 0)]
-        == res.dfDeviceFlow.loc[("source1", "el", "out", 0)]
+        res.device_flow.loc[("dem", "el", "in", 0)]
+        == res.device_flow.loc[("source1", "el", "out", 0)]
     )
