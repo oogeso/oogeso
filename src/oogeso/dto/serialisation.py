@@ -127,7 +127,7 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
     def object_hook(self, dct):  # pylint: disable=E0202
         res_dfs = {}
         # profiles_nowcast = {}
-        if "dfDeviceFlow" in dct:
+        if "device_flow" in dct:
             # Top level
             for k, val in dct.items():
                 print(k)
