@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import pyomo.environ as pyo
 import oogeso
 from oogeso.dto import (
     EnergySystemData,
@@ -57,6 +58,9 @@ def test_simulator_runsim():
         sim_res = sim_obj.runSimulation(solver="wrong_solver_name", timerange=[0, 2])
 
     # single timestep:
+    opt = pyo.SolverFactory("cbc")
+    if not opt.available():
+        pytest.skip("CBC executable not found. Skipping test.")
     sim_res = sim_obj.runSimulation(solver="cbc", timelimit=[0, 1])
     assert sim_res.device_flow["source1", "el", "out", 0] == 15 * 1.1
     assert sim_res.device_flow["demand", "el", "in", 0] == 15 * 1.1
