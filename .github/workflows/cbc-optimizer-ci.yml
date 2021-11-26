@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Build libraries
+      - name: Build Dockerfile
         run: docker build --pull -t oogeso --target dev -f Dockerfile .
-      - name: Test Oogeso including cbc
-        run: docker run --rm -c "poetry run pytest"
+      - name: Test cbc
+        run: docker run --rm -c "poetry run pytest tests/test_cbc.py"
