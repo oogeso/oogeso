@@ -14,66 +14,10 @@ defaults:
 jobs:
   build:
     name: Build tool
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - 'ubuntu-latest'
-          - 'macos-latest'
-          - 'windows-latest'
-        python-version:
-          - '3.7'
-          - '3.8'
-          - '3.9'
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2.4.0
-      - name: Setup Python
-        uses: actions/setup-python@v2.3.0
-        with:
-          python-version: ${{matrix.python-version}}
-
-      # Create cache so that we don't have to do this for each step in the matrix.
-      - name: Create cache for Poetry
-        id: cache-poetry
-        uses: actions/cache@v2.1.6
-        with:
-          path: ~/.poetry
-          key: ${{ matrix.os }}-poetry
-
-      # Install latest Poetry if cache has changed.
-      - name: Install latest version of Poetry
-        if: steps.cache-poetry.outputs.cache-hit != 'true'
-        run: |
-          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-
-      # Add Poetry to github_path
-      - name: Add Poetry to $PATH
-        run: |
-          echo "$HOME/.poetry/bin" >> $GITHUB_PATH
-
-      - name: Get Poetry version
-        run: poetry --version
-
-      - name: Check pyproject.toml validity
-        run: poetry check --no-interaction
-
-      - name: Cache dependencies
-        id: cache-deps
-        uses: actions/cache@v2.1.6
-        with:
-          path: ${{github.workspace}}/.venv
-          key: ${{ matrix.os }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: ${{ matrix.os }}-
-
-      - name: Install deps
-        if: steps.cache-deps.cache-hit != 'true'
-        run: |
-          poetry config virtualenvs.in-project true
-          poetry install --no-interaction
-
-      - name: Run tests
-        run: poetry run pytest -v
-
-      - name: Build artifacts
-        run: poetry build
+      - uses: actions/checkout@v2
+      - name: Build libraries
+        run: docker build --pull -t oogeso --target dev -f Dockerfile .
+      - name: Test Oogeso including cbc
+        run: docker run --rm -c "poetry run pytest"
