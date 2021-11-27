@@ -16,26 +16,8 @@ Python module for modelling and analysing the energy system of offshore oil and 
 Part of the [Low Emission Centre](https://www.sintef.no/en/projects/lowemission-research-centre/) (SP5).
 
 ## Getting started
-
-Pypi distribution to come. See local installation below.
-
-## Local installation
-Prerequisite: 
-- [Poetry](https://python-poetry.org/docs/#installation)
-- [Pre-commit](https://pre-commit.com/)
-
-Clone or download the code and install it as a python package. I.e. navigate to the folder with the MANIFEST.in file and type:
-
-### Install as a package for normal use:
-1. `poetry install`
-
-### Install dependencies for local development
-2. `poetry install --no-root`  --no-root to not install the package itself, only the dependencies.
-3. `poetry shell`
-4. `poetry run pytests tests`
-
-### Local development in Docker
-Alternatively you can run and develop the code using docker and the Dockerfile in the root folder.
+Install latest Oogeso release from PyPi:
+`pip install oogeso`
 
 ## User guide
 The online user guide  gives more information about how to
@@ -54,12 +36,29 @@ Check out the examples:
 * [Simple test case](examples/test case2.ipynb?viewer=nbviewer)
 * [Test oil and gas platform](examples/TestPlatform.ipynb?viewer=nbviewer)
 
-## GitHub Actions Pipelines
-3 pipelines are defined.
+## Local installation
+Prerequisite: 
+- [Poetry](https://python-poetry.org/docs/#installation)
+- [Pre-commit](https://pre-commit.com/)
+Clone or download the code and install it as a python package. I.e. navigate to the folder with the MANIFEST.in file and type:
+
+### Install dependencies
+1. `git clone git@github.com:oogeso/oogeso.git`
+2. `cd oogeso`
+3. `poetry install --no-root`  --no-root to not install the package itself, only the dependencies.
+4. `poetry shell`
+5. `poetry run pytests tests`
+
+### Local development in Docker
+Alternatively you can run and develop the code using docker and the Dockerfile in the root folder.
+
+### GitHub Actions Pipelines
+4 pipelines are defined.
 
 1. Build: Building and testing on multiple OS and python versions. Triggered on any push to GitHub.
-2. Release: Create release based on tags starting on v*.
-3. Publish: Publish package to PyPi.
+2. CBC-optimizer CI: Build and test oogeso with the CBC-solver and spesific cbc-tests.
+3. Release: Create release based on tags starting on v*.
+4. Publish: Publish the package to PyPi when a release is marked as published.
 
 ## Contribute
 You are welcome to contribute to the improvement of the code.
