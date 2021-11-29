@@ -1,0 +1,12 @@
+[flake8]
+per-file-ignores =
+	*/__init__.py: F401
+ignore =
+    # Ignore line too long errors, let black handle it
+    E501,
+    # flake8 complains about whitespace removed by black
+    E231,
+    # Not PEP8. Black recommendation
+    W503,
+    # Not PEP8, Black recommendation: https://github.com/psf/black/issues/315
+    E203

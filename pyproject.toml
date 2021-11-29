@@ -20,19 +20,6 @@ classifiers=[
     "License :: OSI Approved :: MIT License",
 ]
 
-[tool.black]
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.venv
-  | \.env
-  | build
-  | dist
-  | \.mypy_cache
-)\
-'''
-
 [tool.poetry.dependencies]
 python = ">=3.7.1,<3.10"
 matplotlib = { version="^3.4.3", optional=true }
