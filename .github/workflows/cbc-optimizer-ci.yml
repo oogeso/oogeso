@@ -18,6 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build Dockerfile
-        run: docker build --pull -t oogeso --target dev -f Dockerfile .
+        run: docker build --pull -t oogeso --target test -f Dockerfile .
       - name: Test cbc
         run: docker run --rm oogeso bash -c "poetry run pytest"
