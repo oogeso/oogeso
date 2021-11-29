@@ -14,7 +14,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # We run the  oldest LTS version for now: https://endoflife.date/python
       - name: Setup Python 3.9
         uses: actions/setup-python@v2.3.0
         with:
