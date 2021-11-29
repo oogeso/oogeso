@@ -17,11 +17,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # We run the  oldest LTS version for now: https://endoflife.date/python
-      - name: Setup Python 3.7
+      - name: Setup Python 3.9
         uses: actions/setup-python@v2.3.0
         with:
-          python-version: '3.7'
+          python-version: '3.9'
 
       # Create cache so that we don't have to do this for each step in the matrix.
       - name: Create cache for Poetry
