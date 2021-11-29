@@ -23,12 +23,12 @@ Install latest Oogeso release from PyPi:
 The online user guide  gives more information about how to
 specify input data and run a simulation case.
 
-*  [User guide](userguide.md)
+*  [User guide](https://github.com/oogeso/oogeso/blob/master/userguide.md)
 
 There is also a (not always up-to-date) manual with more information and explanations
 about the modelling concepts and model elements:
 
-* [Manual (pdf)](../../raw/master/doc/oogeso_manual.pdf)
+* [Manual (pdf)](https://github.com/oogeso/oogeso/blob/master/docs/oogeso_manual.pdf)
 
 ## Examples
 Check out the examples:
