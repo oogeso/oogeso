@@ -1,12 +1,13 @@
 import logging
-from typing import Tuple, Sequence, Optional
-from numpy import float64
+from typing import Optional, Sequence, Tuple
+
 import pandas as pd
 import pyomo.environ as pyo
-from oogeso.dto import EnergySystemData
-from oogeso.dto import SimulationResult
-from .optimiser import OptimisationModel
+from numpy import float64
 
+from oogeso.dto import EnergySystemData, SimulationResult
+
+from .optimiser import OptimisationModel
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ try:
     from tqdm import trange
 
     HAS_TQDM = True
-except ImportError as err:
+except ImportError:
     logger.info("Consider installing tqdm to get progress bar")
     trange = range
     HAS_TQDM = False
@@ -132,17 +133,11 @@ class Simulator:
                 # no progress bar
                 logger.info("Solving timestep=%s", step)
             # 1. Update problem formulation
-            self.optimiser.updateOptimisationModel(
-                step, first=first, profiles=self.profiles
-            )
+            self.optimiser.updateOptimisationModel(step, first=first, profiles=self.profiles)
             # 2. Solve for planning horizon
-            self.optimiser.solve(
-                solver=solver, write_yaml=write_yaml, timelimit=timelimit
-            )
+            self.optimiser.solve(solver=solver, write_yaml=write_yaml, timelimit=timelimit)
             # 3. Save results (for later analysis)
-            new_results = self._saveOptimisationResult(
-                step, return_variables, store_duals
-            )
+            new_results = self._saveOptimisationResult(step, return_variables, store_duals)
             result_object.append_results(new_results)
             first = False
 
@@ -174,9 +169,7 @@ class Simulator:
             #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}
             #   }
             horizon_steps = self.optimiser.optimisation_parameters.planning_horizon
-            df_duals = pd.DataFrame(
-                columns=store_duals.keys(), index=range(timestep, timestep + timelimit)
-            )
+            df_duals = pd.DataFrame(columns=store_duals.keys(), index=range(timestep, timestep + timelimit))
             for key, val in store_duals.items():
                 # vrs=('util',None)
                 vrs = val["indx"]
@@ -212,9 +205,7 @@ class Simulator:
             )
             for d in pyomo_instance.setDevice:
                 for t in range(timelimit):
-                    co2_dev = self.optimiser.compute_CO2(
-                        pyomo_instance, devices=[d], timesteps=[t]
-                    )
+                    co2_dev = self.optimiser.compute_CO2(pyomo_instance, devices=[d], timesteps=[t])
                     df_co2_rate_dev.loc[t + timestep, d] = pyo.value(co2_dev)
             # change to multi-index series
             df_co2_rate_dev = df_co2_rate_dev.stack()
@@ -224,22 +215,16 @@ class Simulator:
 
         # CO2 emission rate (sum)
         if return_all or "co2_rate" in return_variables:
-            df_co2_rate_sum = pd.Series(
-                dtype=float64, index=range(timestep, timestep + timelimit)
-            )
+            df_co2_rate_sum = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
             for t in range(timelimit):
-                df_co2_rate_sum.loc[t + timestep] = pyo.value(
-                    self.optimiser.compute_CO2(pyomo_instance, timesteps=[t])
-                )
+                df_co2_rate_sum.loc[t + timestep] = pyo.value(self.optimiser.compute_CO2(pyomo_instance, timesteps=[t]))
             df_co2_rate_sum.index.rename("time", inplace=True)
         else:
             df_co2_rate_sum = None
 
         # CO2 emission intensity (sum)
         if return_all or "co2_intensity" in return_variables:
-            df_co2intensity = pd.Series(
-                dtype=float64, index=range(timestep, timestep + timelimit)
-            )
+            df_co2intensity = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
             for t in range(timelimit):
                 df_co2intensity.loc[t + timestep] = pyo.value(
                     self.optimiser.compute_CO2_intensity(pyomo_instance, timesteps=[t])
@@ -287,14 +272,10 @@ class Simulator:
 
         # Reserve capacity
         if return_all or "el_reserve" in return_variables:
-            df_reserve = pd.Series(
-                dtype=float64, index=range(timestep, timestep + timelimit)
-            )
+            df_reserve = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
             for t in range(timelimit):
                 rescap = pyo.value(
-                    self.optimiser.all_networks["el"].compute_elReserve(
-                        pyomo_instance, t, self.optimiser.all_devices
-                    )
+                    self.optimiser.all_networks["el"].compute_elReserve(pyomo_instance, t, self.optimiser.all_devices)
                 )
                 df_reserve.loc[t + timestep] = rescap
             df_reserve.index.rename("time", inplace=True)
@@ -328,66 +309,22 @@ class Simulator:
         else:
             df_backup = None
 
-        dfDeviceFlow = (
-            res["varDeviceFlow"]
-            if (return_all or "device_flow" in return_variables)
-            else None
-        )
-        dfDeviceIsOn = (
-            res["varDeviceIsOn"]
-            if (return_all or "device_is_on" in return_variables)
-            else None
-        )
-        dfDeviceIsPrep = (
-            res["varDeviceIsPrep"]
-            if (return_all or "device_is_prep" in return_variables)
-            else None
-        )
-        dfDeviceStarting = (
-            res["varDeviceStarting"]
-            if (return_all or "device_starting" in return_variables)
-            else None
-        )
-        dfDeviceStopping = (
-            res["varDeviceStopping"]
-            if (return_all or "device_stopping" in return_variables)
-            else None
-        )
+        dfDeviceFlow = res["varDeviceFlow"] if (return_all or "device_flow" in return_variables) else None
+        dfDeviceIsOn = res["varDeviceIsOn"] if (return_all or "device_is_on" in return_variables) else None
+        dfDeviceIsPrep = res["varDeviceIsPrep"] if (return_all or "device_is_prep" in return_variables) else None
+        dfDeviceStarting = res["varDeviceStarting"] if (return_all or "device_starting" in return_variables) else None
+        dfDeviceStopping = res["varDeviceStopping"] if (return_all or "device_stopping" in return_variables) else None
         dfDeviceStorageEnergy = (
-            res["varDeviceStorageEnergy"]
-            if (return_all or "device_storage_energy" in return_variables)
-            else None
+            res["varDeviceStorageEnergy"] if (return_all or "device_storage_energy" in return_variables) else None
         )
         dfDeviceStoragePmax = (
-            res["varDeviceStoragePmax"]
-            if (return_all or "device_storage_pmax" in return_variables)
-            else None
+            res["varDeviceStoragePmax"] if (return_all or "device_storage_pmax" in return_variables) else None
         )
-        dfEdgeFlow = (
-            res["varEdgeFlow"]
-            if (return_all or "edge_flow" in return_variables)
-            else None
-        )
-        dfEdgeLoss = (
-            res["varEdgeLoss"]
-            if (return_all or "edge_loss" in return_variables)
-            else None
-        )
-        dfTerminalFlow = (
-            res["varTerminalFlow"]
-            if (return_all or "terminal_flow" in return_variables)
-            else None
-        )
-        dfTerminalPressure = (
-            res["varPressure"]
-            if (return_all or "terminal_pressure" in return_variables)
-            else None
-        )
-        dfElVoltageAngle = (
-            res["varElVoltageAngle"]
-            if (return_all or "el_voltage_angle" in return_variables)
-            else None
-        )
+        dfEdgeFlow = res["varEdgeFlow"] if (return_all or "edge_flow" in return_variables) else None
+        dfEdgeLoss = res["varEdgeLoss"] if (return_all or "edge_loss" in return_variables) else None
+        dfTerminalFlow = res["varTerminalFlow"] if (return_all or "terminal_flow" in return_variables) else None
+        dfTerminalPressure = res["varPressure"] if (return_all or "terminal_pressure" in return_variables) else None
+        dfElVoltageAngle = res["varElVoltageAngle"] if (return_all or "el_voltage_angle" in return_variables) else None
 
         result_object = SimulationResult(
             device_flow=dfDeviceFlow,

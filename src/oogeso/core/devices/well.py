@@ -1,8 +1,7 @@
 import pyomo.environ as pyo
-from oogeso.dto import (
-    DeviceWell_gasliftData,
-    DeviceWell_productionData,
-)
+
+from oogeso.dto import DeviceWell_gasliftData, DeviceWell_productionData
+
 from . import Device
 
 
@@ -24,9 +23,7 @@ class Well_production(Device):
         # No specific constraints, use only generic ones:
         list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr_well = pyo.Constraint(
-            pyomo_model.setHorizon, rule=self._rule_well_production
-        )
+        constr_well = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_well_production)
         # add constraint to model:
         setattr(
             pyomo_model,

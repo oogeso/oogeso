@@ -1,8 +1,7 @@
 import pyomo.environ as pyo
-from oogeso.dto import (
-    DeviceStorage_elData,
-    DeviceStorage_hydrogenData,
-)
+
+from oogeso.dto import DeviceStorage_elData, DeviceStorage_hydrogenData
+
 from . import Device
 
 
@@ -85,10 +84,7 @@ class Storage_el(_StorageDevice):
             dt_hours = time_reserve_minutes / 60
             bigM = 10 * dev_data.E_max / dt_hours
             lhs = model.varDeviceStoragePmax[dev, t]
-            rhs = (
-                model.varDeviceStorageEnergy[dev, t] / dt_hours
-                - bigM * model.varStorY[dev, t]
-            )
+            rhs = model.varDeviceStorageEnergy[dev, t] / dt_hours - bigM * model.varStorY[dev, t]
             return lhs >= rhs
         elif i == 9:
             # constraint on storage end vs start
@@ -106,9 +102,7 @@ class Storage_el(_StorageDevice):
 
         list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr = pyo.Constraint(
-            pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules
-        )
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules)
         # add constraints to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
@@ -121,10 +115,7 @@ class Storage_el(_StorageDevice):
         # charging also contributes (can be reversed)
         # (it can go to e.g. -2 MW to +2MW => 4 MW,
         # even if Pmax=2 MW)
-        maxValue = (
-            pyomo_model.varDeviceStoragePmax[self.id, t]
-            + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
-        )
+        maxValue = pyomo_model.varDeviceStoragePmax[self.id, t] + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
         return maxValue
 
     def compute_costForDepletedStorage(self, pyomo_model, timesteps):
@@ -203,9 +194,7 @@ class Storage_hydrogen(_StorageDevice):
 
         list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr = pyo.Constraint(
-            pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules
-        )
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules)
         # add constraints to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct

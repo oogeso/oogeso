@@ -1,6 +1,6 @@
-from pyomo.core.base.piecewise import PWRepn
 import pyomo.environ as pyo
-from . import Device
+
+from oogeso.core.devices import Device
 
 
 class Source_el(Device):
@@ -20,11 +20,7 @@ class Source_el(Device):
         thisCO2 = 0
         if self.dev_data.co2em is not None:
             thisCO2 = (
-                sum(
-                    pyomo_model.varDeviceFlow[self.id, "el", "out", t]
-                    * self.dev_data.co2em
-                    for t in timesteps
-                )
+                sum(pyomo_model.varDeviceFlow[self.id, "el", "out", t] * self.dev_data.co2em for t in timesteps)
                 * 1
                 / 3600
             )

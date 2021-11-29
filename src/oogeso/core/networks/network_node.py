@@ -1,14 +1,12 @@
 import logging
 import typing
+
 import pyomo.environ as pyo
 
 if typing.TYPE_CHECKING:
-    from oogeso.core.networks.edge import Edge
     from oogeso.core.devices.device import Device
-    from oogeso.dto.oogeso_input_data_objects import (
-        NodeData,
-        OptimisationParametersData,
-    )
+    from oogeso.core.networks.edge import Edge
+    from oogeso.dto.oogeso_input_data_objects import NodeData
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +25,7 @@ class NetworkNode:
         self.pressure_maxdeviation = {}
 
     def get_pressure_nominal(self, carrier, term):
-        if (carrier in self.pressure_nominal) and (
-            term in self.pressure_nominal[carrier]
-        ):
+        if (carrier in self.pressure_nominal) and (term in self.pressure_nominal[carrier]):
             return self.pressure_nominal[carrier][term]
         return None
 
@@ -39,11 +35,7 @@ class NetworkNode:
                 # pressure has already been set, so check consistency:
                 p_exst = parameter[carrier][term]
                 if p_exst != value:
-                    raise Exception(
-                        "Inconsistent pressure values for node {}:{} vs {}".format(
-                            self.id, p_exst, value
-                        )
-                    )
+                    raise Exception("Inconsistent pressure values for node {}:{} vs {}".format(self.id, p_exst, value))
             else:
                 parameter[carrier][term] = value
         else:
@@ -51,14 +43,10 @@ class NetworkNode:
             parameter[carrier][term] = value
 
     def set_pressure_nominal(self, carrier, term, pressure):
-        self._set_pressure_parameter(
-            carrier, term, parameter=self.pressure_nominal, value=pressure
-        )
+        self._set_pressure_parameter(carrier, term, parameter=self.pressure_nominal, value=pressure)
 
     def set_pressure_maxdeviation(self, carrier, term, value):
-        self._set_pressure_parameter(
-            carrier, term, parameter=self.pressure_maxdeviation, value=value
-        )
+        self._set_pressure_parameter(carrier, term, parameter=self.pressure_maxdeviation, value=value)
 
     def addDevice(self, device_id, device: "Device"):
         # logger.debug("addDevice: {},{}".format(self.id, device_id))
@@ -81,7 +69,7 @@ class NetworkNode:
             self.edges_from[carrier][edge_id] = edge
 
     def _rule_terminalEnergyBalance(self, model, carrier, terminal, t):
-        """ node energy balance (at in and out terminals)
+        r""" node energy balance (at in and out terminals)
         "in" terminal: flow into terminal is positive (Pinj>0)
         "out" terminal: flow out of terminal is positive (Pinj>0)
 
@@ -90,7 +78,7 @@ class NetworkNode:
         (with device in series) that may have different properties
         (such as gas pressure)
 
-        edge1 \                                     / edge3
+        edge1 \                                     / edge3  # noqa
                \      devFlow_in    devFlow_out    /
                 [term in]-->--device-->--[term out]
                /      \                       /    \
@@ -122,18 +110,14 @@ class NetworkNode:
             for edge_id, edge in self.edges_to[carrier].items():
                 # power into node from edge
                 if edge.has_loss():
-                    Pinj += (
-                        model.varEdgeFlow[edge_id, t] - model.varEdgeLoss12[edge_id, t]
-                    )
+                    Pinj += model.varEdgeFlow[edge_id, t] - model.varEdgeLoss12[edge_id, t]
                 else:
                     Pinj += model.varEdgeFlow[edge_id, t]
         elif (terminal == "out") and (carrier in self.edges_from):
             for edge_id, edge in self.edges_from[carrier].items():
                 # power out of node into edge
                 if edge.has_loss():
-                    Pinj += (
-                        model.varEdgeFlow[edge_id, t] + model.varEdgeLoss21[edge_id, t]
-                    )
+                    Pinj += model.varEdgeFlow[edge_id, t] + model.varEdgeLoss21[edge_id, t]
                 else:
                     Pinj += model.varEdgeFlow[edge_id, t]
 
@@ -147,7 +131,7 @@ class NetworkNode:
         #         Pinj += (model.varEdgeFlow[edg,t])
 
         expr = Pinj == 0
-        if (type(expr) is bool) and (expr == True):
+        if (type(expr) is bool) and (expr is True):
             expr = pyo.Constraint.Skip
         return expr
 
@@ -162,10 +146,7 @@ class NetworkNode:
             return pyo.Constraint.Skip
         else:
             # single terminal. (pressure out=pressure in)
-            expr = (
-                model.varPressure[(node, carrier, "out", t)]
-                == model.varPressure[(node, carrier, "in", t)]
-            )
+            expr = model.varPressure[(node, carrier, "out", t)] == model.varPressure[(node, carrier, "in", t)]
             return expr
 
     def _rule_pressureBounds(self, model, term, carrier, t):
@@ -176,9 +157,7 @@ class NetworkNode:
             if term in nominal_pressure[carrier]:
                 nom_p = nominal_pressure[carrier][term]
                 if nom_p is not None:
-                    if (carrier in self.pressure_maxdeviation) and (
-                        term in self.pressure_maxdeviation[carrier]
-                    ):
+                    if (carrier in self.pressure_maxdeviation) and (term in self.pressure_maxdeviation[carrier]):
                         maxdev = self.pressure_maxdeviation[carrier][term]
                         if t == 0:
                             logger.debug(
@@ -193,9 +172,7 @@ class NetworkNode:
             return pyo.Constraint.Skip
         lower_bound = nom_p * (1 - maxdev)
         upper_bound = nom_p * (1 + maxdev)
-        expr = pyo.inequality(
-            lower_bound, model.varPressure[(node, carrier, term, t)], upper_bound
-        )
+        expr = pyo.inequality(lower_bound, model.varPressure[(node, carrier, term, t)], upper_bound)
         return expr
 
     def defineConstraints(self, pyomo_model):
@@ -214,9 +191,7 @@ class NetworkNode:
             constrTerminalEnergyBalance,
         )
 
-        constrPressureAtNode = pyo.Constraint(
-            model.setCarrier, model.setHorizon, rule=self._rule_pressureAtNode
-        )
+        constrPressureAtNode = pyo.Constraint(model.setCarrier, model.setHorizon, rule=self._rule_pressureAtNode)
         setattr(
             model,
             "constrN_{}_{}".format(self.id, "nodepressure"),

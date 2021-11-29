@@ -1,6 +1,9 @@
-import pyomo.environ as pyo
 import logging
+
+import pyomo.environ as pyo
+
 from oogeso.core.networks.network_node import NetworkNode
+
 from . import Device
 
 logger = logging.getLogger(__name__)
@@ -9,9 +12,7 @@ logger = logging.getLogger(__name__)
 class _PumpDevice(Device):
     """Parent class for pumps. Don't use this class directly."""
 
-    def compute_pump_demand(
-        self, model, carrier, linear=False, Q=None, p1=None, p2=None, t=None
-    ):
+    def compute_pump_demand(self, model, carrier, linear=False, Q=None, p1=None, p2=None, t=None):
         dev_data = self.dev_data
         node_id = dev_data.node_id
         node_obj: NetworkNode = self.node
@@ -40,11 +41,7 @@ class _PumpDevice(Device):
             # linearised equations around operating point
             # p1=p10, p2=p20, Q=Q0
             if t == 0:
-                logger.debug(
-                    "Node:{}, nominal pressures={}".format(
-                        node_id, node_obj.pressure_nominal
-                    )
-                )
+                logger.debug("Node:{}, nominal pressures={}".format(node_id, node_obj.pressure_nominal))
             p10 = node_obj.pressure_nominal[carrier]["in"]
             p20 = node_obj.pressure_nominal[carrier]["out"]
             delta_p = p20 - p10
@@ -87,9 +84,7 @@ class _PumpDevice(Device):
 
         list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr = pyo.Constraint(
-            pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump
-        )
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump)
         # add constraint to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct

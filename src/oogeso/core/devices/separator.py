@@ -1,11 +1,8 @@
 import pyomo.environ as pyo
-from oogeso.core.networks.network_node import NetworkNode
 
-from oogeso.dto import (
-    CarrierWellstreamData,
-    DeviceSeparator2Data,
-    DeviceSeparatorData,
-)
+from oogeso.core.networks.network_node import NetworkNode
+from oogeso.dto import CarrierWellstreamData, DeviceSeparator2Data, DeviceSeparatorData
+
 from . import Device
 
 
@@ -70,9 +67,7 @@ class Separator(Device):
 
         list_to_reconstruct = super().defineConstraints(pyomo_model)
 
-        constr_separator = pyo.Constraint(
-            pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator
-        )
+        constr_separator = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator)
         # add constraints to model:
         setattr(
             pyomo_model,
@@ -111,9 +106,7 @@ class Separator2(Device):
     def _rule_separator2_energy(self, model, t, i):
         dev = self.id
         dev_data: DeviceSeparator2Data = self.dev_data
-        flow_in = sum(
-            model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"]
-        )
+        flow_in = sum(model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"])
 
         if i == 1:
             # electricity demand

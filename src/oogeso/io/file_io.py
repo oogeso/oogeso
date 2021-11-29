@@ -1,26 +1,20 @@
 """This module contains methods to read and save to file"""
 
-import yaml
 import json
 import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+
 import pandas as pd
-from typing import Optional, Union
+import yaml
+
 from oogeso.dto import EnergySystemData
 from oogeso.dto.serialisation import DataclassJSONDecoder
-from pathlib import Path
-
-# from oogeso.dto.oogeso_input_data_objects import (
-#    EnergySystemData,
-#    DataclassJSONDecoder,
-# )
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
 
-def read_data_from_yaml(
-    filename, profiles=None, profiles_nowcast=None
-) -> EnergySystemData:
+def read_data_from_yaml(filename, profiles=None, profiles_nowcast=None) -> EnergySystemData:
     """Read input data from yaml file"""
     data_dict = None
     with open(filename, "r") as text_file:
@@ -52,7 +46,7 @@ def read_profiles_from_parquet(filename: Union[Path, str], keys: List[str]) -> D
     Fixme: Refactor to avoid this complexity if not needed.
     """
     if not isinstance(filename, Path):
-        filename =Path(filename)
+        filename = Path(filename)
 
     suffix = ""
     if "." in filename.name:
@@ -87,8 +81,8 @@ def save_profiles_to_parquet(filename: Union[Path, str], profiles: Dict[str, pd.
 
 def read_profiles_from_xlsx(
     filename: Path,
-    sheet_forecast: str ="profiles",
-    sheet_nowcast: str ="profiles_forecast",
+    sheet_forecast: str = "profiles",
+    sheet_nowcast: str = "profiles_forecast",
     exclude_cols: Optional[List] = None,
 ) -> Dict[str, pd.DataFrame]:
     """Read input data profiles from XLSX to a dicitonary of pandas dataframes"""

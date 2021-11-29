@@ -1,7 +1,7 @@
 """This module is for electrical computations
 """
-import pandas as pd
 import networkx as nx
+import pandas as pd
 import scipy
 
 elbase = {"baseMVA": 100, "baseAngle": 1}
@@ -34,27 +34,21 @@ def computePowerFlowMatrices(nodes, branches, baseZ=1):
     edges = []
     for br_id, branch in branches.items():
         b = susceptance[br_id]
-        edges.append(
-            (branch["node_from"], branch["node_to"], br_id, {"i": br_id, "b": b})
-        )
+        edges.append((branch["node_from"], branch["node_to"], br_id, {"i": br_id, "b": b}))
         edge_ids.append(br_id)
 
     # MultiDiGraph to allow parallel lines
     G = nx.MultiDiGraph()
     G.add_nodes_from(nodes)
     G.add_edges_from(edges)
-    A_incidence_matrix = -nx.incidence_matrix(
-        G, oriented=True, nodelist=nodes, edgelist=edges
-    ).T
+    A_incidence_matrix = -nx.incidence_matrix(G, oriented=True, nodelist=nodes, edgelist=edges).T
     # Diagonal matrix
     D = scipy.sparse.diags(-susceptance, offsets=0)
     DA = D * A_incidence_matrix
 
     # Bf constructed from incidence matrix with branch susceptance
     # used as weight (this is quite fast)
-    Bf = -nx.incidence_matrix(
-        G, oriented=True, nodelist=nodes, edgelist=edges, weight="b"
-    ).T
+    Bf = -nx.incidence_matrix(G, oriented=True, nodelist=nodes, edgelist=edges, weight="b").T
     Bbus = A_incidence_matrix.T * Bf
 
     coeff_B = dict()

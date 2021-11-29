@@ -1,4 +1,5 @@
 import pyomo.environ as pyo
+
 from . import Device
 
 

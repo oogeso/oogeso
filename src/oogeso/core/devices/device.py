@@ -1,13 +1,9 @@
-import pyomo.environ as pyo
 import logging
-from oogeso.core.networks.network import Network
+
+import pyomo.environ as pyo
+
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.dto import (
-    CarrierData,
-    DeviceData,
-    OptimisationParametersData,
-)
-from typing import Dict
+from oogeso.dto import DeviceData
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +36,7 @@ class Device:
         if hasattr(dev_data, "E_init"):
             pyomo_model.paramDeviceEnergyInitially[dev_id] = dev_data.E_init
         if dev_data.start_stop is not None:
-            pyomo_model.paramDeviceIsOnInitially[
-                dev_id
-            ] = dev_data.start_stop.is_on_init
+            pyomo_model.paramDeviceIsOnInitially[dev_id] = dev_data.start_stop.is_on_init
         if hasattr(dev_data, "P_init"):
             pyomo_model.paramDevicePowerInitially[dev_id] = dev_data.P_init
 
@@ -153,46 +147,34 @@ class Device:
         list_to_reconstruct = []  # Default
 
         if self.dev_data.flow_max is not None:
-            constrDevicePmax = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_deviceFlowMax
-            )
+            constrDevicePmax = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_deviceFlowMax)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "flowMax"),
                 constrDevicePmax,
             )
         if self.dev_data.flow_min is not None:
-            constrDevicePmin = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_deviceFlowMin
-            )
+            constrDevicePmin = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_deviceFlowMin)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "flowMin"),
                 constrDevicePmin,
             )
-        if (self.dev_data.max_ramp_up is not None) or (
-            self.dev_data.max_ramp_down is not None
-        ):
-            constrDevice_ramprate = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_ramprate
-            )
+        if (self.dev_data.max_ramp_up is not None) or (self.dev_data.max_ramp_down is not None):
+            constrDevice_ramprate = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_ramprate)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "ramprate"),
                 constrDevice_ramprate,
             )
         if self.dev_data.start_stop is not None:
-            constrDevice_startup_shutdown = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_startup_shutdown
-            )
+            constrDevice_startup_shutdown = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_startup_shutdown)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "startstop"),
                 constrDevice_startup_shutdown,
             )
-            constrDevice_startup_delay = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_startup_delay
-            )
+            constrDevice_startup_delay = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_startup_delay)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "startdelay"),
@@ -275,10 +257,7 @@ class Device:
             # flow in m3/s, price in $/m3
             if self.dev_data.price is not None:
                 if carrier in self.dev_data.price:
-                    inflow = sum(
-                        pyomo_model.varDeviceFlow[self.id, carrier, "in", t]
-                        for t in timesteps
-                    )
+                    inflow = sum(pyomo_model.varDeviceFlow[self.id, carrier, "in", t] for t in timesteps)
                     if value == "revenue":
                         sumValue += inflow * self.dev_data.price[carrier]
                     elif value == "volume":
@@ -332,10 +311,8 @@ class Device:
         model = pyomo_model
         if self.dev_data.start_stop is not None:
             penalty = (
-                sum(model.varDeviceStarting[self.id, t] for t in timesteps)
-                * self.dev_data.start_stop.penalty_start
-                + sum(model.varDeviceStopping[self.id, t] for t in timesteps)
-                * self.dev_data.start_stop.penalty_stop
+                sum(model.varDeviceStarting[self.id, t] for t in timesteps) * self.dev_data.start_stop.penalty_start
+                + sum(model.varDeviceStopping[self.id, t] for t in timesteps) * self.dev_data.start_stop.penalty_stop
             )
         return penalty
 
@@ -358,14 +335,9 @@ class Device:
         """Compute average penalty rate (cost, emission or similar per second)
         as defined by penalty functions and start/stop penalties"""
         penalty_rate = 0
-        if (
-            hasattr(self.dev_data, "penalty_function")
-            and self.dev_data.penalty_function is not None
-        ):
+        if hasattr(self.dev_data, "penalty_function") and self.dev_data.penalty_function is not None:
             if not hasattr(self, "_penaltyConstraint"):
-                logger.warning(
-                    "Penalty function constraint not impelemented for %s", self.id
-                )
+                logger.warning("Penalty function constraint not impelemented for %s", self.id)
             # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
             # penalty for Pel > 0 only when device is actually online (penalty should be zero when
             # device is offline)

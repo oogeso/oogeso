@@ -1,4 +1,5 @@
 import pyomo.environ as pyo
+
 from . import Device
 
 
@@ -15,11 +16,7 @@ class Gasheater(Device):
         # heat out = gas input * energy content * efficiency
         gas_energy_content = param_gas["energy_value"]  # MJ/Sm3
         lhs = model.varDeviceFlow[dev, "heat", "out", t]
-        rhs = (
-            model.varDeviceFlow[dev, "gas", "in", t]
-            * gas_energy_content
-            * param_dev["eta"]
-        )
+        rhs = model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content * param_dev["eta"]
         return lhs == rhs
 
     def defineConstraints(self, pyomo_model):
@@ -38,11 +35,11 @@ class Gasheater(Device):
         return pyomo_model.varDeviceFlow[self.dev_id, "heat", "out", t]
 
     # overriding default
-    def compute_CO2(self, pyomo_model, timesteps):
+    def compute_CO2(self, model, timesteps):
+        """
+        Fixme: The variable d and model_pyomo was not set. Changed to model and self.dev_data. Correct?
+        """
         param_gas = self.carrier_data["gas"]
         gasflow_co2 = param_gas.co2_content  # kg/m3
-        thisCO2 = (
-            sum(pyomo_model.varDeviceFlow[d, "gas", "in", t] for t in timesteps)
-            * gasflow_co2
-        )
+        thisCO2 = sum(model.varDeviceFlow[self.dev_data, "gas", "in", t] for t in timesteps) * gasflow_co2
         return thisCO2

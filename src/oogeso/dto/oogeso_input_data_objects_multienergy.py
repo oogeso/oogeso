@@ -1,8 +1,7 @@
-from dataclasses import dataclass, is_dataclass, asdict, field
-from typing import List, Optional, Tuple, Any, Dict, Union
-import re
-from .oogeso_input_data_objects import *
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
 
+from oogeso.dto.oogeso_input_data_objects import CarrierData, DeviceData, EdgeData
 
 # Device types defined as part of "basic":
 # DevicePowerSourceData
@@ -51,9 +50,7 @@ class DeviceSink_oilData(DeviceData):
 class DeviceSink_waterData(DeviceData):
     price: field(default_factory=lambda: {}) = None
     flow_avg: Optional[float] = None  # required average flow
-    max_accumulated_deviation: Optional[
-        float
-    ] = None  # buffer size (max accumulated deviation from average)
+    max_accumulated_deviation: Optional[float] = None  # buffer size (max accumulated deviation from average)
 
 
 @dataclass

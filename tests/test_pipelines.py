@@ -1,4 +1,5 @@
 import numpy as np
+
 from oogeso.core.networks import pipelines
 
 
@@ -34,6 +35,4 @@ def test_darcyweissbach():
         p0_to=p20,
     )
     pressure_threshold = 1  # Pa
-    assert (
-        np.abs(p2_computed - p2_correct_linear) < pressure_threshold
-    ), "Pressure drop calculation error"
+    assert np.abs(p2_computed - p2_correct_linear) < pressure_threshold, "Pressure drop calculation error"

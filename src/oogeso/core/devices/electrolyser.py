@@ -1,5 +1,7 @@
 import pyomo.environ as pyo
+
 from oogeso.dto import DeviceElectrolyserData
+
 from . import Device
 
 
@@ -30,9 +32,7 @@ class Electrolyser(Device):
     def defineConstraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().defineConstraints(pyomo_model)
-        constr = pyo.Constraint(
-            pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules
-        )
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
         # add constraint to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct

@@ -22,15 +22,11 @@ def plotDevicePowerLastOptimisation1(mc, device, filename=None):
         label_profile = "({})".format(profile)
 
     dfIn = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(), orient="index")
-    dfIn.index = pd.MultiIndex.from_tuples(
-        dfIn.index, names=("device", "carrier", "terminal", "time")
-    )
+    dfIn.index = pd.MultiIndex.from_tuples(dfIn.index, names=("device", "carrier", "terminal", "time"))
     dfIn = dfIn[0].dropna()
     for carr in dfIn.index.levels[1]:
         for term in dfIn.index.levels[2]:
-            mask = (dfIn.index.get_level_values(1) == carr) & (
-                dfIn.index.get_level_values(2) == term
-            )
+            mask = (dfIn.index.get_level_values(1) == carr) & (dfIn.index.get_level_values(2) == term)
             df_this = dfIn[mask].unstack(0).reset_index()
             if device in df_this:
                 df_this[device].plot(
@@ -42,9 +38,7 @@ def plotDevicePowerLastOptimisation1(mc, device, filename=None):
                 )
     ax.legend(loc="upper left")  # , bbox_to_anchor =(1.01,0),frameon=False)
 
-    dfE = pd.DataFrame.from_dict(
-        model.varDeviceStorageEnergy.get_values(), orient="index"
-    )
+    dfE = pd.DataFrame.from_dict(model.varDeviceStorageEnergy.get_values(), orient="index")
     dfE.index = pd.MultiIndex.from_tuples(dfE.index, names=("device", "time"))
     dfE = dfE[0].dropna()
     df_this = dfE.unstack(0)
@@ -55,9 +49,7 @@ def plotDevicePowerLastOptimisation1(mc, device, filename=None):
         ax2 = ax.twinx()
         ax2.set_ylabel("Energy (MWh)", color="red")
         ax2.tick_params(axis="y", labelcolor="red")
-        df_this[device].plot(
-            ax=ax2, linestyle="--", color="red", label="storage".format(carr, term)
-        )
+        df_this[device].plot(ax=ax2, linestyle="--", color="red", label="storage".format(carr, term))  # noqa
         ax2.legend(
             loc="upper right",
         )
@@ -97,9 +89,7 @@ def plotDeviceSumPowerLastOptimisation(model, carrier="el", filename=None):
     """Plot power schedule over planning horizon (last optimisation)"""
 
     df = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(), orient="index")
-    df.index = pd.MultiIndex.from_tuples(
-        df.index, names=("device", "carrier", "inout", "time")
-    )
+    df.index = pd.MultiIndex.from_tuples(df.index, names=("device", "carrier", "inout", "time"))
 
     # separate out in out
     df = df[0].unstack(level=2)
@@ -150,8 +140,8 @@ def plotEmissionRateLastOptimisation(model, filename=None):
     df = pd.DataFrame(index=timesteps, columns=devices)
     for d in devices:
         for t in timesteps:
-            co2 = Multicarrier.compute_CO2(model, devices=[d], timesteps=[t])
-            df.loc[t, d] = pyo.value(co2)
+            co2 = Multicarrier.compute_CO2(model, devices=[d], timesteps=[t])  # noqa: Fixme: This is broken.
+            df.loc[t, d] = pyo.value(co2)  # noqa: Fixme: This is broken.
     plt.figure(figsize=(12, 4))
     ax = plt.gca()
     df.loc[:, ~(df == 0).all()].rename(columns=labels).plot.area(ax=ax, linewidth=0)

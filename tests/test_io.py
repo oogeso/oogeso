@@ -1,12 +1,11 @@
+import tempfile
 from pathlib import Path
 
-import oogeso
-import oogeso.utils
-import oogeso.io
 import pandas as pd
-import pytest
-import tempfile
 
+import oogeso
+import oogeso.io
+import oogeso.utils
 
 EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
 TEST_DATA_ROOT_PATH = Path(__file__).parent

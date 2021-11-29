@@ -1,9 +1,11 @@
-from .network import Network
-from dataclasses import asdict
-from . import electricalsystem as el_calc
 import logging
-import pyomo.environ as pyo
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Dict
+
+import pyomo.environ as pyo
+
+from . import electricalsystem as el_calc
+from .network import Network
 
 if TYPE_CHECKING:
     from oogeso.core.devices import Device
@@ -23,23 +25,15 @@ class El(Network):
         super().defineConstraints(pyomo_model)
 
         if self.carrier_data.powerflow_method == "dc-pf":
-            logger.warning(
-                "TODO: code for electric powerflow calculations need improvement (pu conversion)"
-            )
+            logger.warning("TODO: code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
-            edgelist_el = {
-                edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()
-            }
-            coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(
-                nodelist, edgelist_el, baseZ=1
-            )
+            edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
+            coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(nodelist, edgelist_el, baseZ=1)
             self.elFlowCoeffB = coeff_B
             self.elFlowCoeffDA = coeff_DA
 
             # Reference voltage node:
-            constr_ElVoltageReference = pyo.Constraint(
-                pyomo_model.setHorizon, rule=self._rule_elVoltageReference
-            )
+            constr_ElVoltageReference = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_elVoltageReference)
             setattr(
                 pyomo_model,
                 "constrN_{}_{}".format(self.carrier_data.reference_node, "voltageref"),
@@ -70,9 +64,7 @@ class El(Network):
         # TODO speed up creatioin of constraints - remove for loop
         n2s = [k[1] for k in self.elFlowCoeffDA.keys() if k[0] == edge]
         for n2 in n2s:
-            rhs += self.elFlowCoeffDA[edge, n2] * (
-                model.varElVoltageAngle[n2, t] * base_angle
-            )
+            rhs += self.elFlowCoeffDA[edge, n2] * (model.varElVoltageAngle[n2, t] * base_angle)
         return lhs == rhs
 
     def compute_elReserve(

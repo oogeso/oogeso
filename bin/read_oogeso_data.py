@@ -1,9 +1,6 @@
-import oogeso
-import oogeso.io.file_io
-
-# import yaml
-import oogeso.dto.oogeso_input_data_objects
 import json
+
+import oogeso.io.file_io
 
 # Read in data, validate date et.c. with methods from io
 test_data_file = "examples/test case2.yaml"

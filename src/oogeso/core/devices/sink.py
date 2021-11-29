@@ -1,4 +1,5 @@
 import pyomo.environ as pyo
+
 from . import Device
 
 
@@ -68,9 +69,7 @@ class Sink_water(Device):
             # FLEXIBILITY
             # (water_in-water_avg)*dt = delta buffer
             delta_t = time_delta_minutes / 60  # hours
-            lhs = (
-                model.varDeviceFlow[dev, "water", "in", t] - dev_data.flow_avg
-            ) * delta_t
+            lhs = (model.varDeviceFlow[dev, "water", "in", t] - dev_data.flow_avg) * delta_t
             if t > 0:
                 Eprev = model.varDeviceStorageEnergy[dev, t - 1]
             else:
@@ -80,9 +79,7 @@ class Sink_water(Device):
         elif i == 2:
             # energy buffer limit
             Emax = dev_data.max_accumulated_deviation
-            return pyo.inequality(
-                -Emax / 2, model.varDeviceStorageEnergy[dev, t], Emax / 2
-            )
+            return pyo.inequality(-Emax / 2, model.varDeviceStorageEnergy[dev, t], Emax / 2)
         else:
             raise Exception("impossible")
 

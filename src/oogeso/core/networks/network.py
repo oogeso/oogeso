@@ -1,12 +1,8 @@
 import typing
+
 import pyomo.environ as pyo
-from ...dto.oogeso_input_data_objects import (
-    CarrierData,
-    OptimisationParametersData,
-    NodeData,
-    EdgeData,
-    DeviceData,
-)
+
+from oogeso.dto.oogeso_input_data_objects import CarrierData, EdgeData
 
 
 class Network:

@@ -1,4 +1,6 @@
 import logging
+from typing import List
+
 from typing import List, Optional
 
 import pandas as pd

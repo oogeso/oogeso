@@ -1,9 +1,11 @@
 import typing
+
 import pyomo.environ as pyo
 
 if typing.TYPE_CHECKING:
-    from ...dto.oogeso_input_data_objects import EdgeData
     from oogeso.core.networks.network_node import NetworkNode
+
+    from ...dto.oogeso_input_data_objects import EdgeData
 
 
 class Edge:
@@ -23,9 +25,7 @@ class Edge:
     def defineConstraints(self, pyomo_model, piecewise_repn):
         """Builds constraints for the edge"""
 
-        constr_edge_bounds = pyo.Constraint(
-            pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin
-        )
+        constr_edge_bounds = pyo.Constraint(pyomo_model.setHorizon, rule=self._ruleEdgeFlowMaxMin)
         setattr(
             pyomo_model,
             "constrE_{}_{}".format(self.id, "bounds"),
@@ -44,9 +44,7 @@ class Edge:
             setattr(pyomo_model, "constrE_{}_{}".format(self.id, "loss"), constr_loss)
             # Then, add equations for losses vs power flow (piecewise linear equations):
             for i in [1, 2]:
-                constr_loss_function = self._loss_function_constraint(
-                    i, pyomo_model, piecewise_repn
-                )
+                constr_loss_function = self._loss_function_constraint(i, pyomo_model, piecewise_repn)
                 setattr(
                     pyomo_model,
                     "constrE_{}_{}_{}".format(self.id, "lossfunction", i),
@@ -73,24 +71,16 @@ class Edge:
         return expr
 
     def has_loss(self):
-        hasloss = hasattr(self.edge_data, "power_loss_function") and (
-            self.edge_data.power_loss_function is not None
-        )
+        hasloss = hasattr(self.edge_data, "power_loss_function") and (self.edge_data.power_loss_function is not None)
         return hasloss
 
     def _ruleEdgeFlowAndLoss(self, model, t, i):
         """Split edge flow into positive and negative part, for loss calculations"""
         edge = self.id
         if i == 1:
-            expr = (
-                model.varEdgeFlow[edge, t]
-                == model.varEdgeFlow12[edge, t] - model.varEdgeFlow21[edge, t]
-            )
+            expr = model.varEdgeFlow[edge, t] == model.varEdgeFlow12[edge, t] - model.varEdgeFlow21[edge, t]
         elif i == 2:
-            expr = (
-                model.varEdgeLoss[edge, t]
-                == model.varEdgeLoss12[edge, t] + model.varEdgeLoss21[edge, t]
-            )
+            expr = model.varEdgeLoss[edge, t] == model.varEdgeLoss12[edge, t] + model.varEdgeLoss21[edge, t]
         return expr
 
     def _loss_function_constraint(self, i, pyomo_model, piecewise_repn):
