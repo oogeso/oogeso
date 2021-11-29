@@ -20,7 +20,9 @@ Part of the [Low Emission Centre](https://www.sintef.no/en/projects/lowemission-
 Pypi distribution to come. See local installation below.
 
 ## Local installation
-Prerequisite: [Poetry](https://python-poetry.org/docs/#installation)
+Prerequisite: 
+- [Poetry](https://python-poetry.org/docs/#installation)
+- [Pre-commit](https://pre-commit.com/)
 
 Clone or download the code and install it as a python package. I.e. navigate to the folder with the MANIFEST.in file and type:
 
@@ -64,6 +66,7 @@ You are welcome to contribute to the improvement of the code.
 
 * Use Issues to describe and track needed improvements and bug fixes
 * Use branches to avoid messing things up -- but don't veer too far away from the trunk (master branch)
+* Use [Pre-commit hooks](https://pre-commit.com/)
 
 ### Contact
 
