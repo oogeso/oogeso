@@ -1,0 +1,23 @@
+name: CBC-optimizer CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build tool
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Dockerfile
+        run: docker build --pull -t oogeso --target test -f Dockerfile .
+      - name: Test cbc
+        run: docker run --rm oogeso bash -c "poetry run pytest"
