@@ -28,7 +28,7 @@ The simulator is based on a rolling horizon mixed-integer linear optimisation. T
 ## Modelling documentation
 A separate (draft and not always up-to-date) document provides more details
 about the modelling framework and the theoretical context of the Oogeso model.
-This is available [here](doc/oogeso_manual.pdf).
+This is available [here](https://github.com/oogeso/oogeso/blob/master/docs/oogeso_manual.pdf).
 
 ## Examples
 For a quick demonstration of how Oogeso works, have a look at these
