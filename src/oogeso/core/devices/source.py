@@ -1,5 +1,8 @@
+from typing import Dict, List, Union
+
 import pyomo.environ as pyo
 
+from oogeso import dto
 from oogeso.core.devices.base import Device
 
 
@@ -9,11 +12,21 @@ class SourceEl(Device):
     carrier_out = ["el"]
     serial = []
 
-    def get_flow_var(self, pyomo_model, t):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSourceElData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default
-    def compute_CO2(self, pyomo_model, timesteps):
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]):
         # co2 content in fuel combustion
         # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
         # need to convert co2em to kgCO2/(MW*s)
@@ -28,12 +41,23 @@ class SourceEl(Device):
 
 
 class Powersource(Device):
-    "Generic external source for electricity (e.g. cable or wind turbine)"
+    """Generic external source for electricity (e.g. cable or wind turbine)."""
+
     carrier_in = []
     carrier_out = ["el"]
     serial = []
 
-    def define_constraints(self, pyomo_model):
+    def __init__(
+        self,
+        dev_data: dto.DevicePowerSourceData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
 
         list_to_reconstruct = super().define_constraints(pyomo_model)
@@ -52,7 +76,7 @@ class Powersource(Device):
     # But only (device_id, time) is relevant
     # Could define a "varDevicePower" (or better name) representing the main variable
     # used with p_max / q_max / penalty_function
-    def _penaltyConstraint(self, pyomo_model):
+    def _penaltyConstraint(self, pyomo_model: pyo.Model):
         # Piecewise constraints require independent variable to be bounded:
         # ub = self.dev_data.flow_max
         ub = self.get_flow_upper_bound()
@@ -78,23 +102,37 @@ class Powersource(Device):
         )
         return constr_penalty
 
-    def get_flow_var(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
 
 
 class SourceGas(Device):
-    "Generic external source for gas"
+    """Generic external source for gas."""
+
     carrier_in = []
     carrier_out = ["gas"]
     serial = []
 
-    def _rules(self, model, t):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSourceGasData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def _rules(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
         lhs = model.varPressure[(node, "gas", "out", t)]
         rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
-    def define_constraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
         # add generic device constraints:
         list_to_reconstruct = super().define_constraints(pyomo_model)
@@ -108,23 +146,29 @@ class SourceGas(Device):
         )
         return list_to_reconstruct
 
-    def get_flow_var(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
 
 
 class SourceOil(Device):
-    "Generic external source for oil"
+    """Generic external source for oil."""
+
     carrier_in = []
     carrier_out = ["oil"]
     serial = []
 
-    def _rules(self, model, t):
+    # Fixme: Missing DTOs?
+
+    def _rules(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
         lhs = model.varPressure[(node, "oil", "out", t)]
         rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
-    def define_constraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
         # add generic device constraints:
         list_to_reconstruct = super().define_constraints(pyomo_model)
@@ -138,23 +182,34 @@ class SourceOil(Device):
         )
         return list_to_reconstruct
 
-    def get_flow_var(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "oil", "out", t]
 
 
 class SourceWater(Device):
-    "Generic external source for water"
+    """Generic external source for water."""
+
     carrier_in = []
     carrier_out = ["water"]
     serial = []
 
-    def _rules(self, model, t):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSourceWaterData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierWaterData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def _rules(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
         lhs = model.varPressure[(node, "water", "out", t)]
         rhs = self.dev_data.naturalpressure
         return lhs == rhs
 
-    def define_constraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
         # add generic device constraints:
         list_to_reconstruct = super().define_constraints(pyomo_model)
@@ -168,5 +223,8 @@ class SourceWater(Device):
         )
         return list_to_reconstruct
 
-    def get_flow_var(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "water", "out", t]
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0

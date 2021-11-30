@@ -1,17 +1,13 @@
 import logging
-import typing
+from typing import Tuple, Union
 
 import numpy as np
 import pyomo.environ as pyo
 import scipy
 
+from oogeso import dto
 from oogeso.core.networks.edge import Edge
-from oogeso.dto import CarrierData, EdgeFluidData
-
-from .network import Network
-
-# if typing.TYPE_CHECKING:
-#    from oogeso.core.networks.network_node import NetworkNode
+from oogeso.core.networks.network import Network
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +15,8 @@ GRAVITY_ACCELERATION_CONSTANT = 9.8  # m/s^2
 
 
 class Fluid(Network):
-    def defineConstraints(self, pyomo_model):
-        super().defineConstraints(pyomo_model)
+    def define_constraints(self, pyomo_model: pyo.Model):
+        super().define_constraints(pyomo_model)
 
         # additional
         if self.carrier_data.pressure_method in ["weymouth", "darcy-weissbach"]:
@@ -38,7 +34,7 @@ class Fluid(Network):
                     constr_flow,
                 )
 
-    def _rulePipelineFlow(self, model, edge, t):
+    def _rulePipelineFlow(self, model: pyo.Model, edge, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """Pipeline flow vs pressure drop"""
         # edge = self.id
         edge_obj = self.edges[edge]
@@ -59,7 +55,7 @@ class Fluid(Network):
         p2_computed = self.compute_edge_pressuredrop(edge_obj, p1=p1, Q=Q, linear=True, print_log=print_log)
         return p2 == p2_computed
 
-    def _compute_exps_and_k(self, edge_data: EdgeFluidData, carrier_data: CarrierData):
+    def _compute_exps_and_k(self, edge_data: dto.EdgeFluidData, carrier_data: dto.CarrierData):
         """Derive exp_s and k parameters for Weymouth equation"""
         # gas pipeline parameters - derive k and exp(s) parameters:
         ga = carrier_data
@@ -241,7 +237,7 @@ def darcy_weissbach_p2(
     linear=True,
     p0_from=None,  # Pa
     p0_to=None,  # Pa
-) -> typing.Tuple[float, float]:
+) -> Tuple[float, float]:
     """compute outlet pressure from darcy-weissbach equation
 
     parameters

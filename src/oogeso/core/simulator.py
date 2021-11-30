@@ -5,7 +5,7 @@ import pandas as pd
 import pyomo.environ as pyo
 from numpy import float64
 
-from oogeso.dto import EnergySystemData, SimulationResult
+from oogeso import dto
 
 from .optimiser import OptimisationModel
 
@@ -25,7 +25,7 @@ except ImportError:
 class Simulator:
     """Main class for Oogeso energy system simulations"""
 
-    def __init__(self, data: EnergySystemData):
+    def __init__(self, data: dto.EnergySystemData):
         """Create Simulator object
 
         Parameters
@@ -36,7 +36,7 @@ class Simulator:
         """
 
         # Optimisation model object:
-        self.optimiser = OptimisationModel(data)
+        self.optimiser = OptimisationModel(data=data)
 
         self.result_object = None
 
@@ -55,24 +55,24 @@ class Simulator:
     #    def setOptimiser(self, optimiser):
     #        self.optimiser = optimiser
 
-    def runSimulation(
+    def run_simulation(
         self,
         solver: str,
-        timerange: Tuple[int, int] = None,
-        timelimit: Optional[int] = None,
+        time_range: Tuple[int, int] = None,
+        time_limit: Optional[int] = None,
         return_variables: Optional[Sequence[str]] = None,
         store_duals: Optional[dict] = None,
         write_yaml: bool = False,
-    ) -> SimulationResult:
+    ) -> dto.SimulationResult:
         """Solve problem over many timesteps
 
         Parameters
         ----------
         solver : string
             Name of solver ("cbc", "gurobi")
-        timerange : [int,int]
+        time_range : [int,int]
             Limit to this number of timesteps
-        timelimit : int
+        time_limit : int
             Time limit spent on each optimisation (sec)
         return_variables : list
             List of variables to return. Default (None) returns all variables
@@ -111,17 +111,17 @@ class Simulator:
 
         steps = self.optimiser.optimisation_parameters.optimisation_timesteps
         horizon = self.optimiser.optimisation_parameters.planning_horizon
-        if timelimit is not None:
-            logger.debug("Using solver timelimit=%s", timelimit)
-        if timerange is None:
+        if time_limit is not None:
+            logger.debug("Using solver timelimit=%s", time_limit)
+        if time_range is None:
             # use the entire timeseries
             time_start = 0
             time_end = self.profiles["forecast"].index.max() + 1 - horizon
         else:
-            time_start = timerange[0]
-            time_end = timerange[1]
+            time_start = time_range[0]
+            time_end = time_range[1]
 
-        result_object = SimulationResult(
+        result_object = dto.SimulationResult(
             profiles_nowcast=self.profiles["nowcast"],
             profiles_forecast=self.profiles["forecast"],
         )
@@ -135,20 +135,20 @@ class Simulator:
             # 1. Update problem formulation
             self.optimiser.updateOptimisationModel(step, first=first, profiles=self.profiles)
             # 2. Solve for planning horizon
-            self.optimiser.solve(solver=solver, write_yaml=write_yaml, timelimit=timelimit)
+            self.optimiser.solve(solver=solver, write_yaml=write_yaml, time_limit=time_limit)
             # 3. Save results (for later analysis)
-            new_results = self._saveOptimisationResult(step, return_variables, store_duals)
+            new_results = self._save_optimisation_result(step, return_variables, store_duals)
             result_object.append_results(new_results)
             first = False
 
         return result_object
 
-    def _saveOptimisationResult(
+    def _save_optimisation_result(
         self,
         timestep: int,
         return_variables: Optional[Sequence[str]] = None,
         store_duals: Optional[dict] = None,
-    ) -> SimulationResult:
+    ) -> dto.SimulationResult:
         """extract results of optimisation for later analysis"""
 
         pyomo_instance = self.optimiser.pyomo_instance
@@ -231,7 +231,7 @@ class Simulator:
                 )
             df_co2intensity.index.rename("time", inplace=True)
         else:
-            df_co2_rate_sum = None
+            df_co2intensity = None
 
         # Penalty values per device
         # df_penalty=res["varDevicePenalty"], # this does not include start/stop penalty
@@ -275,7 +275,7 @@ class Simulator:
             df_reserve = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
             for t in range(timelimit):
                 rescap = pyo.value(
-                    self.optimiser.all_networks["el"].compute_elReserve(pyomo_instance, t, self.optimiser.all_devices)
+                    self.optimiser.all_networks["el"].compute_el_reserve(pyomo_instance, t, self.optimiser.all_devices)
                 )
                 df_reserve.loc[t + timestep] = rescap
             df_reserve.index.rename("time", inplace=True)
@@ -296,7 +296,7 @@ class Simulator:
             for t in range(timelimit):
                 for d in devs_elout:
                     rescap = pyo.value(
-                        self.optimiser.all_networks["el"].compute_elReserve(
+                        self.optimiser.all_networks["el"].compute_el_reserve(
                             pyomo_instance,
                             t,
                             self.optimiser.all_devices,
@@ -326,7 +326,7 @@ class Simulator:
         dfTerminalPressure = res["varPressure"] if (return_all or "terminal_pressure" in return_variables) else None
         dfElVoltageAngle = res["varElVoltageAngle"] if (return_all or "el_voltage_angle" in return_variables) else None
 
-        result_object = SimulationResult(
+        result_object = dto.SimulationResult(
             device_flow=dfDeviceFlow,
             device_is_prep=dfDeviceIsPrep,
             device_is_on=dfDeviceIsOn,

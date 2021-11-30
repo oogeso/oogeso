@@ -1,19 +1,32 @@
+from typing import Dict, List, Union
+
 import pyomo.environ as pyo
 
+from oogeso import dto
 from oogeso.core.devices.base import Device
 
 
-class Gasturbine(Device):
+class GasTurbine(Device):
     "Gas turbine generator"
 
     carrier_in = ["gas"]
     carrier_out = ["el", "heat"]
-    serial = []
+    serial = list()
 
-    def _rules_misc(self, model, t, i):
+    def __init__(
+        self,
+        dev_data: dto.DeviceGasTurbineData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         param_gas = self.carrier_data["gas"]
-        # elpower = model.varDeviceFlow[dev, "el", "out", t]
+        # el_power = model.varDeviceFlow[dev, "el", "out", t]
         gas_energy_content = param_gas.energy_value  # MJ/Sm3
         if i == 1:
             """turbine el power out vs gas fuel in"""
@@ -37,7 +50,7 @@ class Gasturbine(Device):
             ) * self.dev_data.eta_heat
             return lhs == rhs
 
-    def define_constraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
@@ -45,12 +58,12 @@ class Gasturbine(Device):
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
-    def get_flow_var(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default
-    def compute_CO2(self, pyomo_model, timesteps):
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
         param_gas = self.carrier_data["gas"]
         gasflow_co2 = param_gas.co2_content  # kg/m3
-        thisCO2 = sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gasflow_co2
-        return thisCO2
+        this_CO2 = sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gasflow_co2
+        return this_CO2

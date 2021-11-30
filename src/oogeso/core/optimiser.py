@@ -1,17 +1,17 @@
 import logging
-from typing import Dict
+from typing import Dict, Union
 
 import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 
+from oogeso import dto
 from oogeso.core import networks
 from oogeso.core.devices.base import Device
 from oogeso.core.devices.storage import StorageDevice
 from oogeso.core.networks.edge import Edge
 from oogeso.core.networks.network import Network
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.dto.oogeso_input_data_objects import EnergySystemData, OptimisationParametersData
 from oogeso.utils.util import get_device_from_model_name
 
 logger = logging.getLogger(__name__)
@@ -22,17 +22,20 @@ class OptimisationModel:
 
     ZERO_WARNING_THRESHOLD = 1e-6
 
-    def __init__(self, data: EnergySystemData):
+    def __init__(self, data: dto.EnergySystemData):
         """Create optimisation problem formulation with supplied data"""
 
         # dictionaries {key:object} for all devices, nodes and edges
         self.all_devices: Dict[str, Device] = {}
         self.all_nodes: Dict[str, NetworkNode] = {}
         self.all_edges: Dict[str, Edge] = {}
-        #        self.all_carriers = {}
+        # self.all_carriers = {}
         self.all_networks: Dict[str, Network] = {}
-        self.optimisation_parameters: OptimisationParametersData = data.parameters
-        self.pyomo_instance = None
+
+        # Model parameters
+        self.optimisation_parameters = data.parameters
+        # self.pyomo_instance = None
+
         # List of constraints that need to be reconstructed for each optimisation:
         self.constraints_to_reconstruct = []
         # List of devices with storage
@@ -41,22 +44,22 @@ class OptimisationModel:
         logger.info("profiles in use: %s", profiles_in_use)
 
         self._create_network_objects_from_data(data)
-        self._setNodePressureFromEdgeData()
+        self._set_node_pressure_from_edge_data()
         self.pyomo_instance = self._create_pyomo_model(profiles_in_use)
 
-    def solve(self, solver="gurobi", write_yaml=False, timelimit=None):
+    def solve(self, solver="gurobi", write_yaml=False, time_limit=None):
         """Solve problem for planning horizon at a single timestep"""
 
         opt = pyo.SolverFactory(solver)
-        if timelimit is not None:
+        if time_limit is not None:
             if solver == "gurobi":
-                opt.options["TimeLimit"] = timelimit
+                opt.options["TimeLimit"] = time_limit
             elif solver == "cbc":
-                opt.options["sec"] = timelimit
+                opt.options["sec"] = time_limit
             elif solver == "cplex":
-                opt.options["timelimit"] = timelimit
+                opt.options["timelimit"] = time_limit
             elif solver == "glpk":
-                opt.options["tmlim"] = timelimit
+                opt.options["tmlim"] = time_limit
         logger.debug("Solving...")
         sol = opt.solve(self.pyomo_instance)
 
@@ -75,8 +78,9 @@ class OptimisationModel:
             logger.info("Solver Status:{}".format(sol.solver.status))
         return sol
 
-    def _setNodePressureFromEdgeData(self):
+    def _set_node_pressure_from_edge_data(self):
         # Set node terminal nominal pressure based on edge from/to pressure values
+        # Fixme: hasattr is prone to bugs!
         for edge in self.all_edges.values():
             edg = edge.edge_data
             carrier = edg.carrier
@@ -101,7 +105,7 @@ class OptimisationModel:
                 p_maxdev_to = edg.pressure_to_maxdeviation
                 n_to.set_pressure_maxdeviation(carrier, "in", p_maxdev_to)
 
-    def _create_network_objects_from_data(self, data: EnergySystemData):
+    def _create_network_objects_from_data(self, data: dto.EnergySystemData):
         """Create energy system objects, and populate local dictionaries
 
         self.all_devices, self.all_nodes, self.all_networks"""
@@ -156,10 +160,10 @@ class OptimisationModel:
             carrier_model = carrier_data_obj.id  # el,heat,oil,gas,water,hydrogen,
             # The network class corresponding to the carrier should always have a
             # name identical to the id (but capitalized):
-            NetworkClass = getattr(networks, carrier_model.capitalize())
+            network_class = getattr(networks, carrier_model.capitalize())
             if carrier_model not in edges_per_type:
                 edges_per_type[carrier_model] = {}
-            new_network = NetworkClass(
+            new_network = network_class(
                 carrier_data=carrier_data_obj,
                 edges=edges_per_type[carrier_model],
             )
@@ -170,13 +174,13 @@ class OptimisationModel:
             logger.debug("Node-device: %s,%s", dev_id, dev)
             node_id_where_connected = dev.dev_data.node_id
             node = self.all_nodes[node_id_where_connected]
-            node.addDevice(dev_id, dev)
+            node.add_device(dev_id, dev)
             dev.add_node(node)
         for edge_id, edge in self.all_edges.items():
             node_from = self.all_nodes[edge.edge_data.node_from]
-            node_from.addEdge(edge, "from")
+            node_from.add_edge(edge, "from")
             node_to = self.all_nodes[edge.edge_data.node_to]
-            node_to.addEdge(edge, "to")
+            node_to.add_edge(edge, "to")
             edge.add_nodes(node_from, node_to)
 
     def _create_pyomo_model(self, profiles_in_use):
@@ -206,7 +210,7 @@ class OptimisationModel:
 
         return model
 
-    def _specify_sets_and_parameters(self, model, profiles_in_use):
+    def _specify_sets_and_parameters(self, model: pyo.Model, profiles_in_use):
         """specify pyomo model sets and parameters"""
         energycarriers = self.all_networks.keys()
         model.setCarrier = pyo.Set(initialize=energycarriers, doc="carrier")
@@ -251,7 +255,7 @@ class OptimisationModel:
 
         return model
 
-    def _specify_variables(self, model):
+    def _specify_variables(self, model: pyo.Model):
         """specify pyomo model variables"""
         model.varEdgeFlow = pyo.Var(model.setEdge, model.setHorizon, within=pyo.Reals)
         model.varEdgeFlow12 = pyo.Var(model.setEdge, model.setHorizon, within=pyo.NonNegativeReals)
@@ -301,7 +305,7 @@ class OptimisationModel:
         )
         return model
 
-    def _specify_objective(self, model):
+    def _specify_objective(self, model: pyo.Model):
         """specify pyomo model objective"""
         obj = self.optimisation_parameters.objective
         if obj == "penalty":
@@ -321,7 +325,7 @@ class OptimisationModel:
         model.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
         return model
 
-    def _specify_constraints(self, model):
+    def _specify_constraints(self, model: pyo.Model):
 
         # 1. Constraints associated with each device:
         for dev in self.all_devices.values():
@@ -334,22 +338,22 @@ class OptimisationModel:
 
         # 2. Constraints associated with each node:
         for node in self.all_nodes.values():
-            node.defineConstraints(model)
+            node.define_constraints(model)
 
         # 3. Constraints associated with each network type (and its edges):
         for netw in self.all_networks.values():
-            netw.defineConstraints(model)
+            netw.define_constraints(model)
 
         # 4. Global constraints:
         # 4.1 max limit emission rate:
         params_generic = self.optimisation_parameters
         if (params_generic.emission_rate_max is not None) and (params_generic.emission_rate_max >= 0):
-            model.constrO_emissionrate = pyo.Constraint(model.setHorizon, rule=self._rule_emissionRateLimit)
+            model.constr_O_emissionrate = pyo.Constraint(model.setHorizon, rule=self._rule_emissionRateLimit)
         else:
             logger.debug("No emission_rate_max limit specified")
         # 4.2 max limit emission intensity
         if (params_generic.emission_intensity_max is not None) and (params_generic.emission_intensity_max >= 0):
-            model.constrO_emissionintensity = pyo.Constraint(model.setHorizon, rule=self._rule_emissionIntensityLimit)
+            model.constr_O_emissionintensity = pyo.Constraint(model.setHorizon, rule=self._rule_emissionIntensityLimit)
         else:
             logger.debug("No emission_intensity_max limit specified")
         # 4.3 electrical reserve margin:
@@ -357,15 +361,15 @@ class OptimisationModel:
         el_reserve_margin = el_parameters.el_reserve_margin
         el_backup_margin = el_parameters.el_backup_margin
         if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
-            model.constrO_elReserveMargin = pyo.Constraint(model.setHorizon, rule=self._rule_elReserveMargin)
+            model.constr_O_elReserveMargin = pyo.Constraint(model.setHorizon, rule=self._rule_el_reserve_margin)
         else:
             logger.info("No el_reserve_margin limit specified")
         # 4.4 electrical backup power margin
         if (el_backup_margin is not None) and (el_backup_margin >= 0):
-            model.constrO_elBackupMargin = pyo.Constraint(
+            model.constr_O_elBackupMargin = pyo.Constraint(
                 model.setDevice,
                 model.setHorizon,
-                rule=self._rule_elBackupMargin,
+                rule=self._rule_el_backup_margin,
             )
         else:
             logger.debug("No el_backup_margin limit specified")
@@ -467,7 +471,7 @@ class OptimisationModel:
     #                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
     #            return sumStorPmax
 
-    def _rule_objective_penalty(self, model):
+    def _rule_objective_penalty(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """'penalty' as specified through penalty functions"""
         sum_penalty = 0
         timesteps = model.setHorizon
@@ -477,18 +481,18 @@ class OptimisationModel:
             sum_penalty = sum_penalty + this_penalty
         return sum_penalty
 
-    def _rule_objective_co2(self, model):
+    def _rule_objective_co2(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emissions per sec"""
         sumE = self.compute_CO2(model)  # *model.paramParameters['CO2_price']
         return sumE
 
-    def _rule_objective_co2intensity(self, model):
+    def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emission intensity (CO2 per exported oil/gas)
         DOES NOT WORK - NONLINEAR (ratio)"""
         sumE = self.compute_CO2_intensity(model)
         return sumE
 
-    def _rule_objective_costs(self, model):
+    def _rule_objective_costs(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """costs (co2 price, operating costs, startstop, storage depletaion)
         per second (assuming fixed oil/gas production)"""
         startupCosts = self.compute_startup_penalty(model)  # kr/s
@@ -500,7 +504,7 @@ class OptimisationModel:
         sumCost = co2Cost + startupCosts + storageDepletionCosts + opCosts
         return sumCost
 
-    def _rule_objective_exportRevenue(self, model):
+    def _rule_objective_exportRevenue(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """revenue from exported oil and gas minus costs (co2 price and
         operating costs) per second"""
         sumRevenue = self.compute_exportRevenue(model)  # kr/s
@@ -513,7 +517,7 @@ class OptimisationModel:
         sumCost = -sumRevenue + co2Cost + startupCosts + storageDepletionCosts + opCosts
         return sumCost
 
-    def _rule_emissionRateLimit(self, model, t):
+    def _rule_emissionRateLimit(self, model: pyo.Model, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission rate"""
         params_generic = self.optimisation_parameters
         emissionRateMax = params_generic.emission_rate_max
@@ -521,7 +525,7 @@ class OptimisationModel:
         rhs = emissionRateMax
         return lhs <= rhs
 
-    def _rule_emissionIntensityLimit(self, model, t):
+    def _rule_emissionIntensityLimit(self, model: pyo.Model, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission intensity"""
         params_generic = self.optimisation_parameters
         emissionIntensityMax = params_generic.emission_intensity_max
@@ -529,7 +533,9 @@ class OptimisationModel:
         rhs = emissionIntensityMax * self.compute_oilgas_export(model, timesteps=[t])
         return lhs <= rhs
 
-    def _rule_elReserveMargin(self, model, t):
+    def _rule_el_reserve_margin(
+        self, pyomo_model: pyo.Model, t: int
+    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """Reserve margin constraint (electrical supply)
         Not used capacity by power suppliers/storage/load flexibility
         must be larger than some specified margin
@@ -541,12 +547,14 @@ class OptimisationModel:
             return pyo.Constraint.Skip
 
         network_el = self.all_networks["el"]
+
+        # Fixme: Error in type hint.
         margin = network_el.carrier_data.el_reserve_margin
-        capacity_unused = network_el.compute_elReserve(model, t, self.all_devices)
+        capacity_unused = network_el.compute_el_reserve(pyomo_model=pyomo_model, t=t, all_devices=self.all_devices)
         expr = capacity_unused >= margin
         return expr
 
-    def _rule_elBackupMargin(self, model, dev, t):
+    def _rule_el_backup_margin(self, model: pyo.Model, dev, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         """Backup capacity constraint (electrical supply)
         Not used capacity by other online power suppliers plus sheddable
         load must be larger than power output of this device
@@ -560,11 +568,11 @@ class OptimisationModel:
         if "el" not in dev_obj.carrier_out:
             # this is not a power generator
             return pyo.Constraint.Skip
-        res_otherdevs = network_el.compute_elReserve(model, t, self.all_devices, exclude_device=dev)
+        res_otherdevs = network_el.compute_el_reserve(model, t, self.all_devices, exclude_device=dev)
         expr = res_otherdevs - model.varDeviceFlow[dev, "el", "out", t] >= -margin
         return expr
 
-    def compute_CO2(self, model, devices=None, timesteps=None):
+    def compute_CO2(self, model: pyo.Model, devices=None, timesteps=None):
         """compute CO2 emissions - average per sec (kgCO2/s)"""
         if devices is None:
             devices = model.setDevice
@@ -579,7 +587,7 @@ class OptimisationModel:
         sumCO2 = sumCO2 / len(timesteps)
         return sumCO2
 
-    def compute_CO2_intensity(self, model, timesteps=None):
+    def compute_CO2_intensity(self, model: pyo.Model, timesteps=None):
         """CO2 emission per exported oil/gas (kgCO2/Sm3oe)"""
         if timesteps is None:
             timesteps = model.setHorizon
@@ -593,7 +601,7 @@ class OptimisationModel:
             co2intensity = None
         return co2intensity
 
-    def compute_startup_penalty(self, model, devices=None, timesteps=None):
+    def compute_startup_penalty(self, model: pyo.Model, devices=None, timesteps=None):
         """startup costs (average per sec)"""
         if timesteps is None:
             timesteps = model.setHorizon
@@ -612,7 +620,7 @@ class OptimisationModel:
 
     logger.info("TODO: operating cost for el storage - needs improvement")
 
-    def compute_operatingCosts(self, model):
+    def compute_operatingCosts(self, model: pyo.Model):
         """term in objective function to represent fuel costs or similar
         as average per sec ($/s)
 
@@ -627,7 +635,7 @@ class OptimisationModel:
             sumCost += thisCost
         return sumCost
 
-    def compute_costForDepletedStorage(self, model):
+    def compute_costForDepletedStorage(self, model: pyo.Model):
         """term in objective function to discourage depleting battery,
         making sure it is used only when required"""
         storCost = 0
@@ -638,15 +646,15 @@ class OptimisationModel:
             storCost += thisCost
         return storCost
 
-    def compute_exportRevenue(self, model, carriers=None, timesteps=None):
+    def compute_exportRevenue(self, model: pyo.Model, carriers=None, timesteps=None):
         """revenue from exported oil and gas - average per sec ($/s)"""
         return self.compute_export(model, value="revenue", carriers=carriers, timesteps=timesteps)
 
-    def compute_oilgas_export(self, model, timesteps=None):
+    def compute_oilgas_export(self, model: pyo.Model, timesteps=None):
         """Export volume (Sm3oe/s)"""
         return self.compute_export(model, value="volume", carriers=["oil", "gas"], timesteps=timesteps)
 
-    def compute_export(self, model, value="revenue", carriers=None, timesteps=None):
+    def compute_export(self, model: pyo.Model, value="revenue", carriers=None, timesteps=None):
         """Compute average export (volume or revenue)
 
         Parameters

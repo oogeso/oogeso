@@ -1,15 +1,32 @@
+from typing import Dict, List
+
 import pyomo.environ as pyo
 
+from oogeso import dto
 from oogeso.core.devices.base import Device
 
 
 class Powersink(Device):
     "Generic electricity consumption"
+
     carrier_in = ["el"]
     carrier_out = []
     serial = []
 
-    def get_flow_var(self, pyomo_model, t):
+    def __init__(
+        self,
+        dev_data: dto.DevicePowersinkData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
@@ -24,7 +41,20 @@ class SinkHeat(Device):
     carrier_out = []
     serial = []
 
-    def get_flow_var(self, pyomo_model, t):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSinkHeatData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierHeatData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "heat", "in", t]
 
 
@@ -34,7 +64,20 @@ class SinkGas(Device):
     carrier_out = []
     serial = []
 
-    def get_flow_var(self, pyomo_model, t):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSinkGasData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
 
 
@@ -44,7 +87,20 @@ class SinkOil(Device):
     carrier_out = []
     serial = []
 
-    def get_flow_var(self, pyomo_model, t):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSinkOilData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierOilData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
 
 
@@ -54,7 +110,20 @@ class SinkWater(Device):
     carrier_out = []
     serial = []
 
-    def rule_devmodel_sink_water(self, model, t, i):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSinkWaterData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierWaterData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
+
+    def rule_devmodel_sink_water(self, model: pyo.Model, t: int, i: int):
         dev = self.id
         dev_data = self.dev_data
         time_delta_minutes = model.paramTimestepDeltaMinutes
@@ -83,7 +152,7 @@ class SinkWater(Device):
         else:
             raise Exception("impossible")
 
-    def define_constraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
@@ -96,5 +165,5 @@ class SinkWater(Device):
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "flex"), constr)
         return list_to_reconstruct
 
-    def get_flow_var(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "water", "in", t]

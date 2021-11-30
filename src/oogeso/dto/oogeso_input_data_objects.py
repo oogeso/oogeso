@@ -44,7 +44,7 @@ class DeviceData:  # Parent class - use subclasses instead
 
 
 @dataclass
-class DevicePowersourceData(DeviceData):
+class DevicePowerSourceData(DeviceData):
     # Penalty may be fuel, emissions, cost and combinations of these
     penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve

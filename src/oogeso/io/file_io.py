@@ -8,13 +8,13 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 import yaml
 
-from oogeso.dto import EnergySystemData
+from oogeso import dto
 from oogeso.dto.serialisation import DataclassJSONDecoder
 
 logger = logging.getLogger(__name__)
 
 
-def read_data_from_yaml(filename, profiles=None, profiles_nowcast=None) -> EnergySystemData:
+def read_data_from_yaml(filename, profiles=None, profiles_nowcast=None) -> dto.EnergySystemData:
     """Read input data from yaml file"""
     data_dict = None
     with open(filename, "r") as text_file:

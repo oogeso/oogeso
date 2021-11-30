@@ -20,7 +20,7 @@ def test_file_input():
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
-    profiles_json = oogeso.utils.create_timeseriesdata(
+    profiles_json = oogeso.utils.create_time_series_data(
         profiles_dfs["forecast"],
         profiles_dfs["nowcast"],
         time_start="",

@@ -6,6 +6,7 @@ import pandas as pd
 import plotly
 import plotly.express as px
 import pydot
+import pyomo.environ as pyo
 import seaborn as sns
 
 logger = logging.getLogger(__name__)
@@ -213,7 +214,7 @@ def plot_deviceprofile(
     return fig
 
 
-def plot_devicePowerEnergy(sim_result, optimisation_model, dev, filename=None, energy_fill_opacity=None):
+def plot_devicePowerEnergy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None):
     """Plot power in/out of device and storage level (if any)"""
     res = sim_result
     optimiser = optimisation_model
@@ -600,7 +601,7 @@ def plotProfiles(profiles, filename=None):
     return fig
 
 
-def plotDevicePowerFlowPressure(sim_result, optimisation_model, dev, carriers_inout=None, filename=None):
+def plotDevicePowerFlowPressure(sim_result, optimisation_model: pyo.Model, dev, carriers_inout=None, filename=None):
     res = sim_result
     all_devices = optimisation_model.all_devices
     dev_obj = all_devices[dev]
@@ -729,7 +730,7 @@ def plotNetwork(
         terms_out = pydot.Subgraph(rank="max")
         for carrier in carriers:
             # add only terminals that are connected to something (device or edge)
-            if node_obj.isNontrivial(carrier):
+            if node_obj.is_non_trivial(carrier):
                 devs = node_obj.devices
                 num_in = 0
                 num_out = 0
@@ -1110,7 +1111,7 @@ def plotElBackup(sim_result, filename=None, showMargin=False, returnMargin=False
     return fig
 
 
-def recompute_elBackup(res, optimisation_model):
+def recompute_elBackup(res, optimisation_model: pyo.Model):
     """Compute reserve
     should give the same as mc.compute_el_reserve"""
     optimiser = optimisation_model

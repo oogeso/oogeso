@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import pyomo.environ as pyo
 
 
 def plotDevicePowerLastOptimisation1(mc, device, filename=None):
@@ -85,7 +86,7 @@ def plotDevicePowerLastOptimisation1(mc, device, filename=None):
 #
 
 
-def plotDeviceSumPowerLastOptimisation(model, carrier="el", filename=None):
+def plotDeviceSumPowerLastOptimisation(model: pyo.Model, carrier="el", filename=None):
     """Plot power schedule over planning horizon (last optimisation)"""
 
     df = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(), orient="index")
@@ -131,7 +132,7 @@ def plotDeviceSumPowerLastOptimisation(model, carrier="el", filename=None):
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plotEmissionRateLastOptimisation(model, filename=None):
+def plotEmissionRateLastOptimisation(model: pyo.Model, filename=None):
     devices = model.setDevice
     timesteps = model.setHorizon
     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T

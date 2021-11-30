@@ -2,24 +2,25 @@ import typing
 
 import pyomo.environ as pyo
 
-from oogeso.dto.oogeso_input_data_objects import CarrierData, EdgeData
+from oogeso import dto
+from oogeso.core.networks.edge import Edge
 
 
 class Network:
     def __init__(
         self,
-        carrier_data: CarrierData,
-        edges: typing.Dict[str, EdgeData],
+        carrier_data: dto.CarrierData,
+        edges: typing.Dict[str, Edge],
     ):
-        "Energy carrier"
+        """Energy carrier."""
         self.carrier_id = carrier_data.id
         self.carrier_data = carrier_data
         self.edges = edges
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         piecewise_repn = pyo.value(pyomo_model.paramPiecewiseRepn)
         for edge in self.edges.values():
-            edge.defineConstraints(pyomo_model, piecewise_repn)
+            edge.define_constraints(pyomo_model=pyomo_model, piecewise_repn=piecewise_repn)
 
 
 class Heat(Network):

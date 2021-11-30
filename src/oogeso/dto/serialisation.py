@@ -222,7 +222,7 @@ if __name__ == "__main__":
         ],
         devices=[
             dto.DeviceSourceElData(id="elsource", node_id="node1", flow_max=12),
-            dto.DevicePowersourceData(id="gt1", node_id="node2", flow_max=30, profile="profile1"),
+            dto.DevicePowerSourceData(id="gt1", node_id="node2", flow_max=30, profile="profile1"),
             dto.DeviceSinkElData(id="demand", node_id="node2", flow_min=4, profile="profile1"),
         ],
         parameters=dto.OptimisationParametersData(

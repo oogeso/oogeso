@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 import pandas as pd
 
 from oogeso import dto
@@ -6,7 +8,7 @@ from oogeso import dto
 def compute_kpis(
     sim_result: dto.SimulationResult,
     sim_data: dto.EnergySystemData,
-    windturbines=None,
+    windturbines: Optional[Any] = None,  # Fixme: Correct type?
 ):
     """Compute key indicators of simulation results
 
