@@ -18,7 +18,7 @@ class Edge:
         self.node_from: "NetworkNode" = None
         self.node_to: "NetworkNode" = None
 
-    def addNodes(self, node_from: "NetworkNode", node_to: "NetworkNode"):
+    def add_nodes(self, node_from: "NetworkNode", node_to: "NetworkNode"):
         self.node_from = node_from
         self.node_to = node_to
 

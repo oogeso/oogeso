@@ -1,6 +1,8 @@
 import logging
+from typing import Dict, List, Optional
 
 import pyomo.environ as pyo
+from pyomo.core import Constraint
 
 from oogeso.core.networks.network_node import NetworkNode
 from oogeso.dto import DeviceData
@@ -9,26 +11,28 @@ logger = logging.getLogger(__name__)
 
 
 class Device:
-    "Parent class from which all device types derive"
+    """
+    Parent class from which all device types derive
+    """
 
     # Common class parameters:
-    carrier_in = []
-    carrier_out = []
-    serial = []
+    carrier_in = list()
+    carrier_out = list()
+    serial = list()
 
-    def __init__(self, dev_data, carrier_data_dict):
+    def __init__(self, dev_data: DeviceData, carrier_data_dict: Dict):
         """Device object constructor"""
-        self.dev_data: DeviceData = dev_data
+        self.dev_data = dev_data
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
-        self.node: NetworkNode = None
-        self._flow_upper_bound = None
+        self.node: Optional[NetworkNode] = None
+        self._flow_upper_bound: Optional[float] = None
 
-    def addNode(self, node):
+    def add_node(self, node: NetworkNode):
         """associate node with device"""
         self.node = node
 
-    def setInitValues(self, pyomo_model):
+    def set_init_values(self, pyomo_model: pyo.Model):
         """Method invoked to specify optimisation problem initial value parameters"""
         # TODO: move this to each subclass instead?
         dev_id = self.id
@@ -40,16 +44,16 @@ class Device:
         if hasattr(dev_data, "P_init"):
             pyomo_model.paramDevicePowerInitially[dev_id] = dev_data.P_init
 
-    def _rule_deviceFlowMax(self, pyomo_model, t):
-        power = self.getFlowVar(pyomo_model, t)
+    def _rule_device_flow_max(self, pyomo_model: pyo.Model, t):
+        power = self.get_flow_var(pyomo_model, t)
         if power is None:
             return pyo.Constraint.Skip
-        maxValue = self.getMaxFlow(pyomo_model, t)
+        maxValue = self.get_max_flow(pyomo_model, t)
         expr = power <= maxValue
         return expr
 
-    def _rule_deviceFlowMin(self, pyomo_model, t):
-        power = self.getFlowVar(pyomo_model, t)
+    def _rule_device_flow_min(self, pyomo_model: pyo.Model, t):
+        power = self.get_flow_var(pyomo_model, t)
         if power is None:
             return pyo.Constraint.Skip
         minValue = self.dev_data.flow_min
@@ -63,7 +67,7 @@ class Device:
         expr = power >= ison * minValue
         return expr
 
-    def _rule_ramprate(self, pyomo_model, t):
+    def _rule_ramp_rate(self, pyomo_model, t):
         """power ramp rate limit"""
         dev = self.id
         dev_data = self.dev_data
@@ -72,10 +76,10 @@ class Device:
         if self.dev_data.max_ramp_up is None:
             return pyo.Constraint.Skip
         if t > 0:
-            p_prev = self.getFlowVar(pyomo_model, t - 1)
+            p_prev = self.get_flow_var(pyomo_model, t - 1)
         else:
             p_prev = pyomo_model.paramDevicePowerInitially[dev]
-        p_this = self.getFlowVar(pyomo_model, t)
+        p_this = self.get_flow_var(pyomo_model, t)
         deltaP = p_this - p_prev
         delta_t = pyomo_model.paramTimestepDeltaMinutes
         maxP = dev_data.flow_max
@@ -138,7 +142,7 @@ class Device:
         rhs = sum(model.varDeviceStarting[dev, t - tau] for tau in tau_range) + prevPart
         return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model) -> List[Constraint]:
         """Build constraints for the device and add to pyomo model.
         Returns list of constraints that need to be reconstructed between each
         optimisation
@@ -147,21 +151,21 @@ class Device:
         list_to_reconstruct = []  # Default
 
         if self.dev_data.flow_max is not None:
-            constrDevicePmax = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_deviceFlowMax)
+            constrDevicePmax = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_device_flow_max)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "flowMax"),
                 constrDevicePmax,
             )
         if self.dev_data.flow_min is not None:
-            constrDevicePmin = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_deviceFlowMin)
+            constrDevicePmin = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_device_flow_min)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "flowMin"),
                 constrDevicePmin,
             )
         if (self.dev_data.max_ramp_up is not None) or (self.dev_data.max_ramp_down is not None):
-            constrDevice_ramprate = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_ramprate)
+            constrDevice_ramprate = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_ramp_rate)
             setattr(
                 pyomo_model,
                 "constr_{}_{}".format(self.id, "ramprate"),
@@ -190,11 +194,11 @@ class Device:
             ]
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t) -> float:
-        logger.error("Device: no getFlowVar defined for {}".format(self.id))
+    def get_flow_var(self, pyomo_model, t) -> float:
+        logger.error("Device: no get_flow_var defined for {}".format(self.id))
         raise NotImplementedError()
 
-    def getMaxFlow(self, pyomo_model, t):
+    def get_max_flow(self, pyomo_model, t):
         """Return available capacity at given timestep.
         This is given by the "flow_max" input parameter, profile value (if any), and
         whether devie is on/off."""
@@ -207,7 +211,7 @@ class Device:
             maxValue = ison * maxValue
         return maxValue
 
-    def setFlowUpperBound(self, profiles):
+    def set_flow_upper_bound(self, profiles):
         """Maximum flow value through entire profile.
         Given as the product of the "flow_max" parameter and profile values."""
         ub = self.dev_data.flow_max
@@ -230,7 +234,7 @@ class Device:
                 )
         self._flow_upper_bound = ub
 
-    def getFlowUpperBound(self):
+    def get_flow_upper_bound(self):
         """Returns the maximum possible flow given capacity and profile"""
         # Used by piecewise linear constraints
         return self._flow_upper_bound
@@ -267,7 +271,7 @@ class Device:
                         sumValue += inflow * volumefactor
         return sumValue
 
-    def compute_elReserve(self, model, t):
+    def compute_el_reserve(self, model, t):
         """Compute available reserve power from this device
 
         device parameter "reserve_factor" specifies how large part of the
@@ -279,7 +283,7 @@ class Device:
         p_generating = 0
         if "el" in self.carrier_out:
             # Generators and storage
-            maxValue = self.getMaxFlow(model, t)
+            maxValue = self.get_max_flow(model, t)
             if self.dev_data.reserve_factor is not None:
                 # safety margin - only count a part of the forecast power
                 # towards the reserve, relevant for wind power
@@ -316,22 +320,22 @@ class Device:
             )
         return penalty
 
-    def compute_operatingCosts(self, pyomo_model, timesteps):
+    def compute_operating_costs(self, pyomo_model, timesteps):
         """average operating cost within selected timespan"""
         sumCost = 0
         if self.dev_data.op_cost is not None:
             opcost = self.dev_data.op_cost
             for t in pyomo_model.setHorizon:
-                varP = self.getFlowVar(pyomo_model, t)
+                varP = self.get_flow_var(pyomo_model, t)
                 sumCost += opcost * varP
         # average per sec (simulation timestep drops out)
         avgCost = sumCost / len(timesteps)
         return avgCost
 
-    def compute_costForDepletedStorage(self, pyomo_model, timesteps):
+    def compute_cost_for_depleted_storage(self, pyomo_model, timesteps):
         return 0
 
-    def compute_penalty(self, pyomo_model, timesteps):
+    def compute_penalty(self, pyomo_model, timesteps: List[int]):
         """Compute average penalty rate (cost, emission or similar per second)
         as defined by penalty functions and start/stop penalties"""
         penalty_rate = 0

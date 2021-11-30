@@ -56,7 +56,7 @@ class DevicePowersinkData(DeviceData):
 
 
 @dataclass
-class DeviceStorage_elData(DeviceData):
+class DeviceStorageElData(DeviceData):
     E_max: float = 0  # MWh storage capacity
     E_min: float = 0
     E_end: Optional[float] = None  # required storage level at end of horzion

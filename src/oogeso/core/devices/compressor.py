@@ -2,13 +2,12 @@ from typing import Union
 
 import pyomo.environ as pyo
 
+from oogeso.core.devices.base import Device
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.dto import CarrierData, DeviceCompressor_elData, DeviceCompressor_gasData
-
-from . import Device
+from oogeso.dto import CarrierData, DeviceCompressorElData, DeviceCompressorGasData
 
 
-class Compressor_el(Device):
+class CompressorEl(Device):
     "Electric compressor"
     carrier_in = ["gas", "el"]
     carrier_out = ["gas"]
@@ -29,10 +28,10 @@ class Compressor_el(Device):
             rhs = compute_compressor_demand(model, self, node_obj, gas_data, linear=True, t=t)
             return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr_compressor_el = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
         # add constraint to model:
@@ -43,11 +42,11 @@ class Compressor_el(Device):
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model, t):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
-class Compressor_gas(Device):
+class CompressorGas(Device):
     """
     Gas-driven compressor
     """
@@ -58,7 +57,7 @@ class Compressor_gas(Device):
 
     def _rules(self, model, t) -> bool:
         dev = self.id
-        dev_data: DeviceCompressor_gasData = self.dev_data  # noqa: Fixme: Not in use.
+        dev_data: DeviceCompressorGasData = self.dev_data  # noqa: Fixme: Not in use.
         node_obj: NetworkNode = self.node
         gas_data = self.carrier_data["gas"]
         gas_energy_content = gas_data.energy_value  # MJ/Sm3
@@ -70,10 +69,10 @@ class Compressor_gas(Device):
 
         return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "compr"), constr)
@@ -96,7 +95,7 @@ class Compressor_gas(Device):
 
 def compute_compressor_demand(
     model,
-    device_obj: Union[Compressor_el, Compressor_gas],
+    device_obj: Union[CompressorEl, CompressorGas],
     node_obj: NetworkNode,
     gas_data: CarrierData,
     linear=False,
@@ -109,7 +108,7 @@ def compute_compressor_demand(
     # power demand depends on gas pressure ratio and flow
     # See LowEmission report DSP5_2020_04 for description
 
-    dev_data: Union[DeviceCompressor_elData, DeviceCompressor_gasData] = device_obj.dev_data
+    dev_data: Union[DeviceCompressorElData, DeviceCompressorGasData] = device_obj.dev_data
     k = gas_data.k_heat_capacity_ratio
     Z = gas_data.Z_compressibility
     # factor 1e-6 converts R units from J/kgK to MJ/kgK:

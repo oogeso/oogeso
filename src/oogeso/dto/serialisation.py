@@ -1,19 +1,19 @@
 import json
 import logging
 from dataclasses import asdict, is_dataclass
-from typing import Any
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
-from oogeso.dto import oogeso_input_data_objects as dto_input
-from oogeso.dto import oogeso_input_data_objects_multienergy as dto_input_multienergy
-from oogeso.dto import oogeso_output_data_objects as dto_output
+from oogeso import dto
+from oogeso.utils.util import get_class_from_dto
 
 logger = logging.getLogger(__name__)
 
 
-# Serialize (save to file)
 class DataclassJSONEncoder(json.JSONEncoder):
+    """Serialize (save to file)"""
+
     def default(self, obj: Any):
         if is_dataclass(obj=obj):
             dct = asdict(obj=obj)
@@ -27,44 +27,46 @@ class DataclassJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-# Deserialize (read from file)
 class DataclassJSONDecoder(json.JSONDecoder):
+    """Deserialize (read from file)"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(object_hook=self.object_hook, *args, **kwargs)
 
-    def _newCarrier(self, dct):
+    def _new_carrier(self, dct: Dict[str, str]):
         model = dct["id"]
-        carrier_class_str = "Carrier{}Data".format(model.capitalize())
-        carrier_class = globals()[carrier_class_str]
+        carrier_class_str = f"Carrier{model.capitalize()}Data"
+        carrier_class = get_class_from_dto(class_str=carrier_class_str)
         return carrier_class(**dct)
 
-    def _newNode(self, dct):
-        return dto_input.NodeData(**dct)
+    def _new_node(self, dct: Dict[str, str]) -> dto.NodeData:
+        return dto.NodeData(**dct)
 
-    def _newEdge(self, dct):
+    def _new_edge(self, dct: Dict[str, str]) -> dto.EdgeData:
         carrier = dct.pop("carrier")  # gets and deletes model from dictionary
-        edge_class_str = "Edge{}Data".format(carrier.capitalize())
-        edge_class = globals()[edge_class_str]
+        edge_class_str = f"Edge{carrier.capitalize()}Data"
+        edge_class = get_class_from_dto(class_str=edge_class_str)
         return edge_class(**dct)
 
-    def _newDevice(self, dct):
+    def _new_device(self, dct: Dict[str, Union[str, object]]) -> dto.DeviceData:
         logger.debug(dct)
         model = dct.pop("model")  # gets and deletes model from dictionary
-        startstop = dct.pop("start_stop", None)
-        if startstop is not None:
-            startstop_obj = dto_input.StartStopData(**startstop)
+        start_stop: Optional[Dict] = dct.pop("start_stop", None)
+        if start_stop is not None:
+            startstop_obj = dto.StartStopData(**start_stop)
             dct["start_stop"] = startstop_obj
-        dev_class_str = "Device{}Data".format(model.capitalize())
-        dev_class = globals()[dev_class_str]
+        dev_class_str = f"Device{model.capitalize()}Data"
+        dev_class = get_class_from_dto(class_str=dev_class_str)
         return dev_class(**dct)
 
-    def _newProfile(self, dct: dto_input.TimeSeries):
+    @staticmethod
+    def _new_profile(dct: Dict[str, Union[str, List[float]]]) -> dto.TimeSeriesData:
         name = dct["id"]
         data = dct["data"]
         data_nowcast = None
         if "data_nowcast" in dct:
             data_nowcast = dct["data_nowcast"]
-        return dto_input.TimeSeriesData(name, data, data_nowcast)
+        return dto.TimeSeriesData(name, data, data_nowcast)
 
     def object_hook(self, dct):  # pylint: disable=E0202
         carriers = []
@@ -77,24 +79,23 @@ class DataclassJSONDecoder(json.JSONDecoder):
         if "nodes" in dct:
             # Top level
             d_params = dct["parameters"]
-            params = dto_input.OptimisationParametersData(**d_params)
+            params = dto.OptimisationParametersData(**d_params)
             for n in dct["carriers"]:
-                carriers.append(self._newCarrier(n))
+                carriers.append(self._new_carrier(n))
             for n in dct["nodes"]:
-                nodes.append(self._newNode(n))
+                nodes.append(self._new_node(n))
             for n in dct["edges"]:
-                edges.append(self._newEdge(n))
+                edges.append(self._new_edge(n))
             for n in dct["devices"]:
-                # devs[n["id"]] = self._newDevice(n)
-                devs.append(self._newDevice(n))
+                devs.append(self._new_device(n))
             if "profiles" in dct:
                 for n in dct["profiles"]:
-                    profiles.append(self._newProfile(n))
-                    # profiles[i] = self._newProfile(n)
+                    profiles.append(self._new_profile(n))
+                    # profiles[i] = self._new_profile(n)
             # if "profiles_nowcast" in dct:
             #    for i, n in dct["profiles_nowcast"].items():
-            #        profiles_nowcast[i] = self._newProfile(n)
-            energy_system_data = dto_input.EnergySystemData(
+            #        profiles_nowcast[i] = self._new_profile(n)
+            energy_system_data = dto.EnergySystemData(
                 carriers=carriers,
                 nodes=nodes,
                 edges=edges,
@@ -107,12 +108,12 @@ class DataclassJSONDecoder(json.JSONDecoder):
         return dct
 
     def default(self, obj: Any):
-        if isinstance(obj, dto_input.EnergySystemData):
-            return dto_input.EnergySystemData(obj=obj)
+        if isinstance(obj, dto.EnergySystemData):
+            return dto.EnergySystemData(obj=obj)
         return json.JSONEncoder.default(self, obj)
 
 
-def serialize_oogeso_data(energy_system_data: dto_input.EnergySystemData):
+def serialize_oogeso_data(energy_system_data: dto.EnergySystemData):
     json_string = json.dumps(energy_system_data, cls=DataclassJSONEncoder, indent=2)
     return json_string
 
@@ -154,13 +155,13 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
                         # print(df.columns)
                         df = df.iloc[:, 0]
                     res_dfs[k] = df
-            result_data = dto_output.SimulationResult(**res_dfs)
+            result_data = dto.SimulationResult(**res_dfs)
             return result_data
         return dct
 
     def default(self, obj: Any):
-        if isinstance(obj, dto_output.SimulationResult):
-            return dto_output.SimulationResult(obj=obj)
+        if isinstance(obj, dto.SimulationResult):
+            return dto.SimulationResult(obj=obj)
         return json.JSONEncoder.default(self, obj)
 
 
@@ -169,73 +170,74 @@ def deserialize_oogeso_results(json_data):
     return result_data
 
 
-# Example:
-energy_system = dto_input.EnergySystemData(
-    carriers=[
-        dto_input.CarrierElData(
-            id="el",
-            reference_node="node1",
-            el_reserve_margin=-1,
-        ),
-        dto_input_multienergy.CarrierHeatData("heat"),
-        dto_input_multienergy.CarrierGasData(
-            "gas",
-            co2_content=0.4,
-            G_gravity=0.6,
-            Pb_basepressure_MPa=100,
-            R_individual_gas_constant=9,
-            Tb_basetemp_K=300,
-            Z_compressibility=0.9,
-            energy_value=40,
-            k_heat_capacity_ratio=0.7,
-            rho_density=0.6,
-        ),
-    ],
-    nodes=[dto_input.NodeData("node1"), dto_input.NodeData("node2")],
-    edges=[
-        dto_input.EdgeElData(
-            id="edge1",
-            node_from="node1",
-            node_to="node2",
-            flow_max=500,
-            reactance=1,
-            resistance=1,
-            voltage=33,
-            length_km=10,
-        ),
-        dto_input.EdgeElData(
-            id="edge2",
-            node_from="node2",
-            node_to="node1",
-            flow_max=50,
-            voltage=33,
-            length_km=10,
-            # reactance=1,
-            # resistance=1,
-            power_loss_function=([0, 1], [0, 0.02]),
-        ),
-    ],
-    devices=[
-        dto_input_multienergy.DeviceSource_elData(id="elsource", node_id="node1", flow_max=12),
-        dto_input.DevicePowersourceData(id="gt1", node_id="node2", flow_max=30, profile="profile1"),
-        dto_input_multienergy.DeviceSink_elData(id="demand", node_id="node2", flow_min=4, profile="profile1"),
-    ],
-    parameters=dto_input.OptimisationParametersData(
-        time_delta_minutes=30,
-        planning_horizon=12,
-        optimisation_timesteps=6,
-        forecast_timesteps=6,
-        time_reserve_minutes=30,
-        max_pressure_deviation=-1,
-        co2_tax=30,
-        objective="exportRevenue",
-    ),
-    profiles=[dto_input.TimeSeriesData(id="profile1", data=[12, 10, 21])],
-)
-
-
 if __name__ == "__main__":
+    # Todo: Move to examples and/or tests.
     print("Serializing example data and saving to file (examples/energysystem.json)")
+
+    # Example:
+    energy_system = dto.EnergySystemData(
+        carriers=[
+            dto.CarrierElData(
+                id="el",
+                reference_node="node1",
+                el_reserve_margin=-1,
+            ),
+            dto.CarrierHeatData("heat"),
+            dto.CarrierGasData(
+                "gas",
+                co2_content=0.4,
+                G_gravity=0.6,
+                Pb_basepressure_MPa=100,
+                R_individual_gas_constant=9,
+                Tb_basetemp_K=300,
+                Z_compressibility=0.9,
+                energy_value=40,
+                k_heat_capacity_ratio=0.7,
+                rho_density=0.6,
+            ),
+        ],
+        nodes=[dto.NodeData("node1"), dto.NodeData("node2")],
+        edges=[
+            dto.EdgeElData(
+                id="edge1",
+                node_from="node1",
+                node_to="node2",
+                flow_max=500,
+                reactance=1,
+                resistance=1,
+                voltage=33,
+                length_km=10,
+            ),
+            dto.EdgeElData(
+                id="edge2",
+                node_from="node2",
+                node_to="node1",
+                flow_max=50,
+                voltage=33,
+                length_km=10,
+                # reactance=1,
+                # resistance=1,
+                power_loss_function=([0, 1], [0, 0.02]),
+            ),
+        ],
+        devices=[
+            dto.DeviceSourceElData(id="elsource", node_id="node1", flow_max=12),
+            dto.DevicePowersourceData(id="gt1", node_id="node2", flow_max=30, profile="profile1"),
+            dto.DeviceSinkElData(id="demand", node_id="node2", flow_min=4, profile="profile1"),
+        ],
+        parameters=dto.OptimisationParametersData(
+            time_delta_minutes=30,
+            planning_horizon=12,
+            optimisation_timesteps=6,
+            forecast_timesteps=6,
+            time_reserve_minutes=30,
+            max_pressure_deviation=-1,
+            co2_tax=30,
+            objective="exportRevenue",
+        ),
+        profiles=[dto.TimeSeriesData(id="profile1", data=[12, 10, 21])],
+    )
+
     # serialized = serialize_oogeso_data(energy_system)
     # print(serialized)
 

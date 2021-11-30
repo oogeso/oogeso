@@ -2,9 +2,8 @@ import logging
 
 import pyomo.environ as pyo
 
+from oogeso.core.devices.base import Device
 from oogeso.core.networks.network_node import NetworkNode
-
-from . import Device
 
 logger = logging.getLogger(__name__)
 
@@ -79,35 +78,35 @@ class _PumpDevice(Device):
             )
             return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_pump)
         # add constraint to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model, t):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
-class Pump_oil(_PumpDevice):
+class PumpOil(_PumpDevice):
     "Oil pump"
     carrier_in = ["oil", "el"]
     carrier_out = ["oil"]
     serial = ["oil"]
 
 
-class Pump_wellstream(_PumpDevice):
+class PumpWellStream(_PumpDevice):
     "Wellstream pump"
     carrier_in = ["wellstream", "el"]
     carrier_out = ["wellstream"]
     serial = ["wellstream"]
 
 
-class Pump_water(_PumpDevice):
+class PumpWater(_PumpDevice):
     "Water pump"
     carrier_in = ["water", "el"]
     carrier_out = ["water"]

@@ -1,13 +1,42 @@
 import logging
-from typing import List
+from typing import Callable, List
 
 from typing import List, Optional
 
 import pandas as pd
 
+from oogeso import dto
+from oogeso.core import devices
 from oogeso.dto.oogeso_input_data_objects import TimeSeriesData
 
 logger = logging.getLogger(__name__)
+
+
+def get_device_from_model_name(model_name: str) -> Callable:
+    if model_name in devices.__dict__.keys():
+        return devices.__dict__[model_name]
+    elif model_name.lower() in [x.lower() for x in devices.__dict__.keys()]:
+        return [v for k, v in devices.__dict__.items() if k.lower() == model_name.lower()][0]
+    elif model_name.lower().replace("_", "") in [x.lower() for x in devices.__dict__.keys()]:
+        return [v for k, v in devices.__dict__.items() if k.lower() == model_name.lower().replace("_", "")][0]
+    else:
+        raise NotImplementedError(f"Device {model_name} has not been implemented.")
+
+
+def get_class_from_dto(class_str: str) -> Callable:
+    """
+    Search dto module for a callable that matches the signature given as class str
+
+    Fixme: Replace this (de-)serializer with a proper solution.
+    """
+    if class_str in dto.__dict__.keys():
+        return dto.__dict__[class_str]
+    elif class_str.lower() in [x.lower() for x in dto.__dict__.keys()]:
+        return [v for k, v in dto.__dict__.items() if k.lower() == class_str.lower()][0]
+    elif class_str.lower().replace("_", "") in [x.lower() for x in dto.__dict__.keys()]:
+        return [v for k, v in dto.__dict__.items() if k.lower() == class_str.lower().replace("_", "")][0]
+    else:
+        raise NotImplementedError(f"Model {class_str} has not been implemented.")
 
 
 def create_timeseriesdata(

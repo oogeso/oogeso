@@ -1112,7 +1112,7 @@ def plotElBackup(sim_result, filename=None, showMargin=False, returnMargin=False
 
 def recompute_elBackup(res, optimisation_model):
     """Compute reserve
-    should give the same as mc.compute_elReserve"""
+    should give the same as mc.compute_el_reserve"""
     optimiser = optimisation_model
     model = optimiser.pyomo_instance  # noqa
     all_devices = optimiser.all_devices

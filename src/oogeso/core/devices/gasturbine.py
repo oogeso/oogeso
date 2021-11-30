@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-from . import Device
+from oogeso.core.devices.base import Device
 
 
 class Gasturbine(Device):
@@ -37,15 +37,15 @@ class Gasturbine(Device):
             ) * self.dev_data.eta_heat
             return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_misc)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model, t):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
     # overriding default

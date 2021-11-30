@@ -10,58 +10,58 @@ from oogeso.dto.oogeso_input_data_objects import CarrierData, DeviceData, EdgeDa
 
 
 @dataclass
-class DeviceSource_elData(DeviceData):
+class DeviceSourceElData(DeviceData):
     co2em: Optional[float] = None
     op_cost: Optional[float] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
 @dataclass
-class DeviceSource_gasData(DeviceData):
+class DeviceSourceGasData(DeviceData):
     naturalpressure: float = None
 
 
 @dataclass
-class DeviceSource_waterData(DeviceData):
+class DeviceSourceWaterData(DeviceData):
     naturalpressure: float = None
 
 
 @dataclass
-class DeviceSink_elData(DeviceData):
+class DeviceSinkElData(DeviceData):
     pass
 
 
 @dataclass
-class DeviceSink_heatData(DeviceData):
+class DeviceSinkHeatData(DeviceData):
     pass
 
 
 @dataclass
-class DeviceSink_gasData(DeviceData):
+class DeviceSinkGasData(DeviceData):
     price: field(default_factory=lambda: {}) = None
 
 
 @dataclass
-class DeviceSink_oilData(DeviceData):
+class DeviceSinkOilData(DeviceData):
     price: field(default_factory=lambda: {}) = None
 
 
 @dataclass
-class DeviceSink_waterData(DeviceData):
+class DeviceSinkWaterData(DeviceData):
     price: field(default_factory=lambda: {}) = None
     flow_avg: Optional[float] = None  # required average flow
     max_accumulated_deviation: Optional[float] = None  # buffer size (max accumulated deviation from average)
 
 
 @dataclass
-class DeviceCompressor_elData(DeviceData):
+class DeviceCompressorElData(DeviceData):
     eta: float = None  # efficiency
     Q0: float = None  # nominal flow rate used in linearisation
     temp_in: float = None  # inlet temperature
 
 
 @dataclass
-class DeviceCompressor_gasData(DeviceData):
+class DeviceCompressorGasData(DeviceData):
     eta: float = None  # efficiency
     Q0: float = None  # nominal flow rate used in linearisation
     temp_in: float = None  # inlet temperature
@@ -80,7 +80,7 @@ class DeviceFuelcellData(DeviceData):
 
 
 @dataclass
-class DeviceGasheaterData(DeviceData):
+class DeviceGasHeaterData(DeviceData):
     pass
 
 
@@ -102,12 +102,12 @@ class DeviceHeatpumpData(DeviceData):
 
 
 @dataclass
-class DevicePump_oilData(DeviceData):
+class DevicePumpOilData(DeviceData):
     eta: float = None  # efficiency
 
 
 @dataclass
-class DevicePump_waterData(DeviceData):
+class DevicePumpWaterData(DeviceData):
     eta: float = None
 
 
@@ -124,7 +124,7 @@ class DeviceSeparator2Data(DeviceData):
 
 
 @dataclass
-class DeviceStorage_hydrogenData(DeviceData):
+class DeviceStorageHydrogenData(DeviceData):
     E_max: float = 0  # MWh storage capacity (maximum stored energy)
     E_min: float = 0
     eta: float = 1  # efficiency
@@ -134,12 +134,12 @@ class DeviceStorage_hydrogenData(DeviceData):
 
 
 @dataclass
-class DeviceWell_productionData(DeviceData):
+class DeviceWellProductionData(DeviceData):
     wellhead_pressure: float = None  # 2 # MPa
 
 
 @dataclass
-class DeviceWell_gasliftData(DeviceData):
+class DeviceWellGasLiftData(DeviceData):
     gas_oil_ratio: float = None  # 500
     water_cut: float = None  # 0.6
     f_inj: float = None  # 220 # gas injection rate as fraction of production rate

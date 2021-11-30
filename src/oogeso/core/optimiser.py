@@ -1,19 +1,18 @@
 import logging
-from typing import TYPE_CHECKING, Dict
+from typing import Dict
 
 import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 
-from oogeso.core import devices, networks
-from oogeso.core.devices.storage import _StorageDevice
+from oogeso.core import networks
+from oogeso.core.devices.base import Device
+from oogeso.core.devices.storage import StorageDevice
+from oogeso.core.networks.edge import Edge
+from oogeso.core.networks.network import Network
 from oogeso.core.networks.network_node import NetworkNode
-
-if TYPE_CHECKING:
-    from oogeso.core.devices.device import Device
-    from oogeso.core.networks.edge import Edge
-    from oogeso.core.networks.network import Network
-    from oogeso.dto.oogeso_input_data_objects import EnergySystemData, OptimisationParametersData
+from oogeso.dto.oogeso_input_data_objects import EnergySystemData, OptimisationParametersData
+from oogeso.utils.util import get_device_from_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class OptimisationModel:
 
     ZERO_WARNING_THRESHOLD = 1e-6
 
-    def __init__(self, data: "EnergySystemData"):
+    def __init__(self, data: EnergySystemData):
         """Create optimisation problem formulation with supplied data"""
 
         # dictionaries {key:object} for all devices, nodes and edges
@@ -102,7 +101,7 @@ class OptimisationModel:
                 p_maxdev_to = edg.pressure_to_maxdeviation
                 n_to.set_pressure_maxdeviation(carrier, "in", p_maxdev_to)
 
-    def _create_network_objects_from_data(self, data: "EnergySystemData"):
+    def _create_network_objects_from_data(self, data: EnergySystemData):
         """Create energy system objects, and populate local dictionaries
 
         self.all_devices, self.all_nodes, self.all_networks"""
@@ -125,14 +124,14 @@ class OptimisationModel:
             # The class corresponding to the device type should always have a
             # name identical to the type (but capitalized):
             logger.debug("Device model={}".format(device_model))
-            Devclass = getattr(devices, device_model.capitalize())
+            device = get_device_from_model_name(model_name=device_model)
             carrier_data_dict = {carr_obj.id: carr_obj for carr_obj in data.carriers}
-            new_device = Devclass(dev_data_obj, carrier_data_dict)
-            if isinstance(new_device, _StorageDevice):
+            new_device = device(dev_data_obj, carrier_data_dict)
+            if isinstance(new_device, StorageDevice):
                 # Add this device to global list of storage devices:
                 self.devices_with_storage.append(new_device)
 
-            new_device.setFlowUpperBound(data.profiles)
+            new_device.set_flow_upper_bound(data.profiles)
             self.all_devices[dev_id] = new_device
 
         for node_data_obj in energy_system_data.nodes:
@@ -172,13 +171,13 @@ class OptimisationModel:
             node_id_where_connected = dev.dev_data.node_id
             node = self.all_nodes[node_id_where_connected]
             node.addDevice(dev_id, dev)
-            dev.addNode(node)
+            dev.add_node(node)
         for edge_id, edge in self.all_edges.items():
             node_from = self.all_nodes[edge.edge_data.node_from]
             node_from.addEdge(edge, "from")
             node_to = self.all_nodes[edge.edge_data.node_to]
             node_to.addEdge(edge, "to")
-            edge.addNodes(node_from, node_to)
+            edge.add_nodes(node_from, node_to)
 
     def _create_pyomo_model(self, profiles_in_use):
         """Create pyomo MILP model
@@ -197,7 +196,7 @@ class OptimisationModel:
 
         # Specify initial values from input data
         for dev in self.all_devices.values():
-            dev.setInitValues(model)
+            dev.set_init_values(model)
 
         # Keep track of duals:
         # WARNING:
@@ -326,7 +325,7 @@ class OptimisationModel:
 
         # 1. Constraints associated with each device:
         for dev in self.all_devices.values():
-            list_to_reconstruct = dev.defineConstraints(model)
+            list_to_reconstruct = dev.define_constraints(model)
 
             # Because of logic that needs to be re-evalued, these constraints need
             # to be reconstructed each optimisation:
@@ -432,7 +431,9 @@ class OptimisationModel:
                 self.pyomo_instance.paramDevicePrepTimestepsInitially[dev] = _updateOnTimesteps(t_prev, dev)
                 # Initial power output (relevant for ramp rate constraint):
                 if dev_obj.dev_data.max_ramp_up is not None:
-                    self.pyomo_instance.paramDevicePowerInitially[dev] = dev_obj.getFlowVar(self.pyomo_instance, t_prev)
+                    self.pyomo_instance.paramDevicePowerInitially[dev] = dev_obj.get_flow_var(
+                        self.pyomo_instance, t_prev
+                    )
                 # Energy storage:
                 if dev_obj in self.devices_with_storage:
                     self.pyomo_instance.paramDeviceEnergyInitially[dev] = self.pyomo_instance.varDeviceStorageEnergy[
@@ -622,7 +623,7 @@ class OptimisationModel:
         timesteps = model.setHorizon
         for dev in model.setDevice:
             dev_obj = self.all_devices[dev]
-            thisCost = dev_obj.compute_operatingCosts(model, timesteps)
+            thisCost = dev_obj.compute_operating_costs(model, timesteps)
             sumCost += thisCost
         return sumCost
 
@@ -633,7 +634,7 @@ class OptimisationModel:
         timesteps = model.setHorizon
         for dev in model.setDevice:
             dev_obj = self.all_devices[dev]
-            thisCost = dev_obj.compute_costForDepletedStorage(model, timesteps)
+            thisCost = dev_obj.compute_cost_for_depleted_storage(model, timesteps)
             storCost += thisCost
         return storCost
 

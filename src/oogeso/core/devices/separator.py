@@ -1,9 +1,8 @@
 import pyomo.environ as pyo
 
+from oogeso.core.devices.base import Device
 from oogeso.core.networks.network_node import NetworkNode
 from oogeso.dto import CarrierWellstreamData, DeviceSeparator2Data, DeviceSeparatorData
-
-from . import Device
 
 
 class Separator(Device):
@@ -62,10 +61,10 @@ class Separator(Device):
             rhs = node_obj.get_pressure_nominal("water", "out")
             return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr_separator = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator)
         # add constraints to model:
@@ -119,10 +118,10 @@ class Separator2(Device):
             rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr_separator2_flow = pyo.Constraint(
             ["oil", "gas", "water"],

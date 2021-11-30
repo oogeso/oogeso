@@ -4,7 +4,7 @@ import typing
 import pyomo.environ as pyo
 
 if typing.TYPE_CHECKING:
-    from oogeso.core.devices.device import Device
+    from oogeso.core.devices.base import Device
     from oogeso.core.networks.edge import Edge
     from oogeso.dto.oogeso_input_data_objects import NodeData
 

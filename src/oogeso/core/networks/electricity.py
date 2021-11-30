@@ -90,7 +90,7 @@ class El(Network):
         loadreduction = 0
         for d in alldevs:
             dev_obj = all_devices[d]
-            reserve = dev_obj.compute_elReserve(pyomo_model, t)
+            reserve = dev_obj.compute_el_reserve(pyomo_model, t)
             cap_avail += reserve["capacity_available"]
             p_generating += reserve["capacity_used"]
             loadreduction += reserve["loadreduction_available"]

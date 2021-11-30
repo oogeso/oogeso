@@ -1,26 +1,28 @@
 import pyomo.environ as pyo
 
-from oogeso.dto import DeviceStorage_elData, DeviceStorage_hydrogenData
+from oogeso.core.devices.base import Device
+from oogeso.dto import DeviceStorageElData, DeviceStorageHydrogenData
 
-from . import Device
 
-
-class _StorageDevice(Device):
-    # pass
+class StorageDevice(Device):
     def __init__(self, dev_data, carrier_data_dict):
         """Device object constructor"""
         super().__init__(dev_data, carrier_data_dict)
 
 
-class Storage_el(_StorageDevice):
-    "Electric storage (battery)"
+class StorageEl(StorageDevice):
+    """Electric storage (battery)"""
+
     carrier_in = ["el"]
     carrier_out = ["el"]
     serial = []
 
+    def __init__(self, dev_data: DeviceStorageElData, carrier_data_dict):
+        super().__init__(dev_data, carrier_data_dict)
+
     def _rules(self, model, t, i):
         dev = self.id
-        dev_data: DeviceStorage_elData = self.dev_data
+        dev_data: DeviceStorageElData = self.dev_data
         time_delta_minutes = model.paramTimestepDeltaMinutes
         time_reserve_minutes = model.paramTimeStorageReserveMinutes
 
@@ -55,7 +57,7 @@ class Storage_el(_StorageDevice):
             return model.varDeviceFlow[dev, "el", "out", t] <= ub
         elif i == 4:
             # charging power limit - required because the generic flow max/min constraint
-            # concerns dis-charging [dev,"el","out",t], cf getFlowVar()
+            # concerns dis-charging [dev,"el","out",t], cf get_flow_var()
             if dev_data.flow_min is not None:
                 ub = -dev_data.flow_min
             else:
@@ -97,20 +99,20 @@ class Storage_el(_StorageDevice):
             else:
                 return pyo.Constraint.Skip
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules)
         # add constraints to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model, t):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
-    def getMaxFlow(self, pyomo_model, t):
+    def get_max_flow(self, pyomo_model, t):
         # available power may be limited by energy in the storage
         # charging also contributes (can be reversed)
         # (it can go to e.g. -2 MW to +2MW => 4 MW,
@@ -118,7 +120,7 @@ class Storage_el(_StorageDevice):
         maxValue = pyomo_model.varDeviceStoragePmax[self.id, t] + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
         return maxValue
 
-    def compute_costForDepletedStorage(self, pyomo_model, timesteps):
+    def compute_cost_for_depleted_storage(self, pyomo_model, timesteps):
         stor_cost = 0
         dev_data = self.dev_data
         if dev_data.E_cost is not None:
@@ -131,7 +133,7 @@ class Storage_el(_StorageDevice):
         return storCost
 
 
-class Storage_hydrogen(_StorageDevice):
+class StorageHydrogen(StorageDevice):
     "Hydrogen storage"
     carrier_in = ["hydrogen"]
     carrier_out = ["hydrogen"]
@@ -139,7 +141,7 @@ class Storage_hydrogen(_StorageDevice):
 
     def _rules(self, model, t, i):
         dev = self.id
-        dev_data: DeviceStorage_hydrogenData = self.dev_data
+        dev_data: DeviceStorageHydrogenData = self.dev_data
         # param_hydrogen = self.optimiser.all_carriers["hydrogen"]
         time_delta_minutes = model.paramTimestepDeltaMinutes
         if i == 1:
@@ -189,20 +191,20 @@ class Storage_hydrogen(_StorageDevice):
             deviation = model.varDeviceStorageEnergy[dev, t] - target_value
             return Xprime >= -deviation
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules)
         # add constraints to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model, t):
         return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
-    def compute_costForDepletedStorage(self, pyomo_model, timesteps):
+    def compute_cost_for_depleted_storage(self, pyomo_model, timesteps):
         return self.compute_costForDepletedStorage_alt2(pyomo_model, timesteps)
 
     def compute_costForDepletedStorage_alt1(self, pyomo_model, timesteps):

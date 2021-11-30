@@ -1,5 +1,6 @@
 import oogeso
 
+# Fixme: This file is deprecated
 # Read in data, validate date et.c. with methods from io
 some_test_data_file = "test_data.json"
 json_data = oogeso.io.file_io.read_data_from_json(some_test_data_file)

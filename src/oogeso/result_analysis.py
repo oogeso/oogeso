@@ -1,11 +1,11 @@
 import pandas as pd
 
-from oogeso.dto import EnergySystemData, SimulationResult
+from oogeso import dto
 
 
 def compute_kpis(
-    sim_result: SimulationResult,
-    sim_data: EnergySystemData,
+    sim_result: dto.SimulationResult,
+    sim_data: dto.EnergySystemData,
     windturbines=None,
 ):
     """Compute key indicators of simulation results
