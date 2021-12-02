@@ -80,12 +80,12 @@ jobs:
         run: poetry build
 
       - name: Release Notes
-        run: git log $(git describe HEAD~ --tags --abbrev=0)..HEAD --pretty='format:* %h %s%n  * %an <%ae>' --no-merges >> ".github/RELEASE-TEMPLATE.md"
+        run: git log $(git describe HEAD~ --tags --abbrev=0)..HEAD --pretty='format:* %h %s%n  * %an <%ae>' --no-merges >> ".github/release_template.md"
 
       - name: Create Release Draft
         uses: softprops/action-gh-release@v1
         with:
-          body_path: ".github/RELEASE-TEMPLATE.md"
+          body_path: ".github/release_template.md"
           draft: true
           files: |
             dist/random_standup-${{env.PROJECT_VERSION}}-py3-none-any.whl
