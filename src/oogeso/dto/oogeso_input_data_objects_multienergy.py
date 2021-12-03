@@ -101,7 +101,7 @@ class DeviceGasturbineData(DeviceData):
 
 @dataclass
 class DeviceHeatpumpData(DeviceData):
-    pass
+    eta: float = None
 
 
 @dataclass
