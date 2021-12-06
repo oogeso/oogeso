@@ -16,8 +16,8 @@ def test_file_input():
     # Test oogeso object creation from yaml file
 
     profiles_dfs = oogeso.io.file_io.read_profiles_from_csv(
-        filename_forecasts=EXAMPLE_DATA_ROOT_PATH / "testcase2_profiles_forecasts.csv",
-        filename_nowcasts=EXAMPLE_DATA_ROOT_PATH / "testcase2_profiles_nowcasts.csv",
+        filename_forecasts=TEST_DATA_ROOT_PATH / "testcase2_profiles_forecasts.csv",
+        filename_nowcasts=TEST_DATA_ROOT_PATH / "testcase2_profiles_nowcasts.csv",
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
@@ -28,7 +28,7 @@ def test_file_input():
         time_end="",
         timestep_minutes=15,
     )
-    data0 = oogeso.io.read_data_from_yaml(EXAMPLE_DATA_ROOT_PATH / "test case2.yaml")
+    data0 = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testcase2_inputdata.yaml")
     data0.profiles = profiles_json
 
     # If not failed above, it's OK
@@ -41,19 +41,12 @@ def test_write_read_parquet():
     profiles = {
         "forecast": pd.DataFrame(index=idx, columns=["forecast"], data=1),
         "actual": pd.DataFrame(index=idx, columns=["actual"], data=3),
-
     }
 
     filename = tempfile.mkstemp(suffix=".parquet")[1]
-    oogeso.io.save_profiles_to_parquet(
-        filename=filename,
-        profiles=profiles
-    )
+    oogeso.io.save_profiles_to_parquet(filename=filename, profiles=profiles)
 
-    profiles_out = oogeso.io.read_profiles_from_parquet(
-        filename=filename,
-        keys=["actual", "forecast"]
-    )
+    profiles_out = oogeso.io.read_profiles_from_parquet(filename=filename, keys=["actual", "forecast"])
 
     for key in ["actual", "forecast"]:
         # Asserting that the DataFrames are indeed equal after a round-trip to Parquet.
@@ -63,20 +56,16 @@ def test_write_read_parquet():
 def test_parquet_profiles():
 
     profiles_dfs = oogeso.io.read_profiles_from_csv(
-        filename_forecasts=EXAMPLE_DATA_ROOT_PATH / "testcase2_profiles_forecasts.csv",
-        filename_nowcasts=EXAMPLE_DATA_ROOT_PATH / "testcase2_profiles_nowcasts.csv",
+        filename_forecasts=TEST_DATA_ROOT_PATH / "testcase2_profiles_forecasts.csv",
+        filename_nowcasts=TEST_DATA_ROOT_PATH / "testcase2_profiles_nowcasts.csv",
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
 
     tmp_file = tempfile.mkstemp(suffix=".parquet")[1]
 
-    oogeso.io.file_io.save_profiles_to_parquet(
-        filename=tmp_file, profiles=profiles_dfs
-    )
+    oogeso.io.file_io.save_profiles_to_parquet(filename=tmp_file, profiles=profiles_dfs)
 
-    profiles_dfs2 = oogeso.io.file_io.read_profiles_from_parquet(
-        filename=tmp_file, keys=["forecast", "nowcast"]
-    )
+    profiles_dfs2 = oogeso.io.file_io.read_profiles_from_parquet(filename=tmp_file, keys=["forecast", "nowcast"])
     assert isinstance(profiles_dfs2["forecast"], pd.DataFrame)
     assert isinstance(profiles_dfs2["nowcast"], pd.DataFrame)
