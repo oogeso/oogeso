@@ -1,9 +1,10 @@
 from pathlib import Path
+
+import pyomo.environ as pyo
+import pytest
+
 import oogeso
 import oogeso.io
-import pyomo.environ as pyo
-import pyomo.opt as pyopt
-import pytest
 
 TEST_DATA_ROOT_PATH = Path(__file__).parent
 
@@ -37,6 +38,7 @@ def test_integration_case1():
     res = simulator.runSimulation("cbc")
 
     # TODO: Check results are as expected.
+    assert res is not None
 
 
 def test_integration_case_leogo():
