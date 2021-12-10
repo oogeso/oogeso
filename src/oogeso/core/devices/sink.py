@@ -6,8 +6,10 @@ from oogeso import dto
 from oogeso.core.devices.base import Device
 
 
-class Powersink(Device):
-    "Generic electricity consumption"
+class PowerSink(Device):
+    """
+    Generic electricity consumption
+    """
 
     carrier_in = ["el"]
     carrier_out = []
@@ -15,7 +17,7 @@ class Powersink(Device):
 
     def __init__(
         self,
-        dev_data: dto.DevicePowersinkData,  # Fixme: Correct?
+        dev_data: dto.DevicePowerSinkData,  # Fixme: Correct?
         carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
@@ -31,7 +33,7 @@ class Powersink(Device):
 
 
 # Just another name for powersink
-class SinkEl(Powersink):
+class SinkEl(PowerSink):
     pass
 
 

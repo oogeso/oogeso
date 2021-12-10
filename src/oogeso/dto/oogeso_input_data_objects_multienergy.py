@@ -74,7 +74,7 @@ class DeviceElectrolyserData(dto.DeviceData):
 
 
 @dataclass
-class DeviceFuelcellData(dto.DeviceData):
+class DeviceFuelCellData(dto.DeviceData):
     eta: float = None  # efficiency
     eta_heat: float = None  # heat recovery efficiency
 

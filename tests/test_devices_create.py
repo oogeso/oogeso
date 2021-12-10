@@ -1,6 +1,5 @@
-from oogeso.core import devices
 from oogeso import dto
-
+from oogeso.core import devices
 
 dev_data_generic = {
     "id": "the_id",
@@ -15,7 +14,7 @@ dev_data_generic = {
     "op_cost": 0,
 }
 
-# Only Powersource and Powersink are used in electric-only modelling
+# Only Powersource and PowerSink are used in electric-only modelling
 
 
 def test_powersource():
@@ -27,23 +26,23 @@ def test_powersource():
         minimum_time_on_minutes=0,
         minimum_time_off_minutes=0,
     )
-    dev_data = dto.DevicePowersourceData(
+    dev_data = dto.DevicePowerSourceData(
         **dev_data_generic,
         start_stop=startstop_data,
-        penalty_function=[[0, 50], [1, 20]],
+        penalty_function=([0, 50], [1, 20]),
     )
     carrier_data_dict = {}
     obj = devices.Powersource(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.Powersource)
     assert obj.dev_data.node_id == "the_node"
-    assert obj.dev_data.penalty_function == [[0, 50], [1, 20]]
+    assert obj.dev_data.penalty_function == ([0, 50], [1, 20])
 
 
 def test_powersink():
-    dev_data = dto.DevicePowersinkData(**dev_data_generic, reserve_factor=0)
+    dev_data = dto.DevicePowerSinkData(**dev_data_generic, reserve_factor=0)
     carrier_data_dict = {}
-    obj = devices.Powersink(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Powersink)
+    obj = devices.PowerSink(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.PowerSink)
     assert obj.dev_data.reserve_factor == 0
 
 
@@ -59,54 +58,48 @@ def test_gasturbine():
         minimum_time_on_minutes=0,
         minimum_time_off_minutes=0,
     )
-    dev_data = dto.DeviceGasturbineData(**dev_data_generic, start_stop=startstop_data)
+    dev_data = dto.DeviceGasTurbineData(**dev_data_generic, start_stop=startstop_data)
     carrier_data_dict = {}
-    obj = devices.Gasturbine(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Gasturbine)
+    obj = devices.GasTurbine(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.GasTurbine)
     assert obj.dev_data.reserve_factor == 1  # default value
     assert obj.dev_data.start_stop.penalty_start == 1
 
 
 def test_compressor_el():
-    dev_data = dto.DeviceCompressor_elData(
-        **dev_data_generic, eta=0.6, Q0=0.5, temp_in=300
-    )
+    dev_data = dto.DeviceCompressorElData(**dev_data_generic, eta=0.6, Q0=0.5, temp_in=300)
     carrier_data_dict = {}
-    obj = devices.Compressor_el(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Compressor_el)
+    obj = devices.CompressorEl(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.CompressorEl)
     assert obj.dev_data.eta == 0.6
 
 
 def test_compressor_gas():
-    dev_data = dto.DeviceCompressor_gasData(
-        **dev_data_generic, eta=0.6, Q0=0.5, temp_in=300
-    )
+    dev_data = dto.DeviceCompressorGasData(**dev_data_generic, eta=0.6, Q0=0.5, temp_in=300)
     carrier_data_dict = {}
-    obj = devices.Compressor_gas(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Compressor_gas)
+    obj = devices.CompressorGas(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.CompressorGas)
     assert obj.dev_data.eta == 0.6
 
 
 def test_pump_oil():
-    dev_data = dto.DevicePump_oilData(**dev_data_generic, eta=0.6)
+    dev_data = dto.DevicePumpOilData(**dev_data_generic, eta=0.6)
     carrier_data_dict = {}
-    obj = devices.Pump_oil(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Pump_oil)
+    obj = devices.PumpOil(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.PumpOil)
     assert obj.dev_data.eta == 0.6
 
 
 def test_pump_water():
-    dev_data = dto.DevicePump_waterData(**dev_data_generic, eta=0.6)
+    dev_data = dto.DevicePumpWaterData(**dev_data_generic, eta=0.6)
     carrier_data_dict = {}
-    obj = devices.Pump_water(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Pump_water)
+    obj = devices.PumpWater(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.PumpWater)
     assert obj.dev_data.eta == 0.6
 
 
 def test_separator():
-    dev_data = dto.DeviceSeparatorData(
-        **dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5
-    )
+    dev_data = dto.DeviceSeparatorData(**dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5)
     carrier_data_dict = {}
     obj = devices.Separator(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.Separator)
@@ -114,9 +107,7 @@ def test_separator():
 
 
 def test_separator2():
-    dev_data = dto.DeviceSeparator2Data(
-        **dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5
-    )
+    dev_data = dto.DeviceSeparator2Data(**dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5)
     carrier_data_dict = {}
     obj = devices.Separator2(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.Separator2)
@@ -124,15 +115,15 @@ def test_separator2():
 
 
 def test_well_production():
-    dev_data = dto.DeviceWell_productionData(**dev_data_generic, wellhead_pressure=5)
+    dev_data = dto.DeviceWellProductionData(**dev_data_generic, wellhead_pressure=5)
     carrier_data_dict = {}
-    obj = devices.Well_production(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Well_production)
+    obj = devices.WellProduction(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.WellProduction)
     assert obj.dev_data.wellhead_pressure == 5
 
 
 def test_well_gaslift():
-    dev_data = dto.DeviceWell_gasliftData(
+    dev_data = dto.DeviceWellGasLiftData(
         **dev_data_generic,
         gas_oil_ratio=500,
         water_cut=0.5,
@@ -141,86 +132,84 @@ def test_well_gaslift():
         separator_pressure=5,
     )
     carrier_data_dict = {}
-    obj = devices.Well_gaslift(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Well_gaslift)
+    obj = devices.WellGasLift(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.WellGasLift)
     assert obj.dev_data.injection_pressure == 25
 
 
 def test_sink_gas():
-    dev_data = dto.DeviceSink_gasData(**dev_data_generic, price={"gas": 100})
+    dev_data = dto.DeviceSinkGasData(**dev_data_generic, price={"gas": 100})
     carrier_data_dict = {}
-    obj = devices.Sink_gas(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Sink_gas)
+    obj = devices.SinkGas(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SinkGas)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.price == {"gas": 100}
 
 
 def test_sink_oil():
-    dev_data = dto.DeviceSink_oilData(**dev_data_generic, price={"oil": 100})
+    dev_data = dto.DeviceSinkOilData(**dev_data_generic, price={"oil": 100})
     carrier_data_dict = {}
-    obj = devices.Sink_oil(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Sink_oil)
+    obj = devices.SinkOil(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SinkOil)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.price == {"oil": 100}
 
 
 def test_sink_water():
-    dev_data = dto.DeviceSink_waterData(
-        **dev_data_generic, flow_avg=None, max_accumulated_deviation=None
-    )
+    dev_data = dto.DeviceSinkWaterData(**dev_data_generic, flow_avg=None, max_accumulated_deviation=None)
     carrier_data_dict = {}
-    obj = devices.Sink_water(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Sink_water)
+    obj = devices.SinkWater(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SinkWater)
     assert obj.dev_data.flow_max == 20
 
 
 def test_sink_heat():
-    dev_data = dto.DeviceSink_heatData(**dev_data_generic)
+    dev_data = dto.DeviceSinkHeatData(**dev_data_generic)
     carrier_data_dict = {}
-    obj = devices.Sink_heat(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Sink_heat)
+    obj = devices.SinkHeat(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SinkHeat)
     assert obj.dev_data.flow_max == 20
 
 
 def test_sink_el():
-    dev_data = dto.DeviceSink_elData(**dev_data_generic)
+    dev_data = dto.DeviceSinkElData(**dev_data_generic)
     carrier_data_dict = {}
-    obj = devices.Sink_el(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Sink_el)
+    obj = devices.SinkEl(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SinkEl)
     assert obj.dev_data.flow_max == 20
 
 
 def test_source_gas():
-    dev_data = dto.DeviceSource_gasData(**dev_data_generic, naturalpressure=15)
+    dev_data = dto.DeviceSourceGasData(**dev_data_generic, naturalpressure=15)
     carrier_data_dict = {}
-    obj = devices.Source_gas(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Source_gas)
+    obj = devices.SourceGas(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SourceGas)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.naturalpressure == 15
 
 
 def test_source_water():
-    dev_data = dto.DeviceSource_waterData(**dev_data_generic, naturalpressure=15)
+    dev_data = dto.DeviceSourceWaterData(**dev_data_generic, naturalpressure=15)
     carrier_data_dict = {}
-    obj = devices.Source_water(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Source_water)
+    obj = devices.SourceWater(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SourceWater)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.naturalpressure == 15
 
 
 def test_source_el():
     # source_el is identical to powersource
-    dev_data = dto.DeviceSource_elData(**dev_data_generic, co2em=1.5)
+    dev_data = dto.DeviceSourceElData(**dev_data_generic, co2em=1.5)
     carrier_data_dict = {}
-    obj = devices.Source_el(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Source_el)
+    obj = devices.SourceEl(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SourceEl)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.co2em == 1.5
     assert obj.dev_data.reserve_factor == 1
 
 
 def test_storage_el():
-    dev_data = dto.DeviceStorage_elData(
+    dev_data = dto.DeviceStorageElData(
         **dev_data_generic,
         E_max=10,
         E_min=0.2,
@@ -231,14 +220,14 @@ def test_storage_el():
         E_init=2.5,
     )
     carrier_data_dict = {}
-    obj = devices.Storage_el(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Storage_el)
+    obj = devices.StorageEl(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.StorageEl)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.E_end == 5
 
 
 def test_storage_hydrogen():
-    dev_data = dto.DeviceStorage_hydrogenData(
+    dev_data = dto.DeviceStorageHydrogenData(
         **dev_data_generic,
         E_max=10,
         E_min=0.2,
@@ -248,25 +237,25 @@ def test_storage_hydrogen():
         E_init=4,
     )
     carrier_data_dict = {}
-    obj = devices.Storage_hydrogen(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Storage_hydrogen)
+    obj = devices.StorageHydrogen(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.StorageHydrogen)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.target_profile == "mytarget"
 
 
 def test_storage_gasheater():
-    dev_data = dto.DeviceGasheaterData(**dev_data_generic)
+    dev_data = dto.DeviceGasHeaterData(**dev_data_generic)
     carrier_data_dict = {}
-    obj = devices.Gasheater(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Gasheater)
+    obj = devices.GasHeater(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.GasHeater)
     assert obj.dev_data.flow_max == 20
 
 
 def test_storage_heatpump():
-    dev_data = dto.DeviceHeatpumpData(**dev_data_generic, eta=3)
+    dev_data = dto.DeviceHeatPumpData(**dev_data_generic, eta=3)
     carrier_data_dict = {}
-    obj = devices.Heatpump(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Heatpump)
+    obj = devices.HeatPump(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.HeatPump)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.eta == 3
 
@@ -281,10 +270,10 @@ def test_storage_electrolyser():
 
 
 def test_storage_fuelcell():
-    dev_data = dto.DeviceFuelcellData(**dev_data_generic, eta=0.5, eta_heat=0.3)
+    dev_data = dto.DeviceFuelCellData(**dev_data_generic, eta=0.5, eta_heat=0.3)
     carrier_data_dict = {}
-    obj = devices.Fuelcell(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Fuelcell)
+    obj = devices.FuelCell(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.FuelCell)
     assert obj.dev_data.flow_max == 20
     assert obj.dev_data.eta == 0.5
     assert obj.carrier_in == ["hydrogen"]

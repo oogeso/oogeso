@@ -10,12 +10,6 @@ from oogeso.core.networks.network_node import NetworkNode
 class Separator(Device):
     """Wellstream separation into oil/gas/water."""
 
-    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
-        raise NotImplementedError("No get_flow_var defined for Separator")
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
     carrier_in = ["wellstream", "heat", "el"]
     carrier_out = ["oil", "gas", "water"]
     serial = []
@@ -97,9 +91,16 @@ class Separator(Device):
         )
         return list_to_reconstruct
 
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
+        raise NotImplementedError("No get_flow_var defined for Separator")
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
+
 
 class Separator2(Device):
     "Wellstream separation into oil/gas/water"
+
     carrier_in = ["oil", "gas", "water", "heat", "el"]
     carrier_out = ["oil", "gas", "water"]
     serial = ["oil", "gas", "water"]
@@ -188,3 +189,9 @@ class Separator2(Device):
             constr_separator2_energy,
         )
         return list_to_reconstruct
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
+        raise NotImplementedError("No get_flow_var defined for Separator")
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0

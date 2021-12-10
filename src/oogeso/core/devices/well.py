@@ -51,8 +51,9 @@ class WellProduction(Device):
         return 0
 
 
-class WellGaslift(Device):
+class WellGasLift(Device):
     "Production well with gas lift"
+
     carrier_in = ["gas"]
     carrier_out = ["gas", "oil", "water"]
     serial = ["gas"]
@@ -145,3 +146,6 @@ class WellGaslift(Device):
             + pyomo_model.varDeviceFlow[dev, "water", "out", t]
         )
         return flow
+
+    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+        return 0
