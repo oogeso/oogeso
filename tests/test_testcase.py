@@ -1,33 +1,40 @@
-import json
 from pathlib import Path
 
-import pyomo.environ as pyo
-import pytest
 import numpy as np
+import pyomo.environ as pyo
+import pyomo.opt as pyopt
+import pytest
 
 import oogeso
 import oogeso.dto.serialisation
 import oogeso.io
-from oogeso.utils.util import create_timeseriesdata
-from oogeso.dto.oogeso_output_data_objects import SimulationResult
+from oogeso import dto
 
 TEST_DATA_ROOT_PATH = Path(__file__).parent
-# EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
 
 
-def test_integration_case1():
-    # Simple test case, electric only
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+def test_simulator_run():
     data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testdata1.yaml")
     simulator = oogeso.Simulator(data)
+    opt = pyo.SolverFactory("cbc")  # noqa
+
+    sol = simulator.optimiser.solve(solver="cbc", timelimit=20)
+    assert sol.solver.termination_condition == pyopt.TerminationCondition.optimal, "Optimisation with CBC failed"
+    res = simulator.runSimulation("cbc", timerange=(0, 1), timelimit=20)
+    assert res.device_flow.loc[("dem", "el", "in", 0)] == res.device_flow.loc[("source1", "el", "out", 0)]
+
+
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+def test_integration_case1(testcase1_data: dto.EnergySystemData):
+
+    simulator = oogeso.Simulator(testcase1_data)
     assert isinstance(simulator, oogeso.Simulator)
     assert isinstance(simulator.optimiser, oogeso.OptimisationModel)
 
-    # Continue test only if cbc executable is present
-    opt = pyo.SolverFactory("cbc")
-    if not opt.available():
-        pytest.skip("CBC executable not found. Skipping test case 1.")
+    opt = pyo.SolverFactory("cbc")  # noqa
 
-    res = simulator.runSimulation("cbc", timerange=[0, 4])
+    res = simulator.runSimulation("cbc", timerange=(0, 4))
 
     assert (res.device_flow["dem", "el", "in"] == 15).all()
     assert (res.device_flow["source1", "el", "out"] == 15).all()
@@ -42,112 +49,57 @@ def test_integration_case1():
     assert (res.el_reserve == 5).all()
 
 
-def test_integration_case2():
-    # Medium test case
-    data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testcase2_inputdata.yaml")
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+def test_integration_case2(testcase2_data: dto.EnergySystemData, testcase2_expected_result: dto.SimulationResult):
 
-    profiles_dfs = oogeso.io.read_profiles_from_csv(
-        filename_forecasts=TEST_DATA_ROOT_PATH / "testcase2_profiles_forecasts.csv",
-        filename_nowcasts=TEST_DATA_ROOT_PATH / "testcase2_profiles_nowcasts.csv",
-        timestamp_col="timestamp",
-        exclude_cols=["timestep"],
-    )
-    profiles_json = create_timeseriesdata(
-        profiles_dfs["forecast"], profiles_dfs["nowcast"], time_start=None, time_end=None, timestep_minutes=15
-    )
-    data.profiles = [x for x in profiles_json if x.id in ["wind", "demand"]]
-
-    simulator = oogeso.Simulator(data)
+    simulator = oogeso.Simulator(testcase2_data)
     assert isinstance(simulator, oogeso.Simulator)
     assert isinstance(simulator.optimiser, oogeso.OptimisationModel)
 
-    # Continue test only if cbc executable is present
-    opt = pyo.SolverFactory("cbc")
-    if not opt.available():
-        pytest.skip("CBC executable not found. Skipping test case 2.")
+    opt = pyo.SolverFactory("cbc")  # noqa
 
-    res_computed = simulator.runSimulation("cbc", timerange=[0, 90])
-    # Read expected results from file:
-    with open(TEST_DATA_ROOT_PATH / "testcase2_resultobject.json", "r", encoding="utf8") as infile:
-        res_expected: SimulationResult = json.load(infile, cls=oogeso.dto.serialisation.OogesoResultJSONDecoder)
+    res_computed = simulator.runSimulation("cbc", timerange=(0, 90))
 
     # Check that results are as expected.
-    assert np.allclose(res_computed.device_flow, res_expected.device_flow)
-    assert (res_computed.device_is_on == res_expected.device_is_on).all()
-    assert (res_computed.device_is_prep == res_expected.device_is_prep).all()
-    assert (res_computed.device_starting == res_expected.device_starting).all()
-    assert (res_computed.device_stopping == res_expected.device_stopping).all()
-    assert np.allclose(res_computed.edge_flow, res_expected.edge_flow)
-    assert np.allclose(res_computed.edge_loss, res_expected.edge_loss)
-    assert np.allclose(res_computed.el_reserve, res_expected.el_reserve)
-    assert np.allclose(res_computed.el_backup, res_expected.el_backup)
-    assert np.allclose(res_computed.penalty, res_expected.penalty)
-    assert np.allclose(res_computed.terminal_flow, res_expected.terminal_flow)
-    assert np.allclose(res_computed.terminal_pressure, res_expected.terminal_pressure)
-    assert np.allclose(res_computed.co2_rate, res_expected.co2_rate)
-    assert np.allclose((res_computed.co2_rate_per_dev - res_expected.co2_rate_per_dev).astype(float), 0)
+    assert np.allclose(res_computed.device_flow, testcase2_expected_result.device_flow)
+    assert (res_computed.device_is_on == testcase2_expected_result.device_is_on).all()
+    assert (res_computed.device_is_prep == testcase2_expected_result.device_is_prep).all()
+    assert (res_computed.device_starting == testcase2_expected_result.device_starting).all()
+    assert (res_computed.device_stopping == testcase2_expected_result.device_stopping).all()
+    assert np.allclose(res_computed.edge_flow, testcase2_expected_result.edge_flow)
+    assert np.allclose(res_computed.edge_loss, testcase2_expected_result.edge_loss)
+    assert np.allclose(res_computed.el_reserve, testcase2_expected_result.el_reserve)
+    assert np.allclose(res_computed.el_backup, testcase2_expected_result.el_backup)
+    assert np.allclose(res_computed.penalty, testcase2_expected_result.penalty)
+    assert np.allclose(res_computed.terminal_flow, testcase2_expected_result.terminal_flow)
+    assert np.allclose(res_computed.terminal_pressure, testcase2_expected_result.terminal_pressure)
+    assert np.allclose(res_computed.co2_rate, testcase2_expected_result.co2_rate)
+    assert np.allclose((res_computed.co2_rate_per_dev - testcase2_expected_result.co2_rate_per_dev).astype(float), 0)
 
 
-def test_integration_case_leogo():
-    # Big and complex test case - the LEOGO case
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+def test_integration_case_leogo(leogo_test_data: dto.EnergySystemData, leogo_expected_result: dto.SimulationResult):
 
-    data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "leogo_reference_platform.yaml")
-    profiles_dfs = oogeso.io.read_profiles_from_csv(
-        filename_forecasts=TEST_DATA_ROOT_PATH / "leogo_profiles_forecasts.csv",
-        filename_nowcasts=TEST_DATA_ROOT_PATH / "leogo_profiles_nowcasts.csv",
-        timestamp_col="timestamp",
-        exclude_cols=["timestep"],
-    )
-    profiles_json = create_timeseriesdata(
-        profiles_dfs["forecast"],
-        profiles_dfs["nowcast"],
-        time_start=None,
-        time_end=None,
-        timestep_minutes=5,
-        resample_method="linear",
-    )
-    data.profiles = profiles_json
+    simulator = oogeso.Simulator(leogo_test_data)
 
-    # Case A with wind power:
-    gts = ["Gen1", "Gen2", "Gen3"]
-    wells = ["wellL1", "wellL2"]
-    hydrogendevices = ["electrolyser", "fuelcell", "h2storage"]
-    for dev in data.devices:
-        if dev.id in gts:
-            dev.start_stop.is_on_init = True
-        if dev.id == "wind":
-            dev.flow_max = 24
-        if dev.id == "battery":
-            dev.include = 0
-        if dev.id in wells:
-            dev.flow_min = dev.flow_max
-        if dev.id in hydrogendevices:
-            dev.include = 0
+    opt = pyo.SolverFactory("cbc")  # noqa
 
-    simulator = oogeso.Simulator(data)
-
-    opt = pyo.SolverFactory("cbc")
-    if not opt.available():
-        pytest.skip("CBC executable not found. Skipping test case 2.")
-
-    res_computed = simulator.runSimulation("cbc", timerange=[0, 40])
-    # Read expected results from file:
-    with open(TEST_DATA_ROOT_PATH / "leogo_resultobject.json", "r", encoding="utf8") as infile:
-        res_expected: SimulationResult = json.load(infile, cls=oogeso.dto.serialisation.OogesoResultJSONDecoder)
+    res_computed = simulator.runSimulation("cbc", timerange=(0, 40))
 
     # Check that results are as expected.
-    assert np.allclose(res_computed.device_flow, res_expected.device_flow)
-    assert (res_computed.device_is_on == res_expected.device_is_on).all()
-    assert (res_computed.device_is_prep == res_expected.device_is_prep).all()
-    assert (res_computed.device_starting == res_expected.device_starting).all()
-    assert (res_computed.device_stopping == res_expected.device_stopping).all()
-    assert np.allclose(res_computed.edge_flow, res_expected.edge_flow)
-    assert np.allclose(res_computed.edge_loss, res_expected.edge_loss)
-    assert np.allclose(res_computed.el_reserve, res_expected.el_reserve)
-    assert np.allclose(res_computed.el_backup, res_expected.el_backup, atol=1e-6)
-    assert np.allclose(res_computed.penalty, res_expected.penalty)
-    assert np.allclose(res_computed.terminal_flow, res_expected.terminal_flow)
-    assert np.allclose(res_computed.terminal_pressure, res_expected.terminal_pressure)
-    assert np.allclose(res_computed.co2_rate, res_expected.co2_rate)
-    assert np.allclose((res_computed.co2_rate_per_dev - res_expected.co2_rate_per_dev).astype(float), 0, atol=1e-6)
-
+    assert np.allclose(res_computed.device_flow, leogo_expected_result.device_flow)
+    assert (res_computed.device_is_on == leogo_expected_result.device_is_on).all()
+    assert (res_computed.device_is_prep == leogo_expected_result.device_is_prep).all()
+    assert (res_computed.device_starting == leogo_expected_result.device_starting).all()
+    assert (res_computed.device_stopping == leogo_expected_result.device_stopping).all()
+    assert np.allclose(res_computed.edge_flow, leogo_expected_result.edge_flow)
+    assert np.allclose(res_computed.edge_loss, leogo_expected_result.edge_loss)
+    assert np.allclose(res_computed.el_reserve, leogo_expected_result.el_reserve)
+    assert np.allclose(res_computed.el_backup, leogo_expected_result.el_backup, atol=1e-6)
+    assert np.allclose(res_computed.penalty, leogo_expected_result.penalty)
+    assert np.allclose(res_computed.terminal_flow, leogo_expected_result.terminal_flow)
+    assert np.allclose(res_computed.terminal_pressure, leogo_expected_result.terminal_pressure)
+    assert np.allclose(res_computed.co2_rate, leogo_expected_result.co2_rate)
+    assert np.allclose(
+        (res_computed.co2_rate_per_dev - leogo_expected_result.co2_rate_per_dev).astype(float), 0, atol=1e-6
+    )
