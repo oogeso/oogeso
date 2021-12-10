@@ -1,7 +1,9 @@
-from oogeso.dto.oogeso_input_data_objects import TimeSeriesData
-from typing import List
 import logging
+from typing import List, Optional
+
 import pandas as pd
+
+from oogeso.dto.oogeso_input_data_objects import TimeSeriesData
 
 logger = logging.getLogger(__name__)
 
@@ -9,8 +11,8 @@ logger = logging.getLogger(__name__)
 def create_timeseriesdata(
     df_forecast: pd.DataFrame,
     df_nowcast: pd.DataFrame,
-    time_start: str,
-    time_end: str,
+    time_start: Optional[str],
+    time_end: Optional[str],
     timestep_minutes: int,
     resample_method: str = "linear",
 ) -> List[TimeSeriesData]:
@@ -54,9 +56,7 @@ def create_timeseriesdata(
             list_data_nowcast = None
             if ("nowcast", curve) in df_new.columns:
                 list_data_nowcast = list(df_new[("nowcast", curve)])
-            new_ts = TimeSeriesData(
-                id=curve, data=list_data, data_nowcast=list_data_nowcast
-            )
+            new_ts = TimeSeriesData(id=curve, data=list_data, data_nowcast=list_data_nowcast)
             profiles.append(new_ts)
         elif col[0] == "nowcast":
             if ("forecast", curve) not in df_new.columns:

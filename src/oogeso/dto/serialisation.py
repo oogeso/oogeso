@@ -16,10 +16,10 @@ class DataclassJSONEncoder(json.JSONEncoder):
             dct = asdict(obj=obj)
             return dct
         if isinstance(obj, pd.Series):
-            dct = obj.reset_index().to_json()
+            dct = obj.reset_index().to_json(orient="records")
             return dct
         if isinstance(obj, pd.DataFrame):
-            dct = obj.reset_index().to_json()
+            dct = obj.reset_index().to_json(orient="records")
             return dct
         return super().default(obj)
 
@@ -135,10 +135,21 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
                     res_dfs[k] = None
                 else:
                     val2 = json.loads(val)
-                    print(type(val), type(val2))
                     df = pd.DataFrame.from_dict(val2)
-                    multiind = [c for c in df.columns if c != "value"]
-                    df = df.set_index(multiind)
+                    if df.empty:
+                        df = None
+                    elif k in ["profiles_forecast", "profiles_nowcast"]:
+                        df = df.set_index("index")
+                    else:
+                        # change to multi-index pandas Series
+                        index_names = ["device", "time", "carrier", "terminal", "edge", "node"]
+                        multiind = [c for c in df.columns if c in index_names]
+                        # print(df.columns)
+                        # if multiind == []:
+                        #    print(val, type(val))
+                        df = df.set_index(multiind)
+                        # print(df.columns)
+                        df = df.iloc[:, 0]
                     res_dfs[k] = df
             result_data = SimulationResult(**res_dfs)
             return result_data

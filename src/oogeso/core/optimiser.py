@@ -297,15 +297,11 @@ class OptimisationModel:
         model.varDeviceIsOn = pyo.Var(
             model.setDevice, model.setHorizon, within=pyo.Binary, initialize=1
         )
-        model.varDeviceStarting = pyo.Var(
-            model.setDevice, model.setHorizon, within=pyo.Binary, initialize=0
-        )
-        model.varDeviceStopping = pyo.Var(
-            model.setDevice, model.setHorizon, within=pyo.Binary
-        )
         model.varDeviceStorageEnergy = pyo.Var(
             model.setDevice, model.setHorizon, within=pyo.Reals
         )
+        model.varDeviceStarting = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary, initialize=None)
+        model.varDeviceStopping = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary, initialize=None)
         # available reserve power from storage (linked to power rating and storage level):
         model.varDeviceStoragePmax = pyo.Var(
             model.setDevice, model.setHorizon, within=pyo.NonNegativeReals, initialize=0
@@ -812,7 +808,9 @@ class OptimisationModel:
 
             # ignore NA values
             df = df.dropna()
-            # df = df.unstack("time").T
+            if df.empty:
+                all_values[myvar.name] = None
+                continue
 
             if timelimit is not None:
                 mask = df.index.get_level_values("time") < timelimit
