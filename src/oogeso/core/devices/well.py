@@ -23,7 +23,7 @@ class WellProduction(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rule_well_production(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_well_production(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev_data = self.dev_data
         node = dev_data.node_id
         lhs = pyomo_model.varPressure[(node, "wellstream", "out", t)]
@@ -47,9 +47,6 @@ class WellProduction(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         return pyomo_model.varDeviceFlow[self.id, "wellstream", "out", t]
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
 
 class WellGasLift(Device):
     "Production well with gas lift"
@@ -70,7 +67,7 @@ class WellGasLift(Device):
 
     def _rule_gaslift(
         self, pyomo_model: pyo.Model, carrier: dto.CarrierGasData, t: int, i: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
 
         # flow from reservoir (equals flow out minus gas injection)
         dev = self.id
@@ -146,6 +143,3 @@ class WellGasLift(Device):
             + pyomo_model.varDeviceFlow[dev, "water", "out", t]
         )
         return flow
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0

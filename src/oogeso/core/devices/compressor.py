@@ -24,7 +24,7 @@ class CompressorEl(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         node_obj: NetworkNode = self.node
         gas_data = self.carrier_data["gas"]
@@ -56,9 +56,6 @@ class CompressorEl(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> pyo.Var:
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
 
 class CompressorGas(Device):
     """
@@ -79,7 +76,7 @@ class CompressorGas(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         dev_data: DeviceCompressorGasData = self.dev_data  # noqa: Fixme: dev_data not in use.
         node_obj: NetworkNode = self.node
@@ -107,14 +104,14 @@ class CompressorGas(Device):
         d = self.id
         gas_data = self.carrier_data["gas"]
         gasflow_co2 = gas_data.co2_content  # kg/m3
-        this_CO2 = (
+
+        return (
             sum(
                 (pyomo_model.varDeviceFlow[d, "gas", "in", t] - pyomo_model.varDeviceFlow[d, "gas", "out", t])
                 for t in timesteps
             )
             * gasflow_co2
         )
-        return this_CO2
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         raise NotImplementedError()

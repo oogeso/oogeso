@@ -51,9 +51,7 @@ class El(Network):
                 )
                 setattr(pyomo_model, "constrE_{}_{}".format(edge, "flow"), constr_flow)
 
-    def _rule_el_voltage_reference(
-        self, pyomo_model: pyo.Model, t: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_el_voltage_reference(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         el_carrier = self.carrier_data
         n = el_carrier.reference_node
         expr = pyomo_model.varElVoltageAngle[n, t] == 0
@@ -61,7 +59,7 @@ class El(Network):
 
     def _rule_dc_power_flow_equations(
         self, pyomo_model: pyo.Model, edge: dto.EdgeData, t: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Flow vs voltage angle"""
         base_mva = el_calc.elbase["baseMVA"]
         base_angle = el_calc.elbase["baseAngle"]

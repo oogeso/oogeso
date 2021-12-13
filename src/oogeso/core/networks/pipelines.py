@@ -34,7 +34,7 @@ class Fluid(Network):
                     constr_flow,
                 )
 
-    def _rulePipelineFlow(self, model: pyo.Model, edge, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rulePipelineFlow(self, model: pyo.Model, edge, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Pipeline flow vs pressure drop"""
         # edge = self.id
         edge_obj = self.edges[edge]

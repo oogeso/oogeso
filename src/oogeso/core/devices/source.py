@@ -105,9 +105,6 @@ class Powersource(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
 
 class SourceGas(Device):
     """Generic external source for gas."""
@@ -126,7 +123,7 @@ class SourceGas(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
         lhs = model.varPressure[(node, "gas", "out", t)]
         rhs = self.dev_data.naturalpressure
@@ -149,9 +146,6 @@ class SourceGas(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
 
 class SourceOil(Device):
     """Generic external source for oil."""
@@ -162,7 +156,7 @@ class SourceOil(Device):
 
     # Fixme: Missing DTOs?
 
-    def _rules(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
         lhs = model.varPressure[(node, "oil", "out", t)]
         rhs = self.dev_data.naturalpressure
@@ -203,7 +197,7 @@ class SourceWater(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
         lhs = model.varPressure[(node, "water", "out", t)]
         rhs = self.dev_data.naturalpressure
@@ -225,6 +219,3 @@ class SourceWater(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "water", "out", t]
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0

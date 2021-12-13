@@ -8,9 +8,6 @@ from oogeso.core.devices.base import Device
 
 
 class StorageDevice(Device):
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
     @abstractmethod
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         pass
@@ -33,7 +30,7 @@ class StorageEl(StorageDevice):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         dev_data: dto.DeviceStorageElData = self.dev_data
         time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
@@ -162,7 +159,7 @@ class StorageHydrogen(StorageDevice):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         dev_data: dto.DeviceStorageHydrogenData = self.dev_data
         # param_hydrogen = self.optimiser.all_carriers["hydrogen"]

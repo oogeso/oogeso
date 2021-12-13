@@ -23,7 +23,7 @@ class GasTurbine(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         param_gas = self.carrier_data["gas"]
         # el_power = model.varDeviceFlow[dev, "el", "out", t]
@@ -65,5 +65,5 @@ class GasTurbine(Device):
     def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
         param_gas = self.carrier_data["gas"]
         gasflow_co2 = param_gas.co2_content  # kg/m3
-        this_CO2 = sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gasflow_co2
-        return this_CO2
+
+        return sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gasflow_co2

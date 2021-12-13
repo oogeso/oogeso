@@ -22,7 +22,7 @@ class GasHeater(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         param_dev = self.params  # Fixme: Attribute params is missing
         param_gas = pyomo_model.all_carriers["gas"].params
@@ -53,6 +53,5 @@ class GasHeater(Device):
         Fixme: The variable d and model_pyomo was not set. Changed to model and self.dev_data. Correct?
         """
         param_gas = self.carrier_data["gas"]
-        gasflow_co2 = param_gas.co2_content  # kg/m3
-        thisCO2 = sum(pyomo_model.varDeviceFlow[self.dev_data, "gas", "in", t] for t in timesteps) * gasflow_co2
-        return thisCO2
+        gas_flow_co2 = param_gas.co2_content  # kg/m3
+        return sum(pyomo_model.varDeviceFlow[self.dev_data, "gas", "in", t] for t in timesteps) * gas_flow_co2

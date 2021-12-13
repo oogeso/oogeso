@@ -25,9 +25,7 @@ class Separator(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rule_separator(
-        self, pyomo_model: pyo.Model, t: int, i: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_separator(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         dev_data = self.dev_data
         node = dev_data.node_id
@@ -94,9 +92,6 @@ class Separator(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         raise NotImplementedError("No get_flow_var defined for Separator")
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
 
 class Separator2(Device):
     "Wellstream separation into oil/gas/water"
@@ -123,7 +118,7 @@ class Separator2(Device):
     # wellstream
     def _rule_separator2_flow(
         self, pyomo_model: pyo.Model, fc, t: int, i: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         node = self.dev_data.node_id
         node_obj: NetworkNode = self.node
@@ -143,7 +138,7 @@ class Separator2(Device):
 
     def _rule_separator2_energy(
         self, pyomo_model: pyo.Model, t: int, i: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         dev_data: dto.DeviceSeparator2Data = self.dev_data
         flow_in = sum(pyomo_model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"])
@@ -192,6 +187,3 @@ class Separator2(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         raise NotImplementedError("No get_flow_var defined for Separator")
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0

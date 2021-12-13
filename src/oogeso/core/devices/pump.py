@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import pyomo.environ as pyo
 
@@ -62,7 +62,7 @@ class PumpDevice(Device):
             P = Q * (p2 - p1) / eta
         return P
 
-    def _rules_pump(self, model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules_pump(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         if isinstance(self, PumpOil):
             carrier = "oil"
@@ -97,9 +97,6 @@ class PumpDevice(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
 
 
 class PumpOil(PumpDevice):

@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import pyomo.environ as pyo
 
@@ -25,7 +25,7 @@ class HeatPump(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         # heat out = el in * efficiency
         lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
@@ -44,6 +44,3 @@ class HeatPump(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0

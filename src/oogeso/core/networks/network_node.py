@@ -67,7 +67,7 @@ class NetworkNode:
 
     def _rule_terminal_energy_balance(
         self, model: pyo.Model, carrier, terminal, t: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         r""" node energy balance (at in and out terminals)
         "in" terminal: flow into terminal is positive (Pinj>0)
         "out" terminal: flow out of terminal is positive (Pinj>0)
@@ -134,7 +134,7 @@ class NetworkNode:
             expr = pyo.Constraint.Skip
         return expr
 
-    def _rule_pressure_at_node(self, model: pyo.Model, carrier, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_pressure_at_node(self, model: pyo.Model, carrier, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.id
         if carrier in ["el", "heat"]:
             return pyo.Constraint.Skip
@@ -150,7 +150,7 @@ class NetworkNode:
 
     def _rule_pressure_bounds(
         self, model: pyo.Model, term, carrier, t: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.id
         nominal_pressure = self.pressure_nominal
         max_dev = None  # default is no constraint

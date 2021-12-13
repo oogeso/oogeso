@@ -471,7 +471,7 @@ class OptimisationModel:
     #                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
     #            return sumStorPmax
 
-    def _rule_objective_penalty(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_penalty(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """'penalty' as specified through penalty functions"""
         sum_penalty = 0
         timesteps = model.setHorizon
@@ -481,18 +481,18 @@ class OptimisationModel:
             sum_penalty = sum_penalty + this_penalty
         return sum_penalty
 
-    def _rule_objective_co2(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_co2(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emissions per sec"""
         sumE = self.compute_CO2(model)  # *model.paramParameters['CO2_price']
         return sumE
 
-    def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emission intensity (CO2 per exported oil/gas)
         DOES NOT WORK - NONLINEAR (ratio)"""
         sumE = self.compute_CO2_intensity(model)
         return sumE
 
-    def _rule_objective_costs(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_costs(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """costs (co2 price, operating costs, startstop, storage depletaion)
         per second (assuming fixed oil/gas production)"""
         startupCosts = self.compute_startup_penalty(model)  # kr/s
@@ -504,7 +504,7 @@ class OptimisationModel:
         sumCost = co2Cost + startupCosts + storageDepletionCosts + opCosts
         return sumCost
 
-    def _rule_objective_exportRevenue(self, model: pyo.Model) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_exportRevenue(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """revenue from exported oil and gas minus costs (co2 price and
         operating costs) per second"""
         sumRevenue = self.compute_exportRevenue(model)  # kr/s
@@ -517,7 +517,7 @@ class OptimisationModel:
         sumCost = -sumRevenue + co2Cost + startupCosts + storageDepletionCosts + opCosts
         return sumCost
 
-    def _rule_emissionRateLimit(self, model: pyo.Model, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_emissionRateLimit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission rate"""
         params_generic = self.optimisation_parameters
         emissionRateMax = params_generic.emission_rate_max
@@ -525,7 +525,7 @@ class OptimisationModel:
         rhs = emissionRateMax
         return lhs <= rhs
 
-    def _rule_emissionIntensityLimit(self, model: pyo.Model, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_emissionIntensityLimit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission intensity"""
         params_generic = self.optimisation_parameters
         emissionIntensityMax = params_generic.emission_intensity_max
@@ -533,9 +533,7 @@ class OptimisationModel:
         rhs = emissionIntensityMax * self.compute_oilgas_export(model, timesteps=[t])
         return lhs <= rhs
 
-    def _rule_el_reserve_margin(
-        self, pyomo_model: pyo.Model, t: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_el_reserve_margin(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Reserve margin constraint (electrical supply)
         Not used capacity by power suppliers/storage/load flexibility
         must be larger than some specified margin
@@ -554,7 +552,7 @@ class OptimisationModel:
         expr = capacity_unused >= margin
         return expr
 
-    def _rule_el_backup_margin(self, model: pyo.Model, dev, t) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_el_backup_margin(self, model: pyo.Model, dev, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Backup capacity constraint (electrical supply)
         Not used capacity by other online power suppliers plus sheddable
         load must be larger than power output of this device
@@ -583,9 +581,9 @@ class OptimisationModel:
             dev = self.all_devices[d]
             thisCO2 = dev.compute_CO2(model, timesteps)
             sumCO2 = sumCO2 + thisCO2
+
         # Average per s
-        sumCO2 = sumCO2 / len(timesteps)
-        return sumCO2
+        return sumCO2 / len(timesteps)
 
     def compute_CO2_intensity(self, model: pyo.Model, timesteps=None):
         """CO2 emission per exported oil/gas (kgCO2/Sm3oe)"""
@@ -593,13 +591,14 @@ class OptimisationModel:
             timesteps = model.setHorizon
 
         co2_kg_per_time = self.compute_CO2(model, devices=None, timesteps=timesteps)
-        flow_oilequivalents_m3_per_time = self.compute_oilgas_export(model, timesteps)
-        if pyo.value(flow_oilequivalents_m3_per_time) != 0:
-            co2intensity = co2_kg_per_time / flow_oilequivalents_m3_per_time
-        if pyo.value(flow_oilequivalents_m3_per_time) == 0:
+        flow_oil_equivalents_m3_per_time = self.compute_oilgas_export(model, timesteps)
+        if pyo.value(flow_oil_equivalents_m3_per_time) != 0:
+            return co2_kg_per_time / flow_oil_equivalents_m3_per_time
+        elif pyo.value(flow_oil_equivalents_m3_per_time) == 0:
             # logger.debug("zero export, so co2 intensity set to None")
-            co2intensity = None
-        return co2intensity
+            return None
+        else:
+            return co2_kg_per_time
 
     def compute_startup_penalty(self, model: pyo.Model, devices=None, timesteps=None):
         """startup costs (average per sec)"""

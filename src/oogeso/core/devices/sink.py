@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict
 
 import pyomo.environ as pyo
 
@@ -25,9 +25,6 @@ class PowerSink(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
@@ -53,9 +50,6 @@ class SinkHeat(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "heat", "in", t]
 
@@ -75,9 +69,6 @@ class SinkGas(Device):
         self.dev_data = dev_data
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
@@ -99,9 +90,6 @@ class SinkOil(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
-
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
 
@@ -121,9 +109,6 @@ class SinkWater(Device):
         self.dev_data = dev_data
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        return 0
 
     def rule_devmodel_sink_water(self, model: pyo.Model, t: int, i: int):
         dev = self.id

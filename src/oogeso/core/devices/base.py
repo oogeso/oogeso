@@ -45,7 +45,7 @@ class Device(ABC):
         if hasattr(dev_data, "P_init"):
             pyomo_model.paramDevicePowerInitially[dev_id] = dev_data.P_init
 
-    def _rule_device_flow_max(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_device_flow_max(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
         if power is None:
             return pyo.Constraint.Skip
@@ -53,7 +53,7 @@ class Device(ABC):
         expr = power <= max_value
         return expr
 
-    def _rule_device_flow_min(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_device_flow_min(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
         if power is None:
             return pyo.Constraint.Skip
@@ -68,7 +68,7 @@ class Device(ABC):
         expr = power >= ison * min_value
         return expr
 
-    def _rule_ramp_rate(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_ramp_rate(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """power ramp rate limit"""
         dev = self.id
         dev_data = self.dev_data
@@ -89,7 +89,7 @@ class Device(ABC):
         expr = pyo.inequality(max_neg, delta_P, max_pos)
         return expr
 
-    def _rule_startup_shutdown(self, model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_startup_shutdown(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """startup/shutdown constraint
         connecting starting, stopping, preparation, online stages of GTs"""
         dev = self.id
@@ -246,10 +246,6 @@ class Device(ABC):
         """Returns the maximum possible flow given capacity and profile"""
         # Used by piecewise linear constraints
         return self._flow_upper_bound
-
-    @abstractmethod
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        pass
 
     def compute_export(
         self, pyomo_model: pyo.Model, value: str, carriers: List[CarrierData], timesteps: List[int]

@@ -49,9 +49,7 @@ class Edge:
                     constr_loss_function,
                 )
 
-    def _rule_edge_flow_max_min(
-        self, pyomo_model: pyo.Model, t: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_edge_flow_max_min(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         edge = self.id
         # if non-bidirectional, lower bound=0, if bidirectional, bound=+- pmax
         if self.edge_data.flow_max is None:
@@ -77,7 +75,7 @@ class Edge:
 
     def _rule_edge_flow_and_loss(
         self, pyomo_model: pyo.Model, t: int, i: int
-    ) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Split edge flow into positive and negative part, for loss calculations"""
         edge = self.id
         if i == 1:
