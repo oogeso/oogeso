@@ -120,7 +120,7 @@ class OptimisationModel:
         # Create energy system network elements (devices, nodes, edges)
         for dev_data_obj in energy_system_data.devices:
             dev_id = dev_data_obj.id
-            if dev_data_obj.include is False:
+            if not dev_data_obj.include:
                 # skip this edge and move to next
                 logger.debug("Excluding device {}".format(dev_id))
                 continue
