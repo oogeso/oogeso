@@ -1,11 +1,13 @@
-"""Module for plotting optimisation problem"""
-
-import matplotlib.pyplot as plt
 import pandas as pd
-import pyomo.environ as pyo
+from pyomo import environ as pyo
+
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    raise ImportError("In order to run this plotting module you need to install matplotlib.")
 
 
-def plotDevicePowerLastOptimisation1(mc, device, filename=None):
+def plot_device_power_last_optimisation_1(mc, device, filename=None):
     model = mc.instance
     devname = model.paramDevice[device]["name"]
     maxP = model.paramDevice[device]["Pmax"]
@@ -61,32 +63,7 @@ def plotDevicePowerLastOptimisation1(mc, device, filename=None):
         plt.savefig(filename, bbox_inches="tight")
 
 
-# def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
-#     """Plot power schedule over planning horizon (last optimisation)"""
-#     if devices=='all':
-#         devices = list(model.setDevice)
-#     varPower = model.getDevicePower()
-#     df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
-#                                 orient="index")
-#     df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
-#     df = df[0].unstack(level=0)
-#     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
-#
-#     plt.figure(figsize=(12,4))
-#     ax=plt.gca()
-#     df[devices].plot(ax=ax)
-#     labels = (df_info.loc[devices].index.astype(str)
-#               +'_'+df_info.loc[devices,'name'])
-#     plt.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
-#                frameon=False)
-#     plt.xlabel("Timestep")
-#     plt.ylabel("Device power (MW)")
-#     if filename is not None:
-#         plt.savefig(filename,bbox_inches = 'tight')
-#
-
-
-def plotDeviceSumPowerLastOptimisation(model: pyo.Model, carrier="el", filename=None):
+def plot_device_sum_power_last_optimisation(model: pyo.Model, carrier="el", filename=None):
     """Plot power schedule over planning horizon (last optimisation)"""
 
     df = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(), orient="index")
@@ -132,7 +109,7 @@ def plotDeviceSumPowerLastOptimisation(model: pyo.Model, carrier="el", filename=
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plotEmissionRateLastOptimisation(model: pyo.Model, filename=None):
+def plot_rmission_tate_last_optimisation(model: pyo.Model, filename=None):
     devices = model.setDevice
     timesteps = model.setHorizon
     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
@@ -151,3 +128,28 @@ def plotEmissionRateLastOptimisation(model: pyo.Model, filename=None):
     ax.legend(loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
     if filename is not None:
         plt.savefig(filename, bbox_inches="tight")
+
+
+# def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
+#     """Plot power schedule over planning horizon (last optimisation)"""
+#     if devices=='all':
+#         devices = list(model.setDevice)
+#     varPower = model.getDevicePower()
+#     df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
+#                                 orient="index")
+#     df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
+#     df = df[0].unstack(level=0)
+#     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
+#
+#     plt.figure(figsize=(12,4))
+#     ax=plt.gca()
+#     df[devices].plot(ax=ax)
+#     labels = (df_info.loc[devices].index.astype(str)
+#               +'_'+df_info.loc[devices,'name'])
+#     plt.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
+#                frameon=False)
+#     plt.xlabel("Timestep")
+#     plt.ylabel("Device power (MW)")
+#     if filename is not None:
+#         plt.savefig(filename,bbox_inches = 'tight')
+#
