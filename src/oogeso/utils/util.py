@@ -1,4 +1,3 @@
-import inspect
 import logging
 from typing import Callable, List, Optional
 
@@ -11,14 +10,36 @@ logger = logging.getLogger(__name__)
 
 
 def get_device_from_model_name(model_name: str) -> Callable:
-
-    device_list = {k: v for k, v in devices.__dict__.items() if inspect.isclass(v)}
-    if model_name in device_list.keys():
-        return device_list[model_name]
-    elif model_name.lower() in [x.lower() for x in device_list.keys()]:
-        return [v for k, v in device_list.items() if k.lower() == model_name.lower()][0]
-    elif model_name.lower().replace("_", "") in [x.lower() for x in device_list.keys()]:
-        return [v for k, v in device_list.items() if k.lower() == model_name.lower().replace("_", "")][0]
+    map_device_name_to_class = {
+        "powersource": devices.Powersource,
+        "powersink": devices.PowerSink,
+        "storageel": devices.StorageEl,
+        "compressorel": devices.CompressorEl,
+        "compressorgas": devices.CompressorGas,
+        "electrolyser": devices.Electrolyser,
+        "fuelcell": devices.FuelCell,
+        "gasheater": devices.GasHeater,
+        "gasturbine": devices.GasTurbine,
+        "heatpump": devices.HeatPump,
+        "pumpoil": devices.PumpOil,
+        "pumpwater": devices.PumpWater,
+        "separastor": devices.Separator,
+        "separator2": devices.Separator2,
+        "sinkel": devices.SinkEl,
+        "sinkheat": devices.SinkHeat,
+        "sinkgas": devices.SinkGas,
+        "sinkoil": devices.SinkOil,
+        "sinkwater": devices.SinkWater,
+        "sourceel": devices.SourceEl,
+        "sourcegas": devices.SourceGas,
+        "sourceoil": devices.SourceOil,
+        "sourcewater": devices.SourceWater,
+        "storagehydrogen": devices.StorageHydrogen,
+        "wellgaslift": devices.WellGasLift,
+        "wellproduction": devices.WellProduction,
+    }
+    if model_name in map_device_name_to_class:
+        return map_device_name_to_class[model_name]
     else:
         raise NotImplementedError(f"Device {model_name} has not been implemented.")
 
