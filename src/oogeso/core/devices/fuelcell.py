@@ -40,6 +40,8 @@ class FuelCell(Device):
             lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
             rhs = pyomo_model.varDeviceFlow[dev, "hydrogen", "in", t] * energy_value * (1 - efficiency) * eta_heat
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""

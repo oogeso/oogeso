@@ -84,6 +84,8 @@ class PumpDevice(Device):
                 t=t,
             )
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""

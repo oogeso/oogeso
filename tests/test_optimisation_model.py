@@ -26,7 +26,7 @@ def make_test_data() -> EnergySystemData:
     nodes = [oogeso.dto.NodeData("node1"), oogeso.dto.NodeData("node2")]
     edges = [oogeso.dto.EdgeElData("edge1_2", node_from="node1", node_to="node2")]
     dev1 = oogeso.dto.DevicePowerSourceData(
-        id="source1", node_id="node1", flow_max=20, penalty_function=[[0, 20], [0, 5]]
+        id="source1", node_id="node1", flow_max=20, penalty_function=([0, 20], [0, 5])
     )
     dev2 = oogeso.dto.DevicePowerSinkData(id="demand", node_id="node2", flow_min=15, flow_max=15, profile="demand")
     devices = [dev1, dev2]

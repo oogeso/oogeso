@@ -30,7 +30,7 @@ class HeatPump(Device):
         # heat out = el in * efficiency
         lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
         rhs = pyomo_model.varDeviceFlow[dev, "el", "in", t] * pyomo_model.paramDevice[dev]["eta"]
-        return lhs == rhs
+        return pyo.Expression(lhs == rhs)
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""

@@ -113,6 +113,8 @@ class WellGasLift(Device):
                 return lhs == rhs
             else:
                 return pyo.Constraint.Skip
+        else:
+            raise ValueError(f"Argument i must be 1, 2, 3 or 4. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""

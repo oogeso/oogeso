@@ -523,7 +523,7 @@ class OptimisationModel:
         emissionRateMax = params_generic.emission_rate_max
         lhs = self.compute_CO2(model, timesteps=[t])
         rhs = emissionRateMax
-        return lhs <= rhs
+        return pyo.Expression(lhs <= rhs)
 
     def _rule_emissionIntensityLimit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission intensity"""
@@ -531,7 +531,7 @@ class OptimisationModel:
         emissionIntensityMax = params_generic.emission_intensity_max
         lhs = self.compute_CO2(model, timesteps=[t])
         rhs = emissionIntensityMax * self.compute_oilgas_export(model, timesteps=[t])
-        return lhs <= rhs
+        return pyo.Expression(lhs <= rhs)
 
     def _rule_el_reserve_margin(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Reserve margin constraint (electrical supply)

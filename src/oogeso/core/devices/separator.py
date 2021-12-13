@@ -74,6 +74,8 @@ class Separator(Device):
             lhs = pyomo_model.varPressure[(node, "water", "out", t)]
             rhs = node_obj.get_pressure_nominal("water", "out")
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1, 2, ..., 8. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
@@ -135,6 +137,8 @@ class Separator2(Device):
             lhs = pyomo_model.varPressure[(node, fc, "out", t)]
             rhs = node_obj.get_pressure_nominal(fc, "out")
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
     def _rule_separator2_energy(
         self, pyomo_model: pyo.Model, t: int, i: int
@@ -153,6 +157,8 @@ class Separator2(Device):
             lhs = pyomo_model.varDeviceFlow[dev, "heat", "in", t]
             rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""

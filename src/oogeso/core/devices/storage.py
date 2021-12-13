@@ -210,6 +210,8 @@ class StorageHydrogen(StorageDevice):
             target_value = pyomo_model.paramDeviceEnergyTarget[dev]
             deviation = pyomo_model.varDeviceStorageEnergy[dev, t] - target_value
             return Xprime >= -deviation
+        else:
+            raise ValueError(f"Argument i must be 1, 2, 3 or 4. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
