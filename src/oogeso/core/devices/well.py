@@ -107,7 +107,7 @@ class WellGasLift(Device):
                 rhs = dev_data.f_inj * pyomo_model.varDeviceFlow[dev, "oil", "out", t]
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip()
+                return pyo.Constraint.Skip
         elif i == 4:
             # gas injection pressure is fixed
             if carrier == "gas":
@@ -115,7 +115,7 @@ class WellGasLift(Device):
                 rhs = dev_data.injection_pressure
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip()
+                return pyo.Constraint.Skip
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""

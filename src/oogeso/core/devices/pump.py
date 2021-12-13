@@ -64,9 +64,9 @@ class PumpDevice(Device):
 
     def _rules_pump(self, model: pyo.Model, t: int, i: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        if self.dev_data.model == "pump_oil":
+        if isinstance(self, PumpOil):
             carrier = "oil"
-        elif self.dev_data.model == "pump_water":
+        elif isinstance(self, PumpWater):
             carrier = "water"
         else:
             raise NotImplementedError(f"Device model {self.dev_data.model} has not been implemented")

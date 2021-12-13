@@ -110,7 +110,7 @@ class StorageEl(StorageDevice):
                 rhs = dev_data.E_end
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip()
+                return pyo.Constraint.Skip
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
@@ -198,7 +198,7 @@ class StorageHydrogen(StorageDevice):
             # should we instead use
             # Xprime >= 0 (we still need the lower limit (or bound) to avoid negative cost)
             if t != pyomo_model.setHorizon.last():
-                return pyo.Constraint.Skip()
+                return pyo.Constraint.Skip
             Xprime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
             target_value = pyomo_model.paramDeviceEnergyTarget[dev]
@@ -207,7 +207,7 @@ class StorageHydrogen(StorageDevice):
         elif i == 4:
             # deviation from target and absolute value at the end of horizon
             if t != pyomo_model.setHorizon.last():
-                return pyo.Constraint.Skip()
+                return pyo.Constraint.Skip
             Xprime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
             target_value = pyomo_model.paramDeviceEnergyTarget[dev]

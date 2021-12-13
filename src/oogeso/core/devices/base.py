@@ -48,7 +48,7 @@ class Device(ABC):
     def _rule_device_flow_max(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
         if power is None:
-            return pyo.Constraint.Skip()
+            return pyo.Constraint.Skip
         max_value = self.get_max_flow(pyomo_model, t)
         expr = power <= max_value
         return expr
@@ -56,7 +56,7 @@ class Device(ABC):
     def _rule_device_flow_min(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
         if power is None:
-            return pyo.Constraint.Skip()
+            return pyo.Constraint.Skip
         min_value = self.dev_data.flow_min
         if self.dev_data.profile is not None:
             # use an availability profile if provided
@@ -75,7 +75,7 @@ class Device(ABC):
 
         # If no ramp limits have been specified, skip constraint
         if self.dev_data.max_ramp_up is None:
-            return pyo.Constraint.Skip()
+            return pyo.Constraint.Skip
         if t > 0:
             p_prev = self.get_flow_var(pyomo_model, t - 1)
         else:
@@ -126,7 +126,7 @@ class Device(ABC):
         # example: time_delta = 5 min, startupDelay= 8 min => T_delay=1
         T_delay = int(T_delay_min / time_delta_minutes)
         if T_delay == 0:
-            return pyo.Constraint.Skip()
+            return pyo.Constraint.Skip
         # determine if was in preparation previously
         # dependent on value - so must reconstruct constraint each time
         steps_prev_prep = pyo.value(pyomo_model.paramDevicePrepTimestepsInitially[dev])

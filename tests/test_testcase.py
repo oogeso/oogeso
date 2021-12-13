@@ -17,7 +17,6 @@ TEST_DATA_ROOT_PATH = Path(__file__).parent
 def test_simulator_run():
     data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testdata1.yaml")
     simulator = oogeso.Simulator(data)
-    opt = pyo.SolverFactory("cbc")  # noqa
 
     sol = simulator.optimiser.solve(solver="cbc", time_limit=20)
     assert sol.solver.termination_condition == pyopt.TerminationCondition.optimal, "Optimisation with CBC failed"
@@ -31,8 +30,6 @@ def test_integration_case1(testcase1_data: dto.EnergySystemData):
     simulator = oogeso.Simulator(testcase1_data)
     assert isinstance(simulator, oogeso.Simulator)
     assert isinstance(simulator.optimiser, oogeso.OptimisationModel)
-
-    opt = pyo.SolverFactory("cbc")  # noqa
 
     res = simulator.run_simulation("cbc", time_range=(0, 4))
 
@@ -55,8 +52,6 @@ def test_integration_case2(testcase2_data: dto.EnergySystemData, testcase2_expec
     simulator = oogeso.Simulator(data=testcase2_data)
     assert isinstance(simulator, oogeso.Simulator)
     assert isinstance(simulator.optimiser, oogeso.OptimisationModel)
-
-    opt = pyo.SolverFactory("cbc")  # noqa
 
     res_computed = simulator.run_simulation("cbc", time_range=(0, 90))
 
@@ -82,11 +77,10 @@ def test_integration_case_leogo(leogo_test_data: dto.EnergySystemData, leogo_exp
 
     simulator = oogeso.Simulator(leogo_test_data)
 
-    opt = pyo.SolverFactory("cbc")  # noqa
-
     res_computed = simulator.run_simulation("cbc", time_range=(0, 40))
 
     # Check that results are as expected.
+    assert res_computed.device_flow.shape == leogo_expected_result.device_flow.shape
     assert np.allclose(res_computed.device_flow, leogo_expected_result.device_flow)
     assert (res_computed.device_is_on == leogo_expected_result.device_is_on).all()
     assert (res_computed.device_is_prep == leogo_expected_result.device_is_prep).all()
