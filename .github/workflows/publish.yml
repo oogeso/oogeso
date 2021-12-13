@@ -19,27 +19,9 @@ jobs:
         with:
           python-version: '3.9'
 
-      # Create cache so that we don't have to do this for each step in the matrix.
-      - name: Create cache for Poetry
-        id: cache-poetry
-        uses: actions/cache@v2.1.6
+      - uses: snok/install-poetry@v1.3.0
         with:
-          path: ~/.poetry
-          key: poetry
-
-      # Install latest Poetry if cache has changed.
-      - name: Install latest version of Poetry
-        if: steps.cache-poetry.outputs.cache-hit != 'true'
-        run: |
-          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-
-      # Add Poetry to github_path
-      - name: Add Poetry to $PATH
-        run: |
-          echo "$HOME/.poetry/bin" >> $GITHUB_PATH
-
-      - name: Get Poetry version
-        run: poetry --version
+          virtualenvs-create: true
 
       - name: Check pyproject.toml validity
         run: poetry check --no-interaction
