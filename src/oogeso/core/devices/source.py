@@ -14,8 +14,8 @@ class SourceEl(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSourceElData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+        dev_data: dto.DeviceSourceElData,
+        carrier_data_dict: Dict[str, dto.CarrierElData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -49,8 +49,8 @@ class Powersource(Device):
 
     def __init__(
         self,
-        dev_data: dto.DevicePowerSourceData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+        dev_data: dto.DevicePowerSourceData,
+        carrier_data_dict: Dict[str, dto.CarrierElData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -115,8 +115,8 @@ class SourceGas(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSourceGasData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+        dev_data: dto.DeviceSourceGasData,
+        carrier_data_dict: Dict[str, dto.CarrierGasData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -189,8 +189,8 @@ class SourceWater(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSourceWaterData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierWaterData],  # Fixme: Correct?
+        dev_data: dto.DeviceSourceWaterData,
+        carrier_data_dict: Dict[str, dto.CarrierWaterData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data

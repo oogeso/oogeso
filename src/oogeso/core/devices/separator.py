@@ -16,8 +16,7 @@ class Separator(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSeparatorData,  # Fixme: Correct?
-        # Fixme: Correct?
+        dev_data: dto.DeviceSeparatorData,
         carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierHeatData, dto.CarrierWellstreamData]],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
@@ -104,8 +103,7 @@ class Separator2(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSeparator2Data,  # Fixme: Correct?
-        # Fixme: Correct?
+        dev_data: dto.DeviceSeparator2Data,
         carrier_data_dict: Dict[
             str,
             Union[dto.CarrierGasData, dto.CarrierOilData, dto.CarrierElData, dto.CarrierHeatData, dto.CarrierWaterData],

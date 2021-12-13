@@ -17,8 +17,8 @@ class PowerSink(Device):
 
     def __init__(
         self,
-        dev_data: dto.DevicePowerSinkData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+        dev_data: dto.DevicePowerSinkData,
+        carrier_data_dict: Dict[str, dto.CarrierElData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -42,8 +42,8 @@ class SinkHeat(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSinkHeatData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierHeatData],  # Fixme: Correct?
+        dev_data: dto.DeviceSinkHeatData,
+        carrier_data_dict: Dict[str, dto.CarrierHeatData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -62,8 +62,8 @@ class SinkGas(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSinkGasData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+        dev_data: dto.DeviceSinkGasData,
+        carrier_data_dict: Dict[str, dto.CarrierGasData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -82,8 +82,8 @@ class SinkOil(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSinkOilData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierOilData],  # Fixme: Correct?
+        dev_data: dto.DeviceSinkOilData,
+        carrier_data_dict: Dict[str, dto.CarrierOilData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -102,8 +102,8 @@ class SinkWater(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceSinkWaterData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierWaterData],  # Fixme: Correct?
+        dev_data: dto.DeviceSinkWaterData,
+        carrier_data_dict: Dict[str, dto.CarrierWaterData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data

@@ -14,8 +14,8 @@ class Electrolyser(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceElectrolyserData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierHydrogenData],  # Fixme: Correct?
+        dev_data: dto.DeviceElectrolyserData,
+        carrier_data_dict: Dict[str, dto.CarrierHydrogenData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data

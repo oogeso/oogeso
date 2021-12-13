@@ -15,8 +15,8 @@ class GasTurbine(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceGasTurbineData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+        dev_data: dto.DeviceGasTurbineData,
+        carrier_data_dict: Dict[str, dto.CarrierGasData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data

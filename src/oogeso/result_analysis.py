@@ -8,7 +8,7 @@ from oogeso import dto
 def compute_kpis(
     sim_result: dto.SimulationResult,
     sim_data: dto.EnergySystemData,
-    windturbines: Optional[Any] = None,  # Fixme: Correct type?
+    windturbines: Optional[Any] = None,  # Fixme: What is correct type here?
 ):
     """Compute key indicators of simulation results
 

@@ -16,8 +16,8 @@ class CompressorEl(Device):
 
     def __init__(
         self,
-        dev_data: Union[dto.DeviceCompressorGasData, dto.DeviceCompressorElData],  # Fixme: Correct?
-        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierGasData]],  # Fixme: Correct?
+        dev_data: Union[dto.DeviceCompressorGasData, dto.DeviceCompressorElData],
+        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierGasData]],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -68,8 +68,8 @@ class CompressorGas(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceCompressorGasData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+        dev_data: dto.DeviceCompressorGasData,
+        carrier_data_dict: Dict[str, dto.CarrierGasData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -119,20 +119,20 @@ class CompressorGas(Device):
 
 def compute_compressor_demand(
     model,
-    device_obj: Union[CompressorEl, CompressorGas],  # Fixme: Correct?
+    device_obj: Union[CompressorEl, CompressorGas],
     node_obj: NetworkNode,
     gas_data: dto.CarrierGasData,
     linear: bool = False,
-    Q: Optional[float] = None,  # Fixme: Correct?
-    p1: Optional[float] = None,  # Fixme: Correct?
-    p2: Optional[float] = None,  # Fixme: Correct?
-    t: Optional[float] = None,  # Fixme: Correct?
+    Q: Optional[float] = None,
+    p1: Optional[float] = None,
+    p2: Optional[float] = None,
+    t: Optional[float] = None,
 ):
     """Compute energy demand by compressor as function of pressure and flow"""
     # power demand depends on gas pressure ratio and flow
     # See LowEmission report DSP5_2020_04 for description
 
-    dev_data = device_obj.dev_data  # Fixme: correct?
+    dev_data = device_obj.dev_data
     k = gas_data.k_heat_capacity_ratio
     Z = gas_data.Z_compressibility
     # factor 1e-6 converts R units from J/kgK to MJ/kgK:
