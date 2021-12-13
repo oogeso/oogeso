@@ -17,13 +17,15 @@ from oogeso.utils.util import get_device_from_model_name
 logger = logging.getLogger(__name__)
 
 
-class OptimisationModel:
+class OptimisationModel(pyo.ConcreteModel):
     """Class for MILP optimisation model"""
 
     ZERO_WARNING_THRESHOLD = 1e-6
 
     def __init__(self, data: dto.EnergySystemData):
         """Create optimisation problem formulation with supplied data"""
+
+        super().__init__()
 
         # dictionaries {key:object} for all devices, nodes and edges
         self.all_devices: Dict[str, Device] = {}
@@ -34,7 +36,6 @@ class OptimisationModel:
 
         # Model parameters
         self.optimisation_parameters = data.parameters
-        # self.pyomo_instance = None
 
         # List of constraints that need to be reconstructed for each optimisation:
         self.constraints_to_reconstruct = []
@@ -45,7 +46,7 @@ class OptimisationModel:
 
         self._create_network_objects_from_data(data)
         self._set_node_pressure_from_edge_data()
-        self.pyomo_instance = self._create_pyomo_model(profiles_in_use)
+        self._create_pyomo_model(profiles_in_use)
 
     def solve(self, solver="gurobi", write_yaml=False, time_limit=None):
         """Solve problem for planning horizon at a single timestep"""
@@ -61,7 +62,7 @@ class OptimisationModel:
             elif solver == "glpk":
                 opt.options["tmlim"] = time_limit
         logger.debug("Solving...")
-        sol = opt.solve(self.pyomo_instance)
+        sol = self.solve()
 
         if write_yaml:
             sol.write_yaml()
@@ -192,120 +193,112 @@ class OptimisationModel:
             input data as read from input file
         """
 
-        model = pyo.ConcreteModel()
-        model = self._specify_sets_and_parameters(model, profiles_in_use)
-        model = self._specify_variables(model)
-        model = self._specify_objective(model)
-        model = self._specify_constraints(model)
+        self._specify_sets_and_parameters(profiles_in_use)
+        self._specify_variables()
+        self._specify_objective()
+        self._specify_constraints()
 
         # Specify initial values from input data
         for dev in self.all_devices.values():
-            dev.set_init_values(model)
+            dev.set_init_values(pyomo_model=self)
 
         # Keep track of duals:
         # WARNING:
         # From Gurobi: "Shadow prices are not well-defined in mixed-integer
         # problems, so we don't provide dual values for an integer program."
-        model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+        self.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
-        return model
-
-    def _specify_sets_and_parameters(self, model: pyo.Model, profiles_in_use):
+    def _specify_sets_and_parameters(self, profiles_in_use):
         """specify pyomo model sets and parameters"""
         energycarriers = self.all_networks.keys()
-        model.setCarrier = pyo.Set(initialize=energycarriers, doc="carrier")
-        model.setTerminal = pyo.Set(initialize=["in", "out"], doc="terminal")
-        model.setNode = pyo.Set(initialize=self.all_nodes.keys(), doc="node")
-        model.setDevice = pyo.Set(initialize=self.all_devices.keys(), doc="device")
-        model.setEdge = pyo.Set(initialize=self.all_edges.keys(), doc="edge")
+        self.setCarrier = pyo.Set(initialize=energycarriers, doc="carrier")
+        self.setTerminal = pyo.Set(initialize=["in", "out"], doc="terminal")
+        self.setNode = pyo.Set(initialize=self.all_nodes.keys(), doc="node")
+        self.setDevice = pyo.Set(initialize=self.all_devices.keys(), doc="device")
+        self.setEdge = pyo.Set(initialize=self.all_edges.keys(), doc="edge")
         timerange = range(self.optimisation_parameters.planning_horizon)
-        model.setHorizon = pyo.Set(ordered=True, initialize=timerange, doc="time")
-        model.setProfile = pyo.Set(initialize=profiles_in_use, doc="profile")
+        self.setHorizon = pyo.Set(ordered=True, initialize=timerange, doc="time")
+        self.setProfile = pyo.Set(initialize=profiles_in_use, doc="profile")
 
         # specify mutable parameters:
         # (will be modified between successive optimisations)
-        model.paramProfiles = pyo.Param(
-            model.setProfile,
-            model.setHorizon,
+        self.paramProfiles = pyo.Param(
+            self.setProfile,
+            self.setHorizon,
             within=pyo.Reals,
             mutable=True,
             initialize=1,
         )
-        model.paramDeviceIsOnInitially = pyo.Param(model.setDevice, mutable=True, within=pyo.Binary, initialize=1)
-        model.paramDevicePrepTimestepsInitially = pyo.Param(
-            model.setDevice, mutable=True, within=pyo.Integers, initialize=0
+        self.paramDeviceIsOnInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.Binary, initialize=1)
+        self.paramDevicePrepTimestepsInitially = pyo.Param(
+            self.setDevice, mutable=True, within=pyo.Integers, initialize=0
         )
         # needed for ramp rate limits:
-        model.paramDevicePowerInitially = pyo.Param(model.setDevice, mutable=True, within=pyo.Reals, initialize=0)
+        self.paramDevicePowerInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
         # needed for energy storage:
-        model.paramDeviceEnergyInitially = pyo.Param(model.setDevice, mutable=True, within=pyo.Reals, initialize=0)
+        self.paramDeviceEnergyInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
         # target energy level at end of horizon (useful for long-term storage)
-        model.paramDeviceEnergyTarget = pyo.Param(model.setDevice, mutable=True, within=pyo.Reals, initialize=0)
+        self.paramDeviceEnergyTarget = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
 
         # Specify handy immutable parameters (for easy access when building/updating model)
-        model.paramTimestepDeltaMinutes = pyo.Param(
+        self.paramTimestepDeltaMinutes = pyo.Param(
             within=pyo.Reals, default=self.optimisation_parameters.time_delta_minutes
         )
-        model.paramTimeStorageReserveMinutes = pyo.Param(default=self.optimisation_parameters.time_reserve_minutes)
-        model.paramPiecewiseRepn = pyo.Param(within=pyo.Any, default=self.optimisation_parameters.piecewise_repn)
-        model.paramMaxPressureDeviation = pyo.Param(
+        self.paramTimeStorageReserveMinutes = pyo.Param(default=self.optimisation_parameters.time_reserve_minutes)
+        self.paramPiecewiseRepn = pyo.Param(within=pyo.Any, default=self.optimisation_parameters.piecewise_repn)
+        self.paramMaxPressureDeviation = pyo.Param(
             within=pyo.Reals,
             default=self.optimisation_parameters.max_pressure_deviation,
         )
 
-        return model
-
-    def _specify_variables(self, model: pyo.Model):
+    def _specify_variables(self):
         """specify pyomo model variables"""
-        model.varEdgeFlow = pyo.Var(model.setEdge, model.setHorizon, within=pyo.Reals)
-        model.varEdgeFlow12 = pyo.Var(model.setEdge, model.setHorizon, within=pyo.NonNegativeReals)
-        model.varEdgeFlow21 = pyo.Var(model.setEdge, model.setHorizon, within=pyo.NonNegativeReals)
-        model.varEdgeLoss = pyo.Var(model.setEdge, model.setHorizon, within=pyo.NonNegativeReals, initialize=0)
-        model.varEdgeLoss12 = pyo.Var(model.setEdge, model.setHorizon, within=pyo.NonNegativeReals, initialize=0)
-        model.varEdgeLoss21 = pyo.Var(model.setEdge, model.setHorizon, within=pyo.NonNegativeReals, initialize=0)
-        model.varDeviceIsPrep = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary, initialize=0)
-        model.varDeviceIsOn = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary, initialize=1)
-        model.varDeviceStarting = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary, initialize=None)
-        model.varDeviceStopping = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary, initialize=None)
-        model.varDeviceStorageEnergy = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Reals)
+        self.varEdgeFlow = pyo.Var(self.setEdge, self.setHorizon, within=pyo.Reals)
+        self.varEdgeFlow12 = pyo.Var(self.setEdge, self.setHorizon, within=pyo.NonNegativeReals)
+        self.varEdgeFlow21 = pyo.Var(self.setEdge, self.setHorizon, within=pyo.NonNegativeReals)
+        self.varEdgeLoss = pyo.Var(self.setEdge, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
+        self.varEdgeLoss12 = pyo.Var(self.setEdge, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
+        self.varEdgeLoss21 = pyo.Var(self.setEdge, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
+        self.varDeviceIsPrep = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=0)
+        self.varDeviceIsOn = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=1)
+        self.varDeviceStarting = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=None)
+        self.varDeviceStopping = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=None)
+        self.varDeviceStorageEnergy = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Reals)
         # available reserve power from storage (linked to power rating and storage level):
-        model.varDeviceStoragePmax = pyo.Var(
-            model.setDevice, model.setHorizon, within=pyo.NonNegativeReals, initialize=0
-        )
+        self.varDeviceStoragePmax = pyo.Var(self.setDevice, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
         # binary variable related to available powr from storage:
-        model.varStorY = pyo.Var(model.setDevice, model.setHorizon, within=pyo.Binary)
+        self.varStorY = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary)
         # absolute value variable for storage with target level:
-        model.varDeviceStorageDeviationFromTarget = pyo.Var(model.setDevice, within=pyo.NonNegativeReals, initialize=0)
-        model.varPressure = pyo.Var(
-            model.setNode,
-            model.setCarrier,
-            model.setTerminal,
-            model.setHorizon,
+        self.varDeviceStorageDeviationFromTarget = pyo.Var(self.setDevice, within=pyo.NonNegativeReals, initialize=0)
+        self.varPressure = pyo.Var(
+            self.setNode,
+            self.setCarrier,
+            self.setTerminal,
+            self.setHorizon,
             within=pyo.NonNegativeReals,
             initialize=0,
         )
-        model.varElVoltageAngle = pyo.Var(model.setNode, model.setHorizon, within=pyo.Reals)
-        model.varDeviceFlow = pyo.Var(
-            model.setDevice,
-            model.setCarrier,
-            model.setTerminal,
-            model.setHorizon,
+        self.varElVoltageAngle = pyo.Var(self.setNode, self.setHorizon, within=pyo.Reals)
+        self.varDeviceFlow = pyo.Var(
+            self.setDevice,
+            self.setCarrier,
+            self.setTerminal,
+            self.setHorizon,
             within=pyo.NonNegativeReals,
             initialize=0,
         )
-        model.varTerminalFlow = pyo.Var(model.setNode, model.setCarrier, model.setHorizon, within=pyo.Reals)
+        self.varTerminalFlow = pyo.Var(self.setNode, self.setCarrier, self.setHorizon, within=pyo.Reals)
         # this penalty variable should only require (device,time), but the
         # piecewise constraint requires the domain to be the same as for varDeviceFlow
-        model.varDevicePenalty = pyo.Var(
-            model.setDevice,
-            model.setCarrier,
-            model.setTerminal,
-            model.setHorizon,
+        self.varDevicePenalty = pyo.Var(
+            self.setDevice,
+            self.setCarrier,
+            self.setTerminal,
+            self.setHorizon,
             within=pyo.Reals,
         )
-        return model
 
-    def _specify_objective(self, model: pyo.Model):
+    def _specify_objective(self):
         """specify pyomo model objective"""
         obj = self.optimisation_parameters.objective
         if obj == "penalty":
@@ -322,14 +315,13 @@ class OptimisationModel:
             raise Exception("Objective '{}' has not been implemented".format(obj))
         logger.info("Using objective function: {}".format(obj))
         # logger.info(rule)
-        model.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
-        return model
+        self.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
 
-    def _specify_constraints(self, model: pyo.Model):
+    def _specify_constraints(self):
 
         # 1. Constraints associated with each device:
         for dev in self.all_devices.values():
-            list_to_reconstruct = dev.define_constraints(model)
+            list_to_reconstruct = dev.define_constraints(self)
 
             # Because of logic that needs to be re-evalued, these constraints need
             # to be reconstructed each optimisation:
@@ -338,22 +330,22 @@ class OptimisationModel:
 
         # 2. Constraints associated with each node:
         for node in self.all_nodes.values():
-            node.define_constraints(model)
+            node.define_constraints(self)
 
         # 3. Constraints associated with each network type (and its edges):
         for netw in self.all_networks.values():
-            netw.define_constraints(model)
+            netw.define_constraints(self)
 
         # 4. Global constraints:
         # 4.1 max limit emission rate:
         params_generic = self.optimisation_parameters
         if (params_generic.emission_rate_max is not None) and (params_generic.emission_rate_max >= 0):
-            model.constr_O_emissionrate = pyo.Constraint(model.setHorizon, rule=self._rule_emissionRateLimit)
+            self.constr_O_emissionrate = pyo.Constraint(self.setHorizon, rule=self._rule_emissionRateLimit)
         else:
             logger.debug("No emission_rate_max limit specified")
         # 4.2 max limit emission intensity
         if (params_generic.emission_intensity_max is not None) and (params_generic.emission_intensity_max >= 0):
-            model.constr_O_emissionintensity = pyo.Constraint(model.setHorizon, rule=self._rule_emissionIntensityLimit)
+            self.constr_O_emissionintensity = pyo.Constraint(self.setHorizon, rule=self._rule_emissionIntensityLimit)
         else:
             logger.debug("No emission_intensity_max limit specified")
         # 4.3 electrical reserve margin:
@@ -361,20 +353,18 @@ class OptimisationModel:
         el_reserve_margin = el_parameters.el_reserve_margin
         el_backup_margin = el_parameters.el_backup_margin
         if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
-            model.constr_O_elReserveMargin = pyo.Constraint(model.setHorizon, rule=self._rule_el_reserve_margin)
+            self.constr_O_elReserveMargin = pyo.Constraint(self.setHorizon, rule=self._rule_el_reserve_margin)
         else:
             logger.info("No el_reserve_margin limit specified")
         # 4.4 electrical backup power margin
         if (el_backup_margin is not None) and (el_backup_margin >= 0):
-            model.constr_O_elBackupMargin = pyo.Constraint(
-                model.setDevice,
-                model.setHorizon,
+            self.constr_O_elBackupMargin = pyo.Constraint(
+                self.setDevice,
+                self.setHorizon,
                 rule=self._rule_el_backup_margin,
             )
         else:
             logger.debug("No el_backup_margin limit specified")
-
-        return model
 
     def updateOptimisationModel(self, timestep, profiles, first=False):
         """Update Pyomo model instance
@@ -396,15 +386,15 @@ class OptimisationModel:
         # -this is because for the first timesteps, we tend to have updated
         #  and quite good forecasts - for example, it may become apparent
         #  that there will be much less wind power than previously forecasted
-        for prof in self.pyomo_instance.setProfile:
+        for prof in self.setProfile:
             for t in range(timesteps_use_nowcast):  # 0,1,2,3
                 profile_str = "nowcast"
                 if prof not in profiles["nowcast"]:
                     # no nowcast, use forecast instead
                     profile_str = "forecast"
-                self.pyomo_instance.paramProfiles[prof, t] = profiles[profile_str].loc[timestep + t, prof]
+                self.paramProfiles[prof, t] = profiles[profile_str].loc[timestep + t, prof]
             for t in range(timesteps_use_nowcast, horizon):
-                self.pyomo_instance.paramProfiles[prof, t] = profiles["forecast"].loc[timestep + t, prof]
+                self.paramProfiles[prof, t] = profiles["forecast"].loc[timestep + t, prof]
 
         def _updateOnTimesteps(t_prev, dev):
             # sum up consequtive timesteps starting at tprev going
@@ -413,14 +403,14 @@ class OptimisationModel:
             docontinue = True
             for tt in range(t_prev, -1, -1):
                 # if (self.instance.varDeviceIsOn[dev,tt]==1):
-                if pyo.value(self.pyomo_instance.varDeviceIsPrep[dev, tt]) == 1:
+                if pyo.value(self.varDeviceIsPrep[dev, tt]) == 1:
                     sum_on = sum_on + 1
                 else:
                     docontinue = False
                     break  # exit for loop
             if docontinue:
                 # we got all the way back to 0, so must include initial value
-                sum_on = sum_on + self.pyomo_instance.paramDevicePrepTimestepsInitially[dev]
+                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[dev]
             return sum_on
 
         # Update startup/shutdown info
@@ -429,27 +419,19 @@ class OptimisationModel:
             t_prev = opt_timesteps - 1
             for dev, dev_obj in self.all_devices.items():
                 # On/off status: (round because solver doesn't alwasy return an integer)
-                self.pyomo_instance.paramDeviceIsOnInitially[dev] = round(
-                    pyo.value(self.pyomo_instance.varDeviceIsOn[dev, t_prev])
-                )
-                self.pyomo_instance.paramDevicePrepTimestepsInitially[dev] = _updateOnTimesteps(t_prev, dev)
+                self.paramDeviceIsOnInitially[dev] = round(pyo.value(self.varDeviceIsOn[dev, t_prev]))
+                self.paramDevicePrepTimestepsInitially[dev] = _updateOnTimesteps(t_prev, dev)
                 # Initial power output (relevant for ramp rate constraint):
                 if dev_obj.dev_data.max_ramp_up is not None:
-                    self.pyomo_instance.paramDevicePowerInitially[dev] = dev_obj.get_flow_var(
-                        self.pyomo_instance, t_prev
-                    )
+                    self.paramDevicePowerInitially[dev] = dev_obj.get_flow_var(self, t_prev)
                 # Energy storage:
                 if dev_obj in self.devices_with_storage:
-                    self.pyomo_instance.paramDeviceEnergyInitially[dev] = self.pyomo_instance.varDeviceStorageEnergy[
-                        dev, t_prev
-                    ]
+                    self.paramDeviceEnergyInitially[dev] = self.varDeviceStorageEnergy[dev, t_prev]
                     # Update target profile if present:
                     if hasattr(dev_obj.dev_data, "target_profile") and (dev_obj.dev_data.target_profile is not None):
                         prof = dev_obj.dev_data.target_profile
                         max_E = dev_obj.dev_data.E_max
-                        self.pyomo_instance.paramDeviceEnergyTarget[dev] = (
-                            max_E * profiles["forecast"].loc[timestep + horizon, prof]
-                        )
+                        self.paramDeviceEnergyTarget[dev] = max_E * profiles["forecast"].loc[timestep + horizon, prof]
 
         # These constraints need to be reconstructed to update properly
         # (pyo.value(...) and/or if sentences...)
@@ -465,17 +447,17 @@ class OptimisationModel:
     #            '''term in objective function to push varDeviceStoragePmax up
     #            to its maximum value (to get correct calculation of reserve)'''
     #            sumStorPmax=0
-    #            for dev in model.setDevice:
-    #                if model.paramDevice[dev]['model'] == 'storage_el':
-    #                    for t in model.setHorizon:
-    #                        sumStorPmax += model.varDeviceStoragePmax[dev,t]
+    #            for dev in self.setDevice:
+    #                if self.paramDevice[dev]['model'] == 'storage_el':
+    #                    for t in self.setHorizon:
+    #                        sumStorPmax += self.varDeviceStoragePmax[dev,t]
     #            return sumStorPmax
 
     def _rule_objective_penalty(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """'penalty' as specified through penalty functions"""
         sum_penalty = 0
-        timesteps = model.setHorizon
-        for d in model.setDevice:
+        timesteps = self.setHorizon
+        for d in self.setDevice:
             dev = self.all_devices[d]
             this_penalty = dev.compute_penalty(model, timesteps)
             sum_penalty = sum_penalty + this_penalty
@@ -483,7 +465,7 @@ class OptimisationModel:
 
     def _rule_objective_co2(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emissions per sec"""
-        sumE = self.compute_CO2(model)  # *model.paramParameters['CO2_price']
+        sumE = self.compute_CO2(model)  # *self.paramParameters['CO2_price']
         return sumE
 
     def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
@@ -567,15 +549,15 @@ class OptimisationModel:
             # this is not a power generator
             return pyo.Constraint.Skip
         res_otherdevs = network_el.compute_el_reserve(model, t, self.all_devices, exclude_device=dev)
-        expr = res_otherdevs - model.varDeviceFlow[dev, "el", "out", t] >= -margin
+        expr = res_otherdevs - self.varDeviceFlow[dev, "el", "out", t] >= -margin
         return expr
 
     def compute_CO2(self, model: pyo.Model, devices=None, timesteps=None):
         """compute CO2 emissions - average per sec (kgCO2/s)"""
         if devices is None:
-            devices = model.setDevice
+            devices = self.setDevice
         if timesteps is None:
-            timesteps = model.setHorizon
+            timesteps = self.setHorizon
         sumCO2 = 0
         for d in devices:
             dev = self.all_devices[d]
@@ -588,7 +570,7 @@ class OptimisationModel:
     def compute_CO2_intensity(self, model: pyo.Model, timesteps=None):
         """CO2 emission per exported oil/gas (kgCO2/Sm3oe)"""
         if timesteps is None:
-            timesteps = model.setHorizon
+            timesteps = self.setHorizon
 
         co2_kg_per_time = self.compute_CO2(model, devices=None, timesteps=timesteps)
         flow_oil_equivalents_m3_per_time = self.compute_oilgas_export(model, timesteps)
@@ -603,9 +585,9 @@ class OptimisationModel:
     def compute_startup_penalty(self, model: pyo.Model, devices=None, timesteps=None):
         """startup costs (average per sec)"""
         if timesteps is None:
-            timesteps = model.setHorizon
+            timesteps = self.setHorizon
         if devices is None:
-            devices = model.setDevice
+            devices = self.setDevice
         start_stop_costs = 0
         for d in devices:
             dev_obj = self.all_devices[d]
@@ -627,8 +609,8 @@ class OptimisationModel:
         Note: el costs per MJ not per MWh
         """
         sumCost = 0
-        timesteps = model.setHorizon
-        for dev in model.setDevice:
+        timesteps = self.setHorizon
+        for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             thisCost = dev_obj.compute_operating_costs(model, timesteps)
             sumCost += thisCost
@@ -638,8 +620,8 @@ class OptimisationModel:
         """term in objective function to discourage depleting battery,
         making sure it is used only when required"""
         storCost = 0
-        timesteps = model.setHorizon
-        for dev in model.setDevice:
+        timesteps = self.setHorizon
+        for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             thisCost = dev_obj.compute_cost_for_depleted_storage(model, timesteps)
             storCost += thisCost
@@ -666,12 +648,12 @@ class OptimisationModel:
         parameter defined (CARRIER can be any of 'oil', 'gas', 'el')
         """
         if carriers is None:
-            carriers = model.setCarrier
+            carriers = self.setCarrier
         if timesteps is None:
-            timesteps = model.setHorizon
+            timesteps = self.setHorizon
 
         sumValue = 0
-        for dev in model.setDevice:
+        for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             thisValue = dev_obj.compute_export(model, value, carriers, timesteps)
             sumValue += thisValue
@@ -691,27 +673,26 @@ class OptimisationModel:
 
     def write(self, filename: str):
         """Export optimisation problem to MPS or LP file"""
-        self.pyomo_instance.write(filename=filename, io_options={"symbolic_solver_labels": True})
+        self.write(filename=filename, io_options={"symbolic_solver_labels": True})
 
     def extract_all_variable_values(self, timelimit: int = None, timeshift: int = 0) -> Dict[str, pd.Series]:
         """Extract variable values and return as a dictionary of pandas milti-index series"""
-        ins = self.pyomo_instance
         all_vars = [
-            ins.varEdgeFlow,
-            ins.varEdgeLoss,
-            ins.varDeviceIsPrep,
-            ins.varDeviceIsOn,
-            ins.varDeviceStarting,
-            ins.varDeviceStopping,
-            ins.varDeviceStorageEnergy,
-            ins.varDeviceStoragePmax,
-            ins.varPressure,
-            ins.varElVoltageAngle,
-            ins.varDeviceFlow,
-            ins.varTerminalFlow,
-            ins.varDevicePenalty,
+            self.varEdgeFlow,
+            self.varEdgeLoss,
+            self.varDeviceIsPrep,
+            self.varDeviceIsOn,
+            self.varDeviceStarting,
+            self.varDeviceStopping,
+            self.varDeviceStorageEnergy,
+            self.varDeviceStoragePmax,
+            self.varPressure,
+            self.varElVoltageAngle,
+            self.varDeviceFlow,
+            self.varTerminalFlow,
+            self.varDevicePenalty,
         ]
-        # all_vars = self.pyomo_instance.component_objects(pyo.Var, active=True)
+        # all_vars = self.component_objects(pyo.Var, active=True)
         all_values = {}
         for myvar in all_vars:
             # extract the variable index names in the right order
@@ -726,7 +707,7 @@ class OptimisationModel:
             df = pd.DataFrame.from_dict(var_values, orient="index", columns=["value"])["value"]
             df.index = pd.MultiIndex.from_tuples(df.index, names=indices)
             # check that all vales are non-negative for deviceflow and give warning otherwise
-            if (myvar == ins.varDeviceFlow) and (df < -self.ZERO_WARNING_THRESHOLD).any():
+            if (myvar == self.varDeviceFlow) and (df < -self.ZERO_WARNING_THRESHOLD).any():
                 ind = df[df < -self.ZERO_WARNING_THRESHOLD].index[0]
                 logger.warning("Negative number in varDeviceFlow - set to zero ({}:{})".format(ind, df[ind]))
                 df = df.clip(lower=0)

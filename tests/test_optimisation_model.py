@@ -4,7 +4,6 @@ import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
 import pytest
-from pyomo.core.base.PyomoModel import ConcreteModel
 
 import oogeso
 import oogeso.io
@@ -41,9 +40,9 @@ def test_optimiser_create():
     energy_system_data = make_test_data()
     optimisation_model = oogeso.OptimisationModel(data=energy_system_data)
     assert isinstance(optimisation_model, oogeso.OptimisationModel)
-    assert isinstance(optimisation_model.pyomo_instance, ConcreteModel)
-    assert optimisation_model.pyomo_instance.setHorizon == [0, 1, 2]
-    assert optimisation_model.pyomo_instance.setDevice == ["source1", "demand"]
+    assert isinstance(optimisation_model, pyo.ConcreteModel)
+    assert optimisation_model.setHorizon == [0, 1, 2]
+    assert optimisation_model.setDevice == ["source1", "demand"]
 
     el_consumers = optimisation_model.getDevicesInout(carrier_in="el")
     assert el_consumers == ["demand"]
@@ -88,7 +87,7 @@ def test_optimiser_compute():
     """ "Check that objective function expressions are valid"""
     energy_system_data = make_test_data()
     optimisation_model = oogeso.OptimisationModel(data=energy_system_data)
-    pyomo_model = optimisation_model.pyomo_instance
+    pyomo_model = optimisation_model
 
     # co2 should be zero in this case
     avg_co2 = optimisation_model.compute_CO2(pyomo_model, devices=["source1"])
@@ -123,16 +122,15 @@ def test_optimiser_compute():
     assert export_revenue == 0
 
 
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
 def test_optimisation_solve():
     """Check that it solves simple problem with CBC solver"""
 
-    opt = pyo.SolverFactory("cbc")
-    if not opt.available():
-        pytest.skip("CBC executable not found. Skipping test.")
+    pyo.SolverFactory("cbc")
 
     energy_system_data = make_test_data()
     optimisation_model = oogeso.OptimisationModel(data=energy_system_data)
-    model = optimisation_model.pyomo_instance
+    model = optimisation_model
 
     sol = optimisation_model.solve(solver="cbc")
 
