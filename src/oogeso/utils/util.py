@@ -1,7 +1,6 @@
+import inspect
 import logging
-from typing import Callable, List
-
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import pandas as pd
 
@@ -12,12 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 def get_device_from_model_name(model_name: str) -> Callable:
-    if model_name in devices.__dict__.keys():
-        return devices.__dict__[model_name]
-    elif model_name.lower() in [x.lower() for x in devices.__dict__.keys()]:
-        return [v for k, v in devices.__dict__.items() if k.lower() == model_name.lower()][0]
-    elif model_name.lower().replace("_", "") in [x.lower() for x in devices.__dict__.keys()]:
-        return [v for k, v in devices.__dict__.items() if k.lower() == model_name.lower().replace("_", "")][0]
+
+    device_list = {k: v for k, v in devices.__dict__.items() if inspect.isclass(v)}
+    if model_name in device_list.keys():
+        return device_list[model_name]
+    elif model_name.lower() in [x.lower() for x in device_list.keys()]:
+        return [v for k, v in device_list.items() if k.lower() == model_name.lower()][0]
+    elif model_name.lower().replace("_", "") in [x.lower() for x in device_list.keys()]:
+        return [v for k, v in device_list.items() if k.lower() == model_name.lower().replace("_", "")][0]
     else:
         raise NotImplementedError(f"Device {model_name} has not been implemented.")
 
