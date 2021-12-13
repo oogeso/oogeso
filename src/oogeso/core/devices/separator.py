@@ -1,78 +1,87 @@
-import pyomo.environ as pyo
-from oogeso.core.networks.network_node import NetworkNode
+from typing import Dict, List, Union
 
-from oogeso.dto import (
-    CarrierWellstreamData,
-    DeviceSeparator2Data,
-    DeviceSeparatorData,
-)
-from . import Device
+import pyomo.environ as pyo
+
+from oogeso import dto
+from oogeso.core.devices.base import Device
+from oogeso.core.networks.network_node import NetworkNode
 
 
 class Separator(Device):
-    "Wellstream separation into oil/gas/water"
+    """Wellstream separation into oil/gas/water."""
+
     carrier_in = ["wellstream", "heat", "el"]
     carrier_out = ["oil", "gas", "water"]
     serial = []
 
-    def _rule_separator(self, model, t, i):
+    def __init__(
+        self,
+        dev_data: dto.DeviceSeparatorData,
+        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierHeatData, dto.CarrierWellstreamData]],
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def _rule_separator(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        dev_data: DeviceSeparatorData = self.dev_data
+        dev_data = self.dev_data
         node = dev_data.node_id
-        node_obj: NetworkNode = self.optimiser.all_nodes[node]
-        wellstream_prop: CarrierWellstreamData = self.all_carriers["wellstream"]
+        node_obj: NetworkNode = self.optimiser.all_nodes[node]  # Fixme: Unresolved reference
+        wellstream_prop: dto.CarrierWellstreamData = self.all_carriers["wellstream"]  # Fixme: Unresolved reference
         GOR = wellstream_prop.gas_oil_ratio
         WC = wellstream_prop.water_cut
         comp_oil = (1 - WC) / (1 + GOR - GOR * WC)
         comp_water = WC / (1 + GOR - GOR * WC)
         comp_gas = GOR * (1 - WC) / (1 + GOR * (1 - WC))
-        flow_in = model.varDeviceFlow[dev, "wellstream", "in", t]
+        flow_in = pyomo_model.varDeviceFlow[dev, "wellstream", "in", t]
         if i == 1:
-            lhs = model.varDeviceFlow[dev, "gas", "out", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "gas", "out", t]
             rhs = flow_in * comp_gas
             return lhs == rhs
         elif i == 2:
-            lhs = model.varDeviceFlow[dev, "oil", "out", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "oil", "out", t]
             rhs = flow_in * comp_oil
             return lhs == rhs
         elif i == 3:
             # return pyo.Constraint.Skip
-            lhs = model.varDeviceFlow[dev, "water", "out", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "water", "out", t]
             rhs = flow_in * comp_water
             return lhs == rhs
         elif i == 4:
             # electricity demand
-            lhs = model.varDeviceFlow[dev, "el", "in", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
             rhs = flow_in * dev_data.el_demand_factor
             return lhs == rhs
         elif i == 5:
-            lhs = model.varDeviceFlow[dev, "heat", "in", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "heat", "in", t]
             rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
         elif i == 6:
             # gas pressure out = nominal
-            lhs = model.varPressure[(node, "gas", "out", t)]
+            lhs = pyomo_model.varPressure[(node, "gas", "out", t)]
             rhs = node_obj.get_pressure_nominal("gas", "out")
             return lhs == rhs
         elif i == 7:
             # oil pressure out = nominal
-            lhs = model.varPressure[(node, "oil", "out", t)]
+            lhs = pyomo_model.varPressure[(node, "oil", "out", t)]
             rhs = node_obj.get_pressure_nominal("oil", "out")
             return lhs == rhs
         elif i == 8:
             # water pressure out = nominal
-            lhs = model.varPressure[(node, "water", "out", t)]
+            lhs = pyomo_model.varPressure[(node, "water", "out", t)]
             rhs = node_obj.get_pressure_nominal("water", "out")
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1, 2, ..., 8. {i} was given.")
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
 
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr_separator = pyo.Constraint(
-            pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator
-        )
+        constr_separator = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator)
         # add constraints to model:
         setattr(
             pyomo_model,
@@ -81,16 +90,35 @@ class Separator(Device):
         )
         return list_to_reconstruct
 
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
+        raise NotImplementedError("No get_flow_var defined for Separator")
+
 
 class Separator2(Device):
     "Wellstream separation into oil/gas/water"
+
     carrier_in = ["oil", "gas", "water", "heat", "el"]
     carrier_out = ["oil", "gas", "water"]
     serial = ["oil", "gas", "water"]
 
+    def __init__(
+        self,
+        dev_data: dto.DeviceSeparator2Data,
+        carrier_data_dict: Dict[
+            str,
+            Union[dto.CarrierGasData, dto.CarrierOilData, dto.CarrierElData, dto.CarrierHeatData, dto.CarrierWaterData],
+        ],
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
     # Alternative separator model - using oil/gas/water input instead of
     # wellstream
-    def _rule_separator2_flow(self, model, fc, t, i):
+    def _rule_separator2_flow(
+        self, pyomo_model: pyo.Model, fc, t: int, i: int
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         node = self.dev_data.node_id
         node_obj: NetworkNode = self.node
@@ -99,37 +127,41 @@ class Separator2(Device):
         #                for f in['oil','gas','water'])
         if i == 1:
             # component flow in = flow out
-            lhs = model.varDeviceFlow[dev, fc, "out", t]
-            rhs = model.varDeviceFlow[dev, fc, "in", t]
+            lhs = pyomo_model.varDeviceFlow[dev, fc, "out", t]
+            rhs = pyomo_model.varDeviceFlow[dev, fc, "in", t]
             return lhs == rhs
         elif i == 2:
             # pressure out is nominal
-            lhs = model.varPressure[(node, fc, "out", t)]
+            lhs = pyomo_model.varPressure[(node, fc, "out", t)]
             rhs = node_obj.get_pressure_nominal(fc, "out")
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
-    def _rule_separator2_energy(self, model, t, i):
+    def _rule_separator2_energy(
+        self, pyomo_model: pyo.Model, t: int, i: int
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        dev_data: DeviceSeparator2Data = self.dev_data
-        flow_in = sum(
-            model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"]
-        )
+        dev_data: dto.DeviceSeparator2Data = self.dev_data
+        flow_in = sum(pyomo_model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"])
 
         if i == 1:
             # electricity demand
-            lhs = model.varDeviceFlow[dev, "el", "in", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
             rhs = flow_in * dev_data.el_demand_factor
             return lhs == rhs
         elif i == 2:
             # heat demand
-            lhs = model.varDeviceFlow[dev, "heat", "in", t]
+            lhs = pyomo_model.varDeviceFlow[dev, "heat", "in", t]
             rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr_separator2_flow = pyo.Constraint(
             ["oil", "gas", "water"],
@@ -156,3 +188,6 @@ class Separator2(Device):
             constr_separator2_energy,
         )
         return list_to_reconstruct
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
+        raise NotImplementedError("No get_flow_var defined for Separator")

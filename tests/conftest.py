@@ -6,7 +6,7 @@ import pytest
 import oogeso
 import oogeso.dto.serialisation
 import oogeso.io
-from oogeso.utils.util import create_timeseriesdata
+from oogeso.utils.util import create_time_series_data
 
 TEST_DATA_ROOT_PATH = Path(__file__).parent
 
@@ -32,7 +32,7 @@ def testcase2_data() -> oogeso.dto.EnergySystemData:
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
-    profiles_json = create_timeseriesdata(
+    profiles_json = create_time_series_data(
         profiles_dfs["forecast"], profiles_dfs["nowcast"], time_start=None, time_end=None, timestep_minutes=15
     )
     data.profiles = [x for x in profiles_json if x.id in ["wind", "demand"]]
@@ -61,7 +61,7 @@ def leogo_test_data() -> oogeso.dto.EnergySystemData:
         timestamp_col="timestamp",
         exclude_cols=["timestep"],
     )
-    profiles_json = create_timeseriesdata(
+    profiles_json = create_time_series_data(
         profiles_dfs["forecast"],
         profiles_dfs["nowcast"],
         time_start=None,

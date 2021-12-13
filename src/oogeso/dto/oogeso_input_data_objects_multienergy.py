@@ -1,8 +1,7 @@
-from dataclasses import dataclass, is_dataclass, asdict, field
-from typing import List, Optional, Tuple, Any, Dict, Union
-import re
-from .oogeso_input_data_objects import *
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
 
+from oogeso import dto
 
 # Device types defined as part of "basic":
 # DevicePowerSourceData
@@ -11,84 +10,82 @@ from .oogeso_input_data_objects import *
 
 
 @dataclass
-class DeviceSource_elData(DeviceData):
+class DeviceSourceElData(dto.DeviceData):
     co2em: Optional[float] = None
     op_cost: Optional[float] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
 @dataclass
-class DeviceSource_gasData(DeviceData):
+class DeviceSourceGasData(dto.DeviceData):
     naturalpressure: float = None
 
 
 @dataclass
-class DeviceSource_waterData(DeviceData):
+class DeviceSourceWaterData(dto.DeviceData):
     naturalpressure: float = None
 
 
 @dataclass
-class DeviceSink_elData(DeviceData):
+class DeviceSinkElData(dto.DeviceData):
     pass
 
 
 @dataclass
-class DeviceSink_heatData(DeviceData):
+class DeviceSinkHeatData(dto.DeviceData):
     pass
 
 
 @dataclass
-class DeviceSink_gasData(DeviceData):
+class DeviceSinkGasData(dto.DeviceData):
     price: field(default_factory=lambda: {}) = None
 
 
 @dataclass
-class DeviceSink_oilData(DeviceData):
+class DeviceSinkOilData(dto.DeviceData):
     price: field(default_factory=lambda: {}) = None
 
 
 @dataclass
-class DeviceSink_waterData(DeviceData):
+class DeviceSinkWaterData(dto.DeviceData):
     price: field(default_factory=lambda: {}) = None
     flow_avg: Optional[float] = None  # required average flow
-    max_accumulated_deviation: Optional[
-        float
-    ] = None  # buffer size (max accumulated deviation from average)
+    max_accumulated_deviation: Optional[float] = None  # buffer size (max accumulated deviation from average)
 
 
 @dataclass
-class DeviceCompressor_elData(DeviceData):
+class DeviceCompressorElData(dto.DeviceData):
     eta: float = None  # efficiency
     Q0: float = None  # nominal flow rate used in linearisation
     temp_in: float = None  # inlet temperature
 
 
 @dataclass
-class DeviceCompressor_gasData(DeviceData):
+class DeviceCompressorGasData(dto.DeviceData):
     eta: float = None  # efficiency
     Q0: float = None  # nominal flow rate used in linearisation
     temp_in: float = None  # inlet temperature
 
 
 @dataclass
-class DeviceElectrolyserData(DeviceData):
+class DeviceElectrolyserData(dto.DeviceData):
     eta: float = None  # efficiency
     eta_heat: float = None  # heat recovery efficiency
 
 
 @dataclass
-class DeviceFuelcellData(DeviceData):
+class DeviceFuelCellData(dto.DeviceData):
     eta: float = None  # efficiency
     eta_heat: float = None  # heat recovery efficiency
 
 
 @dataclass
-class DeviceGasheaterData(DeviceData):
+class DeviceGasHeaterData(dto.DeviceData):
     pass
 
 
 @dataclass
-class DeviceGasturbineData(DeviceData):
+class DeviceGasTurbineData(dto.DeviceData):
     fuel_A: float = None
     fuel_B: float = None
     eta_heat: float = None
@@ -100,34 +97,34 @@ class DeviceGasturbineData(DeviceData):
 
 
 @dataclass
-class DeviceHeatpumpData(DeviceData):
+class DeviceHeatPumpData(dto.DeviceData):
     eta: float = None
 
 
 @dataclass
-class DevicePump_oilData(DeviceData):
+class DevicePumpOilData(dto.DeviceData):
     eta: float = None  # efficiency
 
 
 @dataclass
-class DevicePump_waterData(DeviceData):
+class DevicePumpWaterData(dto.DeviceData):
     eta: float = None
 
 
 @dataclass
-class DeviceSeparatorData(DeviceData):
+class DeviceSeparatorData(dto.DeviceData):
     el_demand_factor: float = None  # electricity demand factor
     heat_demand_factor: float = None  # heat demand factor
 
 
 @dataclass
-class DeviceSeparator2Data(DeviceData):
+class DeviceSeparator2Data(dto.DeviceData):
     el_demand_factor: float = None  # electricity demand factor
     heat_demand_factor: float = None  # heat demand factor
 
 
 @dataclass
-class DeviceStorage_hydrogenData(DeviceData):
+class DeviceStorageHydrogenData(dto.DeviceData):
     E_max: float = 0  # MWh storage capacity (maximum stored energy)
     E_min: float = 0
     eta: float = 1  # efficiency
@@ -137,12 +134,12 @@ class DeviceStorage_hydrogenData(DeviceData):
 
 
 @dataclass
-class DeviceWell_productionData(DeviceData):
+class DeviceWellProductionData(dto.DeviceData):
     wellhead_pressure: float = None  # 2 # MPa
 
 
 @dataclass
-class DeviceWell_gasliftData(DeviceData):
+class DeviceWellGasLiftData(dto.DeviceData):
     gas_oil_ratio: float = None  # 500
     water_cut: float = None  # 0.6
     f_inj: float = None  # 220 # gas injection rate as fraction of production rate
@@ -151,18 +148,18 @@ class DeviceWell_gasliftData(DeviceData):
 
 
 @dataclass
-class EdgeHeatData(EdgeData):
+class EdgeHeatData(dto.EdgeData):
     # Heat loss in MW as function of energy transfer in MW:
     power_loss_function: Optional[Tuple[List[float], List[float]]] = None
 
 
 @dataclass
-class EdgeHydrogenData(EdgeData):
+class EdgeHydrogenData(dto.EdgeData):
     bidirectional: bool = False
 
 
 @dataclass
-class EdgeFluidData(EdgeData):
+class EdgeFluidData(dto.EdgeData):
     # wellstream, oil, water, gas
     pressure_from: float = None
     pressure_to: float = None
@@ -197,17 +194,17 @@ class EdgeWaterData(EdgeFluidData):
 
 
 @dataclass
-class CarrierHeatData(CarrierData):
+class CarrierHeatData(dto.CarrierData):
     pass
 
 
 @dataclass
-class CarrierHydrogenData(CarrierData):
+class CarrierHydrogenData(dto.CarrierData):
     energy_value: float = 13  # MJ/Sm3 (calorific value) -> 13 MJ/Sm3
 
 
 @dataclass
-class CarrierGasData(CarrierData):
+class CarrierGasData(dto.CarrierData):
     co2_content: float  # kg/Sm3 - see SSB 2016 report -> 2.34 kg/Sm3
     G_gravity: float  # 0.6
     Pb_basepressure_MPa: float  # MPa -> 0.101 # MPa
@@ -221,7 +218,7 @@ class CarrierGasData(CarrierData):
 
 
 @dataclass
-class CarrierWellstreamData(CarrierData):
+class CarrierWellstreamData(dto.CarrierData):
     darcy_friction: float = None  # 0.02
     rho_density: float = None  # kg/m3 -> 900 kg/m3
     viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
@@ -231,7 +228,7 @@ class CarrierWellstreamData(CarrierData):
 
 
 @dataclass
-class CarrierOilData(CarrierData):
+class CarrierOilData(dto.CarrierData):
     darcy_friction: float = None  # 0.02
     rho_density: float = None  # kg/m3 -> 900 kg/m3
     viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
@@ -239,7 +236,7 @@ class CarrierOilData(CarrierData):
 
 
 @dataclass
-class CarrierWaterData(CarrierData):
+class CarrierWaterData(dto.CarrierData):
     darcy_friction: float = None  # 0.02
     rho_density: float = None  # kg/m3 -> 900 kg/m3
     viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)

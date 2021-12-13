@@ -1,32 +1,41 @@
+from typing import Dict, List, Union
+
 import pyomo.environ as pyo
-from oogeso.dto import (
-    DeviceWell_gasliftData,
-    DeviceWell_productionData,
-)
-from . import Device
+
+from oogeso import dto
+from oogeso.core.devices.base import Device
 
 
-class Well_production(Device):
+class WellProduction(Device):
     "Production well (wellstream source)"
+
     carrier_in = []
     carrier_out = ["wellstream"]
     serial = []
 
-    def _rule_well_production(self, model, t):
-        dev_data: DeviceWell_productionData = self.dev_data
+    def __init__(
+        self,
+        dev_data: dto.DeviceWellProductionData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierWellstreamData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def _rule_well_production(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        dev_data = self.dev_data
         node = dev_data.node_id
-        lhs = model.varPressure[(node, "wellstream", "out", t)]
+        lhs = pyomo_model.varPressure[(node, "wellstream", "out", t)]
         rhs = dev_data.wellhead_pressure
         return lhs == rhs
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr_well = pyo.Constraint(
-            pyomo_model.setHorizon, rule=self._rule_well_production
-        )
+        constr_well = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_well_production)
         # add constraint to model:
         setattr(
             pyomo_model,
@@ -35,29 +44,42 @@ class Well_production(Device):
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         return pyomo_model.varDeviceFlow[self.id, "wellstream", "out", t]
 
 
-class Well_gaslift(Device):
+class WellGasLift(Device):
     "Production well with gas lift"
+
     carrier_in = ["gas"]
     carrier_out = ["gas", "oil", "water"]
     serial = ["gas"]
 
-    def _rule_gaslift(self, model, carrier, t, i):
+    def __init__(
+        self,
+        dev_data: dto.DeviceWellGasLiftData,  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def _rule_gaslift(
+        self, pyomo_model: pyo.Model, carrier: dto.CarrierGasData, t: int, i: int
+    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
 
         # flow from reservoir (equals flow out minus gas injection)
         dev = self.id
-        dev_data: DeviceWell_gasliftData = self.dev_data
+        dev_data = self.dev_data
         Q_reservoir = (
-            sum(model.varDeviceFlow[dev, c, "out", t] for c in ["gas", "oil", "water"])
-            - model.varDeviceFlow[dev, "gas", "in", t]
+            sum(pyomo_model.varDeviceFlow[dev, c, "out", t] for c in ["gas", "oil", "water"])
+            - pyomo_model.varDeviceFlow[dev, "gas", "in", t]
         )
         node = dev_data.node_id
         if i == 1:
             # output pressure is fixed
-            lhs = model.varPressure[(node, carrier, "out", t)]
+            lhs = pyomo_model.varPressure[(node, carrier, "out", t)]
             rhs = dev_data.separator_pressure
             return lhs == rhs
         elif i == 2:
@@ -68,34 +90,36 @@ class Well_gaslift(Device):
             comp_water = WC / (1 + GOR - GOR * WC)
             comp_gas = GOR * (1 - WC) / (1 + GOR * (1 - WC))
             comp = {"oil": comp_oil, "gas": comp_gas, "water": comp_water}
-            lhs = model.varDeviceFlow[dev, carrier, "out", t]
+            lhs = pyomo_model.varDeviceFlow[dev, carrier, "out", t]
             if carrier == "gas":
-                lhs -= model.varDeviceFlow[dev, carrier, "in", t]
+                lhs -= pyomo_model.varDeviceFlow[dev, carrier, "in", t]
             rhs = comp[carrier] * Q_reservoir
             return lhs == rhs
         elif i == 3:
             # gas injection rate vs proudction rate (determines input gas)
             # gas injection rate vs OIL proudction rate (determines input gas)
             if carrier == "gas":
-                lhs = model.varDeviceFlow[dev, "gas", "in", t]
+                lhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t]
                 # rhs = model.paramDevice[dev]['f_inj']*Q_reservoir
-                rhs = dev_data.f_inj * model.varDeviceFlow[dev, "oil", "out", t]
+                rhs = dev_data.f_inj * pyomo_model.varDeviceFlow[dev, "oil", "out", t]
                 return lhs == rhs
             else:
                 return pyo.Constraint.Skip
         elif i == 4:
             # gas injection pressure is fixed
             if carrier == "gas":
-                lhs = model.varPressure[(node, carrier, "in", t)]
+                lhs = pyomo_model.varPressure[(node, carrier, "in", t)]
                 rhs = dev_data.injection_pressure
                 return lhs == rhs
             else:
                 return pyo.Constraint.Skip
+        else:
+            raise ValueError(f"Argument i must be 1, 2, 3 or 4. {i} was given.")
 
-    def defineConstraints(self, pyomo_model):
+    def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
         # No specific constraints, use only generic ones:
-        list_to_reconstruct = super().defineConstraints(pyomo_model)
+        list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr_gaslift = pyo.Constraint(
             self.carrier_out,
@@ -111,7 +135,7 @@ class Well_gaslift(Device):
         )
         return list_to_reconstruct
 
-    def getFlowVar(self, pyomo_model, t):
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         dev = self.id
         # flow from reservoir (out minus in)
         flow = (

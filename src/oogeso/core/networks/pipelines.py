@@ -1,16 +1,13 @@
 import logging
-import pyomo.environ as pyo
+from typing import Tuple, Union
+
 import numpy as np
+import pyomo.environ as pyo
 import scipy
+
+from oogeso import dto
 from oogeso.core.networks.edge import Edge
-from oogeso.dto import CarrierData, EdgeFluidData
-from .network import Network
-import typing
-
-from oogeso.core.networks.network_node import NetworkNode
-
-# if typing.TYPE_CHECKING:
-#    from oogeso.core.networks.network_node import NetworkNode
+from oogeso.core.networks.network import Network
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +15,8 @@ GRAVITY_ACCELERATION_CONSTANT = 9.8  # m/s^2
 
 
 class Fluid(Network):
-    def defineConstraints(self, pyomo_model):
-        super().defineConstraints(pyomo_model)
+    def define_constraints(self, pyomo_model: pyo.Model):
+        super().define_constraints(pyomo_model)
 
         # additional
         if self.carrier_data.pressure_method in ["weymouth", "darcy-weissbach"]:
@@ -37,7 +34,7 @@ class Fluid(Network):
                     constr_flow,
                 )
 
-    def _rulePipelineFlow(self, model, edge, t):
+    def _rulePipelineFlow(self, model: pyo.Model, edge, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Pipeline flow vs pressure drop"""
         # edge = self.id
         edge_obj = self.edges[edge]
@@ -55,12 +52,10 @@ class Fluid(Network):
             if print_log:
                 logger.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
             Q = Q / num_pipes
-        p2_computed = self.compute_edge_pressuredrop(
-            edge_obj, p1=p1, Q=Q, linear=True, print_log=print_log
-        )
+        p2_computed = self.compute_edge_pressuredrop(edge_obj, p1=p1, Q=Q, linear=True, print_log=print_log)
         return p2 == p2_computed
 
-    def _compute_exps_and_k(self, edge_data: EdgeFluidData, carrier_data: CarrierData):
+    def _compute_exps_and_k(self, edge_data: dto.EdgeFluidData, carrier_data: dto.CarrierData):
         """Derive exp_s and k parameters for Weymouth equation"""
         # gas pipeline parameters - derive k and exp(s) parameters:
         ga = carrier_data
@@ -86,9 +81,7 @@ class Fluid(Network):
         exp_s = np.exp(s)
         return exp_s, k
 
-    def compute_edge_pressuredrop(
-        self, edge: "Edge", p1, Q, method=None, linear=False, print_log=True
-    ):
+    def compute_edge_pressuredrop(self, edge: "Edge", p1, Q, method=None, linear=False, print_log=True):
         """Compute pressure drop in pipe
 
         parameters
@@ -126,9 +119,7 @@ class Fluid(Network):
                 method = None
                 if print_log:
                     logger.debug(
-                        ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(
-                            n_from, n_to, p0_from, p0_to
-                        )
+                        ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(n_from, n_to, p0_from, p0_to)
                     )
         elif linear:
             # linear equations, but nominal values not given - assume no drop
@@ -193,9 +184,7 @@ class Fluid(Network):
                 f = carrier_data.darcy_friction
                 Re = None
             else:
-                raise Exception(
-                    "Must provide viscosity or darcy_friction for {}".format(carrier)
-                )
+                raise Exception("Must provide viscosity or darcy_friction for {}".format(carrier))
             (p2, Q0) = darcy_weissbach_p2(
                 Q,
                 p1 * 1e6,
@@ -211,18 +200,14 @@ class Fluid(Network):
             p2 = p2 * 1e-6  # Convert to MPa
             if print_log:
                 logger.debug(
-                    (
-                        "derived pipe ({}) flow rate:"
-                        " Q={}, linearQ0={:5.3g},"
-                        " friction={:5.3g}"
-                    ).format(edge_id, Q, Q0, f)
+                    ("derived pipe ({}) flow rate:" " Q={}, linearQ0={:5.3g}," " friction={:5.3g}").format(
+                        edge_id, Q, Q0, f
+                    )
                 )
 
             return p2
         else:
-            raise Exception(
-                "Unknown pressure drop calculation method ({})".format(method)
-            )
+            raise Exception("Unknown pressure drop calculation method ({})".format(method))
 
 
 class Gas(Fluid):
@@ -252,7 +237,7 @@ def darcy_weissbach_p2(
     linear=True,
     p0_from=None,  # Pa
     p0_to=None,  # Pa
-) -> typing.Tuple[float, float]:
+) -> Tuple[float, float]:
     """compute outlet pressure from darcy-weissbach equation
 
     parameters
@@ -294,11 +279,7 @@ def darcy_weissbach_p2(
         p2 = p1 - rho * grav * height_difference - k2 * (2 * q0 * Q - q0 ** 2)
     else:
         # Quadratic in Q
-        p2 = (
-            p1
-            - rho * grav * height_difference
-            - 8 * f * rho * L * Q ** 2 / (np.pi ** 2 * D ** 5)
-        )
+        p2 = p1 - rho * grav * height_difference - 8 * f * rho * L * Q ** 2 / (np.pi ** 2 * D ** 5)
     return (p2, q0)
 
 

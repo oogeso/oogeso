@@ -1,6 +1,6 @@
-from dataclasses import dataclass, is_dataclass, asdict, field
-from typing import List, Optional, Tuple, Any, Dict, Union
 import re
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple, Union
 
 
 @dataclass
@@ -44,19 +44,19 @@ class DeviceData:  # Parent class - use subclasses instead
 
 
 @dataclass
-class DevicePowersourceData(DeviceData):
+class DevicePowerSourceData(DeviceData):
     # Penalty may be fuel, emissions, cost and combinations of these
     penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
 @dataclass
-class DevicePowersinkData(DeviceData):
+class DevicePowerSinkData(DeviceData):
     pass
 
 
 @dataclass
-class DeviceStorage_elData(DeviceData):
+class DeviceStorageElData(DeviceData):
     E_max: float = 0  # MWh storage capacity
     E_min: float = 0
     E_end: Optional[float] = None  # required storage level at end of horzion

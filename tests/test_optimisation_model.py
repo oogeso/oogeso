@@ -1,13 +1,14 @@
 from pathlib import Path
-from pyomo.core.base.PyomoModel import ConcreteModel
-import pyomo.opt as pyopt
-import pyomo.environ as pyo
-import pytest
+
 import pandas as pd
+import pyomo.environ as pyo
+import pyomo.opt as pyopt
+import pytest
+from pyomo.core.base.PyomoModel import ConcreteModel
+
 import oogeso
 import oogeso.io
 from oogeso.dto.oogeso_input_data_objects import EnergySystemData
-
 
 EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
 TEST_DATA_ROOT_PATH = Path(__file__).parent
@@ -24,20 +25,14 @@ def make_test_data() -> EnergySystemData:
     carriers = [oogeso.dto.CarrierElData(id="el")]
     nodes = [oogeso.dto.NodeData("node1"), oogeso.dto.NodeData("node2")]
     edges = [oogeso.dto.EdgeElData("edge1_2", node_from="node1", node_to="node2")]
-    dev1 = oogeso.dto.DevicePowersourceData(
-        id="source1", node_id="node1", flow_max=20, penalty_function=[[0, 20], [0, 5]]
+    dev1 = oogeso.dto.DevicePowerSourceData(
+        id="source1", node_id="node1", flow_max=20, penalty_function=([0, 20], [0, 5])
     )
-    dev2 = oogeso.dto.DevicePowersinkData(
-        id="demand", node_id="node2", flow_min=15, flow_max=15, profile="demand"
-    )
+    dev2 = oogeso.dto.DevicePowerSinkData(id="demand", node_id="node2", flow_min=15, flow_max=15, profile="demand")
     devices = [dev1, dev2]
-    prof_demand = oogeso.dto.TimeSeriesData(
-        id="demand", data=[1, 2, 3, 4], data_nowcast=[1.1, 2.1, 3.1, 4.1]
-    )
+    prof_demand = oogeso.dto.TimeSeriesData(id="demand", data=[1, 2, 3, 4], data_nowcast=[1.1, 2.1, 3.1, 4.1])
     profiles = [prof_demand]
-    energy_system_data = oogeso.dto.EnergySystemData(
-        parameters, carriers, nodes, edges, devices, profiles=profiles
-    )
+    energy_system_data = oogeso.dto.EnergySystemData(parameters, carriers, nodes, edges, devices, profiles=profiles)
     return energy_system_data
 
 
@@ -78,21 +73,15 @@ def test_optimiser_updatemodel():
 
     optimisation_model = oogeso.OptimisationModel(data=energy_system_data)
 
-    optimisation_model.updateOptimisationModel(
-        timestep=0, profiles=profiles_df, first=True
-    )
+    optimisation_model.updateOptimisationModel(timestep=0, profiles=profiles_df, first=True)
 
-    optimisation_model.updateOptimisationModel(
-        timestep=1, profiles=profiles_df, first=False
-    )
+    optimisation_model.updateOptimisationModel(timestep=1, profiles=profiles_df, first=False)
 
     # Selecting timestep outside data should give error
     # 3 timesteps in each optimisation, so with profile of length 4, we can only
     # update for timestep 0 and 1 without error
     with pytest.raises(KeyError):
-        optimisation_model.updateOptimisationModel(
-            timestep=2, profiles=profiles_df, first=False
-        )
+        optimisation_model.updateOptimisationModel(timestep=2, profiles=profiles_df, first=False)
 
 
 def test_optimiser_compute():
@@ -122,15 +111,11 @@ def test_optimiser_compute():
     assert op_cost == 0
 
     # No devices represent export, so should be zero
-    export_volume = optimisation_model.compute_export(
-        pyomo_model, value="volume", carriers=None, timesteps=None
-    )
+    export_volume = optimisation_model.compute_export(pyomo_model, value="volume", carriers=None, timesteps=None)
     assert export_volume == 0
 
     # No oil/gas export  volume should give zero
-    export_oilgas_volume = optimisation_model.compute_oilgas_export(
-        pyomo_model, timesteps=None
-    )
+    export_oilgas_volume = optimisation_model.compute_oilgas_export(pyomo_model, timesteps=None)
     assert export_oilgas_volume == 0
 
     # No export so therefore no export revenue

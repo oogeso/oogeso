@@ -1,13 +1,14 @@
+from typing import Any, Optional
+
 import pandas as pd
-from oogeso.dto import SimulationResult, EnergySystemData
-from oogeso.core.devices import Device
-from typing import Dict
+
+from oogeso import dto
 
 
 def compute_kpis(
-    sim_result: SimulationResult,
-    sim_data: EnergySystemData,
-    windturbines=None,
+    sim_result: dto.SimulationResult,
+    sim_data: dto.EnergySystemData,
+    windturbines: Optional[Any] = None,  # Fixme: What is correct type here?
 ):
     """Compute key indicators of simulation results
 
@@ -45,22 +46,11 @@ def compute_kpis(
     ]
     mask_gt = res.dfDeviceFlow.index.get_level_values("device").isin(gasturbines)
     gtflow = res.dfDeviceFlow[mask_gt]
-    fuel = (
-        gtflow.unstack("carrier")["gas"]
-        .unstack("terminal")["in"]
-        .unstack()
-        .mean(axis=1)
-    )
+    fuel = gtflow.unstack("carrier")["gas"].unstack("terminal")["in"].unstack().mean(axis=1)
     kpi["gt_fuel_sm3_per_year"] = fuel.sum() * sec_per_year
 
     # electric power consumption
-    el_dem = (
-        res.dfDeviceFlow.unstack("carrier")["el"]
-        .unstack("terminal")["in"]
-        .dropna()
-        .unstack()
-        .mean(axis=1)
-    )
+    el_dem = res.dfDeviceFlow.unstack("carrier")["el"].unstack("terminal")["in"].dropna().unstack().mean(axis=1)
     kpi["elconsumption_mwh_per_year"] = el_dem.sum() * hour_per_year
     kpi["elconsumption_avg_mw"] = el_dem.sum()
 
@@ -78,12 +68,7 @@ def compute_kpis(
     kpi["gt_hoursrunning_per_year"] = gt_ison * hour_per_year / kpi["hours_simulated"]
 
     # wind power output
-    el_sup = (
-        res.dfDeviceFlow.unstack("carrier")["el"]
-        .unstack("terminal")["out"]
-        .dropna()
-        .unstack()
-    )
+    el_sup = res.dfDeviceFlow.unstack("carrier")["el"].unstack("terminal")["out"].dropna().unstack()
     p_wind = el_sup.T[windturbines]
     kpi["wind_output_mwh_per_year"] = p_wind.sum(axis=1).mean() * hour_per_year
 
