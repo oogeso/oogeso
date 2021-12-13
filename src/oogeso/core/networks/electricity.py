@@ -1,6 +1,6 @@
 import logging
 from dataclasses import asdict
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 import pyomo.environ as pyo
 
@@ -15,16 +15,16 @@ logger = logging.getLogger(__name__)
 class El(Network):
     def __init__(
         self,
-        carrier_data: dto.CarrierElData,  # Fixme: Correct DTO?
-        edges: Dict[str, dto.EdgeElData],  # Fixme: Correct DTO?
+        carrier_data: dto.CarrierElData,
+        edges: Dict[str, dto.EdgeElData],
     ):
         super().__init__(carrier_data=carrier_data, edges=edges)
         self.carrier_data = carrier_data
         self.edges = edges
-        self.el_flow_coeff_B: Optional[Any] = None  # Fixme: What type?
-        self.el_flow_coeff_DA: Optional[Any] = None  # Fixme: What type?
+        self.el_flow_coeff_B: Optional[Dict[Tuple[str, str], float]] = None
+        self.el_flow_coeff_DA: Optional[Dict[Tuple[str, str], float]] = None
 
-    def define_constraints(self, pyomo_model: pyo.Model) -> None:  # Fixme: Inconsequential compared to other classes.
+    def define_constraints(self, pyomo_model: pyo.Model) -> None:
         super().define_constraints(pyomo_model=pyomo_model)
 
         if self.carrier_data.powerflow_method == "dc-pf":
