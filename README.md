@@ -17,7 +17,15 @@ Part of the [Low Emission Centre](https://www.sintef.no/en/projects/lowemission-
 
 ## Getting started
 Install latest Oogeso release from PyPi:
-`pip install oogeso`
+```
+pip install oogeso
+```
+
+in order to use the plotting functionality you will need to install plotting libraries:
+
+```
+pip install matplotlib plotly seaborn
+```
 
 ## User guide
 The online user guide  gives more information about how to
