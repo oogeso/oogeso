@@ -129,10 +129,9 @@ def test_optimisation_solve():
     pyo.SolverFactory("cbc")
 
     energy_system_data = make_test_data()
-    optimisation_model = oogeso.OptimisationModel(data=energy_system_data)
-    model = optimisation_model
+    model = oogeso.OptimisationModel(data=energy_system_data)
 
-    sol = optimisation_model.solve(solver="cbc")
+    sol = model.solve(solver="cbc")
 
     # Solves and finds optimal solution
     assert sol.solver.status == pyopt.SolverStatus.ok
@@ -142,6 +141,6 @@ def test_optimisation_solve():
     assert pyo.value(model.varDeviceFlow["source1", "el", "out", 0]) == 15 * 1
 
     # Check that variable extraction works as well, with correct value:
-    var_values = optimisation_model.extract_all_variable_values()
+    var_values = model.extract_all_variable_values()
     assert isinstance(var_values["varDeviceFlow"], pd.Series)
     assert var_values["varDeviceFlow"]["demand", "el", "in", 0] == 15 * 1

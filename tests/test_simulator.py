@@ -51,9 +51,6 @@ def test_simulator_runsim():
     with pytest.raises(RuntimeError):
         sim_res = sim_obj.run_simulation(solver="wrong_solver_name", time_range=(0, 2))
 
-    # single timestep:
-    pyo.SolverFactory("cbc")  # Fixme: Do we need this step?
-
     sim_res = sim_obj.run_simulation(solver="cbc", time_limit=1)
     assert sim_res.device_flow["source1", "el", "out", 0] == 15 * 1.1
     assert sim_res.device_flow["demand", "el", "in", 0] == 15 * 1.1

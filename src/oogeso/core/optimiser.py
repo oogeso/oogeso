@@ -62,7 +62,7 @@ class OptimisationModel(pyo.ConcreteModel):
             elif solver == "glpk":
                 opt.options["tmlim"] = time_limit
         logger.debug("Solving...")
-        sol = self.solve()
+        sol = opt.solve(self)
 
         if write_yaml:
             sol.write_yaml()
@@ -670,10 +670,6 @@ class OptimisationModel(pyo.ConcreteModel):
             if ok_in and ok_out:
                 devs.append(d)
         return devs
-
-    def write(self, filename: str):
-        """Export optimisation problem to MPS or LP file"""
-        self.write(filename=filename, io_options={"symbolic_solver_labels": True})
 
     def extract_all_variable_values(self, timelimit: int = None, timeshift: int = 0) -> Dict[str, pd.Series]:
         """Extract variable values and return as a dictionary of pandas milti-index series"""
