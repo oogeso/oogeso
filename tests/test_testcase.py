@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
@@ -10,13 +8,10 @@ import oogeso.dto.serialisation
 import oogeso.io
 from oogeso import dto
 
-TEST_DATA_ROOT_PATH = Path(__file__).parent
-
 
 @pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
-def test_simulator_run():
-    data = oogeso.io.read_data_from_yaml(TEST_DATA_ROOT_PATH / "testdata1.yaml")
-    simulator = oogeso.Simulator(data)
+def test_simulator_run(testcase1_data):
+    simulator = oogeso.Simulator(testcase1_data)
 
     sol = simulator.optimiser.solve(solver="cbc", time_limit=20)
     assert sol.solver.termination_condition == pyopt.TerminationCondition.optimal, "Optimisation with CBC failed"

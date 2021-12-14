@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pandas as pd
 import pyomo.environ as pyo
 import pyomo.opt as pyopt
@@ -8,9 +6,6 @@ import pytest
 import oogeso
 import oogeso.io
 from oogeso.dto.oogeso_input_data_objects import EnergySystemData
-
-EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
-TEST_DATA_ROOT_PATH = Path(__file__).parent
 
 
 def make_test_data() -> EnergySystemData:
