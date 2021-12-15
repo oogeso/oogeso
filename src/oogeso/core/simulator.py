@@ -58,6 +58,8 @@ class Simulator:
     def run_simulation(
         self,
         solver: str,
+        solver_executable: Optional[str] = None,
+        solver_options: Optional[dict] = None,
         time_range: Tuple[int, int] = None,
         time_limit: Optional[int] = None,
         return_variables: Optional[Sequence[str]] = None,
@@ -69,7 +71,11 @@ class Simulator:
         Parameters
         ----------
         solver : string
-            Name of solver ("cbc", "gurobi")
+            Name of solver ("cbc", "gurobi", or others)
+        solver_executable : string
+            Path to executable
+        solver_options : dict
+            Solver-specific options passed on to solver (for fine-tuning performance)
         time_range : [int,int]
             Limit to this number of timesteps
         time_limit : int
@@ -135,7 +141,13 @@ class Simulator:
             # 1. Update problem formulation
             self.optimiser.updateOptimisationModel(step, first=first, profiles=self.profiles)
             # 2. Solve for planning horizon
-            self.optimiser.solve(solver=solver, write_yaml=write_yaml, time_limit=time_limit)
+            self.optimiser.solve(
+                solver=solver,
+                solver_executable=solver_executable,
+                solver_options=solver_options,
+                write_yaml=write_yaml,
+                time_limit=time_limit,
+            )
             # 3. Save results (for later analysis)
             new_results = self._save_optimisation_result(step, return_variables, store_duals)
             result_object.append_results(new_results)
