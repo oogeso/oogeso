@@ -47,7 +47,7 @@ def test_simulator_create():
 def test_simulator_runsim():
     energy_system_data = _make_test_data()
     sim_obj = oogeso.Simulator(energy_system_data)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(Exception):
         sim_res = sim_obj.run_simulation(solver="wrong_solver_name", time_range=(0, 2))
 
     # single timestep:
