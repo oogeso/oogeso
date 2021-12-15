@@ -1,20 +1,23 @@
 import logging
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly
-import plotly.express as px
 import pydot
 import pyomo.environ as pyo
-import seaborn as sns
 
-logger = logging.getLogger(__name__)
+try:
+    import matplotlib.pyplot as plt
+    import plotly
+    import plotly.express as px
+    import seaborn as sns
+except ImportError:
+    raise ImportError("In order to run this plotting module you need to install matplotlib, plotly and seaborn.")
 
-sns.set_style("whitegrid")
-# sns.set_palette("dark")
+sns.set_style("whitegrid")  # Optional: sns.set_palette("dark")
 
 plotter = "plotly"  # matplotlib
+
+logger = logging.getLogger(__name__)
 
 
 def plot_df(df, id_var, filename=None, title=None, ylabel="value"):
@@ -37,15 +40,15 @@ def plot_df(df, id_var, filename=None, title=None, ylabel="value"):
     return fig
 
 
-def plot_deviceprofile(
+def plot_device_profile(
     sim_result,
     optimisation_model,
     devs,
     filename=None,
-    reverseLegend=True,
-    includeForecasts=False,
-    includeOnOff=False,
-    includePrep=False,
+    reverse_legend=True,
+    include_forecasts=False,
+    include_on_off=False,
+    include_prep=False,
     devs_shareload=None,
 ):
     """plot forecast and actual profile (available power), and device output
@@ -69,7 +72,7 @@ def plot_deviceprofile(
     optimiser = optimisation_model
     if type(devs) is not list:
         devs = [devs]
-    if includeForecasts & (len(devs) > 1):
+    if include_forecasts & (len(devs) > 1):
         print("Can only plot one device when showing forecasts")
         return
     df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device")
@@ -88,9 +91,9 @@ def plot_deviceprofile(
     df.columns.name = "devices"
     df = df[devs]
     nrows = 1
-    if includeOnOff:
+    if include_on_off:
         nrows = nrows + 1
-    if includePrep:
+    if include_prep:
         nrows = nrows + 1
     df2 = res.device_is_on.unstack("device")[devs]
     dfPrep = res.device_is_prep.unstack("device")[devs]
@@ -101,7 +104,7 @@ def plot_deviceprofile(
         k = 0
         rowOnOff = 2
         rowPrep = 2
-        if includeOnOff:
+        if include_on_off:
             rowPrep = 3
         for col in df:
             dev = col
@@ -118,7 +121,7 @@ def plot_deviceprofile(
                 row=1,
                 col=1,
             )
-            if includeOnOff & (dev_data.start_stop is not None):
+            if include_on_off & (dev_data.start_stop is not None):
                 fig.add_scatter(
                     x=df2.index,
                     y=df2[col],
@@ -131,7 +134,7 @@ def plot_deviceprofile(
                     col=1,
                     showlegend=False,
                 )
-            if includePrep & (dev_data.start_stop is not None):
+            if include_prep & (dev_data.start_stop is not None):
                 fig.add_scatter(
                     x=dfPrep.index,
                     y=dfPrep[col],
@@ -144,7 +147,7 @@ def plot_deviceprofile(
                     col=1,
                     showlegend=False,
                 )
-            if includeForecasts & (dev_data.profile is not None):
+            if include_forecasts & (dev_data.profile is not None):
                 curve = dev_data.profile
                 devPmax = dev_data.flow_max
                 if curve in res.profiles_nowcast:
@@ -171,11 +174,11 @@ def plot_deviceprofile(
         fig.update_xaxes(row=1, col=1, title_text="")
         fig.update_xaxes(row=nrows, col=1, title_text="Timestep")
         fig.update_yaxes(row=1, col=1, title_text="Power supply (MW)")
-        if includeOnOff:
+        if include_on_off:
             fig.update_yaxes(row=rowOnOff, col=1, title_text="On/off status")
-        if includePrep:
+        if include_prep:
             fig.update_yaxes(row=rowPrep, col=1, title_text="Startup", nticks=2)
-        if reverseLegend:
+        if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
         # fig.show()
@@ -196,13 +199,13 @@ def plot_deviceprofile(
             # get the color of the last plotted line (the one just plotted)
             col = ax.get_lines()[-1].get_color()
             labels = labels + [devname]
-            if includeForecasts & (dev_data.profile is not None):
+            if include_forecasts & (dev_data.profile is not None):
                 curve = dev_data.profile
                 (res.profiles_nowcast.loc[timerange, curve] * devPmax).plot(ax=ax, linestyle="--")
                 # ax.set_prop_cycle(None)
                 (res.profiles_forecast.loc[timerange, curve] * devPmax).plot(ax=ax, linestyle=":")
                 labels = labels + ["--nowcast", "--forecast"]
-            if includeOnOff & (dev_data.start_stop is not None):
+            if include_on_off & (dev_data.start_stop is not None):
                 # df2=res.dfDeviceIsOn.unstack(0)[dev]+offset_online
                 offset_online += 0.1
                 df2[dev].plot(ax=ax, linestyle="--", color=col)
@@ -214,7 +217,7 @@ def plot_deviceprofile(
     return fig
 
 
-def plot_devicePowerEnergy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None):
+def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None):
     """Plot power in/out of device and storage level (if any)"""
     res = sim_result
     optimiser = optimisation_model
@@ -301,12 +304,12 @@ def plot_devicePowerEnergy(sim_result, optimisation_model: pyo.Model, dev, filen
     return fig
 
 
-def plot_SumPowerMix(
+def plot_sum_power_mix(
     sim_result,
     optimisation_model,
     carrier,
     filename=None,
-    reverseLegend=True,
+    reverse_legend=True,
     exclude_zero=False,
     devs_shareload=None,
 ):
@@ -392,7 +395,7 @@ def plot_SumPowerMix(
         fig.update_xaxes(row=2, col=1, title_text="Timestep")
         fig.update_yaxes(row=1, col=1, title_text="Power supply (MW)")
         fig.update_yaxes(row=2, col=1, title_text="Power consumption (MW)")
-        if reverseLegend:
+        if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
         # fig.show()
@@ -407,7 +410,7 @@ def plot_SumPowerMix(
         axes[0].set_xlabel("")
         axes[1].set_xlabel("Timestep")
         for ax in axes:
-            if reverseLegend:
+            if reverse_legend:
                 handles, labels = ax.get_legend_handles_labels()
                 ax.legend(
                     handles[::-1],
@@ -425,7 +428,7 @@ def plot_SumPowerMix(
     return fig
 
 
-def plot_ExportRevenue(sim_result, filename=None, currency="$"):
+def plot_export_revenue(sim_result, filename=None, currency="$"):
     export_revenue = sim_result.export_revenue.unstack("carrier")
     if plotter == "plotly":
         dfplot = export_revenue.loc[:, export_revenue.sum() > 0]
@@ -444,7 +447,7 @@ def plot_ExportRevenue(sim_result, filename=None, currency="$"):
     return fig
 
 
-def plot_CO2rate(sim_result, filename=None):
+def plot_CO2_rate(sim_result, filename=None):
     plt.figure(figsize=(12, 4))
     plt.title("CO2 emission rate (kgCO2/s)")
     ax = plt.gca()
@@ -455,7 +458,7 @@ def plot_CO2rate(sim_result, filename=None):
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plot_CO2rate_per_dev(
+def plot_CO2_rate_per_dev(
     sim_result,
     optimisation_model,
     filename=None,
@@ -550,7 +553,7 @@ def plot_CO2_intensity(sim_result, filename=None):
     return fig
 
 
-def plotProfiles(profiles, filename=None):
+def plot_profiles(profiles, filename=None):
     """Plot profiles (forecast and actual)"""
     fig = None
     if isinstance(profiles, list):
@@ -601,7 +604,7 @@ def plotProfiles(profiles, filename=None):
     return fig
 
 
-def plotDevicePowerFlowPressure(sim_result, optimisation_model: pyo.Model, dev, carriers_inout=None, filename=None):
+def plot_device_power_flow_pressure(sim_result, optimisation_model: pyo.Model, dev, carriers_inout=None, filename=None):
     res = sim_result
     all_devices = optimisation_model.all_devices
     dev_obj = all_devices[dev]
@@ -644,7 +647,7 @@ def plotDevicePowerFlowPressure(sim_result, optimisation_model: pyo.Model, dev, 
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plotNetwork(
+def plot_network(
     simulator,
     timestep=None,
     filename=None,
@@ -904,7 +907,7 @@ def plotNetwork(
     return dotG
 
 
-def plotGasTurbineEfficiency(fuelA=2.35, fuelB=0.53, energycontent=40, co2content=2.34, filename=None, Pmax=None):
+def plot_gas_turbine_efficiency(fuelA=2.35, fuelB=0.53, energycontent=40, co2content=2.34, filename=None, Pmax=None):
     """
     co2content : CO2 content, kgCO2/Sm3gas
     energycontent: energy content, MJ/Sm3gas
@@ -959,7 +962,7 @@ def plotGasTurbineEfficiency(fuelA=2.35, fuelB=0.53, energycontent=40, co2conten
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plotReserve(
+def plot_reserve(
     sim_result,
     optimisation_model,
     includeMargin=True,
@@ -1047,7 +1050,7 @@ def plotReserve(
     return fig
 
 
-def plotElBackup(sim_result, filename=None, showMargin=False, returnMargin=False):
+def plot_el_backup(sim_result, filename=None, showMargin=False, returnMargin=False):
     """plot reserve capacity vs device power output"""
     res = sim_result
     res_dev = res.el_backup
@@ -1158,7 +1161,7 @@ def recompute_elBackup(res, optimisation_model: pyo.Model):
     return res_dev, dfPout
 
 
-def plotElBackup2(mc, filename=None):
+def plot_el_backup2(mc, filename=None):
     """plot reserve capacity vs device power output"""
     res_dev, dfP = recompute_elBackup(mc)
     plt.figure(figsize=(12, 4))
