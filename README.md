@@ -5,7 +5,6 @@
 <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Badge"></a>
 <a href="https://lgtm.com/projects/g/oogeso/oogeso/alerts/"><img alt="Total alerts" src="https://img.shields.io/lgtm/alerts/g/oogeso/oogeso.svg?logo=lgtm&logoWidth=18"/></a>
 <a href="https://lgtm.com/projects/g/oogeso/oogeso/context:python"><img src="https://img.shields.io/lgtm/grade/python/g/oogeso/oogeso.svg?logo=lgtm&logoWidth=18" alt="Badge"></a>
-<a href="https://mybinder.org/v2/git/https%3A%2F%2Fbitbucket.org%2Fharald_g_svendsen%2Foogeso/HEAD?filepath=examples"><img src="https://mybinder.org/badge_logo.svg" alt="Badge"></a>
 </p>
 <br/>
 
