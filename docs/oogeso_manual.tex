@@ -634,7 +634,7 @@ In general, devices are modelled with multiple energy carriers in and multiple e
 
 
 
-\subsection{Production well [well\_production]}
+\subsection{Production well [WellProduction]}
 
 A production well is a petroleum source, with a natural well head pressure that allows a mixed liquid to flow up at a certain rate. Flow from multiple wells is combined in a manifold and fed into a separator.
 
@@ -661,7 +661,7 @@ Gas lift is not yet considered.
 
 
 
-\subsection{Separator [separator]}
+\subsection{Separator [Separator]}
 
 A separator splits the mixed liquid stream from the well into oil, gas and water in a separation process. 
 
@@ -705,7 +705,7 @@ Output pressure is equal to nominal pressure specified for terminals:
 
 
 
-\subsection{Compressor [compressor\_el]}
+\subsection{Compressor [CompressorEl]}
 A compressor is used to increase gas pressure. It may be driven by gas (see below) or electricity.
 
 
@@ -811,7 +811,7 @@ Outlet pressure is fixed at nominal value:
 \end{equation}
 
 
-\subsection{Compressor [compressor\_gas]}
+\subsection{Compressor [CompressorGas]}
 
 A gas-driven compressor is like an electrically driven compressor, but with power demand supplied from the gas flowing through.
 
@@ -839,7 +839,7 @@ The gas output equals the input minus the self-consumption:
 
 
 
-\subsection{Water pump [pump\_water]}
+\subsection{Water pump [PumpWater]}
 
 A water pump may be used either to pump water up from a water reservoir, or into an injection well. Water injection wells are used to increase/maintain the reservoir pressure, which in turn is needed to extract petroleum.  
 
@@ -913,7 +913,7 @@ Assuming that the pressure deviations are small, we can ignore the second term. 
 
 
 
-\subsection{Oil pump [pump\_oil]}
+\subsection{Oil pump [PumpOil]}
 An oil pump is as pump that increases oil pressure for transport through pipelines.
 
 \begin{itemize}
@@ -939,7 +939,7 @@ Pump power demand is proportional to energy flow and (nominal) pressure difreren
 where $p^0_1$ and $p^0_2$ are nominal pressure levels at inlet and outlet respectively.
 
 
-\subsection{Gas heater [gasheater]}
+\subsection{Gas heater [GasHeater]}
 A gas heater produces heat from burning gas.
 
 \begin{itemize}
@@ -958,7 +958,7 @@ Heat output equals heating efficiency times gas consumption:
 
 
 
-\subsection{Heat pump and electric boiler [heatpump]}
+\subsection{Heat pump and electric boiler [HeatPump]}
 
 A heat pump or boiler converts electrical energy to heat using an external heat source. The electric heating efficiency for air-to-air heat pumps is typically around  \(  \eta _{heat}=3 \) .\  The temperature dependence is not modelled.
 
@@ -978,7 +978,7 @@ Heat output equals electric power times efficiency:
 
 
 
-\subsection{Gas turbine [gasturbine]}
+\subsection{Gas turbine [GasTurbine]}
 A gas turbine generator converts natural gas to electric power and heat.
 
 \begin{itemize}
@@ -1033,7 +1033,7 @@ Heat output is given as gas fuel consumption (energy content) times a a heat fra
 
 
 
-\subsection{Source water [source\_water]}
+\subsection{Source water [SourceWater]}
 
 Water source. 
 This external source may be associated with a time-series that specifies available power and determines the maximum output value.
@@ -1055,7 +1055,7 @@ The output pressure equals the natural pressure,
 
 
 
-\subsection{Source el [source\_el]}
+\subsection{Source el [SourceEl]}
 
 Electric power source. This may be a wind turbine, diesel generator, solar power generator or similar – something that generates electricity from an external source. 
 This external source may be associated with a time-series that specifies available power and determines the maximum output value.
@@ -1067,7 +1067,7 @@ This external source may be associated with a time-series that specifies availab
 \end{itemize}
 
 
-\subsection{Electrical battery [storage\_el]}
+\subsection{Electrical battery [StorageEl]}
 Electrical storage can absorb electrical power (charging) or supply electrical power (discharging), with some losses indicated by the cycle efficiency parameter.
 
 \begin{itemize}
@@ -1103,7 +1103,7 @@ Charging and discharging limits:
 
 
 
-\subsection{Water sink [sink\_water]}
+\subsection{Water sink [SinkWater]}
 
 A  water sink, either for water disposal or water injection. The pressure is specified by the parameters of the water pipe (edge) connecting to the water sink.
 
@@ -1135,7 +1135,7 @@ The buffer level is limited by lower and upper bounds
 
 
 
-\subsection{Gas sink [sink\_gas]}
+\subsection{Gas sink [SinkGas]}
 Generic gas load (or export point)
 
 \begin{itemize}
@@ -1145,7 +1145,7 @@ Generic gas load (or export point)
 \end{itemize}
 
 
-\subsection{Oil sink [sink\_oil]}
+\subsection{Oil sink [SinkOil]}
 
 Generic oil load (or export point)
 
@@ -1161,7 +1161,7 @@ Device power equals oil in
  \[ P_{device}=P_{oil}^{gas} \] 
 
 
-\subsection{Electrical load [sink\_el]}
+\subsection{Electrical load [SinkEl]}
 
 Generic electrical load.
 
@@ -1173,7 +1173,7 @@ Generic electrical load.
 
 
 
-\subsection{Heat sink [sink\_heat]}
+\subsection{Heat sink [SinkHeat]}
 
 Generic heat load.
 

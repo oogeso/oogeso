@@ -1,17 +1,14 @@
 import tempfile
-from pathlib import Path
 
 import pandas as pd
 
 import oogeso
 import oogeso.io
 import oogeso.utils
-
-EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
-TEST_DATA_ROOT_PATH = Path(__file__).parent
+from tests.conftest import TEST_DATA_ROOT_PATH
 
 
-def test_file_input():
+def test_file_input(testcase2_data):
     # Test oogeso object creation from yaml file
 
     profiles_dfs = oogeso.io.file_io.read_profiles_from_csv(

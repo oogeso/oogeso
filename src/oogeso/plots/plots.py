@@ -688,7 +688,7 @@ def plot_network(
     # of a majority of the connected devices.
 
     optimiser = simulator.optimiser
-    model = optimiser.pyomo_instance
+    model = optimiser
     res = simulator.result_object
 
     cluster = {}
@@ -1118,7 +1118,7 @@ def recompute_elBackup(res, optimisation_model: pyo.Model):
     """Compute reserve
     should give the same as mc.compute_el_reserve"""
     optimiser = optimisation_model
-    model = optimiser.pyomo_instance  # noqa
+    model = optimiser  # noqa
     all_devices = optimiser.all_devices
 
     # used capacity for all (relevant) devices:

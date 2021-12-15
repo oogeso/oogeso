@@ -151,7 +151,7 @@ class Simulator:
     ) -> dto.SimulationResult:
         """extract results of optimisation for later analysis"""
 
-        pyomo_instance = self.optimiser.pyomo_instance
+        pyomo_instance = self.optimiser
         timelimit = self.optimiser.optimisation_parameters.optimisation_timesteps
 
         return_all = False

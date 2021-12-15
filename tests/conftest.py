@@ -8,7 +8,8 @@ import oogeso.dto.serialisation
 import oogeso.io
 from oogeso.utils.util import create_time_series_data
 
-TEST_DATA_ROOT_PATH = Path(__file__).parent
+EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
+TEST_DATA_ROOT_PATH = Path(__file__).parent / "test_data"
 
 
 @pytest.fixture
