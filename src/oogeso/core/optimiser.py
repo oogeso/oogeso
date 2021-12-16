@@ -48,10 +48,13 @@ class OptimisationModel(pyo.ConcreteModel):
         self._set_node_pressure_from_edge_data()
         self._create_pyomo_model(profiles_in_use)
 
-    def solve(self, solver="gurobi", write_yaml=False, time_limit=None):
+    def solve(self, solver="cbc", solver_executable=None, solver_options=None, write_yaml=False, time_limit=None):
         """Solve problem for planning horizon at a single timestep"""
 
-        opt = pyo.SolverFactory(solver)
+        opt = pyo.SolverFactory(solver, executable=solver_executable)
+        if solver_options is not None:
+            for k in solver_options:
+                opt.options[k] = solver_options[k]
         if time_limit is not None:
             if solver == "gurobi":
                 opt.options["TimeLimit"] = time_limit
