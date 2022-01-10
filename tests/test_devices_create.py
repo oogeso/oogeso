@@ -188,6 +188,15 @@ def test_source_gas():
     assert obj.dev_data.naturalpressure == 15
 
 
+def test_source_oil():
+    dev_data = dto.DeviceSourceOilData(**dev_data_generic, naturalpressure=15)
+    carrier_data_dict = {}
+    obj = devices.SourceOil(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SourceOil)
+    assert obj.dev_data.flow_max == 20
+    assert obj.dev_data.naturalpressure == 15
+
+
 def test_source_water():
     dev_data = dto.DeviceSourceWaterData(**dev_data_generic, naturalpressure=15)
     carrier_data_dict = {}

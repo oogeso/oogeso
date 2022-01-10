@@ -13,40 +13,6 @@ dev_data_generic = {
     "max_ramp_down": None,
     "op_cost": 0,
 }
-data_profile = dto.TimeSeriesData(
-    id="the_profile", data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6], data_nowcast=[1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
-)
-parameters = dto.OptimisationParametersData(
-    objective="penalty",
-    time_delta_minutes=15,
-    planning_horizon=4,
-    optimisation_timesteps=2,
-    forecast_timesteps=2,
-    time_reserve_minutes=30,
-)
-carriers = [
-    dto.CarrierElData(id="el"),
-    dto.CarrierGasData(
-        id="gas",
-        co2_content=2.34,
-        G_gravity=0.6,
-        Pb_basepressure_MPa=0.1,
-        R_individual_gas_constant=500,
-        Tb_basetemp_K=288,
-        Z_compressibility=0.9,
-        energy_value=40,
-        k_heat_capacity_ratio=1.27,
-        rho_density=0.8,
-    ),
-    dto.CarrierHeatData(id="heat"),
-    dto.CarrierOilData(id="oil", darcy_friction=0.02, rho_density=900, viscosity=0.002),
-    dto.CarrierWaterData(id="water", darcy_friction=0.01, rho_density=900, viscosity=0.01),
-    dto.CarrierHydrogenData(id="hydrogen"),
-    dto.CarrierWellstreamData(
-        id="wellstream", darcy_friction=0.01, rho_density=900, viscosity=0.01, water_cut=0.6, gas_oil_ratio=500
-    ),
-]
-
 startstop_data = dto.StartStopData(
     is_on_init=False,
     penalty_start=1,
@@ -56,18 +22,48 @@ startstop_data = dto.StartStopData(
     minimum_time_off_minutes=0,
 )
 
-# carriers = testcase2_data.carriers
-# Only Powersource and PowerSink are used in electric-only modelling
-
-
-# 1. specify test data for a single device, and a single node
-# 2. create optimisation model
-
-# create optimiser object, with single node and single device
-# construct
+# These tests, one for each device type, checks that the construction of Pyomo model
+# constraints associated with the deviecs goes through without error.
+# To test this, it is necessary to create a complete optimisation model with some
+# necessary node, edge, carrier data as well.
 
 
 def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
+    """Builds a minimal Pyomo model with a single device"""
+    data_profile = dto.TimeSeriesData(
+        id="the_profile", data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6], data_nowcast=[1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+    )
+    parameters = dto.OptimisationParametersData(
+        objective="penalty",
+        time_delta_minutes=15,
+        planning_horizon=4,
+        optimisation_timesteps=2,
+        forecast_timesteps=2,
+        time_reserve_minutes=30,
+    )
+    carriers = [
+        dto.CarrierElData(id="el"),
+        dto.CarrierGasData(
+            id="gas",
+            co2_content=2.34,
+            G_gravity=0.6,
+            Pb_basepressure_MPa=0.1,
+            R_individual_gas_constant=500,
+            Tb_basetemp_K=288,
+            Z_compressibility=0.9,
+            energy_value=40,
+            k_heat_capacity_ratio=1.27,
+            rho_density=0.8,
+        ),
+        dto.CarrierHeatData(id="heat"),
+        dto.CarrierOilData(id="oil", darcy_friction=0.02, rho_density=900, viscosity=0.002),
+        dto.CarrierWaterData(id="water", darcy_friction=0.01, rho_density=900, viscosity=0.01),
+        dto.CarrierHydrogenData(id="hydrogen"),
+        dto.CarrierWellstreamData(
+            id="wellstream", darcy_friction=0.01, rho_density=900, viscosity=0.01, water_cut=0.6, gas_oil_ratio=500
+        ),
+    ]
+
     nodes = [dto.NodeData(id="the_node"), dto.NodeData(id="another_node1"), dto.NodeData(id="another_node2")]
     # edges are needed to set nominal pressure, needed for compressor devices
     edges = [
@@ -89,30 +85,16 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
     return optimisation_model
 
 
-def test_powersource_constraints(testcase2_data):
+def test_powersource_constraints():
     dev_data = dto.DevicePowerSourceData(
-        **dev_data_generic,
-        start_stop=startstop_data,
-        penalty_function=([0, 50], [1, 20]),
+        **dev_data_generic, start_stop=startstop_data, penalty_function=([0, 50], [1, 20])
     )
-
-    # ALT 1
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
-    # Chack that it is a valid optimisation object (not returning None)
     assert isinstance(optimisation_model, OptimisationModel)
-
-    # ALT 2 (attemptng to isolate constraint creation for single device)
-    # optimisation_model = OptimisationModel(None)
-    # carrier_data_dict = {}
-    # obj = devices.Powersource(dev_data, carrier_data_dict)
-    # obj.define_constraints(optimisation_model)
 
 
 def test_powersink_constraints():
-    dev_data = dto.DevicePowerSinkData(
-        **dev_data_generic,
-    )
-
+    dev_data = dto.DevicePowerSinkData(**dev_data_generic)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)
 
@@ -221,6 +203,12 @@ def test_source_el_constraints():
 
 def test_source_gas_constraints():
     dev_data = dto.DeviceSourceGasData(**dev_data_generic, naturalpressure=10)
+    optimisation_model = _build_lp_problem_with_single_dev(dev_data)
+    assert isinstance(optimisation_model, OptimisationModel)
+
+
+def test_source_oil_constraints():
+    dev_data = dto.DeviceSourceOilData(**dev_data_generic, naturalpressure=10)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)
 
