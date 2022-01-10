@@ -81,7 +81,7 @@ class DeviceFuelCellData(dto.DeviceData):
 
 @dataclass
 class DeviceGasHeaterData(dto.DeviceData):
-    pass
+    eta: float = None  # efficiency
 
 
 @dataclass

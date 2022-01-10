@@ -23,7 +23,7 @@ def get_device_from_model_name(model_name: str) -> Callable:
         "heatpump": devices.HeatPump,
         "pumpoil": devices.PumpOil,
         "pumpwater": devices.PumpWater,
-        "separastor": devices.Separator,
+        "separator": devices.Separator,
         "separator2": devices.Separator2,
         "sinkel": devices.SinkEl,
         "sinkheat": devices.SinkHeat,

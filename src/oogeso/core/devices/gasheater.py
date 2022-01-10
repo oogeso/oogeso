@@ -24,12 +24,11 @@ class GasHeater(Device):
 
     def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        param_dev = self.params  # Fixme: Attribute params is missing
-        param_gas = pyomo_model.all_carriers["gas"].params
+        gas_data = self.carrier_data["gas"]
         # heat out = gas input * energy content * efficiency
-        gas_energy_content = param_gas["energy_value"]  # MJ/Sm3
+        gas_energy_content = gas_data.energy_value  # MJ/Sm3
         lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
-        rhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content * param_dev["eta"]
+        rhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content * self.dev_data.eta
         return lhs == rhs
 
     def define_constraints(self, pyomo_model: pyo.Model):
