@@ -22,6 +22,11 @@ class DeviceSourceGasData(dto.DeviceData):
 
 
 @dataclass
+class DeviceSourceOilData(dto.DeviceData):
+    naturalpressure: float = None
+
+
+@dataclass
 class DeviceSourceWaterData(dto.DeviceData):
     naturalpressure: float = None
 
