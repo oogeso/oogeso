@@ -72,7 +72,7 @@ Alternatively you can run and develop the code using docker and the Dockerfile i
 You are welcome to contribute to the improvement of the code.
 
 * Use Issues to describe and track needed improvements and bug fixes
-* Use branches to avoid messing things up -- but don't veer too far away from the trunk (master branch)
+* Use branches for development and pull requests to merge into main
 * Use [Pre-commit hooks](https://pre-commit.com/)
 
 ### Contact
