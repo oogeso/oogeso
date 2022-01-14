@@ -68,7 +68,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
             data_nowcast = dct["data_nowcast"]
         return dto.TimeSeriesData(name, data, data_nowcast)
 
-    def object_hook(self, dct):  # pylint: disable=E0202
+    def object_hook(self, dct):  # noqa
         carriers = []
         nodes = []
         edges = []
@@ -109,8 +109,8 @@ class DataclassJSONDecoder(json.JSONDecoder):
 
     def default(self, obj: Any):
         if isinstance(obj, dto.EnergySystemData):
-            return dto.EnergySystemData(obj=obj)
-        return json.JSONEncoder.default(self, obj)
+            return dto.EnergySystemData(obj=obj)  # noqa
+        return json.JSONEncoder.default(self, obj)  # noqa
 
 
 def serialize_oogeso_data(energy_system_data: dto.EnergySystemData):
@@ -128,7 +128,7 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
         super().__init__(object_hook=self.object_hook, *args, **kwargs)
 
-    def object_hook(self, dct):  # pylint: disable=E0202
+    def object_hook(self, dct):  # noqa
         res_dfs = {}
         # profiles_nowcast = {}
         if "device_flow" in dct:

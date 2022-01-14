@@ -74,7 +74,6 @@ class OptimisationModel(pyo.ConcreteModel):
             sol.solver.termination_condition == pyopt.TerminationCondition.optimal
         ):
             logger.debug("Solved OK")
-            pass
         elif sol.solver.termination_condition == pyopt.TerminationCondition.infeasible:
             raise Exception("Infeasible solution")
         else:
