@@ -30,7 +30,7 @@ pip install matplotlib plotly seaborn
 The online user guide  gives more information about how to
 specify input data and run a simulation case.
 
-*  [User guide](https://github.com/oogeso/oogeso/blob/master/userguide.md)
+*  [User guide](https://github.com/oogeso/oogeso/blob/master/docs/userguide.md)
 
 There is also a (not always up-to-date) manual with more information and explanations
 about the modelling concepts and model elements:
