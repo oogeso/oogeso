@@ -216,12 +216,12 @@ class CarrierHydrogenData(dto.CarrierData):
 @dataclass
 class CarrierFluidData(dto.CarrierData):
     rho_density: float  # kg/m3 -> 900 kg/m3
-    viscosity: Optional[float]  # kg/(m s) -> 0.0026 kg/(m s)
-    G_gravity: Optional[float]
-    Z_compressibility: Optional[float]
-    Tb_basetemp_K: Optional[float]
-    Pb_basepressure_MPa: Optional[float]
-    pressure_method: Optional[str]
+    viscosity: Optional[float] = None  # kg/(m s) -> 0.0026 kg/(m s)
+    G_gravity: Optional[float] = None
+    Z_compressibility: Optional[float] = None
+    Tb_basetemp_K: Optional[float] = None
+    Pb_basepressure_MPa: Optional[float] = None
+    pressure_method: Optional[str] = None
 
 
 @dataclass
