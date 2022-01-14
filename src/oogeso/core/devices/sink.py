@@ -29,13 +29,16 @@ class PowerSink(Device):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
 
-# Just another name for powersink
+# Just another name for PowerSink
 class SinkEl(PowerSink):
     pass
 
 
 class SinkHeat(Device):
-    "Generic heat consumption"
+    """
+    Generic heat consumption
+    """
+
     carrier_in = ["heat"]
     carrier_out = []
     serial = []
@@ -55,7 +58,10 @@ class SinkHeat(Device):
 
 
 class SinkGas(Device):
-    "Generic electricity consumption"
+    """
+    Generic electricity consumption
+    """
+
     carrier_in = ["gas"]
     carrier_out = []
     serial = []
@@ -75,7 +81,10 @@ class SinkGas(Device):
 
 
 class SinkOil(Device):
-    "Generic oil consumption"
+    """
+    Generic oil consumption
+    """
+
     carrier_in = ["oil"]
     carrier_out = []
     serial = []
@@ -95,7 +104,10 @@ class SinkOil(Device):
 
 
 class SinkWater(Device):
-    "Generic water consumption"
+    """
+    Generic water consumption
+    """
+
     carrier_in = ["water"]
     carrier_out = []
     serial = []

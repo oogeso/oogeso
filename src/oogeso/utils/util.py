@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def get_device_from_model_name(model_name: str) -> Callable:
     map_device_name_to_class = {
-        "powersource": devices.Powersource,
+        "powersource": devices.PowerSource,
         "powersink": devices.PowerSink,
         "storageel": devices.StorageEl,
         "compressorel": devices.CompressorEl,

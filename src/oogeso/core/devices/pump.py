@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 class PumpDevice(Device):
     """Parent class for pumps. Don't use this class directly."""
 
+    dev_data: dto.DevicePumpData
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -74,7 +76,7 @@ class PumpDevice(Device):
             # flow out = flow in
             lhs = model.varDeviceFlow[dev, carrier, "out", t]
             rhs = model.varDeviceFlow[dev, carrier, "in", t]
-            return lhs == rhs
+            return lhs == rhs  # noqa
         elif i == 2:
             lhs = model.varDeviceFlow[dev, "el", "in", t]
             rhs = self.compute_pump_demand(
@@ -83,7 +85,7 @@ class PumpDevice(Device):
                 linear=True,
                 t=t,
             )
-            return lhs == rhs
+            return lhs == rhs  # noqa
         else:
             raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 

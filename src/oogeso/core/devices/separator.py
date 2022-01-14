@@ -17,7 +17,7 @@ class Separator(Device):
     def __init__(
         self,
         dev_data: dto.DeviceSeparatorData,
-        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierHeatData, dto.CarrierWellstreamData]],
+        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierHeatData, dto.CarrierWellStreamData]],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -62,17 +62,17 @@ class Separator(Device):
             # gas pressure out = nominal
             lhs = pyomo_model.varPressure[(node, "gas", "out", t)]
             rhs = node_obj.get_pressure_nominal("gas", "out")
-            return lhs == rhs
+            return lhs == rhs  # noqa
         elif i == 7:
             # oil pressure out = nominal
             lhs = pyomo_model.varPressure[(node, "oil", "out", t)]
             rhs = node_obj.get_pressure_nominal("oil", "out")
-            return lhs == rhs
+            return lhs == rhs  # noqa
         elif i == 8:
             # water pressure out = nominal
             lhs = pyomo_model.varPressure[(node, "water", "out", t)]
             rhs = node_obj.get_pressure_nominal("water", "out")
-            return lhs == rhs
+            return lhs == rhs  # noqa
         else:
             raise ValueError(f"Argument i must be 1, 2, ..., 8. {i} was given.")
 
@@ -131,12 +131,12 @@ class Separator2(Device):
             # component flow in = flow out
             lhs = pyomo_model.varDeviceFlow[dev, fc, "out", t]
             rhs = pyomo_model.varDeviceFlow[dev, fc, "in", t]
-            return lhs == rhs
+            return lhs == rhs  # noqa
         elif i == 2:
             # pressure out is nominal
             lhs = pyomo_model.varPressure[(node, fc, "out", t)]
             rhs = node_obj.get_pressure_nominal(fc, "out")
-            return lhs == rhs
+            return lhs == rhs  # noqa
         else:
             raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 

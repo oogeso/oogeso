@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import pandas as pd
 import pyomo.environ as pyo
@@ -83,30 +83,33 @@ class OptimisationModel(pyo.ConcreteModel):
 
     def _set_node_pressure_from_edge_data(self):
         # Set node terminal nominal pressure based on edge from/to pressure values
-        # Fixme: hasattr is prone to bugs!
         for edge in self.all_edges.values():
             edg = edge.edge_data
             carrier = edg.carrier
             # Setting nominal pressure levels at node terminals. Raise exception
             # if inconsistencies are found
-            if (hasattr(edg, "pressure_from")) and (edg.pressure_from is not None):
-                n_from: NetworkNode = self.all_nodes[edg.node_from]
-                p_from = edg.pressure_from
-                n_from.set_pressure_nominal(carrier, "out", p_from)
-            if (hasattr(edg, "pressure_to")) and (edg.pressure_to is not None):
-                n_to: NetworkNode = self.all_nodes[edg.node_to]
-                p_to = edg.pressure_to
-                n_to.set_pressure_nominal(carrier, "in", p_to)
+            if hasattr(edg, "pressure_from"):
+                if edg.pressure_from is not None:
+                    n_from: NetworkNode = self.all_nodes[edg.node_from]
+                    p_from = edg.pressure_from
+                    n_from.set_pressure_nominal(carrier, "out", p_from)
+            if hasattr(edg, "pressure_to"):
+                if edg.pressure_to is not None:
+                    n_to: NetworkNode = self.all_nodes[edg.node_to]
+                    p_to = edg.pressure_to
+                    n_to.set_pressure_nominal(carrier, "in", p_to)
             # Setting max pressure deviation values at node terminals. Raise exception
             # if inconsistencies are found
-            if (hasattr(edg, "pressure_from_maxdeviation")) and (edg.pressure_from_maxdeviation is not None):
-                n_from: NetworkNode = self.all_nodes[edg.node_fom]
-                p_maxdev_from = edg.pressure_from_maxdeviation
-                n_from.set_pressure_maxdeviation(carrier, "out", p_maxdev_from)
-            if (hasattr(edg, "pressure_to_maxdeviation")) and (edg.pressure_to_maxdeviation is not None):
-                n_to: NetworkNode = self.all_nodes[edg.node_to]
-                p_maxdev_to = edg.pressure_to_maxdeviation
-                n_to.set_pressure_maxdeviation(carrier, "in", p_maxdev_to)
+            if hasattr(edg, "pressure_from_maxdeviation"):
+                if edg.pressure_from_maxdeviation is not None:
+                    n_from: NetworkNode = self.all_nodes[edg.node_from]
+                    p_maxdev_from = edg.pressure_from_maxdeviation
+                    n_from.set_pressure_maxdeviation(carrier, "out", p_maxdev_from)
+            if hasattr(edg, "pressure_to_maxdeviation"):
+                if edg.pressure_to_maxdeviation is not None:
+                    n_to: NetworkNode = self.all_nodes[edg.node_to]
+                    p_maxdev_to = edg.pressure_to_maxdeviation
+                    n_to.set_pressure_maxdeviation(carrier, "in", p_maxdev_to)
 
     def _create_network_objects_from_data(self, data: dto.EnergySystemData):
         """Create energy system objects, and populate local dictionaries
@@ -351,7 +354,8 @@ class OptimisationModel(pyo.ConcreteModel):
         else:
             logger.debug("No emission_intensity_max limit specified")
         # 4.3 electrical reserve margin:
-        el_parameters = self.all_networks["el"].carrier_data
+        # Fixme: This is prone to errors, and depends on the class El(Network).__name__ not changing.
+        el_parameters: dto.CarrierElData = self.all_networks["el"].carrier_data  # Fixme: Static type error.
         el_reserve_margin = el_parameters.el_reserve_margin
         el_backup_margin = el_parameters.el_backup_margin
         if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
@@ -430,10 +434,13 @@ class OptimisationModel(pyo.ConcreteModel):
                 if dev_obj in self.devices_with_storage:
                     self.paramDeviceEnergyInitially[dev] = self.varDeviceStorageEnergy[dev, t_prev]
                     # Update target profile if present:
-                    if hasattr(dev_obj.dev_data, "target_profile") and (dev_obj.dev_data.target_profile is not None):
-                        prof = dev_obj.dev_data.target_profile
-                        max_E = dev_obj.dev_data.E_max
-                        self.paramDeviceEnergyTarget[dev] = max_E * profiles["forecast"].loc[timestep + horizon, prof]
+                    if hasattr(dev_obj.dev_data, "target_profile") and hasattr(dev_obj.dev_data, "E_max"):
+                        if dev_obj.dev_data.target_profile is not None:
+                            prof = dev_obj.dev_data.target_profile
+                            max_E = dev_obj.dev_data.E_max
+                            self.paramDeviceEnergyTarget[dev] = (
+                                max_E * profiles["forecast"].loc[timestep + horizon, prof]
+                            )
 
         # These constraints need to be reconstructed to update properly
         # (pyo.value(...) and/or if sentences...)
@@ -458,7 +465,7 @@ class OptimisationModel(pyo.ConcreteModel):
     def _rule_objective_penalty(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """'penalty' as specified through penalty functions"""
         sum_penalty = 0
-        timesteps = self.setHorizon
+        timesteps: List[int] = list(self.setHorizon)
         for d in self.setDevice:
             dev = self.all_devices[d]
             this_penalty = dev.compute_penalty(model, timesteps)
@@ -467,14 +474,12 @@ class OptimisationModel(pyo.ConcreteModel):
 
     def _rule_objective_co2(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emissions per sec"""
-        sumE = self.compute_CO2(model)  # *self.paramParameters['CO2_price']
-        return sumE
+        return self.compute_CO2(model)  # *self.paramParameters['CO2_price']
 
     def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """CO2 emission intensity (CO2 per exported oil/gas)
         DOES NOT WORK - NONLINEAR (ratio)"""
-        sumE = self.compute_CO2_intensity(model)
-        return sumE
+        return self.compute_CO2_intensity(model)
 
     def _rule_objective_costs(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """costs (co2 price, operating costs, startstop, storage depletaion)
@@ -485,8 +490,8 @@ class OptimisationModel(pyo.ConcreteModel):
         co2 = self.compute_CO2(model)  # kgCO2/s
         co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
         co2Cost = co2 * co2_tax  # kr/s
-        sumCost = co2Cost + startupCosts + storageDepletionCosts + opCosts
-        return sumCost
+
+        return co2Cost + startupCosts + storageDepletionCosts + opCosts
 
     def _rule_objective_exportRevenue(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """revenue from exported oil and gas minus costs (co2 price and
@@ -498,8 +503,8 @@ class OptimisationModel(pyo.ConcreteModel):
         co2Cost = co2 * co2_tax  # kr/s
         storageDepletionCosts = self.compute_costForDepletedStorage(model)
         opCosts = self.compute_operatingCosts(model)  # kr/s
-        sumCost = -sumRevenue + co2Cost + startupCosts + storageDepletionCosts + opCosts
-        return sumCost
+
+        return -sumRevenue + co2Cost + startupCosts + storageDepletionCosts + opCosts
 
     def _rule_emissionRateLimit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission rate"""
@@ -531,10 +536,16 @@ class OptimisationModel(pyo.ConcreteModel):
         network_el = self.all_networks["el"]
 
         # Fixme: Error in type hint.
-        margin = network_el.carrier_data.el_reserve_margin
-        capacity_unused = network_el.compute_el_reserve(pyomo_model=pyomo_model, t=t, all_devices=self.all_devices)
-        expr = capacity_unused >= margin
-        return expr
+        if hasattr(network_el.carrier_data, "el_reserve_margin"):
+            margin = network_el.carrier_data.el_reserve_margin
+        else:
+            raise ValueError("network_el.carrier_data does not have the attribute el_reserve_margin")
+        if hasattr(network_el, "compute_el_reserve") and callable(getattr(network_el, "compute_el_reserve")):
+            capacity_unused = network_el.compute_el_reserve(pyomo_model=pyomo_model, t=t, all_devices=self.all_devices)
+        else:
+            raise ValueError("network_el does not have the function compute_el_reserve")
+
+        return capacity_unused >= margin
 
     def _rule_el_backup_margin(self, model: pyo.Model, dev, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Backup capacity constraint (electrical supply)

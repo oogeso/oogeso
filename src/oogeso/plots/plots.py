@@ -55,7 +55,7 @@ def plot_device_profile(
 
     Parameters
     ==========
-    sim_results : SimulationResults object
+    sim_result : SimulationResults object
     optimisation_model : OptimisationModel object
     devs : list
         which devices to include
@@ -214,6 +214,8 @@ def plot_device_profile(
         ax.legend(labels, loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot device profile.")
     return fig
 
 
@@ -301,6 +303,8 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
         ax.set_xlim(tmin, tmax)
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot device power energy.")
     return fig
 
 
@@ -425,6 +429,8 @@ def plot_sum_power_mix(
 
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot Power Mix.")
     return fig
 
 
@@ -444,6 +450,8 @@ def plot_export_revenue(sim_result, filename=None, currency="$"):
         (export_revenue.loc[:, export_revenue.sum() > 0]).plot.area(ax=ax, linewidth=0)
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot export revenue.")
     return fig
 
 
@@ -658,7 +666,7 @@ def plot_network(
     numberformat="{:.2g}",
     hide_losses=False,
     hide_edgelabel=False,
-    **kwargs
+    **kwargs,
 ):
     """Plot energy network
 
@@ -1046,6 +1054,8 @@ def plot_reserve(
         plt.xlabel("Timestep")
         plt.ylabel("Reserve (MW)")
         fig = plt.gcf()
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot reserve.")
     return fig
 
 
@@ -1110,4 +1120,6 @@ def plot_el_backup(sim_result, filename=None, showMargin=False, returnMargin=Fal
             plt.savefig(filename, bbox_inches="tight")
     if returnMargin:
         return dfMargin
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot el backup.")
     return fig

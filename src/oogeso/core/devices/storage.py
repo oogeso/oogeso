@@ -107,7 +107,7 @@ class StorageEl(StorageDevice):
                 rhs = dev_data.E_end
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip
+                return pyo.Constraint.Skip  # noqa
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
@@ -116,7 +116,7 @@ class StorageEl(StorageDevice):
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules)
         # add constraints to model:
-        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)  # fixme: Remove gettattr, hasttr, setattr.
         return list_to_reconstruct
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
@@ -195,21 +195,21 @@ class StorageHydrogen(StorageDevice):
             # should we instead use
             # Xprime >= 0 (we still need the lower limit (or bound) to avoid negative cost)
             if t != pyomo_model.setHorizon.last():
-                return pyo.Constraint.Skip
+                return pyo.Constraint.Skip  # noqa
             Xprime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
             target_value = pyomo_model.paramDeviceEnergyTarget[dev]
             deviation = pyomo_model.varDeviceStorageEnergy[dev, t] - target_value
-            return Xprime >= deviation
+            return Xprime >= deviation  # noqa
         elif i == 4:
             # deviation from target and absolute value at the end of horizon
             if t != pyomo_model.setHorizon.last():
-                return pyo.Constraint.Skip
+                return pyo.Constraint.Skip  # noqa
             Xprime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
             # profile = model.paramDevice[dev]['target_profile']
             target_value = pyomo_model.paramDeviceEnergyTarget[dev]
             deviation = pyomo_model.varDeviceStorageEnergy[dev, t] - target_value
-            return Xprime >= -deviation
+            return Xprime >= -deviation  # noqa
         else:
             raise ValueError(f"Argument i must be 1, 2, 3 or 4. {i} was given.")
 

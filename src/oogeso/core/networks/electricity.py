@@ -7,6 +7,7 @@ import pyomo.environ as pyo
 from oogeso import dto
 from oogeso.core.devices.base import Device
 from oogeso.core.networks import electricalsystem as el_calc
+from oogeso.core.networks.edge import ElEdge
 from oogeso.core.networks.network import Network
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class El(Network):
     def __init__(
         self,
         carrier_data: dto.CarrierElData,
-        edges: Dict[str, dto.EdgeElData],
+        edges: Dict[str, ElEdge],  # Fixme: Earlier we passed the DTO, but the code expects the an Edge core object.
     ):
         super().__init__(carrier_data=carrier_data, edges=edges)
         self.carrier_data = carrier_data
@@ -30,7 +31,9 @@ class El(Network):
         if self.carrier_data.powerflow_method == "dc-pf":
             logger.warning("TODO: code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
-            edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
+            edgelist_el = {
+                edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()
+            }  # Fixme: This attribute edge.edge_data does not exist in EdgeElData or EdgeData
             coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(nodelist, edgelist_el, baseZ=1)
             self.el_flow_coeff_B = coeff_B
             self.el_flow_coeff_DA = coeff_DA

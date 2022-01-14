@@ -14,12 +14,13 @@ from .oogeso_input_data_objects import (
     TimeSeriesData,
 )
 from .oogeso_input_data_objects_multienergy import (
+    CarrierFluidData,
     CarrierGasData,
     CarrierHeatData,
     CarrierHydrogenData,
     CarrierOilData,
     CarrierWaterData,
-    CarrierWellstreamData,
+    CarrierWellStreamData,
     DeviceCompressorElData,
     DeviceCompressorGasData,
     DeviceElectrolyserData,
@@ -27,6 +28,7 @@ from .oogeso_input_data_objects_multienergy import (
     DeviceGasHeaterData,
     DeviceGasTurbineData,
     DeviceHeatPumpData,
+    DevicePumpData,
     DevicePumpOilData,
     DevicePumpWaterData,
     DeviceSeparator2Data,

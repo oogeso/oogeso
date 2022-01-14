@@ -102,17 +102,22 @@ class DeviceGasTurbineData(dto.DeviceData):
 
 
 @dataclass
-class DeviceHeatPumpData(dto.DeviceData):
+class DevicePumpData(dto.DeviceData):
     eta: float = None
 
 
 @dataclass
-class DevicePumpOilData(dto.DeviceData):
+class DeviceHeatPumpData(DevicePumpData):
+    eta: float = None
+
+
+@dataclass
+class DevicePumpOilData(DevicePumpData):
     eta: float = None  # efficiency
 
 
 @dataclass
-class DevicePumpWaterData(dto.DeviceData):
+class DevicePumpWaterData(DevicePumpData):
     eta: float = None
 
 
@@ -209,40 +214,39 @@ class CarrierHydrogenData(dto.CarrierData):
 
 
 @dataclass
-class CarrierGasData(dto.CarrierData):
-    co2_content: float  # kg/Sm3 - see SSB 2016 report -> 2.34 kg/Sm3
-    G_gravity: float  # 0.6
-    Pb_basepressure_MPa: float  # MPa -> 0.101 # MPa
-    R_individual_gas_constant: float  # J/(kg K) -> 500 J/kgK
-    Tb_basetemp_K: float  # K -> 288 K = 15 degC
-    Z_compressibility: float  # 0.9
-    energy_value: float  # MJ/Sm3 (calorific value) -> 40 MJ/Sm3
-    k_heat_capacity_ratio: float  # 1.27
-    rho_density: float  # kg/m3 -> 0.84 kg/m3
+class CarrierFluidData(dto.CarrierData):
+    rho_density: float  # kg/m3 -> 900 kg/m3
+    viscosity: Optional[float]  # kg/(m s) -> 0.0026 kg/(m s)
+    G_gravity: Optional[float]
+    Z_compressibility: Optional[float]
+    Tb_basetemp_K: Optional[float]
+    Pb_basepressure_MPa: Optional[float]
+    pressure_method: Optional[str]
+
+
+@dataclass
+class CarrierGasData(CarrierFluidData):
+    co2_content: float = None  # kg/Sm3 - see SSB 2016 report -> 2.34 kg/Sm3
+    R_individual_gas_constant: float = None  # J/(kg K) -> 500 J/kgK
+    energy_value: float = None  # MJ/Sm3 (calorific value) -> 40 MJ/Sm3
+    k_heat_capacity_ratio: float = None  # 1.27
     pressure_method: Optional[str] = "weymouth"  # pressure drop calculation
 
 
 @dataclass
-class CarrierWellstreamData(dto.CarrierData):
+class CarrierWellStreamData(CarrierFluidData):
     darcy_friction: float = None  # 0.02
-    rho_density: float = None  # kg/m3 -> 900 kg/m3
-    viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
-    pressure_method: Optional[str] = None
     water_cut: float = None
     gas_oil_ratio: float = None
 
 
 @dataclass
-class CarrierOilData(dto.CarrierData):
+class CarrierOilData(CarrierFluidData):
     darcy_friction: float = None  # 0.02
-    rho_density: float = None  # kg/m3 -> 900 kg/m3
-    viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
     pressure_method: Optional[str] = "darcy-weissbach"  # pressure drop calculation
 
 
 @dataclass
-class CarrierWaterData(dto.CarrierData):
+class CarrierWaterData(CarrierFluidData):
     darcy_friction: float = None  # 0.02
-    rho_density: float = None  # kg/m3 -> 900 kg/m3
-    viscosity: float = None  # kg/(m s) -> 0.0026 kg/(m s)
     pressure_method: Optional[str] = "darcy-weissbach"  # pressure drop calculation

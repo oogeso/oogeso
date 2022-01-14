@@ -16,7 +16,7 @@ class WellProduction(Device):
     def __init__(
         self,
         dev_data: dto.DeviceWellProductionData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierWellstreamData],  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierWellStreamData],  # Fixme: Correct?
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -104,7 +104,7 @@ class WellGasLift(Device):
                 rhs = dev_data.f_inj * pyomo_model.varDeviceFlow[dev, "oil", "out", t]
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip
+                return pyo.Constraint.Skip  # noq
         elif i == 4:
             # gas injection pressure is fixed
             if carrier == "gas":
@@ -112,7 +112,7 @@ class WellGasLift(Device):
                 rhs = dev_data.injection_pressure
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip
+                return pyo.Constraint.Skip  # noqa
         else:
             raise ValueError(f"Argument i must be 1, 2, 3 or 4. {i} was given.")
 

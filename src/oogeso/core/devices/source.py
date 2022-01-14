@@ -8,6 +8,9 @@ from oogeso.core.devices.base import Device
 
 class SourceEl(Device):
     "Generic external source for electricity (e.g. cable or wind turbine)"
+
+    dev_data: dto.DeviceSourceElData
+
     carrier_in = []
     carrier_out = ["el"]
     serial = []
@@ -40,8 +43,10 @@ class SourceEl(Device):
         return thisCO2
 
 
-class Powersource(Device):
+class PowerSource(Device):
     """Generic external source for electricity (e.g. cable or wind turbine)."""
+
+    dev_data: dto.DevicePowerSourceData
 
     carrier_in = []
     carrier_out = ["el"]
@@ -109,6 +114,8 @@ class Powersource(Device):
 class SourceGas(Device):
     """Generic external source for gas."""
 
+    dev_data: dto.DeviceSourceGasData
+
     carrier_in = []
     carrier_out = ["gas"]
     serial = []
@@ -150,11 +157,11 @@ class SourceGas(Device):
 class SourceOil(Device):
     """Generic external source for oil."""
 
+    dev_data: dto.DeviceSourceOilData
+
     carrier_in = []
     carrier_out = ["oil"]
     serial = []
-
-    # Fixme: Missing DTOs?
 
     def _rules(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.dev_data.node_id
@@ -182,6 +189,8 @@ class SourceOil(Device):
 
 class SourceWater(Device):
     """Generic external source for water."""
+
+    dev_data: dto.DeviceSourceWaterData
 
     carrier_in = []
     carrier_out = ["water"]

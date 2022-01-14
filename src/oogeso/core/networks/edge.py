@@ -70,8 +70,10 @@ class Edge:
 
     def has_loss(self) -> bool:
         # Fixme: Implement power_loss_function as optional in EdgeData
-        has_loss = hasattr(self.edge_data, "power_loss_function") and (self.edge_data.power_loss_function is not None)
-        return has_loss
+        if hasattr(self.edge_data, "power_loss_function"):
+            if self.edge_data.power_loss_function is not None:
+                return True
+        return False
 
     def _rule_edge_flow_and_loss(
         self, pyomo_model: pyo.Model, t: int, i: int
@@ -99,9 +101,12 @@ class Edge:
         pyomo_model.varEdgeFlow21[self.id, :].setub(self.edge_data.flow_max)
         # Losses on cables are: P_loss = R/V^2 * P^2, i.e. quadratic function of power flow
         # Losses in transformers are: P_loss = ...
-        lookup_table = self.edge_data.power_loss_function
-        pw_x = lookup_table[0]
-        pw_y = lookup_table[1]
+        if hasattr(self.edge_data, "power_loss_function"):
+            lookup_table = self.edge_data.power_loss_function  # Fixme: What do we do if there are no loss functions?
+            pw_x = lookup_table[0]
+            pw_y = lookup_table[1]
+        else:  # Fixme: Only certain Edges expects loss function... Should we default power loss function to 0, 0?
+            raise ValueError("EdgeData does not contain a power loss function")
         # # If we use loss function giving loss fraction instead of absolute loss in MW:
         # pw_y_fraction = lookup_table[1]
         # # Lookup table gives losses as a fraction, so to get absolute values we need
@@ -128,3 +133,11 @@ class Edge:
             f_rule=pw_y,
         )
         return constr_penalty
+
+
+class FluidEdge(Edge):
+    edge_data: dto.EdgeFluidData
+
+
+class ElEdge(Edge):
+    edge_data: dto.EdgeElData
