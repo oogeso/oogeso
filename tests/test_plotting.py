@@ -1,7 +1,7 @@
 import oogeso
 from oogeso import plots as op
 from oogeso import dto
-from oogeso.core.optimiser import OptimisationModel
+import pandas as pd
 
 
 def test_plot_co2_intensity(leogo_expected_result: dto.SimulationResult):
@@ -20,10 +20,12 @@ def test_plot_co2_rate_per_dev(leogo_test_data: dto.EnergySystemData, leogo_expe
     op.plot_CO2_rate_per_dev(sim_result, optimisation_model)
 
 
-def test_plot_device_power_energy(leogo_test_data: dto.EnergySystemData, leogo_expected_result: dto.SimulationResult):
-    sim_result = leogo_expected_result
-    optimisation_model = oogeso.OptimisationModel(leogo_test_data)
-    op.plot_device_power_energy(sim_result, optimisation_model, dev="Gen1")
+def test_plot_device_power_energy(
+    testcase2_data: dto.EnergySystemData, testcase2_expected_result: dto.SimulationResult
+):
+    sim_result = testcase2_expected_result
+    optimisation_model = oogeso.OptimisationModel(testcase2_data)
+    op.plot_device_power_energy(sim_result, optimisation_model, dev="battery")
 
 
 def test_plot_device_power_flow_pressure(
@@ -43,11 +45,12 @@ def test_plot_device_profile(leogo_test_data: dto.EnergySystemData, leogo_expect
     )
 
 
-def test_plot_df(leogo_expected_result: dto.SimulationResult):
-    sim_result = leogo_expected_result
-    df = sim_result.device_flow
-    df = df[:, :, "el", "out"].unstack("device")
-    op.plot_df(df, id_var="device")
+def test_plot_df():
+    df = pd.DataFrame()
+    df["time"] = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4]
+    df["value"] = [1, 2, 3, 4, 5, 3, 2, 1, 1, 0]
+    df["class"] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+    op.plot_df(df, id_var="class")
 
 
 def test_plot_el_backup(leogo_expected_result: dto.SimulationResult):
@@ -55,17 +58,12 @@ def test_plot_el_backup(leogo_expected_result: dto.SimulationResult):
     op.plot_el_backup(sim_result, showMargin=True)
 
 
-def test_plot_el_backup2(leogo_expected_result: dto.SimulationResult):
-    sim_result = leogo_expected_result
-    op.plot_el_backup2(sim_result)
-
-
 def test_plot_export_revenue(leogo_expected_result: dto.SimulationResult):
     sim_result = leogo_expected_result
     op.plot_export_revenue(sim_result)
 
 
-def test_plot_export_revenue():
+def test_plot_gas_turbine_efficiency():
     op.plot_gas_turbine_efficiency()
 
 
