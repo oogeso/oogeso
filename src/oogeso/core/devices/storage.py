@@ -34,7 +34,7 @@ class StorageEl(StorageDevice):
         dev = self.id
         dev_data: dto.DeviceStorageElData = self.dev_data
         time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
-        time_reserve_minutes = pyomo_model.paramTimeStorageReserveMinutes
+        time_reserve_minutes = pyomo_model.paramTimeStorageReserveMinutses
 
         if i == 1:
             # energy balance
@@ -240,14 +240,14 @@ class StorageHydrogen(StorageDevice):
         stor_cost = dev_data.E_cost * deviation
         return stor_cost
 
-    def compute_costForDepletedStorage_alt2(self, pyomo_model: pyo.Model, timesteps: List[int]):
+    def compute_costForDepletedStorage_alt2(self, pyomo_model: pyo.Model, timesteps: pyo.Set):
         # cost rate kr/s
         # Cost associated with deviation from target value
         # below target = cost, above target = benefit   => gives signal to fill storage
         dev_data = self.dev_data
         # E_target = dev_data.E_max
         E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
-        t_end = timesteps[-1]
+        t_end = timesteps.last()
         varE = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
         stor_cost = dev_data.E_cost * (E_target - varE)
         # from cost (kr) to cost rate (kr/s):
