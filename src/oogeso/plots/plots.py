@@ -868,7 +868,7 @@ def plot_network(
                         )
                         # edgelabel = "{}-{}".format(edgelabel, edge_data.pressure["to"])
                 else:
-                    edgelabel = numberformat.format(res.dfEdgeFlow[(i, timestep)])
+                    edgelabel = numberformat.format(res.edge_flow[(i, timestep)])
                     # Add loss
                     if (not hide_losses) and (res.edge_loss is not None) and ((i, timestep) in res.edge_loss):
                         # taillabel = " " + edgelabel
@@ -1052,7 +1052,7 @@ def plot_reserve(
 def plot_el_backup(sim_result, filename=None, showMargin=False, returnMargin=False):
     """plot reserve capacity vs device power output"""
     res = sim_result
-    res_dev = res.el_backup
+    res_dev = res.el_backup.unstack("device")
     dfP = res.device_flow.copy()
     carrier = "el"
     mask_carrier = dfP.index.get_level_values("carrier") == carrier
