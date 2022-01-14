@@ -536,7 +536,7 @@ def plot_CO2_intensity(sim_result, filename=None):
     ylabel = "CO2 intensity (kgCO2/Sm3oe)"
     dfplot = sim_result.co2_intensity
     if plotter == "plotly":
-        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        # fig = plotly.subplots.make_subplots(rows=1, cols=1)
         # ,shared_xaxes=True,vertical_spacing=0.05)
         fig = px.line(dfplot, x=dfplot.index, y=dfplot.values)  # ,title=title)
         fig.update_xaxes(title_text=xlabel)
@@ -739,7 +739,6 @@ def plot_network(
                 num_out = 0
                 for d, dev_obj in devs.items():
                     dev_model = dev_obj.dev_data.model
-                    devlabel = d  # use index as label
                     devlabel = "{}\n{}".format(d, dev_model)
                     if plotDevName:
                         dev_name = dev_obj.dev_data.name
@@ -1131,8 +1130,8 @@ def recompute_elBackup(res, optimisation_model: pyo.Model):
     mask_in = dfP.index.get_level_values("terminal") == "out"
     dfPin = dfP[mask_carrier & mask_in]
     dfPin.index = dfPin.index.droplevel(level=("carrier", "terminal"))
-    dfPin = dfPin.unstack(0)
-    dfPin = dfPin[devices_elin]
+    # dfPin = dfPin.unstack(0)
+    # dfPin = dfPin[devices_elin]
     dfPout = dfP[mask_carrier & mask_out]
     dfPout.index = dfPout.index.droplevel(level=("carrier", "terminal"))
     dfPout = dfPout.unstack(0)
@@ -1162,8 +1161,12 @@ def recompute_elBackup(res, optimisation_model: pyo.Model):
 
 
 def plot_el_backup2(mc, filename=None):
-    """plot reserve capacity vs device power output"""
-    res_dev, dfP = recompute_elBackup(mc)
+    """
+    plot reserve capacity vs device power output
+
+    Todo: Either remove or fix this plot. recompute_elBackup is not called correctly.
+    """
+    res_dev, dfP = recompute_elBackup(res=mc, optimisation_model=pyo.AbstractModel())
     plt.figure(figsize=(12, 4))
     ax = plt.gca()
     # default line zorder=2

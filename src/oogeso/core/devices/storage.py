@@ -245,7 +245,7 @@ class StorageHydrogen(StorageDevice):
         # Cost associated with deviation from target value
         # below target = cost, above target = benefit   => gives signal to fill storage
         dev_data = self.dev_data
-        E_target = dev_data.E_max
+        # E_target = dev_data.E_max
         E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
         t_end = timesteps.last()
         varE = pyomo_model.varDeviceStorageEnergy[self.id, t_end]

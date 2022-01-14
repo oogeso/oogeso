@@ -130,3 +130,6 @@ examples/result/
 
 # Temporary data
 .tmp
+
+# PyCharm
+.DS_Store

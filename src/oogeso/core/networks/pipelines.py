@@ -182,7 +182,6 @@ class Fluid(Network):
                 f = f.real
             elif carrier_data.darcy_friction is not None:
                 f = carrier_data.darcy_friction
-                Re = None
             else:
                 raise Exception("Must provide viscosity or darcy_friction for {}".format(carrier))
             (p2, Q0) = darcy_weissbach_p2(
