@@ -868,7 +868,7 @@ def plot_network(
                         )
                         # edgelabel = "{}-{}".format(edgelabel, edge_data.pressure["to"])
                 else:
-                    edgelabel = numberformat.format(res.dfEdgeFlow[(i, timestep)])
+                    edgelabel = numberformat.format(res.edge_flow[(i, timestep)])
                     # Add loss
                     if (not hide_losses) and (res.edge_loss is not None) and ((i, timestep) in res.edge_loss):
                         # taillabel = " " + edgelabel
@@ -1052,7 +1052,7 @@ def plot_reserve(
 def plot_el_backup(sim_result, filename=None, showMargin=False, returnMargin=False):
     """plot reserve capacity vs device power output"""
     res = sim_result
-    res_dev = res.el_backup
+    res_dev = res.el_backup.unstack("device")
     dfP = res.device_flow.copy()
     carrier = "el"
     mask_carrier = dfP.index.get_level_values("carrier") == carrier
@@ -1111,92 +1111,3 @@ def plot_el_backup(sim_result, filename=None, showMargin=False, returnMargin=Fal
     if returnMargin:
         return dfMargin
     return fig
-
-
-def recompute_elBackup(res, optimisation_model: pyo.Model):
-    """Compute reserve
-    should give the same as mc.compute_el_reserve"""
-    optimiser = optimisation_model
-    model = optimiser  # noqa
-    all_devices = optimiser.all_devices
-
-    # used capacity for all (relevant) devices:
-    carrier = "el"
-    devices_elin = optimiser.getDevicesInout(carrier_in=carrier)
-    devices_elout = optimiser.getDevicesInout(carrier_out=carrier)
-    dfP = res.device_flow
-    mask_carrier = dfP.index.get_level_values("carrier") == carrier
-    mask_out = dfP.index.get_level_values("terminal") == "out"
-    mask_in = dfP.index.get_level_values("terminal") == "out"
-    dfPin = dfP[mask_carrier & mask_in]
-    dfPin.index = dfPin.index.droplevel(level=("carrier", "terminal"))
-    # dfPin = dfPin.unstack(0)
-    # dfPin = dfPin[devices_elin]
-    dfPout = dfP[mask_carrier & mask_out]
-    dfPout.index = dfPout.index.droplevel(level=("carrier", "terminal"))
-    dfPout = dfPout.unstack(0)
-    dfPout = dfPout[devices_elout]
-
-    # reserve (unused) capacity by other devices:
-    res_dev = pd.DataFrame(columns=dfPout.columns, index=dfPout.index)
-    df_ison = res.device_is_on.unstack(0)
-    for dev in devices_elout:
-        otherdevs = [d for d in devices_elout if d != dev]
-        cap_avail = 0
-        for d in otherdevs:
-            dev2 = all_devices[d].dev_data
-            devmodel = dev2.model  # noqa
-            maxValue = dev2.flow_max
-            if dev2.profile is not None:
-                extprofile = dev2.profile
-                maxValue = maxValue * res.profiles_nowcast[extprofile]
-            ison = 1
-            if dev2.start_stop is not None:
-                ison = df_ison[d]
-            cap_avail += ison * maxValue
-        otherdevs_in = [d for d in devices_elin if d != dev]  # noqa
-        # TODO: include sheddable load
-        res_dev[dev] = cap_avail - dfPout[otherdevs].sum(axis=1)
-    return res_dev, dfPout
-
-
-def plot_el_backup2(mc, filename=None):
-    """
-    plot reserve capacity vs device power output
-
-    Todo: Either remove or fix this plot. recompute_elBackup is not called correctly.
-    """
-    res_dev, dfP = recompute_elBackup(res=mc, optimisation_model=pyo.AbstractModel())
-    plt.figure(figsize=(12, 4))
-    ax = plt.gca()
-    # default line zorder=2
-    # res_dev.plot(ax=ax, linestyle="-", legend=True, alpha=0.5)
-    res_dev.plot(ax=ax, drawstyle="steps-post", linestyle="-", legend=True, alpha=0.5)
-    #    # critical is the largest load:
-    #    c_critical = dfP.idxmax(axis=1)
-    # critical is the smallest reserve margin:
-    c_critical = (res_dev - dfP).idxmin(axis=1)  # noqa
-    #    pd.Series(res_dev.lookup(res_dev.index,c_critical)).plot(ax=ax,
-    #             linestyle='-',linewidth=2,label="CRITICAL",
-    #             zorder=2.1,legend=True,color="black")
-    (res_dev - dfP).min(axis=1).plot(ax=ax, linestyle="--", color="black", linewidth=2)
-
-    # use the same colors
-    plt.gca().set_prop_cycle(None)
-    # dfP.plot(ax=ax, linestyle=":", legend=False, alpha=0.5)
-    dfP.plot(ax=ax, drawstyle="steps-post", linestyle=":", legend=False, alpha=0.5)
-
-    #    pd.Series(dfP.lookup(dfP.index,c_critical)).plot(ax=ax,
-    #             linestyle=':',legend=False,linewidth=2,
-    #             zorder=2.1,color="black")
-    plt.title("Reserve capacity (solid line) vs device output (dotted line)")
-    #    leg = ax.get_legend()
-    #    leg.set_bbox_to_anchor((1.01,0))
-    #    leg.set_frame_on(False)
-    labels = list(dfP.columns) + ["MARGIN"]
-    ax.legend(labels, loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
-    #    plt.legend(dfP.columns,loc='lower left', bbox_to_anchor =(1.01,0),
-    #               frameon=False)
-    if filename is not None:
-        plt.savefig(filename, bbox_inches="tight")
-    return ax

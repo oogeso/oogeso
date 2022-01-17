@@ -7,7 +7,6 @@ from .plots import (
     plot_device_profile,
     plot_df,
     plot_el_backup,
-    plot_el_backup2,
     plot_export_revenue,
     plot_gas_turbine_efficiency,
     plot_network,
