@@ -21,6 +21,9 @@ startstop_data = dto.StartStopData(
     minimum_time_on_minutes=0,
     minimum_time_off_minutes=0,
 )
+data_profile = dto.TimeSeriesData(
+    id="the_profile", data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6], data_nowcast=[1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+)
 
 # These tests, one for each device type, checks that the construction of Pyomo model
 # constraints associated with the deviecs goes through without error.
@@ -30,9 +33,6 @@ startstop_data = dto.StartStopData(
 
 def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
     """Builds a minimal Pyomo model with a single device"""
-    data_profile = dto.TimeSeriesData(
-        id="the_profile", data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6], data_nowcast=[1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
-    )
     parameters = dto.OptimisationParametersData(
         objective="penalty",
         time_delta_minutes=15,
@@ -82,7 +82,29 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
 
     # Create and initialize optimisation model. This will create the constraints
     optimisation_model = OptimisationModel(energy_system_data)
+
+    # Chack that all method calls works without error (not caring about return value)
+    _device_method_calls(optimisation_model)
+
     return optimisation_model
+
+
+def _device_method_calls(optimistion_model: OptimisationModel):
+    """Calls all common device methods"""
+    dev_obj = optimistion_model.all_devices["the_id"]
+    timesteps = [0]
+    # Check that these calls don't give errors
+    dev_obj.compute_CO2(optimistion_model, timesteps)
+    dev_obj.compute_cost_for_depleted_storage(optimistion_model, timesteps)
+    dev_obj.compute_el_reserve(optimistion_model, t=0)
+    dev_obj.compute_export(optimistion_model, value="volume", carriers=["oil", "gas", "el"], timesteps=timesteps)
+    dev_obj.compute_operating_costs(optimistion_model, timesteps)
+    dev_obj.compute_penalty(optimistion_model, timesteps)
+    dev_obj.compute_startup_penalty(optimistion_model, timesteps)
+    dev_obj.get_flow_var(optimistion_model, t=0)
+    dev_obj.get_max_flow(optimistion_model, t=0)
+    dev_obj.get_flow_upper_bound()
+    dev_obj.set_flow_upper_bound([data_profile])
 
 
 def test_powersource_constraints():
@@ -239,7 +261,7 @@ def test_well_gas_lift_constraints():
     assert isinstance(optimisation_model, OptimisationModel)
 
 
-def test_we4ll_production_constraints():
+def test_well_production_constraints():
     dev_data = dto.DeviceWellProductionData(**dev_data_generic, wellhead_pressure=10)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)

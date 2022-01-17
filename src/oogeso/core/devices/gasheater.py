@@ -55,4 +55,4 @@ class GasHeater(Device):
         """
         param_gas = self.carrier_data["gas"]
         gas_flow_co2 = param_gas.co2_content  # kg/m3
-        return sum(pyomo_model.varDeviceFlow[self.dev_data, "gas", "in", t] for t in timesteps) * gas_flow_co2
+        return sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gas_flow_co2

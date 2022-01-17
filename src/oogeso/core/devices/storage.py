@@ -247,7 +247,7 @@ class StorageHydrogen(StorageDevice):
         dev_data = self.dev_data
         E_target = dev_data.E_max
         E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
-        t_end = timesteps.last()
+        t_end = timesteps[-1]
         varE = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
         stor_cost = dev_data.E_cost * (E_target - varE)
         # from cost (kr) to cost rate (kr/s):
