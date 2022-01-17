@@ -59,7 +59,7 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
         dto.CarrierOilData(id="oil", darcy_friction=0.02, rho_density=900, viscosity=0.002),
         dto.CarrierWaterData(id="water", darcy_friction=0.01, rho_density=900, viscosity=0.01),
         dto.CarrierHydrogenData(id="hydrogen"),
-        dto.CarrierWellstreamData(
+        dto.CarrierWellStreamData(
             id="wellstream", darcy_friction=0.01, rho_density=900, viscosity=0.01, water_cut=0.6, gas_oil_ratio=500
         ),
     ]

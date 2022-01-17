@@ -1118,8 +1118,9 @@ def plot_el_backup(sim_result, filename=None, showMargin=False, returnMargin=Fal
         ax.legend(labels, loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
-    if returnMargin:
-        return dfMargin
     else:
         raise ValueError(f"Plotter: {plotter} has not been implemented for plot el backup.")
+    if returnMargin:
+        return dfMargin
+
     return fig

@@ -29,7 +29,7 @@ class Separator(Device):
         dev_data = self.dev_data
         node = dev_data.node_id
         node_obj: NetworkNode = self.node
-        wellstream_prop: dto.CarrierWellstreamData = self.carrier_data["wellstream"]
+        wellstream_prop: dto.CarrierWellStreamData = self.carrier_data["wellstream"]
         GOR = wellstream_prop.gas_oil_ratio
         WC = wellstream_prop.water_cut
         comp_oil = (1 - WC) / (1 + GOR - GOR * WC)
