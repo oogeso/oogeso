@@ -1,12 +1,12 @@
 import logging
-from typing import Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pyomo.environ as pyo
 import scipy
 
 from oogeso import dto
-from oogeso.core.networks.edge import Edge
+from oogeso.core.networks.edge import FluidEdge
 from oogeso.core.networks.network import Network
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,10 @@ logger = logging.getLogger(__name__)
 GRAVITY_ACCELERATION_CONSTANT = 9.8  # m/s^2
 
 
-class Fluid(Network):
+class FluidNetwork(Network):
+    carrier_data: dto.CarrierFluidData
+    edges: Dict[str, FluidEdge]
+
     def define_constraints(self, pyomo_model: pyo.Model):
         super().define_constraints(pyomo_model)
 
@@ -47,15 +50,18 @@ class Fluid(Network):
         p1 = model.varPressure[(n_from, carrier, "out", t)]
         p2 = model.varPressure[(n_to, carrier, "in", t)]
         Q = model.varEdgeFlow[edge, t]
-        if edge_data.num_pipes is not None:
-            num_pipes = edge_data.num_pipes
-            if print_log:
-                logger.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
-            Q = Q / num_pipes
+        if hasattr(edge_data, "num_pipes"):
+            if edge_data.num_pipes is not None:
+                num_pipes = edge_data.num_pipes
+                if print_log:
+                    logger.debug("{},{}: {} parallel pipes".format(edge, t, num_pipes))
+                Q = Q / num_pipes
+        else:
+            raise ValueError("FluidNetworkEdge is expected to have the attribute num_pipes.")
         p2_computed = self.compute_edge_pressuredrop(edge_obj, p1=p1, Q=Q, linear=True, print_log=print_log)
         return p2 == p2_computed
 
-    def _compute_exps_and_k(self, edge_data: dto.EdgeFluidData, carrier_data: dto.CarrierData):
+    def _compute_exps_and_k(self, edge_data: dto.EdgeFluidData, carrier_data: dto.CarrierFluidData):
         """Derive exp_s and k parameters for Weymouth equation"""
         # gas pipeline parameters - derive k and exp(s) parameters:
         ga = carrier_data
@@ -81,7 +87,9 @@ class Fluid(Network):
         exp_s = np.exp(s)
         return exp_s, k
 
-    def compute_edge_pressuredrop(self, edge: "Edge", p1, Q, method=None, linear=False, print_log=True):
+    def compute_edge_pressuredrop(
+        self, edge: FluidEdge, p1, Q, method: Optional[str] = None, linear: bool = False, print_log: bool = True
+    ):
         """Compute pressure drop in pipe
 
         parameters
@@ -95,6 +103,8 @@ class Fluid(Network):
             None, weymouth, darcy-weissbach
         linear : boolean
             whether to use linear model or not
+        print_log: bool
+            To print or not to print the log
 
         Returns
         -------
@@ -104,7 +114,7 @@ class Fluid(Network):
         # edge = self.id
         edge_data = edge.edge_data
         edge_id = edge_data.id
-        method = None
+        method = None  # Fixme: Why do we override the argument with None?
         carrier = edge_data.carrier
         carrier_data = self.carrier_data
         if carrier_data.pressure_method is not None:
@@ -118,9 +128,7 @@ class Fluid(Network):
             if linear & (p0_from == p0_to):
                 method = None
                 if print_log:
-                    logger.debug(
-                        ("{}-{}: Pipe without pressure drop" " ({} / {} MPa)").format(n_from, n_to, p0_from, p0_to)
-                    )
+                    logger.debug(f"{n_from}-{n_to}: Pipe without pressure drop" " ({p0_from} / {p0_to} MPa)")
         elif linear:
             # linear equations, but nominal values not given - assume no drop
             # logger.debug("{}-{}: Aassuming no  pressure drop".format(n_from, n_to))
@@ -209,19 +217,19 @@ class Fluid(Network):
             raise Exception("Unknown pressure drop calculation method ({})".format(method))
 
 
-class Gas(Fluid):
+class GasNetwork(FluidNetwork):
     pass
 
 
-class Oil(Fluid):
+class OilNetwork(FluidNetwork):
     pass
 
 
-class Water(Fluid):
+class WaterNetwork(FluidNetwork):
     pass
 
 
-class Wellstream(Fluid):
+class WellStreamNetwork(FluidNetwork):
     pass
 
 

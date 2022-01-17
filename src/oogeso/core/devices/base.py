@@ -16,10 +16,9 @@ class Device(ABC):
     Parent class from which all device types derive
     """
 
-    # Common class parameters:
-    carrier_in = list()
-    carrier_out = list()
-    serial = list()
+    carrier_in: List
+    carrier_out: List
+    serial: List
 
     def __init__(self, dev_data: DeviceData, carrier_data_dict: Dict[str, CarrierData]):
         """Device object constructor"""
@@ -35,7 +34,6 @@ class Device(ABC):
 
     def set_init_values(self, pyomo_model: pyo.Model) -> None:
         """Method invoked to specify optimisation problem initial value parameters"""
-        # TODO: move this to each subclass instead?
         dev_id = self.id
         dev_data = self.dev_data
         if hasattr(dev_data, "E_init"):
@@ -50,8 +48,8 @@ class Device(ABC):
         if power is None:
             return pyo.Constraint.Skip
         max_value = self.get_max_flow(pyomo_model, t)
-        expr = power <= max_value
-        return expr
+
+        return power <= max_value
 
     def _rule_device_flow_min(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
@@ -65,8 +63,8 @@ class Device(ABC):
         ison = 1
         if self.dev_data.start_stop is not None:
             ison = pyomo_model.varDeviceIsOn[self.id, t]
-        expr = power >= ison * min_value
-        return expr
+
+        return power >= ison * min_value
 
     def _rule_ramp_rate(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """power ramp rate limit"""
@@ -86,8 +84,8 @@ class Device(ABC):
         max_P = dev_data.flow_max
         max_neg = -dev_data.max_ramp_down * max_P * delta_t
         max_pos = dev_data.max_ramp_up * max_P * delta_t
-        expr = pyo.inequality(max_neg, delta_P, max_pos)
-        return expr
+
+        return pyo.inequality(max_neg, delta_P, max_pos)
 
     def _rule_startup_shutdown(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """startup/shutdown constraint
@@ -148,7 +146,6 @@ class Device(ABC):
         Returns list of constraints that need to be reconstructed between each
         optimisation
 
-        Fixme: Make setattr robust. Possible to set the wrong attribute without knowing.
         """
 
         list_to_reconstruct = []  # Default
@@ -259,26 +256,24 @@ class Device(ABC):
         carriers : list of carriers ("gas","oil","el")
         timesteps : list of timesteps
 
-        Fixme: price needs to be handled in subclasses, or price needs to be an Optional attribute of DeviceData.
         """
         carriers_in = self.carrier_in
         carriers_incl = [v for v in carriers if v in carriers_in]
-        sumValue = 0
-        if not hasattr(self.dev_data, "price"):
-            return 0
-        for carrier in carriers_incl:
-            # flow in m3/s, price in $/m3
-            if self.dev_data.price is not None:
-                if carrier in self.dev_data.price:
-                    inflow = sum(pyomo_model.varDeviceFlow[self.id, carrier, "in", t] for t in timesteps)
-                    if value == "revenue":
-                        sumValue += inflow * self.dev_data.price[carrier]
-                    elif value == "volume":
-                        volumefactor = 1
-                        if carrier == "gas":
-                            volumefactor = 1 / 1000  # Sm3 to Sm3oe
-                        sumValue += inflow * volumefactor
-        return sumValue
+        sum_value = 0
+        if hasattr(self.dev_data, "price"):
+            for carrier in carriers_incl:
+                # flow in m3/s, price in $/m3
+                if self.dev_data.price is not None:
+                    if carrier in self.dev_data.price:
+                        inflow = sum(pyomo_model.varDeviceFlow[self.id, carrier, "in", t] for t in timesteps)
+                        if value == "revenue":
+                            sum_value += inflow * self.dev_data.price[carrier]
+                        elif value == "volume":
+                            volume_factor = 1
+                            if carrier == "gas":
+                                volume_factor = 1 / 1000  # Sm3 to Sm3oe
+                            sum_value += inflow * volume_factor
+        return sum_value
 
     def compute_el_reserve(self, pyomo_model: pyo.Model, t: int) -> Dict[str, float]:
         """Compute available reserve power from this device
@@ -351,23 +346,24 @@ class Device(ABC):
         penalty_rate = 0
 
         # Fixme: Add Optional penalty function in DeviceData.
-        if hasattr(self.dev_data, "penalty_function") and self.dev_data.penalty_function is not None:
-            if not hasattr(self, "_penaltyConstraint"):
-                logger.warning("Penalty function constraint not impelemented for %s", self.id)
-            # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
-            # penalty for Pel > 0 only when device is actually online (penalty should be zero when
-            # device is offline)
-            penalty_offset = 0
-            if self.dev_data.start_stop is not None:
-                # penalty_offset = penalty(Pel=0)
-                penalty_offset = self.dev_data.penalty_function[1][0]
-            this_penalty = sum(
-                pyomo_model.varDevicePenalty[self.id, "el", "out", t]
-                + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
-                for t in timesteps
-            )
-            # divide by number of timesteps to get average penalty rate (penalty per sec):
-            penalty_rate = this_penalty / len(timesteps)
+        if hasattr(self.dev_data, "penalty_function"):
+            if self.dev_data.penalty_function is not None:
+                if not hasattr(self, "_penaltyConstraint"):
+                    logger.warning(f"Penalty function constraint is not implemented for {self.id}")
+                # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
+                # penalty for Pel > 0 only when device is actually online (penalty should be zero when
+                # device is offline)
+                penalty_offset = 0
+                if self.dev_data.start_stop is not None:
+                    # penalty_offset = penalty(Pel=0)
+                    penalty_offset = self.dev_data.penalty_function[1][0]
+                this_penalty = sum(
+                    pyomo_model.varDevicePenalty[self.id, "el", "out", t]
+                    + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
+                    for t in timesteps
+                )
+                # divide by number of timesteps to get average penalty rate (penalty per sec):
+                penalty_rate = this_penalty / len(timesteps)
 
         start_stop_penalty_rate = 0
         if self.dev_data.start_stop is not None:

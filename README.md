@@ -47,6 +47,7 @@ Check out the examples:
 Prerequisite: 
 - [Poetry](https://python-poetry.org/docs/#installation)
 - [Pre-commit](https://pre-commit.com/)
+- [CBC solver](https://projects.coin-or.org/Cbc)
 Clone or download the code and install it as a python package. I.e. navigate to the folder with the MANIFEST.in file and type:
 
 ### Install dependencies
@@ -54,7 +55,7 @@ Clone or download the code and install it as a python package. I.e. navigate to 
 2. `cd oogeso`
 3. `poetry install --no-root`  --no-root to not install the package itself, only the dependencies.
 4. `poetry shell`
-5. `poetry run pytests tests`
+5. `poetry run pytest tests`
 
 ### Local development in Docker
 Alternatively you can run and develop the code using docker and the Dockerfile in the root folder.

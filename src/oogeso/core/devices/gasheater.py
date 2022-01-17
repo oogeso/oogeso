@@ -7,7 +7,6 @@ from oogeso.core.devices.base import Device
 
 
 class GasHeater(Device):
-    "Gas heater"
     carrier_in = ["gas"]
     carrier_out = ["heat"]
     serial = []
@@ -46,7 +45,6 @@ class GasHeater(Device):
         # (alternative could be to use gas input)
         return pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
 
-    # overriding default
     def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
         """
         Fixme: The variable d and model_pyomo was not set. Changed to model and self.dev_data. Correct?

@@ -32,8 +32,8 @@ def test_powersource():
         penalty_function=([0, 50], [1, 20]),
     )
     carrier_data_dict = {}
-    obj = devices.Powersource(dev_data, carrier_data_dict)
-    assert isinstance(obj, devices.Powersource)
+    obj = devices.PowerSource(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.PowerSource)
     assert obj.dev_data.node_id == "the_node"
     assert obj.dev_data.penalty_function == ([0, 50], [1, 20])
 
