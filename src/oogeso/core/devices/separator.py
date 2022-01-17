@@ -95,7 +95,11 @@ class Separator(Device):
 
 
 class Separator2(Device):
-    "Wellstream separation into oil/gas/water"
+    """
+    Wellstream separation into oil/gas/water
+
+    Alternative separator model - using oil/gas/water input instead of
+    """
 
     carrier_in = ["oil", "gas", "water", "heat", "el"]
     carrier_out = ["oil", "gas", "water"]
@@ -114,8 +118,6 @@ class Separator2(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    # Alternative separator model - using oil/gas/water input instead of
-    # wellstream
     def _rule_separator2_flow(
         self, pyomo_model: pyo.Model, fc, t: int, i: int
     ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
