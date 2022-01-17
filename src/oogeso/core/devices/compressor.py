@@ -32,7 +32,7 @@ class CompressorEl(Device):
             """gas flow in equals gas flow out (mass flow)"""
             lhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t]
             rhs = pyomo_model.varDeviceFlow[dev, "gas", "out", t]
-            return lhs == rhs
+            return lhs == rhs  # noqa
         elif i == 2:  # Fixme: use carrier_data object type instead?
             """Device el demand"""
             lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
