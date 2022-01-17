@@ -5,7 +5,11 @@ import pytest
 
 import oogeso
 from oogeso import dto
-from oogeso import plots as op
+
+try:
+    from oogeso import plots as op
+except ImportError:
+    pass
 
 
 @pytest.mark.skipif(
