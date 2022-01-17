@@ -23,9 +23,9 @@ class Network:
             edge.define_constraints(pyomo_model=pyomo_model, piecewise_repn=piecewise_repn)
 
 
-class Heat(Network):
+class HeatNetwork(Network):
     pass
 
 
-class Hydrogen(Network):
+class HydrogenNetwork(Network):
     pass

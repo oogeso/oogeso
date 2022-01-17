@@ -12,7 +12,7 @@ from oogeso.core.devices.storage import StorageDevice
 from oogeso.core.networks.edge import Edge
 from oogeso.core.networks.network import Network
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.utils.util import get_device_from_model_name
+from oogeso.utils.util import get_device_from_model_name, get_network_from_carrier_name
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ class OptimisationModel(pyo.ConcreteModel):
             carrier_model = carrier_data_obj.id  # el,heat,oil,gas,water,hydrogen,
             # The network class corresponding to the carrier should always have a
             # name identical to the id (but capitalized):
-            network_class = getattr(networks, carrier_model.capitalize())
+            network_class = get_network_from_carrier_name(carrier_model)
             if carrier_model not in edges_per_type:
                 edges_per_type[carrier_model] = {}
             new_network = network_class(

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 GRAVITY_ACCELERATION_CONSTANT = 9.8  # m/s^2
 
 
-class Fluid(Network):
+class FluidNetwork(Network):
     carrier_data: dto.CarrierFluidData
     edges: Dict[str, FluidEdge]
 
@@ -217,19 +217,19 @@ class Fluid(Network):
             raise Exception("Unknown pressure drop calculation method ({})".format(method))
 
 
-class Gas(Fluid):
+class GasNetwork(FluidNetwork):
     pass
 
 
-class Oil(Fluid):
+class OilNetwork(FluidNetwork):
     pass
 
 
-class Water(Fluid):
+class WaterNetwork(FluidNetwork):
     pass
 
 
-class Wellstream(Fluid):
+class WellStreamNetwork(FluidNetwork):
     pass
 
 

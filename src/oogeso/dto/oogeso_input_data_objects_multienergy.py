@@ -215,6 +215,7 @@ class CarrierHydrogenData(dto.CarrierData):
 
 @dataclass
 class CarrierFluidData(dto.CarrierData):
+    # Todo: Consider if we need one DTO for each fluid type, or if we can do with one DTO.
     rho_density: float  # kg/m3 -> 900 kg/m3
     viscosity: Optional[float] = None  # kg/(m s) -> 0.0026 kg/(m s)
     G_gravity: Optional[float] = None

@@ -286,7 +286,7 @@ class Simulator:
         if return_all or "el_reserve" in return_variables:
             df_reserve = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
             for t in range(timelimit):
-                rescap = pyo.value(  # Fixme: This reference to compute_el_reserve may be incorrect.
+                rescap = pyo.value(
                     self.optimiser.all_networks["el"].compute_el_reserve(pyomo_instance, t, self.optimiser.all_devices)
                 )
                 df_reserve.loc[t + timestep] = rescap

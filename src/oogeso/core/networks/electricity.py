@@ -13,7 +13,7 @@ from oogeso.core.networks.network import Network
 logger = logging.getLogger(__name__)
 
 
-class El(Network):
+class ElNetwork(Network):
     def __init__(
         self,
         carrier_data: dto.CarrierElData,

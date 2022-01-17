@@ -69,7 +69,7 @@ class Edge:
         return expr
 
     def has_loss(self) -> bool:
-        # Fixme: Implement power_loss_function as optional in EdgeData
+        # Todo: Implement power_loss_function as optional in EdgeData
         if hasattr(self.edge_data, "power_loss_function"):
             if self.edge_data.power_loss_function is not None:
                 return True
@@ -92,7 +92,7 @@ class Edge:
             )
         else:
             raise NotImplementedError("Only i 1 and 2 is implemented.")
-        return expr
+        return expr  # noqa
 
     def _loss_function_constraint(self, i: int, pyomo_model: pyo.Model, piecewise_repn):
 
@@ -102,10 +102,10 @@ class Edge:
         # Losses on cables are: P_loss = R/V^2 * P^2, i.e. quadratic function of power flow
         # Losses in transformers are: P_loss = ...
         if hasattr(self.edge_data, "power_loss_function"):
-            lookup_table = self.edge_data.power_loss_function  # Fixme: What do we do if there are no loss functions?
+            lookup_table = self.edge_data.power_loss_function
             pw_x = lookup_table[0]
             pw_y = lookup_table[1]
-        else:  # Fixme: Only certain Edges expects loss function... Should we default power loss function to 0, 0?
+        else:
             raise ValueError("EdgeData does not contain a power loss function")
         # # If we use loss function giving loss fraction instead of absolute loss in MW:
         # pw_y_fraction = lookup_table[1]
