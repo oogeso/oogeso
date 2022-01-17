@@ -34,7 +34,7 @@ class StorageEl(StorageDevice):
         dev = self.id
         dev_data: dto.DeviceStorageElData = self.dev_data
         time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
-        time_reserve_minutes = pyomo_model.paramTimeStorageReserveMinutses
+        time_reserve_minutes = pyomo_model.paramTimeStorageReserveMinutes
 
         if i == 1:
             # energy balance
