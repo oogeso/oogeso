@@ -28,8 +28,8 @@ class Separator(Device):
         dev = self.id
         dev_data = self.dev_data
         node = dev_data.node_id
-        node_obj: NetworkNode = self.optimiser.all_nodes[node]  # Fixme: Unresolved reference
-        wellstream_prop: dto.CarrierWellstreamData = self.all_carriers["wellstream"]  # Fixme: Unresolved reference
+        node_obj: NetworkNode = self.node
+        wellstream_prop: dto.CarrierWellstreamData = self.carrier_data["wellstream"]
         GOR = wellstream_prop.gas_oil_ratio
         WC = wellstream_prop.water_cut
         comp_oil = (1 - WC) / (1 + GOR - GOR * WC)
@@ -91,11 +91,15 @@ class Separator(Device):
         return list_to_reconstruct
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
-        raise NotImplementedError("No get_flow_var defined for Separator")
+        return pyomo_model.varDeviceFlow[self.id, "wellstream", "in", t]
 
 
 class Separator2(Device):
-    "Wellstream separation into oil/gas/water"
+    """
+    Wellstream separation into oil/gas/water
+
+    Alternative separator model - using oil/gas/water input instead of
+    """
 
     carrier_in = ["oil", "gas", "water", "heat", "el"]
     carrier_out = ["oil", "gas", "water"]
@@ -114,8 +118,6 @@ class Separator2(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    # Alternative separator model - using oil/gas/water input instead of
-    # wellstream
     def _rule_separator2_flow(
         self, pyomo_model: pyo.Model, fc, t: int, i: int
     ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
@@ -190,4 +192,8 @@ class Separator2(Device):
         return list_to_reconstruct
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
-        raise NotImplementedError("No get_flow_var defined for Separator")
+        return (
+            pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
+            + pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
+            + pyomo_model.varDeviceFlow[self.id, "water", "in", t]
+        )

@@ -38,6 +38,7 @@ from .oogeso_input_data_objects_multienergy import (
     DeviceSinkWaterData,
     DeviceSourceElData,
     DeviceSourceGasData,
+    DeviceSourceOilData,
     DeviceSourceWaterData,
     DeviceStorageHydrogenData,
     DeviceWellGasLiftData,

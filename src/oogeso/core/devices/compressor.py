@@ -78,7 +78,6 @@ class CompressorGas(Device):
 
     def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        dev_data: DeviceCompressorGasData = self.dev_data  # noqa: Fixme: dev_data not in use.
         node_obj: NetworkNode = self.node
         gas_data = self.carrier_data["gas"]
         gas_energy_content = gas_data.energy_value  # MJ/Sm3
@@ -114,7 +113,7 @@ class CompressorGas(Device):
         )
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
-        raise NotImplementedError()
+        return pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
 
 
 def compute_compressor_demand(

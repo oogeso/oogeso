@@ -24,12 +24,11 @@ class GasHeater(Device):
 
     def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        param_dev = self.params  # Fixme: Attribute params is missing
-        param_gas = pyomo_model.all_carriers["gas"].params
+        gas_data = self.carrier_data["gas"]
         # heat out = gas input * energy content * efficiency
-        gas_energy_content = param_gas["energy_value"]  # MJ/Sm3
+        gas_energy_content = gas_data.energy_value  # MJ/Sm3
         lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
-        rhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content * param_dev["eta"]
+        rhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content * self.dev_data.eta
         return lhs == rhs
 
     def define_constraints(self, pyomo_model: pyo.Model):
@@ -51,7 +50,9 @@ class GasHeater(Device):
     def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
         """
         Fixme: The variable d and model_pyomo was not set. Changed to model and self.dev_data. Correct?
+
+        Todo: Need testing here.
         """
         param_gas = self.carrier_data["gas"]
         gas_flow_co2 = param_gas.co2_content  # kg/m3
-        return sum(pyomo_model.varDeviceFlow[self.dev_data, "gas", "in", t] for t in timesteps) * gas_flow_co2
+        return sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gas_flow_co2

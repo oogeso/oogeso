@@ -601,7 +601,6 @@ class OptimisationModel(pyo.ConcreteModel):
         start_stop_costs = start_stop_costs / sumTime
         return start_stop_costs
 
-    logger.info("TODO: operating cost for el storage - needs improvement")
 
     def compute_operatingCosts(self, model: pyo.Model):
         """term in objective function to represent fuel costs or similar

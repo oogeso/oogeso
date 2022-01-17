@@ -22,6 +22,11 @@ class DeviceSourceGasData(dto.DeviceData):
 
 
 @dataclass
+class DeviceSourceOilData(dto.DeviceData):
+    naturalpressure: float = None
+
+
+@dataclass
 class DeviceSourceWaterData(dto.DeviceData):
     naturalpressure: float = None
 
@@ -81,7 +86,7 @@ class DeviceFuelCellData(dto.DeviceData):
 
 @dataclass
 class DeviceGasHeaterData(dto.DeviceData):
-    pass
+    eta: float = None  # efficiency
 
 
 @dataclass

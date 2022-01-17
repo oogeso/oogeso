@@ -17,7 +17,7 @@ class HeatPump(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceHeatPumpData,  # Fixme: Correct?
+        dev_data: dto.DeviceHeatPumpData,
         carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
@@ -29,8 +29,8 @@ class HeatPump(Device):
         dev = self.id
         # heat out = el in * efficiency
         lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
-        rhs = pyomo_model.varDeviceFlow[dev, "el", "in", t] * pyomo_model.paramDevice[dev]["eta"]
-        return pyo.Expression(lhs == rhs)
+        rhs = pyomo_model.varDeviceFlow[dev, "el", "in", t] * self.dev_data.eta
+        return lhs == rhs
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
