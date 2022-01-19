@@ -134,7 +134,7 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
         if "device_flow" in dct:
             # Top level
             for k, val in dct.items():
-                print(k)
+                logger.debug(k)
                 if val is None:
                     res_dfs[k] = None
                 else:
@@ -148,11 +148,7 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
                         # change to multi-index pandas Series
                         index_names = ["device", "time", "carrier", "terminal", "edge", "node"]
                         multiind = [c for c in df.columns if c in index_names]
-                        # print(df.columns)
-                        # if multiind == []:
-                        #    print(val, type(val))
                         df = df.set_index(multiind)
-                        # print(df.columns)
                         df = df.iloc[:, 0]
                     res_dfs[k] = df
             result_data = dto.SimulationResult(**res_dfs)
@@ -169,77 +165,3 @@ def deserialize_oogeso_results(json_data):
     result_data = json.loads(json_data, cls=OogesoResultJSONDecoder)
     return result_data
 
-
-if __name__ == "__main__":
-    # Todo: Move to examples and/or tests.
-    print("Serializing example data and saving to file (examples/energysystem.json)")
-
-    # Example:
-    energy_system = dto.EnergySystemData(
-        carriers=[
-            dto.CarrierElData(
-                id="el",
-                reference_node="node1",
-                el_reserve_margin=-1,
-            ),
-            dto.CarrierHeatData("heat"),
-            dto.CarrierGasData(
-                "gas",
-                co2_content=0.4,
-                G_gravity=0.6,
-                Pb_basepressure_MPa=100,
-                R_individual_gas_constant=9,
-                Tb_basetemp_K=300,
-                Z_compressibility=0.9,
-                energy_value=40,
-                k_heat_capacity_ratio=0.7,
-                rho_density=0.6,
-            ),
-        ],
-        nodes=[dto.NodeData("node1"), dto.NodeData("node2")],
-        edges=[
-            dto.EdgeElData(
-                id="edge1",
-                node_from="node1",
-                node_to="node2",
-                flow_max=500,
-                reactance=1,
-                resistance=1,
-                voltage=33,
-                length_km=10,
-            ),
-            dto.EdgeElData(
-                id="edge2",
-                node_from="node2",
-                node_to="node1",
-                flow_max=50,
-                voltage=33,
-                length_km=10,
-                # reactance=1,
-                # resistance=1,
-                power_loss_function=([0, 1], [0, 0.02]),
-            ),
-        ],
-        devices=[
-            dto.DeviceSourceElData(id="elsource", node_id="node1", flow_max=12),
-            dto.DevicePowerSourceData(id="gt1", node_id="node2", flow_max=30, profile="profile1"),
-            dto.DeviceSinkElData(id="demand", node_id="node2", flow_min=4, profile="profile1"),
-        ],
-        parameters=dto.OptimisationParametersData(
-            time_delta_minutes=30,
-            planning_horizon=12,
-            optimisation_timesteps=6,
-            forecast_timesteps=6,
-            time_reserve_minutes=30,
-            max_pressure_deviation=-1,
-            co2_tax=30,
-            objective="exportRevenue",
-        ),
-        profiles=[dto.TimeSeriesData(id="profile1", data=[12, 10, 21])],
-    )
-
-    # serialized = serialize_oogeso_data(energy_system)
-    # print(serialized)
-
-    with open("examples/energysystem.json", "w") as outfile:
-        json.dump(energy_system, fp=outfile, cls=DataclassJSONEncoder, indent=2)
