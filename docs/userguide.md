@@ -34,7 +34,9 @@ The *objective* of the optimisation is to minimise the overall penalty. The pena
 
 ## Input data
 
-Oogeso may be used to model the electricity supply and distribution only (in an electricity only model), or it may be used to model the integrated energy system including other energy and mass carriers.
+There are two main modelling alternatives with Ooges:
+* Electricity only modelling (electricity supply, distribution and demand)
+* Integrated multi-energy modelling (multiple energy/matter carriers)
 
 If the electricity supply system is not closely integrated with the rest of the system an electricity-system only modelling may be sufficient. 
 However, if interactions between elements of the integrated electricity, heat, processing system is important, the multi-energy capabilities of Oogeso are relevant.

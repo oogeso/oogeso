@@ -70,7 +70,9 @@ co2_tax                 | float | CO2 emission costs (NOK/kgCO2)
 emission_intensity_max    | float | maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit
 emission_rate_max         | float | maximum allowed emission rate (kgCO2/hour), -1=no limit
 max_pressure_deviation  | float | global limit for allowable relative pressure deviation from nominal, -1=no limit
-objective               | string    | name of objective function to use (e.g. exportRevenue, costs)
+objective     | string    | name of objective function to use (e.g. exportRevenue, costs)
+piecewise_repn | string | method for impelementation of peicewise linear constraints in pyomo
+optimisaion_return_data | list | (optional) list of variables to return from simulation
 
 ### Time-series profiles (```profiles```)
 
@@ -80,16 +82,36 @@ Note that the actual real-time values (e.g. of power demand or of available wind
 
 Profiles may be specified in the YAML file as indicated above, or they may be read from separate files.
 
+---
+**Note regarding the use of profiles:** 
+
+The max/min flow ($Q$) constraint (e.g. electric power output from a wind turbine, or power demand by a load) is generally written on the form 
+$Q_{min}\cdot \text{profile}(t) \le Q(t)  \le Q_{max}\cdot \text{profile}(t)$,
+where $\text{profile}(t)$ is the profile value at time $t$ and $Q(t)$ is the flow being constrained.
+That means you can choose where to put the units
+* ```flow_max``` gives the absolute value (e.g. MW) and profile is given in relative units
+* ```flow_max=1``` and the profile is given in absolute units (e.g. MW)
+
+All examples use the first alternative.
+
+---
 
 ### Energy carriers (```carriers```)
 
-See below.
+parameter | type | description
+----------|------|------------
+id          | string  | carrier type (el, heat, hydrogen, gas, oil, water, wellstream)
 
+Other data differs for the different carrier types.
 
 
 ### Network nodes (```nodes```)
-This consists simly of a set of nodes with an node identifier, but no additional parameters.
 
+parameter | type | description
+----------|------|------------
+id          | string  | unique node identifier
+
+(No additional data needed)
 
 ### Network edges (```edges```)
 This consists a set of edges with a set of parameters for each edge
@@ -99,11 +121,11 @@ Common parameters for all edges:
 
 parameter | type | description
 ----------|------|------------
-type        | string |   type of edge (el, heat, gas, oil, wellstream, water, hydrogen)
-node_from    | string | identifier of "from" node
-node_to      | string | identifier of "from" node
+id          | string  | unique edge identifier
+carrier     | string |  edge carrier type (el, heat, gas, oil, wellstream, water, hydrogen)
+node_from   | string | identifier of "from" node
+node_to     | string | identifier of "from" node
 include     | int    | wheter to include edge or not (1=yes, 0=no)
-height_m    | float | height difference (metres) endpoint vs startpoint
 length_km   | float | distance (km)
 flow_max        | float | (optional) maximum power flow allowed (MW or Sm3/s)
 
@@ -115,6 +137,7 @@ Common parameters for all device types:
 
 parameter | type | description
 ----------|------|------------
+id          | string    | unique device identifier
 node_id     | string    | identifier of node where it is connected
 name        | string    | display name
 model       | string    | name of device model type (see below)
@@ -127,7 +150,6 @@ max_ramp_down   | float | (optioanl) maximum ramping (% of flow_max per min)
 start_stop      | StartStopData | (optional) see below
 reserve_factor  | float | (optional) how much of electric power counts towards the reserve (1=all, 0=none)
 op_cost         | float | (optional) Operating cost
-price.CARRIER | float   | (optional) price for power/flow in or out of device (NOK/MW or NOK/Sm3)
 
 In addition to these parameters there are parameters that depend on the device *model*.  These are specified further down.
 
@@ -149,9 +171,9 @@ minimum_time_off_minutes | int | time device must be off once stopped (min)
 
 A common use case is to use Oogeso to model only the electricity network. Additional input data needed in this case is shown below.
 
-### Carriers
+### Carriers (electricity)
 
-el:
+#### ```id: el```
 parameter | type | description
 ----------|------|-------------
 powerflow_method  | str | "transport"  or "dc_pf"
@@ -161,13 +183,17 @@ el_backup_margin  | float | (optional) required backup margin in case of generto
 
 
 ### Edges (electric)
+The table below shows the electricity line parameters, used in addition to the [generic edge parameters](#network-edges-edges).
 
-#### ```el```
+#### ```carrier: el```
 parameter | type | description
 ----------|------|------------
-reactance   | float | reactance in system per units
-resistance  | float | resistance in system per units
+reactance   | float | reactance (ohm/km) (used only with method "dc_pf")
+resistance  | float | resistance (ohm/km) (used only with method "dc_pf")
+voltage | float | voltage (kV) of line (single value) or transformer (tuple) (used only with method "dc_pf")
+power_loss_function | table|  piecewise linear function/table of power transfer (MW) vs loss (MW)
 
+Note that for the (default) "transport" electricity power flow method, only the optional power_loss_function is relevant.
 
 
 ### Devices (electric only)
@@ -195,4 +221,5 @@ target_profile | string | (optional) name of profile used for desired storage fi
 
 ## Multi-energy system modelling
 
-Additional edge data and device data used with multi-energy modelling is given [here](userguide_inputdata_multienergy.md).
+Additional edge data and device data used with multi-energy modelling is provided here:
+* [Read more](userguide_inputdata_multienergy.md)
