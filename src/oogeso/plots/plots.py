@@ -236,8 +236,10 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
         Etitle = "Energy storage (MWh)"
     # Power flow in/out
     dfF = res.device_flow[dev, carrier].unstack("terminal")
-    dfE = res.device_storage_energy.unstack("device")
-    # dfE = pd.DataFrame()
+    if res.device_storage_energy is None:
+        dfE = pd.DataFrame()
+    else:
+        dfE = res.device_storage_energy.unstack("device")
     if dev in dfE:
         dfE = dfE[dev]
         # Shift time by one, since the dfDeviceEnergy[t] is the energy _after_
