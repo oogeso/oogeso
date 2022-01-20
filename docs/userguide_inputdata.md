@@ -70,7 +70,7 @@ co2_tax                 | float | CO2 emission costs (NOK/kgCO2)
 emission_intensity_max    | float | maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit
 emission_rate_max         | float | maximum allowed emission rate (kgCO2/hour), -1=no limit
 max_pressure_deviation  | float | global limit for allowable relative pressure deviation from nominal, -1=no limit
-objective     | string    | name of objective function to use (e.g. exportRevenue, costs)
+objective     | string    | name of objective function to use (penalty, exportRevenue, costs)
 piecewise_repn | string | method for impelementation of peicewise linear constraints in pyomo
 optimisaion_return_data | list | (optional) list of variables to return from simulation
 
@@ -83,14 +83,14 @@ Note that the actual real-time values (e.g. of power demand or of available wind
 Profiles may be specified in the YAML file as indicated above, or they may be read from separate files.
 
 ---
-**Note regarding the use of profiles:** 
+**Note regarding the use of profiles** 
 
 The max/min flow ($Q$) constraint (e.g. electric power output from a wind turbine, or power demand by a load) is generally written on the form 
 $Q_{min}\cdot \text{profile}(t) \le Q(t)  \le Q_{max}\cdot \text{profile}(t)$,
-where $\text{profile}(t)$ is the profile value at time $t$ and $Q(t)$ is the flow being constrained.
-That means you can choose where to put the units
-* ```flow_max``` gives the absolute value (e.g. MW) and profile is given in relative units
-* ```flow_max=1``` and the profile is given in absolute units (e.g. MW)
+where $Q(t)$ is the flow being constrained.
+That means you can choose where to put the units:
+* ```flow_max``` gives the absolute value (e.g. MW) and the profile is given in relative units (typically in the range 0-1)
+* ```flow_max = 1``` and the profile is given in absolute units (e.g. MW)
 
 All examples use the first alternative.
 

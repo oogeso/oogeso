@@ -1,15 +1,16 @@
 <img src=media/logo_oogeso.png width=200 alt="Oogeso logo">
 
 # Oogeso - user guide 
-[Back](../README.md) | [Input data](userguide_inputdata.md)
+[Back](../README.md) | [Input data](userguide_inputdata.md) | [Output data](userguide_outputdata.md)
 
 ## Contents:
 1. [What Oogeso does](#what-oogeso-does)
 4. [How Oogeso works](#how-oogeso-works)
+2. [Detailed Oogeso model description](#detailed-oogeso-model-description)
 1. [Input data](#input-data)
-1. [Basic usage](#basic-usage)
+1. [Output data](#output-data)
+1. [Usage](#usage)
 3. [Examples](#examples)
-2. [Read more](#read-more)
 
 ## What Oogeso does
 Oogeso is a Python package for optimising/simulating the energy system of offshore oil and gas platforms or similar systems.
@@ -31,6 +32,14 @@ Linear equations and ineqalities describe the physical relationships between the
 
 The *objective* of the optimisation is to minimise the overall penalty. The penalty may be costs in monetary units, fuel usage, carbon emissions or similar. The overall penalty is the sum of contributions from all devices.
 
+## Detailed Oogeso model description
+
+The Oogeso model is described in a paper to be subitted for publication.
+
+Until that paper is available, this (outdated) manual gives some details
+about the modelling framework and the theoretical context of the Oogeso model:
+* [MANUAL](oogeso_manual.pdf) (outdated)
+
 
 ## Input data
 
@@ -41,22 +50,34 @@ There are two main modelling alternatives with Ooges:
 If the electricity supply system is not closely integrated with the rest of the system an electricity-system only modelling may be sufficient. 
 However, if interactions between elements of the integrated electricity, heat, processing system is important, the multi-energy capabilities of Oogeso are relevant.
 
-Examples of input data are provided with the Oogeso test data.
+Examples of input data are provided with the Oogeso test data (in the tests folder)
 
 Read more about the input data here:
 * [Input data](userguide_inputdata.md)
 
-## Basic usage
-Preamble:
+## Output data
+Read more about the output data here:
+* [Output data](userguide_outputdata.md)
+
+## Usage
+An Oogeso study consists of three main steps:
+1. Create energy system description
+2. Run simulation (step-by-step optimisation)
+3. Analyse result
+
+
+### Preamble
 
 ```python
 import oogeso
-import oogeso.utils
-import oogeso.io
-import oogeso.plots
+import oogeso.plots    # used for plotting
+import IPython.display # used for plotting - to display network diagram
 ```
 
-Read input data. In this case time-series profiles are not included in the yaml input file, but read from separate CSV files:
+### Create energy system description
+The main input to the Oogeso simulation is the energy system description, in form of an `oogeso.dto.EnergySystemData` object. This object may be created directly, or it may be read from a YAML or JSON file. In most cases, specifying the input in a YAML file is the simplest.
+
+Below is an example where data is read from YAML, except time-series profiels that are given in separate CSV files:
 
 ```python
 energy_system_data = oogeso.io.read_data_from_yaml('testcase2_inputdata.yaml')
@@ -73,20 +94,40 @@ profiles = oogeso.utils.create_time_series_data(
 energy_system_data.profiles = profiles
 ```
 
-Run simulation:
+### Run simulation
 
 ```python
 simulator = oogeso.Simulator(energy_system_data)
-sim_result = simulator.run_simulation(solver="cbc")
+sim_result = simulator.run_simulation(solver="cbc",solver_executable=None)
 ```
+More input parameters are available for the `run_simulation` method.
 
-Analyse and plot results (a few examples)
+Oogeso (and Pyomo upon which it is modelled) does not include a *solver* and relies on third-party software for solving the mixed-integer linear problem. The CBC solver is a good open-source and free alternative, although commercial solvers such as Gurobi or Cplex are considerably faster. Wheter speed is an issue depends on the size of the problem, in partiuclar the number of devices with start-stop constraints or costs (integer variables).
+
+Unless the solver is available from the system path, the full path to the solver executable must be provided as a string, e.g. "/myfolder/cbc.exe"
+
+### Analyse results
+
+Results are stored in the `sim_result` object as a collection of Pandas Series that may be processed and plotted in many ways.
+
+The `oogeso.plots` module also comes with many pre-defined plots. These plots typically take as input parameters the simulator results object (`sim_result`) and sometimes the optimisation model (`simulator.optimiser`)
+
+A few examples are shown below:
 
 ```python
 # Plot electricity supply and consumption:
 oogeso.plots.plot_sum_power_mix(
-    res,optimisation_model=simulator.optimiser,carrier="el").show()
+    sim_result,optimisation_model=simulator.optimiser,carrier="el").show()
+
+# Plot a network diagram
+dot_plot = oogeso.plots.plot_network(simulator,timestep=0)
+IPython.display.Image(dot_plot.create_png())
+
+# Plot reserve power
+oogeso.plots.plot_reserve(sim_result,simulator.optimiser)
+
 ```
+
 
 ## Examples
 For a quick demonstration of how Oogeso works, have a look at these
@@ -97,10 +138,3 @@ Jupyter notebooks:
 * [LEOGO platform](https://github.com/oogeso/oogeso/blob/master/examples/leogo_reference_platform.ipynb)
 
 
-## Read more
-
-The Oogeso model is described in a paper to be subitted for publication in an academic journal.
-
-Until that paper is available, this (outdated) document gives some details
-about the modelling framework and the theoretical context of the Oogeso model:
-* [manual](oogeso_manual.pdf)
