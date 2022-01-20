@@ -56,6 +56,18 @@ def test_plot_device_power_energy(
     not all([module in sys.modules for module in ["matplotlib", "plotly", "seaborn"]]),
     reason="Plotting modules has not been installed",
 )
+def test_plot_device_power_energy_nostorage(
+    testcase1_data: dto.EnergySystemData, testcase1_expected_result: dto.SimulationResult
+):
+    sim_result = testcase1_expected_result
+    optimisation_model = oogeso.OptimisationModel(testcase1_data)
+    op.plot_device_power_energy(sim_result, optimisation_model, dev="dem")
+
+
+@pytest.mark.skipif(
+    not all([module in sys.modules for module in ["matplotlib", "plotly", "seaborn"]]),
+    reason="Plotting modules has not been installed",
+)
 def test_plot_device_power_flow_pressure(
     leogo_test_data: dto.EnergySystemData, leogo_expected_result: dto.SimulationResult
 ):
