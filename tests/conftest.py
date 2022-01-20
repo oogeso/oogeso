@@ -21,6 +21,14 @@ def testcase1_data() -> oogeso.dto.EnergySystemData:
 
 
 @pytest.fixture
+def testcase1_expected_result() -> oogeso.dto.EnergySystemData:
+    """Expected results for the testcase 2."""
+    with open(TEST_DATA_ROOT_PATH / "testdata1_resultobject.json", "r", encoding="utf8") as infile:
+        res_expected = json.load(infile, cls=oogeso.dto.serialisation.OogesoResultJSONDecoder)
+    return res_expected
+
+
+@pytest.fixture
 def testcase2_data() -> oogeso.dto.EnergySystemData:
     """
     Medium test case
