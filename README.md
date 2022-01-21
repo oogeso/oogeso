@@ -30,12 +30,9 @@ pip install matplotlib plotly seaborn
 The online user guide  gives more information about how to
 specify input data and run a simulation case.
 
-*  [User guide](https://github.com/oogeso/oogeso/blob/master/userguide.md)
+*  [User guide](https://github.com/oogeso/oogeso/blob/master/docs/userguide.md)
 
-There is also a (not always up-to-date) manual with more information and explanations
-about the modelling concepts and model elements:
 
-* [Manual (pdf)](https://github.com/oogeso/oogeso/blob/master/docs/oogeso_manual.pdf)
 
 ## Examples
 Check out the examples:
@@ -72,7 +69,7 @@ Alternatively you can run and develop the code using docker and the Dockerfile i
 You are welcome to contribute to the improvement of the code.
 
 * Use Issues to describe and track needed improvements and bug fixes
-* Use branches to avoid messing things up -- but don't veer too far away from the trunk (master branch)
+* Use branches for development and pull requests to merge into main
 * Use [Pre-commit hooks](https://pre-commit.com/)
 
 ### Contact
