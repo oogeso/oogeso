@@ -222,6 +222,7 @@ class Simulator:
             # change to multi-index series
             df_co2_rate_dev = df_co2_rate_dev.stack()
             df_co2_rate_dev.index.rename(["time", "device"], inplace=True)
+            df_co2_rate_dev = df_co2_rate_dev.reorder_levels(["device", "time"])
         else:
             df_co2_rate_dev = None
 
@@ -260,6 +261,7 @@ class Simulator:
             # change to multi-index series:
             df_penalty = df_penalty.stack()
             df_penalty.index.rename(["time", "device"], inplace=True)
+            df_penalty = df_penalty.reorder_levels(["device", "time"])
         else:
             df_penalty = None
 
@@ -279,6 +281,7 @@ class Simulator:
             # change to multi-index series:
             df_exportRevenue = df_exportRevenue.stack()
             df_exportRevenue.index.rename(["time", "carrier"], inplace=True)
+            df_exportRevenue = df_exportRevenue.reorder_levels(["carrier", "time"])
         else:
             df_exportRevenue = None
 
@@ -318,6 +321,7 @@ class Simulator:
                     df_backup.loc[t + timestep, d] = rescap
             df_backup = df_backup.stack()
             df_backup.index.rename(["time", "device"], inplace=True)
+            df_backup = df_backup.reorder_levels(["device", "time"])
         else:
             df_backup = None
 

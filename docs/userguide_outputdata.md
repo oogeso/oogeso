@@ -17,18 +17,18 @@ variable | index | description
 `device_stopping`       | ['device', 'time'] | Device stopping status (boolean)
 `device_storage_energy` | ['device', 'time'] | Energy storage filling level (Sm3 or MJ)
 `device_storage_pmax`   | ['device', 'time'] |  Max available "flow" (power/fluid) from storage (Sm3/s or MW)
-`penalty`               | ['time', 'device']| Device assosiated penalty rate (PENALTY_UNIT/s)
+`penalty`               | ['device', 'time']| Device assosiated penalty rate (PENALTY_UNIT/s)
 `edge_flow`             | ['edge', 'time']  | Flow rate (Sm3/s or MW)
 `edge_loss`             | ['edge', 'time']  | Loss rate (MW) - only relevant for energy flow (el and heat)
 `el_voltage_angle`      | ['node', 'time']  | Voltage angle at node - only relevant for electricity floc computed via dc-pf
 `terminal_pressure`     | ['node', 'carrier', 'terminal', 'time'] | Pressure at node (MPa)
 `terminal_flow`         | ['node', 'carrier', 'time'] | Direct flow between in and out terminal of node - relevant if there is no device inbetween
 `co2_rate`              | ['time']          | Emission rate (sum of all devices) (kgCO2/s)
-`co2_rate_per_dev`      | ['time', 'device']| Emission rate per device (kgCO2/s)
-`export_revenue`        | ['time', 'carrier'] | Revenue rate for exported oil/gas (CURRENCY/s)
+`co2_rate_per_dev`      | ['device', 'time']| Emission rate per device (kgCO2/s)
+`export_revenue`        | ['carrier', 'time'] | Revenue rate for exported oil/gas (CURRENCY/s)
 `co2_intensity`         | ['time']          | CO2 intensity of exported oil/gas (kgCO2/Sm3oe)
 `el_reserve`            | ['time']          | Available online electrical reserve capacity (MW)
-`el_backup`             | ['time', 'device']| Available online electrical backup per device (MW)
+`el_backup`             | ['device', 'time']| Available online electrical backup per device (MW)
 
 
 In addition, it contains the following Pandas DataFrames:
