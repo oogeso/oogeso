@@ -17,9 +17,10 @@ WORKDIR /code
 
 COPY pyproject.toml poetry.lock ./
 
-RUN pip install poetry && poetry add matplotlib plotly seaborn && poetry config virtualenvs.create false
+RUN pip install poetry && poetry config virtualenvs.create false
 
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
+RUN pip install matplotlib plotly seaborn
 
 FROM dev as test
 
