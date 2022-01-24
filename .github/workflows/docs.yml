@@ -2,7 +2,7 @@ name: Pages
 on:
   push:
     branches:
-    - "**"  # Note: We build this based on changes in master. Could be changed to build at release/publish later.
+    - master  # Note: We build this based on changes in master. Could be changed to build at release/publish later.
 
 jobs:
   build:
