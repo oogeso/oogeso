@@ -42,6 +42,7 @@ pytest = "^6"
 mypy = "^.9"
 pylint = "^2"
 black = "^21.10b"
+nbmake = "^1.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
