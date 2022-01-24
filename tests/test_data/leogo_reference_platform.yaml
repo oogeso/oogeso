@@ -101,7 +101,7 @@ devices:
   - id: battery
     E_max: 4
     flow_max: 4
-    eta: 0.9oogeso
+    eta: 0.9
     include: 0
     model: storage_el
     name: battery
