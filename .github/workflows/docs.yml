@@ -9,9 +9,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/setup-python@v2
+
     - uses: actions/checkout@master
       with:
         fetch-depth: 0
+
+    - name: Setup Python 3.7
+      uses: actions/setup-python@v2.3.0
+      with:
+        python-version: '3.7'
+
+    - uses: snok/install-poetry@v1.3.0
+      with:
+        virtualenvs-create: true
+
+    - name: Check pyproject.toml validity
+      run: poetry check --no-interaction
+
+    - name: Cache dependencies
+      id: cache-deps
+      uses: actions/cache@v2.1.6
+      with:
+        path: ${{github.workspace}}/.venv
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: poetry-
+
+    - name: Install dependencies  # if cache has changed
+      if: steps.cache-deps.cache-hit != 'true'
+      run: |
+        poetry config virtualenvs.in-project true
+        poetry install --no-interaction
+
     - name: Build and Commit
       uses: sphinx-notes/pages@v2
     - name: Push changes
