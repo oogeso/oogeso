@@ -7,7 +7,7 @@ import scipy
 elbase = {"baseMVA": 100, "baseAngle": 1}
 
 
-def computePowerFlowMatrices(nodes, branches, baseZ=1):
+def compute_power_flow_matrices(nodes, branches, base_Z=1):
     """
     Compute and return dc power flow matrices B' and DA
 
@@ -17,7 +17,7 @@ def computePowerFlowMatrices(nodes, branches, baseZ=1):
     branches : dictionary {key:edge}
             edge is itself a dictionay with fields:
             (node_from, node_to, index, reactance_pu)
-    baseZ : float (impedance should already be in pu.)
+    base_Z : float (impedance should already be in pu.)
             base value for impedance
 
     Returns
@@ -27,7 +27,7 @@ def computePowerFlowMatrices(nodes, branches, baseZ=1):
     """
 
     df_branch = pd.DataFrame.from_dict(branches, orient="index")
-    susceptance = 1 / df_branch["reactance"] * baseZ
+    susceptance = 1 / df_branch["reactance"] * base_Z
     nodes = list(nodes)
     node_ids = nodes
     edge_ids = []
@@ -62,13 +62,3 @@ def computePowerFlowMatrices(nodes, branches, baseZ=1):
         coeff_DA[(edge_ids[i], node_ids[j])] = v
 
     return coeff_B, coeff_DA
-
-
-# def _susceptancePu(df_edge,baseOhm=1):
-#    '''If impedance is already given in pu, baseOhm should be 1
-#    If not, well... baseOhm depends on the voltage level, so need to know
-#    the nominal voltage at the bus to convert from ohm to pu.
-#    '''
-#    #return [-1/self.branch['reactance'][i]*baseOhm
-#    #        for i in self.branch.index.tolist()]
-#    return 1/df_edge['reactance']*baseOhm

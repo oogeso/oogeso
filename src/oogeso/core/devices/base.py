@@ -151,46 +151,46 @@ class Device(ABC):
         list_to_reconstruct = []  # Default
 
         if self.dev_data.flow_max is not None:
-            constrDevicePmax = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_device_flow_max)
+            constr_device_P_max = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_device_flow_max)
             setattr(
                 pyomo_model,
                 f"constr_{self.id}_flowMax",
-                constrDevicePmax,
+                constr_device_P_max,
             )
         if self.dev_data.flow_min is not None:
-            constrDevicePmin = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_device_flow_min)
+            constr_device_P_min = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_device_flow_min)
             setattr(
                 pyomo_model,
                 f"constr_{self.id}_flowMin",
-                constrDevicePmin,
+                constr_device_P_min,
             )
         if (self.dev_data.max_ramp_up is not None) or (self.dev_data.max_ramp_down is not None):
-            constrDevice_ramprate = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_ramp_rate)
+            constr_device_ramprate = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_ramp_rate)
             setattr(
                 pyomo_model,
                 f"constr_{self.id}_ramprate",
-                constrDevice_ramprate,
+                constr_device_ramprate,
             )
         if self.dev_data.start_stop is not None:
-            constrDevice_startup_shutdown = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_startup_shutdown)
+            constr_device_startup_shutdown = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_startup_shutdown)
             setattr(
                 pyomo_model,
                 f"constr_{self.id}_startstop",
-                constrDevice_startup_shutdown,
+                constr_device_startup_shutdown,
             )
-            constrDevice_startup_delay = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_startup_delay)
+            constr_device_startup_delay = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_startup_delay)
             setattr(
                 pyomo_model,
                 f"constr_{self.id}_startdelay",
-                constrDevice_startup_delay,
+                constr_device_startup_delay,
             )
 
             # TODO: Add constraints for minimum up and down-time
 
             # return list of constraints that need to be reconstructed:
             list_to_reconstruct = [
-                constrDevice_startup_shutdown,
-                constrDevice_startup_delay,
+                constr_device_startup_shutdown,
+                constr_device_startup_delay,
             ]
         return list_to_reconstruct
 
@@ -332,8 +332,7 @@ class Device(ABC):
                 var_P = self.get_flow_var(pyomo_model=pyomo_model, t=t)
                 sum_cost += op_cost * var_P
         # average per sec (simulation timestep drops out)
-        avgCost = sum_cost / len(timesteps)
-        return avgCost
+        return sum_cost / len(timesteps)
 
     def compute_cost_for_depleted_storage(
         self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None

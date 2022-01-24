@@ -29,7 +29,7 @@ class FluidNetwork(Network):
                 constr_flow = pyo.Constraint(
                     edgelist,
                     pyomo_model.setHorizon,
-                    rule=self._rulePipelineFlow,
+                    rule=self._rule_pipeline_flow,
                 )
                 setattr(
                     pyomo_model,
@@ -37,7 +37,7 @@ class FluidNetwork(Network):
                     constr_flow,
                 )
 
-    def _rulePipelineFlow(self, model: pyo.Model, edge, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_pipeline_flow(self, model: pyo.Model, edge, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Pipeline flow vs pressure drop"""
         # edge = self.id
         edge_obj = self.edges[edge]
@@ -163,13 +163,8 @@ class FluidNetwork(Network):
                 logger.debug("pipe {}: exp_s={}, k={}".format(edge_id, exp_s, k))
             if linear:
                 p_from = p1
-                #                p_from = model.varPressure[(n_from,carrier,'out',t)]
-                #                p_to = model.varPressure[(n_to,carrier,'in',t)]
-                X0 = p0_from ** 2 - exp_s * p0_to ** 2
-                #                logger.info("edge {}-{}: X0={}, p1={},Q={}"
-                #                    .format(n_from,n_to,X0,p1,Q))
-                coeff = k * X0 ** (-1 / 2)
-                #                Q_computed = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
+                x0 = p0_from ** 2 - exp_s * p0_to ** 2
+                coeff = k * x0 ** (-1 / 2)
                 p2 = (p0_from * p_from - Q / coeff) / (exp_s * p0_to)
             else:
                 # weymouth eqn (non-linear)

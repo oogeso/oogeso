@@ -10,7 +10,7 @@ except ImportError:
 def plot_device_power_last_optimisation_1(mc, device, filename=None):
     model = mc.instance
     devname = model.paramDevice[device]["name"]
-    maxP = model.paramDevice[device]["Pmax"]
+    max_P = model.paramDevice[device]["Pmax"]
     plt.figure(figsize=(12, 4))
     ax = plt.gca()
     # plt.title("Results from last optimisation")
@@ -20,17 +20,17 @@ def plot_device_power_last_optimisation_1(mc, device, filename=None):
     if "profile" in model.paramDevice[device]:
         profile = model.paramDevice[device]["profile"]
         dfa = mc.getProfiles(profile)
-        dfa = dfa * maxP
+        dfa = dfa * max_P
         dfa[profile].plot(ax=ax, label="available")
         label_profile = "({})".format(profile)
 
-    dfIn = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(), orient="index")
-    dfIn.index = pd.MultiIndex.from_tuples(dfIn.index, names=("device", "carrier", "terminal", "time"))
-    dfIn = dfIn[0].dropna()
-    for carr in dfIn.index.levels[1]:
-        for term in dfIn.index.levels[2]:
-            mask = (dfIn.index.get_level_values(1) == carr) & (dfIn.index.get_level_values(2) == term)
-            df_this = dfIn[mask].unstack(0).reset_index()
+    df_in = pd.DataFrame.from_dict(model.varDeviceFlow.get_values(), orient="index")
+    df_in.index = pd.MultiIndex.from_tuples(df_in.index, names=("device", "carrier", "terminal", "time"))
+    df_in = df_in[0].dropna()
+    for carr in df_in.index.levels[1]:
+        for term in df_in.index.levels[2]:
+            mask = (df_in.index.get_level_values(1) == carr) & (df_in.index.get_level_values(2) == term)
+            df_this = df_in[mask].unstack(0).reset_index()
             if device in df_this:
                 df_this[device].plot(
                     ax=ax,
@@ -41,10 +41,10 @@ def plot_device_power_last_optimisation_1(mc, device, filename=None):
                 )
     ax.legend(loc="upper left")  # , bbox_to_anchor =(1.01,0),frameon=False)
 
-    dfE = pd.DataFrame.from_dict(model.varDeviceStorageEnergy.get_values(), orient="index")
-    dfE.index = pd.MultiIndex.from_tuples(dfE.index, names=("device", "time"))
-    dfE = dfE[0].dropna()
-    df_this = dfE.unstack(0)
+    df_e = pd.DataFrame.from_dict(model.varDeviceStorageEnergy.get_values(), orient="index")
+    df_e.index = pd.MultiIndex.from_tuples(df_e.index, names=("device", "time"))
+    df_e = df_e[0].dropna()
+    df_this = df_e.unstack(0)
     # shift by one because storage at t is storage value _after_ t
     # (just before t+1)
     df_this.index = df_this.index + 1

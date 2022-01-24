@@ -139,7 +139,7 @@ class Simulator:
                 # no progress bar
                 logger.info("Solving timestep=%s", step)
             # 1. Update problem formulation
-            self.optimiser.updateOptimisationModel(step, first=first, profiles=self.profiles)
+            self.optimiser.update_optimisation_model(step, first=first, profiles=self.profiles)
             # 2. Solve for planning horizon
             self.optimiser.solve(
                 solver=solver,
@@ -267,23 +267,23 @@ class Simulator:
 
         # Revenue from exported energy (per carrier)
         if return_all or "export_revenue" in return_variables:
-            df_exportRevenue = pd.DataFrame(
+            df_export_revenue = pd.DataFrame(
                 dtype=float64,
                 index=range(timestep, timestep + timelimit),
                 columns=pyomo_instance.setCarrier,
             )
             for c in pyomo_instance.setCarrier:
                 for t in range(timelimit):
-                    exportRevenue_dev = self.optimiser.compute_exportRevenue(
+                    export_revenue_device = self.optimiser.compute_export_revenue(
                         pyomo_instance, carriers=[c], timesteps=[t]
                     )
-                    df_exportRevenue.loc[t + timestep, c] = pyo.value(exportRevenue_dev)
+                    df_export_revenue.loc[t + timestep, c] = pyo.value(export_revenue_device)
             # change to multi-index series:
-            df_exportRevenue = df_exportRevenue.stack()
-            df_exportRevenue.index.rename(["time", "carrier"], inplace=True)
-            df_exportRevenue = df_exportRevenue.reorder_levels(["carrier", "time"])
+            df_export_revenue = df_export_revenue.stack()
+            df_export_revenue.index.rename(["time", "carrier"], inplace=True)
+            df_export_revenue = df_export_revenue.reorder_levels(["carrier", "time"])
         else:
-            df_exportRevenue = None
+            df_export_revenue = None
 
         # Reserve capacity
         if return_all or "el_reserve" in return_variables:
@@ -325,40 +325,42 @@ class Simulator:
         else:
             df_backup = None
 
-        dfDeviceFlow = res["varDeviceFlow"] if (return_all or "device_flow" in return_variables) else None
-        dfDeviceIsOn = res["varDeviceIsOn"] if (return_all or "device_is_on" in return_variables) else None
-        dfDeviceIsPrep = res["varDeviceIsPrep"] if (return_all or "device_is_prep" in return_variables) else None
-        dfDeviceStarting = res["varDeviceStarting"] if (return_all or "device_starting" in return_variables) else None
-        dfDeviceStopping = res["varDeviceStopping"] if (return_all or "device_stopping" in return_variables) else None
-        dfDeviceStorageEnergy = (
+        df_device_flow = res["varDeviceFlow"] if (return_all or "device_flow" in return_variables) else None
+        df_device_is_on = res["varDeviceIsOn"] if (return_all or "device_is_on" in return_variables) else None
+        df_device_is_prep = res["varDeviceIsPrep"] if (return_all or "device_is_prep" in return_variables) else None
+        df_device_starting = res["varDeviceStarting"] if (return_all or "device_starting" in return_variables) else None
+        df_device_stopping = res["varDeviceStopping"] if (return_all or "device_stopping" in return_variables) else None
+        df_device_storage_energy = (
             res["varDeviceStorageEnergy"] if (return_all or "device_storage_energy" in return_variables) else None
         )
-        dfDeviceStoragePmax = (
+        df_device_storage_P_max = (
             res["varDeviceStoragePmax"] if (return_all or "device_storage_pmax" in return_variables) else None
         )
-        dfEdgeFlow = res["varEdgeFlow"] if (return_all or "edge_flow" in return_variables) else None
-        dfEdgeLoss = res["varEdgeLoss"] if (return_all or "edge_loss" in return_variables) else None
-        dfTerminalFlow = res["varTerminalFlow"] if (return_all or "terminal_flow" in return_variables) else None
-        dfTerminalPressure = res["varPressure"] if (return_all or "terminal_pressure" in return_variables) else None
-        dfElVoltageAngle = res["varElVoltageAngle"] if (return_all or "el_voltage_angle" in return_variables) else None
+        df_edge_flow = res["varEdgeFlow"] if (return_all or "edge_flow" in return_variables) else None
+        df_edge_loss = res["varEdgeLoss"] if (return_all or "edge_loss" in return_variables) else None
+        df_terminal_flow = res["varTerminalFlow"] if (return_all or "terminal_flow" in return_variables) else None
+        df_terminal_pressure = res["varPressure"] if (return_all or "terminal_pressure" in return_variables) else None
+        df_el_voltage_angle = (
+            res["varElVoltageAngle"] if (return_all or "el_voltage_angle" in return_variables) else None
+        )
 
         result_object = dto.SimulationResult(
-            device_flow=dfDeviceFlow,
-            device_is_prep=dfDeviceIsPrep,
-            device_is_on=dfDeviceIsOn,
-            device_starting=dfDeviceStarting,
-            device_stopping=dfDeviceStopping,
-            device_storage_energy=dfDeviceStorageEnergy,
-            device_storage_pmax=dfDeviceStoragePmax,
-            edge_flow=dfEdgeFlow,
-            edge_loss=dfEdgeLoss,
-            terminal_flow=dfTerminalFlow,
-            terminal_pressure=dfTerminalPressure,
-            el_voltage_angle=dfElVoltageAngle,
+            device_flow=df_device_flow,
+            device_is_prep=df_device_is_prep,
+            device_is_on=df_device_is_on,
+            device_starting=df_device_starting,
+            device_stopping=df_device_stopping,
+            device_storage_energy=df_device_storage_energy,
+            device_storage_pmax=df_device_storage_P_max,
+            edge_flow=df_edge_flow,
+            edge_loss=df_edge_loss,
+            terminal_flow=df_terminal_flow,
+            terminal_pressure=df_terminal_pressure,
+            el_voltage_angle=df_el_voltage_angle,
             penalty=df_penalty,
             el_reserve=df_reserve,
             el_backup=df_backup,
-            export_revenue=df_exportRevenue,
+            export_revenue=df_export_revenue,
             co2_rate=df_co2_rate_sum,
             co2_intensity=df_co2intensity,
             co2_rate_per_dev=df_co2_rate_dev,

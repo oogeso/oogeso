@@ -74,14 +74,14 @@ def compute_kpis(
 
     # curtailed wind energy
     p_avail = pd.DataFrame(index=timesteps)
-    for devdata in sim_data.devices:
-        if devdata in wind_turbines:
-            d = devdata.id
-            Pmax = devdata.flow_max
-            p_avail[d] = Pmax
-            if devdata.profile is not None:
-                profile_ref = devdata.profile
-                p_avail[d] = Pmax * res.profiles_nowcast.loc[timesteps, profile_ref]
+    for device_data in sim_data.devices:
+        if device_data in wind_turbines:
+            d = device_data.id
+            P_max = device_data.flow_max
+            p_avail[d] = P_max
+            if device_data.profile is not None:
+                profile_ref = device_data.profile
+                p_avail[d] = P_max * res.profiles_nowcast.loc[timesteps, profile_ref]
     p_curtailed = (p_avail - p_wind).sum(axis=1)
     kpi["wind_curtailed_mwh_per_year"] = p_curtailed.mean() * hour_per_year
     return kpi

@@ -18,7 +18,7 @@ def test_powerflow_matrices():
     }
 
     base_Z = 1  # pu
-    M = el.computePowerFlowMatrices(nodes, branches, baseZ=base_Z)
+    M = el.compute_power_flow_matrices(nodes, branches, base_Z=base_Z)
     matrix_B = M[0]
     matrix_DA = M[1]
 

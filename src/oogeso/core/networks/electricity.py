@@ -32,16 +32,16 @@ class ElNetwork(Network):
             logger.warning("TODO: code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
             edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
-            coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(nodelist, edgelist_el, baseZ=1)
+            coeff_B, coeff_DA = el_calc.compute_power_flow_matrices(nodelist, edgelist_el, base_Z=1)
             self.el_flow_coeff_B = coeff_B
             self.el_flow_coeff_DA = coeff_DA
 
             # Reference voltage node:
-            constr_ElVoltageReference = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_el_voltage_reference)
+            constr_el_voltage_reference = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_el_voltage_reference)
             setattr(
                 pyomo_model,
                 "constrN_{}_{}".format(self.carrier_data.reference_node, "voltageref"),
-                constr_ElVoltageReference,
+                constr_el_voltage_reference,
             )
             # Linearised power flow equations:
             for edge in self.edges.keys():
