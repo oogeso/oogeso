@@ -46,11 +46,6 @@ class GasHeater(Device):
         return pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
 
     def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        """
-        Fixme: The variable d and model_pyomo was not set. Changed to model and self.dev_data. Correct?
-
-        Todo: Need testing here.
-        """
         param_gas = self.carrier_data["gas"]
         gas_flow_co2 = param_gas.co2_content  # kg/m3
         return sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gas_flow_co2

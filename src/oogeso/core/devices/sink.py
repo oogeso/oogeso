@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import pyomo.environ as pyo
 
@@ -17,7 +17,7 @@ class PowerSink(Device):
 
     def __init__(
         self,
-        dev_data: dto.DevicePowerSinkData,
+        dev_data: Union[dto.DevicePowerSinkData, dto.DeviceSinkElData],
         carrier_data_dict: Dict[str, dto.CarrierElData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)

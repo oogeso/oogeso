@@ -17,13 +17,13 @@ class ElNetwork(Network):
     def __init__(
         self,
         carrier_data: dto.CarrierElData,
-        edges: Dict[str, ElEdge],  # Fixme: Earlier we passed the DTO, but the code expects the an Edge core object.
+        edges: Dict[str, ElEdge],
     ):
         super().__init__(carrier_data=carrier_data, edges=edges)
         self.carrier_data = carrier_data
         self.edges = edges
-        self.el_flow_coeff_B: Optional[Dict[Tuple[str, str], float]] = None
-        self.el_flow_coeff_DA: Optional[Dict[Tuple[str, str], float]] = None
+        self.el_flow_coeff_B: Optional[Dict[Tuple[str, str], float]] = None  # Fixme: Is this the correct type?
+        self.el_flow_coeff_DA: Optional[Dict[Tuple[str, str], float]] = None  # Fixme: Is this the correct type?
 
     def define_constraints(self, pyomo_model: pyo.Model) -> None:
         super().define_constraints(pyomo_model=pyomo_model)
@@ -31,9 +31,7 @@ class ElNetwork(Network):
         if self.carrier_data.powerflow_method == "dc-pf":
             logger.warning("TODO: code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
-            edgelist_el = {
-                edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()
-            }  # Fixme: This attribute edge.edge_data does not exist in EdgeElData or EdgeData
+            edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
             coeff_B, coeff_DA = el_calc.computePowerFlowMatrices(nodelist, edgelist_el, baseZ=1)
             self.el_flow_coeff_B = coeff_B
             self.el_flow_coeff_DA = coeff_DA
@@ -68,11 +66,11 @@ class ElNetwork(Network):
         base_angle = el_calc.elbase["baseAngle"]
         lhs = pyomo_model.varEdgeFlow[edge, t]
         lhs = lhs / base_mva
-        rhs = 0
-        # TODO speed up creation of constraints - remove for loop
+
         n2s = [k[1] for k in self.el_flow_coeff_DA.keys() if k[0] == edge]
-        for n2 in n2s:
-            rhs += self.el_flow_coeff_DA[edge, n2] * (pyomo_model.varElVoltageAngle[n2, t] * base_angle)
+
+        # Fixme: Failing static test. Ensure correct type in init.
+        rhs = sum([self.el_flow_coeff_DA[edge, n2] * (pyomo_model.varElVoltageAngle[n2, t] * base_angle)] for n2 in n2s)
         return lhs == rhs
 
     @staticmethod

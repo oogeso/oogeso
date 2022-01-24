@@ -46,15 +46,15 @@ class Device(ABC):
     def _rule_device_flow_max(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
         if power is None:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         max_value = self.get_max_flow(pyomo_model, t)
 
-        return power <= max_value
+        return power <= max_value  # noqa
 
     def _rule_device_flow_min(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         power = self.get_flow_var(pyomo_model, t)
         if power is None:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         min_value = self.dev_data.flow_min
         if self.dev_data.profile is not None:
             # use an availability profile if provided
@@ -73,7 +73,7 @@ class Device(ABC):
 
         # If no ramp limits have been specified, skip constraint
         if self.dev_data.max_ramp_up is None:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         if t > 0:
             p_prev = self.get_flow_var(pyomo_model, t - 1)
         else:
@@ -124,7 +124,7 @@ class Device(ABC):
         # example: time_delta = 5 min, startupDelay= 8 min => T_delay=1
         T_delay = int(T_delay_min / time_delta_minutes)
         if T_delay == 0:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         # determine if was in preparation previously
         # dependent on value - so must reconstruct constraint each time
         steps_prev_prep = pyo.value(pyomo_model.paramDevicePrepTimestepsInitially[dev])
@@ -244,9 +244,7 @@ class Device(ABC):
         # Used by piecewise linear constraints
         return self._flow_upper_bound
 
-    def compute_export(
-        self, pyomo_model: pyo.Model, value: str, carriers: List[CarrierData], timesteps: List[int]
-    ) -> float:
+    def compute_export(self, pyomo_model: pyo.Model, value: str, carriers: List[str], timesteps: List[int]) -> float:
         """Compute average export (volume or revenue)
 
         Parameters:
@@ -325,7 +323,7 @@ class Device(ABC):
             )
         return penalty
 
-    def compute_operating_costs(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
+    def compute_operating_costs(self, pyomo_model: pyo.Model, timesteps: Union[pyo.Set, List[int]]) -> float:
         """average operating cost within selected timespan"""
         sum_cost = 0
         if self.dev_data.op_cost is not None:
@@ -337,7 +335,9 @@ class Device(ABC):
         avgCost = sum_cost / len(timesteps)
         return avgCost
 
-    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: List[int]):
+    def compute_cost_for_depleted_storage(
+        self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None
+    ):
         return 0
 
     def compute_penalty(self, pyomo_model: pyo.Model, timesteps: List[int]):

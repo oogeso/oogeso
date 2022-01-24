@@ -18,7 +18,7 @@ class HeatPump(Device):
     def __init__(
         self,
         dev_data: dto.DeviceHeatPumpData,
-        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+        carrier_data_dict: Dict[str, dto.CarrierElData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data

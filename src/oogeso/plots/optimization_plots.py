@@ -76,10 +76,6 @@ def plot_device_sum_power_last_optimisation(model: pyo.Model, carrier="el", file
     df = df.unstack(level=1)
     dfprod = df[df > 0][carrier].dropna()
     dfcons = df[df < 0][carrier].dropna()
-    #        dfprod = df[df>=0].unstack(level=1)[carrier]
-    #        dfprod = dfprod[dfprod>0]
-    #        dfcons = df[df<0].unstack(level=1)[carrier]
-    #        dfcons = dfcons[dfcons<0]
 
     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
     labels = df_info.index.astype(str) + "_" + df_info["name"]
@@ -107,49 +103,3 @@ def plot_device_sum_power_last_optimisation(model: pyo.Model, carrier="el", file
     plt.suptitle("Result from last optimisation")
     if filename is not None:
         plt.savefig(filename, bbox_inches="tight")
-
-
-def plot_rmission_tate_last_optimisation(model: pyo.Model, filename=None):
-    devices = model.setDevice
-    timesteps = model.setHorizon
-    df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
-    labels = df_info.index.astype(str) + "_" + df_info["name"]
-
-    df = pd.DataFrame(index=timesteps, columns=devices)
-    for d in devices:
-        for t in timesteps:
-            co2 = Multicarrier.compute_CO2(model, devices=[d], timesteps=[t])  # noqa: Fixme: This is broken.
-            df.loc[t, d] = pyo.value(co2)  # noqa: Fixme: This is broken.
-    plt.figure(figsize=(12, 4))
-    ax = plt.gca()
-    df.loc[:, ~(df == 0).all()].rename(columns=labels).plot.area(ax=ax, linewidth=0)
-    plt.xlabel("Timestep")
-    plt.ylabel("Emission rate (kgCO2/s)")
-    ax.legend(loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
-    if filename is not None:
-        plt.savefig(filename, bbox_inches="tight")
-
-
-# def plotDevicePowerLastOptimisation(model,devices='all',filename=None):
-#     """Plot power schedule over planning horizon (last optimisation)"""
-#     if devices=='all':
-#         devices = list(model.setDevice)
-#     varPower = model.getDevicePower()
-#     df = pd.DataFrame.from_dict(model.varDevicePower.get_values(),
-#                                 orient="index")
-#     df.index = pd.MultiIndex.from_tuples(df.index,names=('device','time'))
-#     df = df[0].unstack(level=0)
-#     df_info = pd.DataFrame.from_dict(dict(model.paramDevice.items())).T
-#
-#     plt.figure(figsize=(12,4))
-#     ax=plt.gca()
-#     df[devices].plot(ax=ax)
-#     labels = (df_info.loc[devices].index.astype(str)
-#               +'_'+df_info.loc[devices,'name'])
-#     plt.legend(labels,loc='lower left', bbox_to_anchor =(1.01,0),
-#                frameon=False)
-#     plt.xlabel("Timestep")
-#     plt.ylabel("Device power (MW)")
-#     if filename is not None:
-#         plt.savefig(filename,bbox_inches = 'tight')
-#

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pyomo.environ as pyo
 
@@ -22,8 +22,8 @@ class StorageEl(StorageDevice):
 
     def __init__(
         self,
-        dev_data: dto.DeviceStorageElData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierElData],  # Fixme: Correct?
+        dev_data: dto.DeviceStorageElData,
+        carrier_data_dict: Dict[str, dto.CarrierElData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -116,7 +116,7 @@ class StorageEl(StorageDevice):
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 9), rule=self._rules)
         # add constraints to model:
-        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)  # fixme: Remove gettattr, hasttr, setattr.
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
@@ -130,7 +130,10 @@ class StorageEl(StorageDevice):
         maxValue = pyomo_model.varDeviceStoragePmax[self.id, t] + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
         return maxValue
 
-    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: List[int]):
+    def compute_cost_for_depleted_storage(
+        self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None
+    ):
+
         stor_cost = 0
         dev_data = self.dev_data
         if dev_data.E_cost is not None:
@@ -144,15 +147,16 @@ class StorageEl(StorageDevice):
 
 
 class StorageHydrogen(StorageDevice):
-    "Hydrogen storage"
+    """Hydrogen storage"""
+
     carrier_in = ["hydrogen"]
     carrier_out = ["hydrogen"]
     serial = []
 
     def __init__(
         self,
-        dev_data: dto.DeviceStorageHydrogenData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierHydrogenData],  # Fixme: Correct?
+        dev_data: dto.DeviceStorageHydrogenData,
+        carrier_data_dict: Dict[str, dto.CarrierHydrogenData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -226,10 +230,13 @@ class StorageHydrogen(StorageDevice):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
-    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: List[int]):
+    def compute_cost_for_depleted_storage(
+        self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None
+    ):
+
         return self.compute_costForDepletedStorage_alt2(pyomo_model, timesteps)
 
-    def compute_costForDepletedStorage_alt1(self, pyomo_model: pyo.Model, timesteps: List[int]):
+    def compute_costForDepletedStorage_alt1(self, pyomo_model: pyo.Model):
         # cost if storage level at end of optimisation deviates from
         # target profile (user input based on expectations)
         # absolute value of deviation (filling too much also a cost)

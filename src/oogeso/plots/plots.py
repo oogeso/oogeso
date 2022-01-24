@@ -66,6 +66,11 @@ def plot_device_profile(
         in reality they will share load more or less evenly due to their
         frequency droop settings. Rather than imposing this in the optimisation,
         this is included in the plots. Default: gas turbine
+    filename : Filename
+    reverse_legend : Use reverse legend
+    include_forecasts : Include forecasts
+    include_on_off : To include on and off
+    include_prep : To include prep
 
     """
     res = sim_result
@@ -333,6 +338,9 @@ def plot_sum_power_mix(
         in reality they will share load more or less evenly due to their
         frequency droop settings. Rather than imposing this in the optimisation,
         this is included in the plots.
+    filename : Name of file
+    reverse_legend : Use reverse legend
+    exclude_zero : To exclude zero values
     """
     # optimiser = simulator.optimiser
     res = sim_result
@@ -473,7 +481,7 @@ def plot_CO2_rate_per_dev(
     optimisation_model,
     filename=None,
     reverseLegend=False,
-    devs_shareload=[],
+    devs_shareload=None,
 ):
 
     # df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
@@ -485,9 +493,7 @@ def plot_CO2_rate_per_dev(
     if devs_shareload is None:
         # gas turbines:
         devs_shareload = [d for d, d_obj in all_devices.items() if d_obj.dev_data.model == "gasturbine"]
-    #        devs_shareload = [d for d in mc.instance.setDevice
-    #            if ((mc.instance.paramDevice[d]['model']=='gasturbine') and
-    #                (d in dfplot))]
+
     if devs_shareload:  # list is non-empty
         devs_shareload = [d for d in devs_shareload if d in dfplot]
         devs_online = (dfplot[devs_shareload] > 0).sum(axis=1)
@@ -500,8 +506,6 @@ def plot_CO2_rate_per_dev(
     # dfplot.columns=labels
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
-        # ,shared_xaxes=True,vertical_spacing=0.05)
-        # fig = px.line(dfplot,x="time",y=ylabel,color=id_var,title=title)
         for col in dfplot:
             fig.add_scatter(
                 x=dfplot.index,
@@ -701,7 +705,6 @@ def plot_network(
     model = optimiser
     res = simulator.result_object
 
-    cluster = {}
     col = {
         "t": {
             "el": "red",
@@ -801,9 +804,7 @@ def plot_network(
                         )
 
                 # add in/out terminals
-                supp = ""
-                if carrier in node_obj.devices_serial:
-                    supp = "_out"  # noqa
+                # supp = "_out" if carrier in node_obj.devices_serial else ""
                 label_in = carrier  # + "_in "
                 label_out = carrier  # + supp + " "
                 if timestep is None:
@@ -912,7 +913,7 @@ def plot_network(
 
     if filename is not None:
         # prog='dot' gives the best layout.
-        dotG.write_png(filename, prog=prog)
+        dotG.write_png(filename, prog=prog)  # Fixme: Failing static test. No test coverage.
     return dotG
 
 

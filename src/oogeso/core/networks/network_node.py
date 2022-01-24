@@ -132,21 +132,21 @@ class NetworkNode:
         expr = Pinj == 0
         if (type(expr) is bool) and (expr is True):
             expr = pyo.Constraint.Skip
-        return expr
+        return expr  # noqa
 
     def _rule_pressure_at_node(self, model: pyo.Model, carrier, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         node = self.id
         if carrier in ["el", "heat"]:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         elif carrier in self.devices_serial:
             # pressure in and out are related via device equations for
             # device connected between in and out terminals. So no
             # extra constraint required
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         else:
             # single terminal. (pressure out=pressure in)
             expr = model.varPressure[(node, carrier, "out", t)] == model.varPressure[(node, carrier, "in", t)]
-            return expr
+            return expr  # noqa
 
     def _rule_pressure_bounds(
         self, model: pyo.Model, term, carrier, t: int
@@ -171,12 +171,10 @@ class NetworkNode:
                         max_dev = model.paramMaxPressureDeviation
             else:
                 nom_p = 0
-                # raise ValueError("nom_p has no value")  # Fixme: How do we want to handle this case? nom_p unresolved.
         else:
             nom_p = 0
-            # raise ValueError("nom_p has no value")  # Fixme: How do we want to handle this case? nom_p is unresolved.
         if (max_dev is None) or (max_dev == -1):
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         lower_bound = nom_p * (1 - max_dev)
         upper_bound = nom_p * (1 + max_dev)
         expr = pyo.inequality(lower_bound, model.varPressure[(node, carrier, term, t)], upper_bound)

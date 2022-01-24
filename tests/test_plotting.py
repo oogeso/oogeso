@@ -7,7 +7,7 @@ import oogeso
 from oogeso import dto
 
 try:
-    from oogeso import plots as op
+    from oogeso import plots as op  # noqa: We skip tests if this fails, but we don't want to raise the error.
 except ImportError:
     pass
 

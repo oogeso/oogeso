@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import pyomo.environ as pyo
@@ -9,8 +9,8 @@ from oogeso import dto
 from oogeso.core import networks
 from oogeso.core.devices.base import Device
 from oogeso.core.devices.storage import StorageDevice
+from oogeso.core.networks import ElNetwork, Network
 from oogeso.core.networks.edge import Edge
-from oogeso.core.networks.network import Network
 from oogeso.core.networks.network_node import NetworkNode
 from oogeso.utils.util import get_device_from_model_name, get_network_from_carrier_name
 
@@ -32,7 +32,7 @@ class OptimisationModel(pyo.ConcreteModel):
         self.all_nodes: Dict[str, NetworkNode] = {}
         self.all_edges: Dict[str, Edge] = {}
         # self.all_carriers = {}
-        self.all_networks: Dict[str, Network] = {}
+        self.all_networks: Dict[str, Union[Network, ElNetwork]] = {}
 
         # Model parameters
         self.optimisation_parameters = data.parameters
@@ -354,8 +354,7 @@ class OptimisationModel(pyo.ConcreteModel):
         else:
             logger.debug("No emission_intensity_max limit specified")
         # 4.3 electrical reserve margin:
-        # Fixme: This is prone to errors, and depends on the class El(Network).__name__ not changing.
-        el_parameters: dto.CarrierElData = self.all_networks["el"].carrier_data  # Fixme: Static type error.
+        el_parameters: dto.CarrierElData = self.all_networks["el"].carrier_data
         el_reserve_margin = el_parameters.el_reserve_margin
         el_backup_margin = el_parameters.el_backup_margin
         if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
@@ -402,21 +401,21 @@ class OptimisationModel(pyo.ConcreteModel):
             for t in range(timesteps_use_nowcast, horizon):
                 self.paramProfiles[prof, t] = profiles["forecast"].loc[timestep + t, prof]
 
-        def _updateOnTimesteps(t_prev, dev):
+        def _updateOnTimesteps(_t_prev, _dev):
             # sum up consequtive timesteps starting at tprev going
             # backwards, where device has been in preparation phase
             sum_on = 0
             docontinue = True
-            for tt in range(t_prev, -1, -1):
+            for tt in range(_t_prev, -1, -1):
                 # if (self.instance.varDeviceIsOn[dev,tt]==1):
-                if pyo.value(self.varDeviceIsPrep[dev, tt]) == 1:
+                if pyo.value(self.varDeviceIsPrep[_dev, tt]) == 1:
                     sum_on = sum_on + 1
                 else:
                     docontinue = False
                     break  # exit for loop
             if docontinue:
                 # we got all the way back to 0, so must include initial value
-                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[dev]
+                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[_dev]
             return sum_on
 
         # Update startup/shutdown info
@@ -531,11 +530,10 @@ class OptimisationModel(pyo.ConcreteModel):
         # exclude constraint for first timesteps since the point of the
         # dispatch margin is exactly to cope with forecast errors
         if t < self.optimisation_parameters.forecast_timesteps:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
 
         network_el = self.all_networks["el"]
 
-        # Fixme: Error in type hint.
         if hasattr(network_el.carrier_data, "el_reserve_margin"):
             margin = network_el.carrier_data.el_reserve_margin
         else:
@@ -560,7 +558,7 @@ class OptimisationModel(pyo.ConcreteModel):
         margin = network_el.carrier_data.el_backup_margin
         if "el" not in dev_obj.carrier_out:
             # this is not a power generator
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         res_otherdevs = network_el.compute_el_reserve(model, t, self.all_devices, exclude_device=dev)
         expr = res_otherdevs - self.varDeviceFlow[dev, "el", "out", t] >= -margin
         return expr
@@ -612,7 +610,6 @@ class OptimisationModel(pyo.ConcreteModel):
         start_stop_costs = start_stop_costs / sumTime
         return start_stop_costs
 
-
     def compute_operatingCosts(self, model: pyo.Model):
         """term in objective function to represent fuel costs or similar
         as average per sec ($/s)
@@ -639,15 +636,23 @@ class OptimisationModel(pyo.ConcreteModel):
             storCost += thisCost
         return storCost
 
-    def compute_exportRevenue(self, model: pyo.Model, carriers=None, timesteps=None):
+    def compute_exportRevenue(
+        self, model: pyo.Model, carriers=None, timesteps: Optional[Union[List[int], pyo.Set]] = None
+    ):
         """revenue from exported oil and gas - average per sec ($/s)"""
         return self.compute_export(model, value="revenue", carriers=carriers, timesteps=timesteps)
 
-    def compute_oilgas_export(self, model: pyo.Model, timesteps=None):
+    def compute_oilgas_export(self, model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         """Export volume (Sm3oe/s)"""
         return self.compute_export(model, value="volume", carriers=["oil", "gas"], timesteps=timesteps)
 
-    def compute_export(self, model: pyo.Model, value="revenue", carriers=None, timesteps=None):
+    def compute_export(
+        self,
+        model: pyo.Model,
+        value="revenue",
+        carriers: Optional[List[str]] = None,
+        timesteps: Optional[Union[List[int], pyo.Set]] = None,
+    ):
         """Compute average export (volume or revenue)
 
         Parameters
@@ -655,6 +660,8 @@ class OptimisationModel(pyo.ConcreteModel):
         model : oogeso model
         value : string ("revenue", "volume")
             which value to compute, revenue (€/s) or volume (Sm3oe/s)
+        carriers : Optional list of carrier names.
+        timesteps: Optional list of timesteps
 
         Computes the energy/mass flow into (sink) devices with a price.CARRIER
         parameter defined (CARRIER can be any of 'oil', 'gas', 'el')

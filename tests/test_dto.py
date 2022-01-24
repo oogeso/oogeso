@@ -1,4 +1,5 @@
 import json
+
 from oogeso import dto
 from oogeso.dto import serialisation
 

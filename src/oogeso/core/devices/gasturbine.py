@@ -7,7 +7,7 @@ from oogeso.core.devices.base import Device
 
 
 class GasTurbine(Device):
-    "Gas turbine generator"
+    """Gas turbine generator"""
 
     carrier_in = ["gas"]
     carrier_out = ["el", "heat"]

@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 def read_data_from_yaml(filename, profiles=None, profiles_nowcast=None) -> dto.EnergySystemData:
     """Read input data from yaml file"""
-    data_dict = None
     with open(filename, "r") as text_file:
         data_dict = yaml.safe_load(text_file)
 
@@ -42,8 +41,6 @@ def read_profiles_from_parquet(filename: Union[Path, str], keys: List[str]) -> D
 
     Reading from the given filename with _<key name><suffix>.
     This is to give legacy support for the hdf5 format where you have keys.
-
-    Fixme: Refactor to avoid this complexity if not needed.
     """
     if not isinstance(filename, Path):
         filename = Path(filename)
@@ -64,8 +61,6 @@ def save_profiles_to_parquet(filename: Union[Path, str], profiles: Dict[str, pd.
 
     Writing to the given filename with _<key name><suffix>.
     This is to give legacy support for the hdf5 format where you have keys.
-
-    Fixme: Refactor to avoid this complexity if not needed.
     """
     if not isinstance(filename, Path):
         filename = Path(filename)

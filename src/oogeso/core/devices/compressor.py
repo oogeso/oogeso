@@ -28,12 +28,12 @@ class CompressorEl(Device):
         dev = self.id
         node_obj: NetworkNode = self.node
         gas_data = self.carrier_data["gas"]
-        if i == 1:  # Fixme: use carrier_data object type instead?
+        if i == 1:
             """gas flow in equals gas flow out (mass flow)"""
             lhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t]
             rhs = pyomo_model.varDeviceFlow[dev, "gas", "out", t]
             return lhs == rhs  # noqa
-        elif i == 2:  # Fixme: use carrier_data object type instead?
+        elif i == 2:
             """Device el demand"""
             lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
             rhs = compute_compressor_demand(pyomo_model, self, node_obj, gas_data, linear=True, t=t)

@@ -7,7 +7,7 @@ from oogeso.core.devices.base import Device
 
 
 class SourceEl(Device):
-    "Generic external source for electricity (e.g. cable or wind turbine)"
+    """Generic external source for electricity (e.g. cable or wind turbine)"""
 
     dev_data: dto.DeviceSourceElData
 
