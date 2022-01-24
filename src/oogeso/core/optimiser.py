@@ -471,16 +471,16 @@ class OptimisationModel(pyo.ConcreteModel):
             sum_penalty = sum_penalty + this_penalty
         return sum_penalty
 
-    def _rule_objective_co2(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_co2(self, model: pyo.Model) -> float:
         """CO2 emissions per sec"""
         return self.compute_CO2(model)  # *self.paramParameters['CO2_price']
 
-    def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_co2intensity(self, model: pyo.Model) -> Optional[float]:
         """CO2 emission intensity (CO2 per exported oil/gas)
         DOES NOT WORK - NONLINEAR (ratio)"""
         return self.compute_CO2_intensity(model)
 
-    def _rule_objective_costs(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_costs(self, model: pyo.Model) -> float:
         """costs (co2 price, operating costs, startstop, storage depletaion)
         per second (assuming fixed oil/gas production)"""
         startup_costs = self.compute_startup_penalty(model)  # kr/s
@@ -492,7 +492,7 @@ class OptimisationModel(pyo.ConcreteModel):
 
         return co2_cost + startup_costs + storage_depletion_costs + op_costs
 
-    def _rule_objective_export_revenue(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_export_revenue(self, model: pyo.Model) -> float:
         """revenue from exported oil and gas minus costs (co2 price and
         operating costs) per second"""
         sum_revenue = self.compute_export_revenue(model)  # kr/s

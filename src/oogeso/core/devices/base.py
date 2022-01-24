@@ -347,7 +347,7 @@ class Device(ABC):
         # Fixme: Add Optional penalty function in DeviceData.
         if hasattr(self.dev_data, "penalty_function"):
             if self.dev_data.penalty_function is not None:
-                if not hasattr(self, "_penaltyConstraint"):
+                if not hasattr(self, "_penalty_constraint"):
                     logger.warning(f"Penalty function constraint is not implemented for {self.id}")
                 # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
                 # penalty for Pel > 0 only when device is actually online (penalty should be zero when

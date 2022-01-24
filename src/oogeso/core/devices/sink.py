@@ -139,15 +139,15 @@ class SinkWater(Device):
             delta_t = time_delta_minutes / 60  # hours
             lhs = (model.varDeviceFlow[dev, "water", "in", t] - dev_data.flow_avg) * delta_t
             if t > 0:
-                Eprev = model.varDeviceStorageEnergy[dev, t - 1]
+                E_prev = model.varDeviceStorageEnergy[dev, t - 1]
             else:
-                Eprev = model.paramDeviceEnergyInitially[dev]
-            rhs = model.varDeviceStorageEnergy[dev, t] - Eprev
+                E_prev = model.paramDeviceEnergyInitially[dev]
+            rhs = model.varDeviceStorageEnergy[dev, t] - E_prev
             return lhs == rhs
         elif i == 2:
             # energy buffer limit
-            Emax = dev_data.max_accumulated_deviation
-            return pyo.inequality(-Emax / 2, model.varDeviceStorageEnergy[dev, t], Emax / 2)
+            E_max = dev_data.max_accumulated_deviation
+            return pyo.inequality(-E_max / 2, model.varDeviceStorageEnergy[dev, t], E_max / 2)
         else:
             raise Exception("impossible")
 
