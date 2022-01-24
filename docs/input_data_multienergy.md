@@ -1,8 +1,5 @@
 # Extra input data with multi-energy modelling
 
-User guide: [Home](userguide.md) | [Input data](userguide_inputdata.md)
-
-
 This page summarises input data used with multi-energy moddeling with Oogeso. This data is in addition to the data described in 
 
 ## Energy carriers (```carriers```)
@@ -35,14 +32,14 @@ rho_density         | float | density (kg/Sm3)
 
 
 ## Edges (```edges```)
-These tables shows edgeparameters used in addition to the [generic edge parameters](userguide_inputdata.md#network-edges-edges).
+These tables shows edgeparameters used in addition to the [generic edge parameters](input_data.md#network-edges-edges).
 
 Additional edge data specific to edge type:
 
-#### ```heat, hydrogen```
+### ```heat, hydrogen```
 No additional data used.
 
-#### ```gas, oil, water```
+### ```gas, oil, water```
 
 parameter | type | description
 ----------|------|------------
@@ -54,10 +51,10 @@ temperature_K   | float | fluid temperature (K)
 
 
 ## Devices (```devices```)
-These tables shows additional devices and device parameters used in addition to the [generic device parameters](userguide_inputdata.md#devices-devices) in multi-energy modelling.
+These tables shows additional devices and device parameters used in addition to the [generic device parameters](input_data.md#devices-devices) in multi-energy modelling.
 
 
-#### ```gasturbine```
+### ```gasturbine```
 
 parameter | type | description
 ----------|------|------------
@@ -70,23 +67,23 @@ maxRampUp   | float | maximum ramp down rate, relative to capacity per minute (1
 startupCost | float | cost (NOK) for each start-up
 startupDelay    | float | delay (min) from start-up activation to powr output
 
-#### ```source_el```
+### ```source_el```
 
 parameter | type | description
 ----------|------|------------
 co2em       | float | Emissions per electric power delivered (kgCO2/MWh)
 opCost      | float | Operating costs (eg. fuel) (NOK/MJ) (10 NOK/MWh = 0.003 NOK/MJ)
 
-#### ```sink_el, sink_heat, sink_water```
+### ```sink_el, sink_heat, sink_water```
 No additional data required
 
-#### ```pump_oil, pump_water```
+### ```pump_oil, pump_water```
 
 parameter | type | description
 ----------|------|------------
 eta     | float | Pump efficiency
 
-#### ```compressor_el```
+### ```compressor_el```
 
 parameter | type | description
 ----------|------|------------
@@ -94,12 +91,12 @@ eta     | float | Compressor efficiency
 Q0      | float | Nominal flow rate (used for linearisation) (Sm3/s)
 temp_in | float | Inlet gas temperate (K)
 
-#### ```separator```
+### ```separator```
 No additional data.
 
 This separator model assues a single wellstream input flow.
 
-#### ```separator2```
+### ```separator2```
 This separator model assumes separate input flows for oil, gas, and water.
 
 parameter | type | description
@@ -107,15 +104,15 @@ parameter | type | description
 eta_el      | float | electricity demand as fraction of flow rate (MW/(Sm3/s))
 eta_heat    | float | heat demand as fraction of flow rate (MW/(Sm3/s))
 
-#### ```sink_gas, sink_oil```
+### ```sink_gas, sink_oil```
 No additional data
 
-#### ```source_water```
+### ```source_water```
 parameter | type | description
 ----------|------|------------
 naturalpressure | float | Outlet pressure (MPa)
 
-#### ```well_gaslift```
+### ```well_gaslift```
 parameter | type | description
 ----------|------|------------
 gas_oil_ratio   | float | Gas to oil ratio (GOR), ratio of produced gas to produced oil

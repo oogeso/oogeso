@@ -1,7 +1,42 @@
-<img src=media/logo_oogeso.png width=200 alt="Oogeso logo">
+```{toctree}
+:caption: Overview
+:hidden:
+:glob:
+self
 
-# Oogeso - user guide 
-[Back](../README.md) | [Input data](userguide_inputdata.md) | [Output data](userguide_outputdata.md)
+```
+
+```{toctree}
+:caption: Input Data
+:hidden:
+:glob:
+input_data
+input_data_multienergy
+```
+
+```{toctree}
+:hidden:
+:glob:
+:caption: Output
+output_data
+```
+
+```{toctree}
+:hidden:
+:glob:
+:caption: About the project
+changelog.md
+GitHub repo <https://github.com/oogeso/oogeso>
+PyPi <https://pypi.org/project/oogeso/>
+```
+
+# User Guide
+<p>
+<a href="https://badge.fury.io/gh/oogeso%2Foogeso"><img src="https://badge.fury.io/gh/oogeso%2Foogeso.svg" alt="GitHub version" height="18"></a>
+<a href="https://github.com/oogeso/oogeso/actions/workflows/build.yml?query=workflow%3ACI"><img src="https://img.shields.io/github/workflow/status/oogeso/oogeso/CI" alt="Badge"></a>
+<a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-blue.svg" alt="Badge"></a>
+</p>
+<br/>
 
 ## Contents:
 1. [What Oogeso does](#what-oogeso-does)
@@ -38,7 +73,8 @@ The Oogeso model is described in a paper to be subitted for publication.
 
 Until that paper is available, this (outdated) manual gives some details
 about the modelling framework and the theoretical context of the Oogeso model:
-* [MANUAL](oogeso_manual.pdf) (outdated)
+
+<a href="oogeso_manual.pdf" download>Click to Download old Oogeso Manual PDF</a>
 
 
 ## Input data
@@ -53,11 +89,11 @@ However, if interactions between elements of the integrated electricity, heat, p
 Examples of input data are provided with the Oogeso test data (in the tests folder)
 
 Read more about the input data here:
-* [Input data](userguide_inputdata.md)
+* [Input data](input_data.md)
 
 ## Output data
 Read more about the output data here:
-* [Output data](userguide_outputdata.md)
+* [Output data](output_data.md)
 
 ## Usage
 An Oogeso study consists of three main steps:

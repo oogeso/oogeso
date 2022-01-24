@@ -1,6 +1,0 @@
-v0.3_2021-11
--initial package publish on PyPi
-v0.2_2020-11
--complete model
-v0.1_2020-05-11
--unfinished development

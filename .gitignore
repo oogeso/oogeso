@@ -66,7 +66,7 @@ instance/
 # Sphinx documentation
 docs/_build/
 docs/*.rst
-!docs/index.rst
+!docs/index.md
 !docs/api.rst
 !docs/introduction.rst
 !docs/configuration_file.rst
