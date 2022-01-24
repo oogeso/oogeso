@@ -1,4 +1,4 @@
-name: CI tests
+name: CI tests incl. CBC solver
 
 on:
   push:

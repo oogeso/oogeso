@@ -1,4 +1,4 @@
-name: Build and test, excl. CBC solver
+name: CI Build
 
 on:
   push:

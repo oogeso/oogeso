@@ -1,4 +1,4 @@
-name: Pages
+name: Docs CI/CD
 on:
   push:
     branches:
