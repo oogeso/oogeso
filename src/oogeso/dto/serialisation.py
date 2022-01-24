@@ -33,22 +33,26 @@ class DataclassJSONDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
         super().__init__(object_hook=self.object_hook, *args, **kwargs)
 
-    def _new_carrier(self, dct: Dict[str, str]):
+    @staticmethod
+    def _new_carrier(dct: Dict[str, str]):
         model = dct["id"]
         carrier_class_str = f"Carrier{model.capitalize()}Data"
         carrier_class = get_class_from_dto(class_str=carrier_class_str)
         return carrier_class(**dct)
 
-    def _new_node(self, dct: Dict[str, str]) -> dto.NodeData:
+    @staticmethod
+    def _new_node(dct: Dict[str, str]) -> dto.NodeData:
         return dto.NodeData(**dct)
 
-    def _new_edge(self, dct: Dict[str, str]) -> dto.EdgeData:
+    @staticmethod
+    def _new_edge(dct: Dict[str, str]) -> dto.EdgeData:
         carrier = dct.pop("carrier")  # gets and deletes model from dictionary
         edge_class_str = f"Edge{carrier.capitalize()}Data"
         edge_class = get_class_from_dto(class_str=edge_class_str)
         return edge_class(**dct)
 
-    def _new_device(self, dct: Dict[str, Union[str, object]]) -> dto.DeviceData:
+    @staticmethod
+    def _new_device(dct: Dict[str, Union[str, object]]) -> dto.DeviceData:
         logger.debug(dct)
         model = dct.pop("model")  # gets and deletes model from dictionary
         start_stop: Optional[Dict] = dct.pop("start_stop", None)
@@ -155,13 +159,13 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
             return result_data
         return dct
 
-    def default(self, obj: Any):
+    @staticmethod
+    def default(obj: Any):
         if isinstance(obj, dto.SimulationResult):
-            return dto.SimulationResult(obj=obj)
-        return json.JSONEncoder.default(self, obj)
+            return dto.SimulationResult(obj=obj)  # Fixme: Failing static test. No test coverage.
+        return json.JSONEncoder().default(obj)
 
 
 def deserialize_oogeso_results(json_data):
     result_data = json.loads(json_data, cls=OogesoResultJSONDecoder)
     return result_data
-

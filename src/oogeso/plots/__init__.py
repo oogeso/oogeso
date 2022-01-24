@@ -1,7 +1,7 @@
 from .plots import (
     plot_CO2_intensity,
     plot_CO2_rate,
-    plot_CO2_rate_per_dev,
+    plot_CO2_rate_per_device,
     plot_device_power_energy,
     plot_device_power_flow_pressure,
     plot_device_profile,

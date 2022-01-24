@@ -112,8 +112,8 @@ class PumpOil(PumpDevice):
 
     def __init__(
         self,
-        dev_data: dto.DevicePumpOilData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierOilData]],  # Fixme: Correct?
+        dev_data: dto.DevicePumpOilData,
+        carrier_data_dict: Dict[str, Union[dto.CarrierElData, dto.CarrierOilData]],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -128,8 +128,6 @@ class PumpWellStream(PumpDevice):
     carrier_out = ["wellstream"]
     serial = ["wellstream"]
 
-    # Fixme: Missing DTO
-
 
 class PumpWater(PumpDevice):
     """Water pump"""
@@ -140,8 +138,8 @@ class PumpWater(PumpDevice):
 
     def __init__(
         self,
-        dev_data: dto.DevicePumpWaterData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, Union[dto.CarrierWaterData, dto.CarrierElData]],  # Fixme: Correct?
+        dev_data: dto.DevicePumpWaterData,
+        carrier_data_dict: Dict[str, Union[dto.CarrierWaterData, dto.CarrierElData]],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data

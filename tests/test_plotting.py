@@ -7,7 +7,7 @@ import oogeso
 from oogeso import dto
 
 try:
-    from oogeso import plots as op
+    from oogeso import plots as op  # noqa: We skip tests if this fails, but we don't want to raise the error.
 except ImportError:
     pass
 
@@ -37,7 +37,7 @@ def test_plot_co2_rate(leogo_expected_result: dto.SimulationResult):
 def test_plot_co2_rate_per_dev(leogo_test_data: dto.EnergySystemData, leogo_expected_result: dto.SimulationResult):
     sim_result = leogo_expected_result
     optimisation_model = oogeso.OptimisationModel(leogo_test_data)
-    op.plot_CO2_rate_per_dev(sim_result, optimisation_model)
+    op.plot_CO2_rate_per_device(sim_result, optimisation_model)
 
 
 @pytest.mark.skipif(
@@ -107,7 +107,7 @@ def test_plot_df():
 )
 def test_plot_el_backup(leogo_expected_result: dto.SimulationResult):
     sim_result = leogo_expected_result
-    op.plot_el_backup(sim_result, showMargin=True)
+    op.plot_el_backup(sim_result, show_margin=True)
 
 
 @pytest.mark.skipif(

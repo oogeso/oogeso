@@ -63,7 +63,7 @@ def get_class_from_dto(class_str: str) -> Callable:
     """
     Search dto module for a callable that matches the signature given as class str
 
-    Fixme: Replace this (de-)serializer with a proper solution.
+    Fixme: Replace this with a better division between DTO and core.
     """
     if class_str in dto.__dict__.keys():
         return dto.__dict__[class_str]
@@ -119,13 +119,14 @@ def create_time_series_data(
     for col in df_new.columns:
         if col[0] == "forecast":
             curve = col[1]
-            list_data = list(df_new[("forecast", curve)])
+            list_data = df_new.loc[:, ("forecast", curve)].to_list()
             list_data_nowcast = None
             if ("nowcast", curve) in df_new.columns:
-                list_data_nowcast = list(df_new[("nowcast", curve)])
+                list_data_nowcast = df_new.loc[:, ("nowcast", curve)].to_list()
             new_ts = dto.TimeSeriesData(id=curve, data=list_data, data_nowcast=list_data_nowcast)
             profiles.append(new_ts)
         elif col[0] == "nowcast":
-            if ("forecast", curve) not in df_new.columns:  # Fixme: curve potentially referenced before assignment.
-                logger.warning("Nowcast but no forecast profile for {}".format(curve))
+            if ("forecast", col[1]) not in df_new.columns:
+                logger.warning(f"Nowcast but no forecast profile for {col[1]}")
+
     return profiles

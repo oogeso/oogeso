@@ -29,7 +29,7 @@ class FluidNetwork(Network):
                 constr_flow = pyo.Constraint(
                     edgelist,
                     pyomo_model.setHorizon,
-                    rule=self._rulePipelineFlow,
+                    rule=self._rule_pipeline_flow,
                 )
                 setattr(
                     pyomo_model,
@@ -37,7 +37,7 @@ class FluidNetwork(Network):
                     constr_flow,
                 )
 
-    def _rulePipelineFlow(self, model: pyo.Model, edge, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_pipeline_flow(self, model: pyo.Model, edge, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Pipeline flow vs pressure drop"""
         # edge = self.id
         edge_obj = self.edges[edge]
@@ -61,7 +61,8 @@ class FluidNetwork(Network):
         p2_computed = self.compute_edge_pressuredrop(edge_obj, p1=p1, Q=Q, linear=True, print_log=print_log)
         return p2 == p2_computed
 
-    def _compute_exps_and_k(self, edge_data: dto.EdgeFluidData, carrier_data: dto.CarrierFluidData):
+    @staticmethod
+    def _compute_exps_and_k(edge_data: dto.EdgeFluidData, carrier_data: dto.CarrierFluidData):
         """Derive exp_s and k parameters for Weymouth equation"""
         # gas pipeline parameters - derive k and exp(s) parameters:
         ga = carrier_data
@@ -114,7 +115,6 @@ class FluidNetwork(Network):
         # edge = self.id
         edge_data = edge.edge_data
         edge_id = edge_data.id
-        method = None  # Fixme: Why do we override the argument with None?
         carrier = edge_data.carrier
         carrier_data = self.carrier_data
         if carrier_data.pressure_method is not None:
@@ -163,13 +163,8 @@ class FluidNetwork(Network):
                 logger.debug("pipe {}: exp_s={}, k={}".format(edge_id, exp_s, k))
             if linear:
                 p_from = p1
-                #                p_from = model.varPressure[(n_from,carrier,'out',t)]
-                #                p_to = model.varPressure[(n_to,carrier,'in',t)]
-                X0 = p0_from ** 2 - exp_s * p0_to ** 2
-                #                logger.info("edge {}-{}: X0={}, p1={},Q={}"
-                #                    .format(n_from,n_to,X0,p1,Q))
-                coeff = k * (X0) ** (-1 / 2)
-                #                Q_computed = coeff*(p0_from*p_from - exp_s*p0_to*p_to)
+                x0 = p0_from ** 2 - exp_s * p0_to ** 2
+                coeff = k * x0 ** (-1 / 2)
                 p2 = (p0_from * p_from - Q / coeff) / (exp_s * p0_to)
             else:
                 # weymouth eqn (non-linear)
@@ -188,7 +183,7 @@ class FluidNetwork(Network):
                 Re = 2 * rho * Q / (np.pi * mu * D)
                 f = 1 / (0.838 * scipy.special.lambertw(0.629 * Re)) ** 2
                 f = f.real
-            elif carrier_data.darcy_friction is not None:
+            elif hasattr(carrier_data, "darcy_friction") and getattr(carrier_data, "darcy_friction") is not None:
                 f = carrier_data.darcy_friction
             else:
                 raise Exception("Must provide viscosity or darcy_friction for {}".format(carrier))
@@ -206,11 +201,7 @@ class FluidNetwork(Network):
             )
             p2 = p2 * 1e-6  # Convert to MPa
             if print_log:
-                logger.debug(
-                    ("derived pipe ({}) flow rate:" " Q={}, linearQ0={:5.3g}," " friction={:5.3g}").format(
-                        edge_id, Q, Q0, f
-                    )
-                )
+                logger.debug(f"derived pipe ({edge_id}) flow rate:' ' Q={Q}, linearQ0={Q0:5.3g}, ' ' friction={f:5.3g}")
 
             return p2
         else:
@@ -244,7 +235,7 @@ def darcy_weissbach_p2(
     linear=True,
     p0_from=None,  # Pa
     p0_to=None,  # Pa
-) -> Tuple[float, float]:
+) -> Tuple[float, ...]:
     """compute outlet pressure from darcy-weissbach equation
 
     parameters
@@ -263,12 +254,15 @@ def darcy_weissbach_p2(
         pipe length (m)
     height_difference : float
         height difference outlet vs inlet (m)
+    linear : True or False
+    p0_from : Optional pressure from
+    p0_to : Optional pressure to
 
     """
     D = diameter  # m
     L = length  # m
     grav = GRAVITY_ACCELERATION_CONSTANT
-    q0 = np.nan
+    q0: float = np.nan
     if linear:
         k2 = (8 * f * rho * L) / (np.pi ** 2 * D ** 5)
         q0_squared = 1 / k2 * ((p0_from - p0_to) - rho * grav * height_difference)
@@ -283,11 +277,11 @@ def darcy_weissbach_p2(
                 height_difference,
             )
         q0 = np.sqrt(q0_squared)
-        p2 = p1 - rho * grav * height_difference - k2 * (2 * q0 * Q - q0 ** 2)
+        p2: float = p1 - rho * grav * height_difference - k2 * (2 * q0 * Q - q0 ** 2)
     else:
         # Quadratic in Q
-        p2 = p1 - rho * grav * height_difference - 8 * f * rho * L * Q ** 2 / (np.pi ** 2 * D ** 5)
-    return (p2, q0)
+        p2: float = p1 - rho * grav * height_difference - 8 * f * rho * L * Q ** 2 / (np.pi ** 2 * D ** 5)
+    return tuple([p2, q0])
 
 
 def darcy_weissbach_Q(p1, p2, f, rho, diameter_mm, length_km, height_difference_m=0):

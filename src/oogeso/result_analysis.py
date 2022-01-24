@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -8,7 +8,7 @@ from oogeso import dto
 def compute_kpis(
     sim_result: dto.SimulationResult,
     sim_data: dto.EnergySystemData,
-    windturbines: Optional[Any] = None,  # Fixme: What is correct type here?
+    wind_turbines: Optional[dto.DevicePowerSourceData] = None,
 ):
     """Compute key indicators of simulation results
 
@@ -19,8 +19,8 @@ def compute_kpis(
     sec_per_year = 3600 * hour_per_year
     kpi = {}
     res = sim_result
-    if windturbines is None:
-        windturbines = []
+    if wind_turbines is None:
+        wind_turbines = list()
 
     num_sim_timesteps = res.co2_rate.shape[0]
     timesteps = res.co2_rate.index
@@ -69,19 +69,19 @@ def compute_kpis(
 
     # wind power output
     el_sup = res.device_flow.unstack("carrier")["el"].unstack("terminal")["out"].dropna().unstack()
-    p_wind = el_sup.T[windturbines]
+    p_wind = el_sup.T[wind_turbines]
     kpi["wind_output_mwh_per_year"] = p_wind.sum(axis=1).mean() * hour_per_year
 
     # curtailed wind energy
     p_avail = pd.DataFrame(index=timesteps)
-    for devdata in sim_data.devices:
-        if devdata in windturbines:
-            d = devdata.id
-            Pmax = devdata.flow_max
-            p_avail[d] = Pmax
-            if devdata.profile is not None:
-                profile_ref = devdata.profile
-                p_avail[d] = Pmax * res.profiles_nowcast.loc[timesteps, profile_ref]
+    for device_data in sim_data.devices:
+        if device_data in wind_turbines:
+            d = device_data.id
+            P_max = device_data.flow_max
+            p_avail[d] = P_max
+            if device_data.profile is not None:
+                profile_ref = device_data.profile
+                p_avail[d] = P_max * res.profiles_nowcast.loc[timesteps, profile_ref]
     p_curtailed = (p_avail - p_wind).sum(axis=1)
     kpi["wind_curtailed_mwh_per_year"] = p_curtailed.mean() * hour_per_year
     return kpi

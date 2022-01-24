@@ -39,9 +39,9 @@ def test_optimiser_create():
     assert optimisation_model.setHorizon == [0, 1, 2]
     assert optimisation_model.setDevice == ["source1", "demand"]
 
-    el_consumers = optimisation_model.getDevicesInout(carrier_in="el")
+    el_consumers = optimisation_model.get_devices_in_out(carrier_in="el")
     assert el_consumers == ["demand"]
-    el_producers = optimisation_model.getDevicesInout(carrier_out="el")
+    el_producers = optimisation_model.get_devices_in_out(carrier_out="el")
     assert el_producers == ["source1"]
 
 
@@ -67,15 +67,15 @@ def test_optimiser_updatemodel():
 
     optimisation_model = oogeso.OptimisationModel(data=energy_system_data)
 
-    optimisation_model.updateOptimisationModel(timestep=0, profiles=profiles_df, first=True)
+    optimisation_model.update_optimisation_model(timestep=0, profiles=profiles_df, first=True)
 
-    optimisation_model.updateOptimisationModel(timestep=1, profiles=profiles_df, first=False)
+    optimisation_model.update_optimisation_model(timestep=1, profiles=profiles_df, first=False)
 
     # Selecting timestep outside data should give error
     # 3 timesteps in each optimisation, so with profile of length 4, we can only
     # update for timestep 0 and 1 without error
     with pytest.raises(KeyError):
-        optimisation_model.updateOptimisationModel(timestep=2, profiles=profiles_df, first=False)
+        optimisation_model.update_optimisation_model(timestep=2, profiles=profiles_df, first=False)
 
 
 def test_optimiser_compute():
@@ -97,11 +97,11 @@ def test_optimiser_compute():
     assert penalty_start == 0
 
     # No storage, so depletion cost should be zero
-    cost_storagedepl = optimisation_model.compute_costForDepletedStorage(pyomo_model)
+    cost_storagedepl = optimisation_model.compute_cost_for_depleted_storage(pyomo_model)
     assert cost_storagedepl == 0
 
     # No operating cost defined so should be zero
-    op_cost = optimisation_model.compute_operatingCosts(pyomo_model)
+    op_cost = optimisation_model.compute_operating_costs(pyomo_model)
     assert op_cost == 0
 
     # No devices represent export, so should be zero
@@ -113,7 +113,7 @@ def test_optimiser_compute():
     assert export_oilgas_volume == 0
 
     # No export so therefore no export revenue
-    export_revenue = optimisation_model.compute_exportRevenue(pyomo_model)
+    export_revenue = optimisation_model.compute_export_revenue(pyomo_model)
     assert export_revenue == 0
 
 

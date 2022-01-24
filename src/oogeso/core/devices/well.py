@@ -7,7 +7,7 @@ from oogeso.core.devices.base import Device
 
 
 class WellProduction(Device):
-    "Production well (wellstream source)"
+    """Production well (wellstream source)"""
 
     carrier_in = []
     carrier_out = ["wellstream"]
@@ -15,8 +15,8 @@ class WellProduction(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceWellProductionData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierWellStreamData],  # Fixme: Correct?
+        dev_data: dto.DeviceWellProductionData,
+        carrier_data_dict: Dict[str, dto.CarrierWellStreamData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -49,7 +49,7 @@ class WellProduction(Device):
 
 
 class WellGasLift(Device):
-    "Production well with gas lift"
+    """Production well with gas lift"""
 
     carrier_in = ["gas"]
     carrier_out = ["gas", "oil", "water"]
@@ -57,8 +57,8 @@ class WellGasLift(Device):
 
     def __init__(
         self,
-        dev_data: dto.DeviceWellGasLiftData,  # Fixme: Correct?
-        carrier_data_dict: Dict[str, dto.CarrierGasData],  # Fixme: Correct?
+        dev_data: dto.DeviceWellGasLiftData,
+        carrier_data_dict: Dict[str, dto.CarrierGasData],
     ):
         super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
         self.dev_data = dev_data
@@ -104,7 +104,7 @@ class WellGasLift(Device):
                 rhs = dev_data.f_inj * pyomo_model.varDeviceFlow[dev, "oil", "out", t]
                 return lhs == rhs
             else:
-                return pyo.Constraint.Skip  # noq
+                return pyo.Constraint.Skip  # noqa
         elif i == 4:
             # gas injection pressure is fixed
             if carrier == "gas":

@@ -2,9 +2,7 @@ name: Pages
 on:
   push:
     branches:
-    - master
-    paths:
-      - 'docs/**'
+    - master  # Note: We build this based on changes in master. Could be changed to build at release/publish later.
 
 jobs:
   build:

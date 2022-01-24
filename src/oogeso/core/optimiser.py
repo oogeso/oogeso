@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import pyomo.environ as pyo
@@ -9,8 +9,8 @@ from oogeso import dto
 from oogeso.core import networks
 from oogeso.core.devices.base import Device
 from oogeso.core.devices.storage import StorageDevice
+from oogeso.core.networks import ElNetwork, Network
 from oogeso.core.networks.edge import Edge
-from oogeso.core.networks.network import Network
 from oogeso.core.networks.network_node import NetworkNode
 from oogeso.utils.util import get_device_from_model_name, get_network_from_carrier_name
 
@@ -32,7 +32,7 @@ class OptimisationModel(pyo.ConcreteModel):
         self.all_nodes: Dict[str, NetworkNode] = {}
         self.all_edges: Dict[str, Edge] = {}
         # self.all_carriers = {}
-        self.all_networks: Dict[str, Network] = {}
+        self.all_networks: Dict[str, Union[Network, ElNetwork]] = {}
 
         # Model parameters
         self.optimisation_parameters = data.parameters
@@ -313,7 +313,7 @@ class OptimisationModel(pyo.ConcreteModel):
         elif obj == "costs":
             rule = self._rule_objective_costs
         elif obj == "exportRevenue":
-            rule = self._rule_objective_exportRevenue
+            rule = self._rule_objective_export_revenue
         elif obj == "co2intensity":
             rule = self._rule_objective_co2intensity
         else:
@@ -345,17 +345,16 @@ class OptimisationModel(pyo.ConcreteModel):
         # 4.1 max limit emission rate:
         params_generic = self.optimisation_parameters
         if (params_generic.emission_rate_max is not None) and (params_generic.emission_rate_max >= 0):
-            self.constr_O_emissionrate = pyo.Constraint(self.setHorizon, rule=self._rule_emissionRateLimit)
+            self.constr_O_emissionrate = pyo.Constraint(self.setHorizon, rule=self._rule_emission_rate_limit)
         else:
             logger.debug("No emission_rate_max limit specified")
         # 4.2 max limit emission intensity
         if (params_generic.emission_intensity_max is not None) and (params_generic.emission_intensity_max >= 0):
-            self.constr_O_emissionintensity = pyo.Constraint(self.setHorizon, rule=self._rule_emissionIntensityLimit)
+            self.constr_O_emissionintensity = pyo.Constraint(self.setHorizon, rule=self._rule_emission_intensity_limit)
         else:
             logger.debug("No emission_intensity_max limit specified")
         # 4.3 electrical reserve margin:
-        # Fixme: This is prone to errors, and depends on the class El(Network).__name__ not changing.
-        el_parameters: dto.CarrierElData = self.all_networks["el"].carrier_data  # Fixme: Static type error.
+        el_parameters: dto.CarrierElData = self.all_networks["el"].carrier_data
         el_reserve_margin = el_parameters.el_reserve_margin
         el_backup_margin = el_parameters.el_backup_margin
         if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
@@ -372,7 +371,7 @@ class OptimisationModel(pyo.ConcreteModel):
         else:
             logger.debug("No el_backup_margin limit specified")
 
-    def updateOptimisationModel(self, timestep, profiles, first=False):
+    def update_optimisation_model(self, timestep, profiles, first=False):
         """Update Pyomo model instance
 
         Parameters
@@ -402,21 +401,21 @@ class OptimisationModel(pyo.ConcreteModel):
             for t in range(timesteps_use_nowcast, horizon):
                 self.paramProfiles[prof, t] = profiles["forecast"].loc[timestep + t, prof]
 
-        def _updateOnTimesteps(t_prev, dev):
+        def _update_on_timesteps(_t_prev, _dev):
             # sum up consequtive timesteps starting at tprev going
             # backwards, where device has been in preparation phase
             sum_on = 0
             docontinue = True
-            for tt in range(t_prev, -1, -1):
+            for tt in range(_t_prev, -1, -1):
                 # if (self.instance.varDeviceIsOn[dev,tt]==1):
-                if pyo.value(self.varDeviceIsPrep[dev, tt]) == 1:
+                if pyo.value(self.varDeviceIsPrep[_dev, tt]) == 1:
                     sum_on = sum_on + 1
                 else:
                     docontinue = False
                     break  # exit for loop
             if docontinue:
                 # we got all the way back to 0, so must include initial value
-                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[dev]
+                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[_dev]
             return sum_on
 
         # Update startup/shutdown info
@@ -426,7 +425,7 @@ class OptimisationModel(pyo.ConcreteModel):
             for dev, dev_obj in self.all_devices.items():
                 # On/off status: (round because solver doesn't alwasy return an integer)
                 self.paramDeviceIsOnInitially[dev] = round(pyo.value(self.varDeviceIsOn[dev, t_prev]))
-                self.paramDevicePrepTimestepsInitially[dev] = _updateOnTimesteps(t_prev, dev)
+                self.paramDevicePrepTimestepsInitially[dev] = _update_on_timesteps(t_prev, dev)
                 # Initial power output (relevant for ramp rate constraint):
                 if dev_obj.dev_data.max_ramp_up is not None:
                     self.paramDevicePowerInitially[dev] = dev_obj.get_flow_var(self, t_prev)
@@ -472,54 +471,53 @@ class OptimisationModel(pyo.ConcreteModel):
             sum_penalty = sum_penalty + this_penalty
         return sum_penalty
 
-    def _rule_objective_co2(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_co2(self, model: pyo.Model) -> float:
         """CO2 emissions per sec"""
         return self.compute_CO2(model)  # *self.paramParameters['CO2_price']
 
-    def _rule_objective_co2intensity(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_co2intensity(self, model: pyo.Model) -> Optional[float]:
         """CO2 emission intensity (CO2 per exported oil/gas)
         DOES NOT WORK - NONLINEAR (ratio)"""
         return self.compute_CO2_intensity(model)
 
-    def _rule_objective_costs(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_costs(self, model: pyo.Model) -> float:
         """costs (co2 price, operating costs, startstop, storage depletaion)
         per second (assuming fixed oil/gas production)"""
-        startupCosts = self.compute_startup_penalty(model)  # kr/s
-        storageDepletionCosts = self.compute_costForDepletedStorage(model)
-        opCosts = self.compute_operatingCosts(model)  # kr/s
+        startup_costs = self.compute_startup_penalty(model)  # kr/s
+        storage_depletion_costs = self.compute_cost_for_depleted_storage(model)
+        op_costs = self.compute_operating_costs(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
         co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
-        co2Cost = co2 * co2_tax  # kr/s
+        co2_cost = co2 * co2_tax  # kr/s
 
-        return co2Cost + startupCosts + storageDepletionCosts + opCosts
+        return co2_cost + startup_costs + storage_depletion_costs + op_costs
 
-    def _rule_objective_exportRevenue(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_objective_export_revenue(self, model: pyo.Model) -> float:
         """revenue from exported oil and gas minus costs (co2 price and
         operating costs) per second"""
-        sumRevenue = self.compute_exportRevenue(model)  # kr/s
-        startupCosts = self.compute_startup_penalty(model)  # kr/s
+        sum_revenue = self.compute_export_revenue(model)  # kr/s
+        startup_costs = self.compute_startup_penalty(model)  # kr/s
         co2 = self.compute_CO2(model)  # kgCO2/s
         co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
-        co2Cost = co2 * co2_tax  # kr/s
-        storageDepletionCosts = self.compute_costForDepletedStorage(model)
-        opCosts = self.compute_operatingCosts(model)  # kr/s
+        co2_cost = co2 * co2_tax  # kr/s
+        storage_depletion_costs = self.compute_cost_for_depleted_storage(model)
+        op_costs = self.compute_operating_costs(model)  # kr/s
 
-        return -sumRevenue + co2Cost + startupCosts + storageDepletionCosts + opCosts
+        return -sum_revenue + co2_cost + startup_costs + storage_depletion_costs + op_costs
 
-    def _rule_emissionRateLimit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_emission_rate_limit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission rate"""
         params_generic = self.optimisation_parameters
-        emissionRateMax = params_generic.emission_rate_max
         lhs = self.compute_CO2(model, timesteps=[t])
-        rhs = emissionRateMax
+        rhs = params_generic.emission_rate_max
         return pyo.Expression(lhs <= rhs)
 
-    def _rule_emissionIntensityLimit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_emission_intensity_limit(self, model: pyo.Model, t) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Upper limit on CO2 emission intensity"""
         params_generic = self.optimisation_parameters
-        emissionIntensityMax = params_generic.emission_intensity_max
+        emission_intensity_max = params_generic.emission_intensity_max
         lhs = self.compute_CO2(model, timesteps=[t])
-        rhs = emissionIntensityMax * self.compute_oilgas_export(model, timesteps=[t])
+        rhs = emission_intensity_max * self.compute_oilgas_export(model, timesteps=[t])
         return pyo.Expression(lhs <= rhs)
 
     def _rule_el_reserve_margin(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
@@ -531,11 +529,10 @@ class OptimisationModel(pyo.ConcreteModel):
         # exclude constraint for first timesteps since the point of the
         # dispatch margin is exactly to cope with forecast errors
         if t < self.optimisation_parameters.forecast_timesteps:
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
 
         network_el = self.all_networks["el"]
 
-        # Fixme: Error in type hint.
         if hasattr(network_el.carrier_data, "el_reserve_margin"):
             margin = network_el.carrier_data.el_reserve_margin
         else:
@@ -560,7 +557,7 @@ class OptimisationModel(pyo.ConcreteModel):
         margin = network_el.carrier_data.el_backup_margin
         if "el" not in dev_obj.carrier_out:
             # this is not a power generator
-            return pyo.Constraint.Skip
+            return pyo.Constraint.Skip  # noqa
         res_otherdevs = network_el.compute_el_reserve(model, t, self.all_devices, exclude_device=dev)
         expr = res_otherdevs - self.varDeviceFlow[dev, "el", "out", t] >= -margin
         return expr
@@ -571,14 +568,13 @@ class OptimisationModel(pyo.ConcreteModel):
             devices = self.setDevice
         if timesteps is None:
             timesteps = self.setHorizon
-        sumCO2 = 0
+        sum_CO2 = 0
         for d in devices:
             dev = self.all_devices[d]
-            thisCO2 = dev.compute_CO2(model, timesteps)
-            sumCO2 = sumCO2 + thisCO2
+            sum_CO2 += dev.compute_CO2(model, timesteps)
 
         # Average per s
-        return sumCO2 / len(timesteps)
+        return sum_CO2 / len(timesteps)
 
     def compute_CO2_intensity(self, model: pyo.Model, timesteps=None):
         """CO2 emission per exported oil/gas (kgCO2/Sm3oe)"""
@@ -604,50 +600,54 @@ class OptimisationModel(pyo.ConcreteModel):
         start_stop_costs = 0
         for d in devices:
             dev_obj = self.all_devices[d]
-            thisCost = dev_obj.compute_startup_penalty(model, timesteps)
-            start_stop_costs += thisCost
+            start_stop_costs += dev_obj.compute_startup_penalty(model, timesteps)
         # get average per sec:
-        deltaT = self.optimisation_parameters.time_delta_minutes * 60
-        sumTime = len(timesteps) * deltaT
-        start_stop_costs = start_stop_costs / sumTime
+        delta_T = self.optimisation_parameters.time_delta_minutes * 60
+        sum_time = len(timesteps) * delta_T
+        start_stop_costs = start_stop_costs / sum_time
         return start_stop_costs
 
-
-    def compute_operatingCosts(self, model: pyo.Model):
+    def compute_operating_costs(self, model: pyo.Model):
         """term in objective function to represent fuel costs or similar
         as average per sec ($/s)
 
         opCost = energy costs (NOK/MJ, or NOK/Sm3)
         Note: el costs per MJ not per MWh
         """
-        sumCost = 0
+        sum_cost = 0
         timesteps = self.setHorizon
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
-            thisCost = dev_obj.compute_operating_costs(model, timesteps)
-            sumCost += thisCost
-        return sumCost
+            sum_cost += dev_obj.compute_operating_costs(model, timesteps)
+        return sum_cost
 
-    def compute_costForDepletedStorage(self, model: pyo.Model):
+    def compute_cost_for_depleted_storage(self, model: pyo.Model):
         """term in objective function to discourage depleting battery,
         making sure it is used only when required"""
-        storCost = 0
+        store_cost = 0
         timesteps = self.setHorizon
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
-            thisCost = dev_obj.compute_cost_for_depleted_storage(model, timesteps)
-            storCost += thisCost
-        return storCost
+            store_cost += dev_obj.compute_cost_for_depleted_storage(model, timesteps)
+        return store_cost
 
-    def compute_exportRevenue(self, model: pyo.Model, carriers=None, timesteps=None):
+    def compute_export_revenue(
+        self, model: pyo.Model, carriers=None, timesteps: Optional[Union[List[int], pyo.Set]] = None
+    ):
         """revenue from exported oil and gas - average per sec ($/s)"""
         return self.compute_export(model, value="revenue", carriers=carriers, timesteps=timesteps)
 
-    def compute_oilgas_export(self, model: pyo.Model, timesteps=None):
+    def compute_oilgas_export(self, model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         """Export volume (Sm3oe/s)"""
         return self.compute_export(model, value="volume", carriers=["oil", "gas"], timesteps=timesteps)
 
-    def compute_export(self, model: pyo.Model, value="revenue", carriers=None, timesteps=None):
+    def compute_export(
+        self,
+        model: pyo.Model,
+        value="revenue",
+        carriers: Optional[List[str]] = None,
+        timesteps: Optional[Union[List[int], pyo.Set]] = None,
+    ):
         """Compute average export (volume or revenue)
 
         Parameters
@@ -655,6 +655,8 @@ class OptimisationModel(pyo.ConcreteModel):
         model : oogeso model
         value : string ("revenue", "volume")
             which value to compute, revenue (€/s) or volume (Sm3oe/s)
+        carriers : Optional list of carrier names.
+        timesteps: Optional list of timesteps
 
         Computes the energy/mass flow into (sink) devices with a price.CARRIER
         parameter defined (CARRIER can be any of 'oil', 'gas', 'el')
@@ -664,16 +666,15 @@ class OptimisationModel(pyo.ConcreteModel):
         if timesteps is None:
             timesteps = self.setHorizon
 
-        sumValue = 0
+        sum_value = 0
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
-            thisValue = dev_obj.compute_export(model, value, carriers, timesteps)
-            sumValue += thisValue
+            sum_value += dev_obj.compute_export(model, value, carriers, timesteps)
         # average per second (timedelta is not required)
-        sumValue = sumValue / len(timesteps)
-        return sumValue
+        sum_value = sum_value / len(timesteps)
+        return sum_value
 
-    def getDevicesInout(self, carrier_in=None, carrier_out=None):
+    def get_devices_in_out(self, carrier_in=None, carrier_out=None):
         """devices that have the specified connections in and out"""
         devs = []
         for d, dev_obj in self.all_devices.items():

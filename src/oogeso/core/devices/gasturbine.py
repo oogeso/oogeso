@@ -7,7 +7,7 @@ from oogeso.core.devices.base import Device
 
 
 class GasTurbine(Device):
-    "Gas turbine generator"
+    """Gas turbine generator"""
 
     carrier_in = ["gas"]
     carrier_out = ["el", "heat"]
@@ -35,11 +35,11 @@ class GasTurbine(Device):
             # => efficiency = power/(A+B*power)
             A = self.dev_data.fuel_A
             B = self.dev_data.fuel_B
-            Pmax = self.dev_data.flow_max
-            lhs = model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content / Pmax
+            P_max = self.dev_data.flow_max
+            lhs = model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content / P_max
             rhs = (
                 B * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
-                + A * model.varDeviceFlow[dev, "el", "out", t] / Pmax
+                + A * model.varDeviceFlow[dev, "el", "out", t] / P_max
             )
             return lhs == rhs
         elif i == 2:

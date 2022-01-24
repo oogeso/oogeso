@@ -49,7 +49,7 @@ def test_simulator_runsim():
     energy_system_data = _make_test_data()
     sim_obj = oogeso.Simulator(energy_system_data)
     with pytest.raises(Exception):
-        sim_res = sim_obj.run_simulation(solver="wrong_solver_name", time_range=(0, 2))
+        _ = sim_obj.run_simulation(solver="wrong_solver_name", time_range=(0, 2))
 
     sim_res = sim_obj.run_simulation(solver="cbc", time_limit=1)
     assert sim_res.device_flow["source1", "el", "out", 0] == 15 * 1.1

@@ -7,7 +7,7 @@ from oogeso.core.devices.base import Device
 
 
 class SourceEl(Device):
-    "Generic external source for electricity (e.g. cable or wind turbine)"
+    """Generic external source for electricity (e.g. cable or wind turbine)"""
 
     dev_data: dto.DeviceSourceElData
 
@@ -33,14 +33,13 @@ class SourceEl(Device):
         # co2 content in fuel combustion
         # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
         # need to convert co2em to kgCO2/(MW*s)
-        thisCO2 = 0
         if self.dev_data.co2em is not None:
-            thisCO2 = (
+            return (
                 sum(pyomo_model.varDeviceFlow[self.id, "el", "out", t] * self.dev_data.co2em for t in timesteps)
                 * 1
                 / 3600
             )
-        return thisCO2
+        return 0.0
 
 
 class PowerSource(Device):
@@ -68,7 +67,7 @@ class PowerSource(Device):
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
         if self.dev_data.penalty_function is not None:
-            constr_penalty = self._penaltyConstraint(pyomo_model)
+            constr_penalty = self._penalty_constraint(pyomo_model)
             setattr(
                 pyomo_model,
                 "constrPW_{}_{}".format(self.id, "penalty"),
@@ -81,7 +80,7 @@ class PowerSource(Device):
     # But only (device_id, time) is relevant
     # Could define a "varDevicePower" (or better name) representing the main variable
     # used with p_max / q_max / penalty_function
-    def _penaltyConstraint(self, pyomo_model: pyo.Model):
+    def _penalty_constraint(self, pyomo_model: pyo.Model):
         # Piecewise constraints require independent variable to be bounded:
         # ub = self.dev_data.flow_max
         ub = self.get_flow_upper_bound()
