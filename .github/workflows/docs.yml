@@ -23,28 +23,13 @@ jobs:
       with:
         virtualenvs-create: true
 
-    - name: Check pyproject.toml validity
-      run: poetry check --no-interaction
-
-    - name: Cache dependencies
-      id: cache-deps
-      uses: actions/cache@v2.1.6
-      with:
-        path: ${{github.workspace}}/.venv
-        key: poetry-${{ hashFiles('**/poetry.lock') }}
-        restore-keys: poetry-
-
-    - name: Install dependencies  # if cache has changed
-      if: steps.cache-deps.cache-hit != 'true'
-      run: |
-        poetry config virtualenvs.in-project true
-        poetry install --no-interaction
-
     - name: Build documentation
       run: |
         mkdir gh-pages
         touch gh-pages/.nojekyll
         cd docs/
+        poetry check --no-interaction
+        poetry install --no-interaction
         poetry run make html
         cp -r _build/html/* ../gh-pages/
 
