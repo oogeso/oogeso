@@ -1,8 +1,9 @@
 name: Docker Hub Publish
+
+# Daily build from master at 00:00. Can also be triggered manually from master if needed.
 on:
-  push:
-    branches:
-      - '**'  # To be changed later
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   docker:

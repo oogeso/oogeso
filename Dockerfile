@@ -1,4 +1,4 @@
-FROM bitnami/python:3.10 as dev
+FROM bitnami/python:3.10
 
 ARG INSTALL_DEV=true
 ENV PYTHONUNBUFFERED=1
@@ -26,9 +26,3 @@ FROM dev as test
 
 COPY ./ ./
 ENV PYTHONPATH=/code/src
-
-FROM test AS build
-
-RUN poetry install --no-dev
-
-
