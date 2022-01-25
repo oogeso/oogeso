@@ -78,8 +78,7 @@ def plot_device_profile(
     if type(devs) is not list:
         devs = [devs]
     if include_forecasts & (len(devs) > 1):
-        print("Can only plot one device when showing forecasts")
-        return
+        raise ValueError("Can only plot a single device when showing forecasts")
     df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device")
     if devs_shareload is None:
         # gas turbines:

@@ -42,7 +42,7 @@ class OptimisationModel(pyo.ConcreteModel):
         # List of devices with storage
         self.devices_with_storage = []
         profiles_in_use = list(set(d.profile for d in data.devices if d.profile is not None))
-        logger.info("profiles in use: %s", profiles_in_use)
+        logger.debug("profiles in use: %s", profiles_in_use)
 
         self._create_network_objects_from_data(data)
         self._set_node_pressure_from_edge_data()
@@ -78,7 +78,7 @@ class OptimisationModel(pyo.ConcreteModel):
             raise Exception("Infeasible solution")
         else:
             # Something else is wrong
-            logger.info("Solver Status:{}".format(sol.solver.status))
+            logger.warning("Solver Status:{}".format(sol.solver.status))
         return sol
 
     def _set_node_pressure_from_edge_data(self):
@@ -313,8 +313,7 @@ class OptimisationModel(pyo.ConcreteModel):
             rule = self._rule_objective_co2intensity
         else:
             raise Exception("Objective '{}' has not been implemented".format(obj))
-        logger.info("Using objective function: {}".format(obj))
-        # logger.info(rule)
+        logger.debug("Using objective function: {}".format(obj))
         self.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
 
     def _specify_constraints(self):
@@ -355,7 +354,7 @@ class OptimisationModel(pyo.ConcreteModel):
         if (el_reserve_margin is not None) and (el_reserve_margin >= 0):
             self.constr_O_elReserveMargin = pyo.Constraint(self.setHorizon, rule=self._rule_el_reserve_margin)
         else:
-            logger.info("No el_reserve_margin limit specified")
+            logger.debug("No el_reserve_margin limit specified")
         # 4.4 electrical backup power margin
         if (el_backup_margin is not None) and (el_backup_margin >= 0):
             self.constr_O_elBackupMargin = pyo.Constraint(
