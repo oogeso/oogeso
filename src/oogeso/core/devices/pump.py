@@ -40,7 +40,6 @@ class PumpDevice(Device):
         # (this approximation may not be very good for multiphase
         # wellstream)
         # assume nominal pressure and keep only flow rate dependence
-        # TODO: Better linearisation?
 
         eta = dev_data.eta
 

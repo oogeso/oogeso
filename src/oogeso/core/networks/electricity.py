@@ -31,7 +31,7 @@ class ElNetwork(Network):
         if self.carrier_data.powerflow_method == "dc-pf":
             raise NotImplementedError("Power flow equation not implemented yet.")
 
-            logger.warning("TODO: code for electric powerflow calculations need improvement (pu conversion)")
+            logger.warning("Code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
             edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
             coeff_B, coeff_DA = el_calc.compute_power_flow_matrices(nodelist, edgelist_el, base_Z=1)
