@@ -22,5 +22,5 @@ jobs:
       - name: Test Oogeso
         run: docker run --rm haraldsvendsen/oogeso bash -c "poetry run pytest"
       - name: Test Example Notebooks
-        run: docker run --rm haraldsvendsen/oogeso bash -c "poetry run pytest --nbmake ./examples -k 'test_'"
+        run: docker run --rm haraldsvendsen/oogeso bash -c "poetry run pytest --nbmake ./examples"
 
