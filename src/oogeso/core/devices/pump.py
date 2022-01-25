@@ -18,8 +18,16 @@ class PumpDevice(Device):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def compute_pump_demand(self, pyomo_model: pyo.Model, carrier, linear=False, Q=None, p1=None, p2=None, t=None):
-        # Fixne: Fix types in arguments above.
+    def compute_pump_demand(
+        self,
+        pyomo_model: pyo.Model,
+        carrier: str,
+        linear: bool = False,
+        Q: float = None,
+        p1: float = None,
+        p2: float = None,
+        t: int = None,
+    ):
         dev_data = self.dev_data
         node_id = dev_data.node_id
         node_obj: NetworkNode = self.node
@@ -52,13 +60,7 @@ class PumpDevice(Device):
             p10 = node_obj.pressure_nominal[carrier]["in"]
             p20 = node_obj.pressure_nominal[carrier]["out"]
             delta_p = p20 - p10
-            #            Q0 = model.paramDevice[dev]['Q0']
-            # P = (Q*(p20-p10)+Q0*(p10-p1))/eta
             P = Q * delta_p / eta
-        #        elif self._quadraticConstraints:
-        #            # Quadratic constraint...
-        #            delta_p = (model.varPressure[(node,carrier,'out',t)]
-        #                        -model.varPressure[(node,carrier,'in',t)])
         else:
             # non-linear equation - for computing outside optimisation
             P = Q * (p2 - p1) / eta

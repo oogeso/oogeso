@@ -31,12 +31,6 @@ def compute_kpis(
     kpi["kgCO2_per_year"] = res.co2_rate.mean() * sec_per_year
     kpi["kgCO2_per_Sm3oe"] = res.co2_intensity.mean()
 
-    # hours with reduced load
-    #        kpi['reducedload_hours_per_year'] = None
-
-    # hours with load shedding
-    #        kpi['loadshed_hours_per_year'] = None
-
     # fuel consumption
     gasturbines = [
         g.id

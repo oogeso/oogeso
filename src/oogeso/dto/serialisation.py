@@ -76,10 +76,8 @@ class DataclassJSONDecoder(json.JSONDecoder):
         carriers = []
         nodes = []
         edges = []
-        # devs = {}
         devs = []
         profiles = []
-        # profiles_nowcast = {}
         if "nodes" in dct:
             # Top level
             d_params = dct["parameters"]
@@ -95,10 +93,6 @@ class DataclassJSONDecoder(json.JSONDecoder):
             if "profiles" in dct:
                 for n in dct["profiles"]:
                     profiles.append(self._new_profile(n))
-                    # profiles[i] = self._new_profile(n)
-            # if "profiles_nowcast" in dct:
-            #    for i, n in dct["profiles_nowcast"].items():
-            #        profiles_nowcast[i] = self._new_profile(n)
             energy_system_data = dto.EnergySystemData(
                 carriers=carriers,
                 nodes=nodes,
@@ -106,7 +100,6 @@ class DataclassJSONDecoder(json.JSONDecoder):
                 devices=devs,
                 parameters=params,
                 profiles=profiles,
-                # profiles_nowcast=profiles_nowcast,
             )
             return energy_system_data
         return dct

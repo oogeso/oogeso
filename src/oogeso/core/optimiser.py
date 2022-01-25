@@ -116,11 +116,6 @@ class OptimisationModel(pyo.ConcreteModel):
 
         self.all_devices, self.all_nodes, self.all_networks"""
 
-        # json_str = json.dumps(data)
-        # energy_system_data: inputdata.EnergySystemData = (
-        #    inputdata.deserialize_oogeso_data(json_str)
-        # )
-        # energy_system_data = json.loads(json_str, cls=inputdata.DataclassJSONDecoder)
         energy_system_data = data
 
         # Create energy system network elements (devices, nodes, edges)
@@ -407,7 +402,6 @@ class OptimisationModel(pyo.ConcreteModel):
             sum_on = 0
             docontinue = True
             for tt in range(_t_prev, -1, -1):
-                # if (self.instance.varDeviceIsOn[dev,tt]==1):
                 if pyo.value(self.varDeviceIsPrep[_dev, tt]) == 1:
                     sum_on = sum_on + 1
                 else:
@@ -451,16 +445,6 @@ class OptimisationModel(pyo.ConcreteModel):
             c.construct()
         return
 
-    #        def storPmaxPushup(model):
-    #            '''term in objective function to push varDeviceStoragePmax up
-    #            to its maximum value (to get correct calculation of reserve)'''
-    #            sumStorPmax=0
-    #            for dev in self.setDevice:
-    #                if self.paramDevice[dev]['model'] == 'storage_el':
-    #                    for t in self.setHorizon:
-    #                        sumStorPmax += self.varDeviceStoragePmax[dev,t]
-    #            return sumStorPmax
-
     def _rule_objective_penalty(self, model: pyo.Model) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """'penalty' as specified through penalty functions"""
         sum_penalty = 0
@@ -473,7 +457,7 @@ class OptimisationModel(pyo.ConcreteModel):
 
     def _rule_objective_co2(self, model: pyo.Model) -> float:
         """CO2 emissions per sec"""
-        return self.compute_CO2(model)  # *self.paramParameters['CO2_price']
+        return self.compute_CO2(model)
 
     def _rule_objective_co2intensity(self, model: pyo.Model) -> Optional[float]:
         """CO2 emission intensity (CO2 per exported oil/gas)
@@ -586,7 +570,6 @@ class OptimisationModel(pyo.ConcreteModel):
         if pyo.value(flow_oil_equivalents_m3_per_time) != 0:
             return co2_kg_per_time / flow_oil_equivalents_m3_per_time
         elif pyo.value(flow_oil_equivalents_m3_per_time) == 0:
-            # logger.debug("zero export, so co2 intensity set to None")
             return None
         else:
             return co2_kg_per_time
@@ -701,14 +684,12 @@ class OptimisationModel(pyo.ConcreteModel):
             self.varTerminalFlow,
             self.varDevicePenalty,
         ]
-        # all_vars = self.component_objects(pyo.Var, active=True)
         all_values = {}
         for myvar in all_vars:
             # extract the variable index names in the right order
             indices = [index_set.doc for index_set in myvar._implicit_subsets]
             var_values = myvar.get_values()
             if not var_values:
-                # print("var_values=", var_values)
                 # empty dictionary, so no variables to store
                 all_values[myvar.name] = None
                 continue

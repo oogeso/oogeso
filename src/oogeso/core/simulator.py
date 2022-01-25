@@ -52,9 +52,6 @@ class Simulator:
             "forecast": _df_profiles_forecast,
         }
 
-    #    def setOptimiser(self, optimiser):
-    #        self.optimiser = optimiser
-
     def run_simulation(
         self,
         solver: str,
@@ -247,7 +244,6 @@ class Simulator:
             df_co2intensity = None
 
         # Penalty values per device
-        # df_penalty=res["varDevicePenalty"], # this does not include start/stop penalty
         if return_all or "penalty" in return_variables:
             df_penalty = pd.DataFrame(
                 dtype=float64,

@@ -151,7 +151,5 @@ class EnergySystemData:
     carriers: List[CarrierData]
     nodes: List[NodeData]
     edges: List[EdgeData]
-    # devices: Dict[str, DeviceData]
     devices: List[DeviceData]
     profiles: List[TimeSeriesData]
-    # profiles: Dict[str, TimeSeries]

@@ -185,8 +185,6 @@ class Device(ABC):
                 constr_device_startup_delay,
             )
 
-            # TODO: Add constraints for minimum up and down-time
-
             # return list of constraints that need to be reconstructed:
             list_to_reconstruct = [
                 constr_device_startup_shutdown,

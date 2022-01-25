@@ -107,13 +107,6 @@ class Edge:
             pw_y = lookup_table[1]
         else:
             raise ValueError("EdgeData does not contain a power loss function")
-        # # If we use loss function giving loss fraction instead of absolute loss in MW:
-        # pw_y_fraction = lookup_table[1]
-        # # Lookup table gives losses as a fraction, so to get absolute values we need
-        # # to multiply by power transfer
-        # # NOTE: This changes a linear curve to a second order curve, so need more than
-        # # two x-points to represent it properly.
-        # pw_y = [pw_y_fraction[i] * pw_x[i] for i in len(pw_x)]
         if i == 1:
             var_x = pyomo_model.varEdgeFlow12
             var_y = pyomo_model.varEdgeLoss12

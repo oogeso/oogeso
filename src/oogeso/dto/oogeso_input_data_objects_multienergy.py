@@ -94,10 +94,6 @@ class DeviceGasTurbineData(dto.DeviceData):
     fuel_A: float = None
     fuel_B: float = None
     eta_heat: float = None
-    #    is_on_init: bool = False
-    #    startup_cost: float = None
-    #    startup_delay: float = None  # Minutes from activation to power delivery
-    #    shutdown_cost: float = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
