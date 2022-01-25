@@ -55,6 +55,7 @@ devices:
     start_stop:
         penalty_start: 2000 # NOK
         delay_start_minutes: 30 # min
+        is_on_init: True
 
   - id: Gen2
     flow_max: 21.8
@@ -71,6 +72,7 @@ devices:
     start_stop:
         penalty_start: 2000 # NOK
         delay_start_minutes: 30 # min
+        is_on_init: True
 
   - id: Gen3
     flow_max: 21.8
@@ -87,6 +89,7 @@ devices:
     start_stop:
         penalty_start: 2000 # NOK
         delay_start_minutes: 30 # min
+        is_on_init: True
 
   - id: wind
     flow_max: 32
