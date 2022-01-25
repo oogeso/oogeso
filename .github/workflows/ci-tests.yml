@@ -18,9 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build Dockerfile
-        run: docker build --pull -t oogeso --target test -f Dockerfile .
-      - name: Test cbc
-        run: docker run --rm oogeso bash -c "poetry run pytest"
-      - name: Test notebooks
-        run: docker run --rm oogeso bash -c "poetry run pytest --nbmake ./examples -k 'test_'"  # Run only test_*
+        run: docker pull haraldsvendsen/oogeso
+      - name: Test Oogeso
+        run: docker run --rm haraldsvendsen/oogeso bash -c "poetry run pytest"
+      - name: Test Example Notebooks
+        run: docker run --rm haraldsvendsen/oogeso bash -c "poetry run pytest --nbmake ./examples -k 'test_'"
 
