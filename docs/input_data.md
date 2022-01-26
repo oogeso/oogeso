@@ -69,7 +69,6 @@ time_reserve_minutes    | int   | how long (minutes) stored energy must be susta
 co2_tax                 | float | CO2 emission costs (NOK/kgCO2)
 emission_intensity_max    | float | maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit
 emission_rate_max         | float | maximum allowed emission rate (kgCO2/hour), -1=no limit
-max_pressure_deviation  | float | global limit for allowable relative pressure deviation from nominal, -1=no limit
 objective     | string    | name of objective function to use (penalty, exportRevenue, costs)
 piecewise_repn | string | method for impelementation of peicewise linear constraints in pyomo
 optimisaion_return_data | list | (optional) list of variables to return from simulation
@@ -201,8 +200,8 @@ Note that for the (default) "transport" electricity power flow method, only the 
 The table below shows device models used with electric only modelling, and their additional parameters. These are specified in addition to the [generic device parameters](#devices-devices).
 
 #### ```powersource```
-parameter | type | description
-----------|------|------------
+No extra data
+
 
 #### ```powersink```
 No extra data

@@ -157,9 +157,6 @@ class NetworkNode:
                                     node, carrier, term, max_dev
                                 )
                             )
-                    else:
-                        # Using globally set pressure deviation limit
-                        max_dev = model.paramMaxPressureDeviation
             else:
                 nom_p = 0
         else:

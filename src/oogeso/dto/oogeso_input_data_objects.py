@@ -123,8 +123,6 @@ class OptimisationParametersData:
     time_reserve_minutes: Optional[int] = None
     # costs for co2 emissions (currency/kgCO2)
     co2_tax: Optional[float] = None
-    # global limit for allowable relative pressure deviation from nominal:
-    max_pressure_deviation: float = -1
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
     emission_intensity_max: Optional[float] = -1
     # limit on allowable emission intensity (kgCO2/hour), -1= no limit

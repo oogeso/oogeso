@@ -62,7 +62,6 @@ def test_create_energy_system_data():
             optimisation_timesteps=6,
             forecast_timesteps=6,
             time_reserve_minutes=30,
-            max_pressure_deviation=-1,
             co2_tax=30,
             objective="exportRevenue",
         ),
