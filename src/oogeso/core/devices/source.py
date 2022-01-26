@@ -91,7 +91,7 @@ class PowerSource(Device):
         pw_y = lookup_table[1]
         var_x = pyomo_model.varDeviceFlow  # [self.dev_id, "el", "out", :]
         var_y = pyomo_model.varDevicePenalty  # [self.dev_id, "el", "out", :]
-        pw_repn = pyo.value(pyomo_model.paramPiecewiseRepn)
+        pw_repn = pyomo_model.optimisation_parameters.piecewise_repn
         constr_penalty = pyo.Piecewise(
             [self.id],
             ["el"],

@@ -18,7 +18,7 @@ class Network:
         self.edges = edges
 
     def define_constraints(self, pyomo_model: pyo.Model):
-        piecewise_repn = pyo.value(pyomo_model.paramPiecewiseRepn)
+        piecewise_repn = pyomo_model.optimisation_parameters.piecewise_repn
         for edge in self.edges.values():
             edge.define_constraints(pyomo_model=pyomo_model, piecewise_repn=piecewise_repn)
 
