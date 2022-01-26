@@ -105,6 +105,8 @@ class CarrierElData(CarrierData):
     el_reserve_margin: float = -1
     # required backup margin (MW), -1=no limit
     el_backup_margin: Optional[float] = -1  # MW, -1=no limit
+    # minutes, how long stored energy must be sustained to count as reserve:
+    reserve_storage_minutes: Optional[int] = None
 
 
 @dataclass
@@ -119,8 +121,6 @@ class OptimisationParametersData:
     optimisation_timesteps: int
     # timesteps beyond which forecast (instead of nowcast) profile is used:
     forecast_timesteps: int
-    # minutes, how long stored energy must be sustained to count as reserve:
-    time_reserve_minutes: Optional[int] = None
     # costs for co2 emissions (currency/kgCO2)
     co2_tax: Optional[float] = None
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit

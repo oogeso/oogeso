@@ -244,7 +244,6 @@ class OptimisationModel(pyo.ConcreteModel):
         self.paramTimestepDeltaMinutes = pyo.Param(
             within=pyo.Reals, default=self.optimisation_parameters.time_delta_minutes
         )
-        self.paramTimeStorageReserveMinutes = pyo.Param(default=self.optimisation_parameters.time_reserve_minutes)
         self.paramPiecewiseRepn = pyo.Param(within=pyo.Any, default=self.optimisation_parameters.piecewise_repn)
 
     def _specify_variables(self):

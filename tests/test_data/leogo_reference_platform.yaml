@@ -3,7 +3,6 @@ parameters:
   planning_horizon: 24 # timesteps in each rolling optimisation
   optimisation_timesteps: 6 # timesteps between each optimisation
   forecast_timesteps: 2 #6 # timesteps beyond which forecast (instead of nowcast) profile is used
-  time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   co2_tax: 0.8 # NOK/kgCO2
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
@@ -14,6 +13,7 @@ carriers:
     powerflow_method: transport # transport, None, dc-pf
     el_backup_margin: -1 # MW, -1=no limit
     el_reserve_margin: 5 # MWm -1=no limit
+    reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   - id: gas
     co2_content: 2.34 # kg/Sm3 - see SSB 2016 report
     G_gravity: 0.6

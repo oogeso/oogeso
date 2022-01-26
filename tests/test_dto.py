@@ -12,6 +12,7 @@ def test_create_energy_system_data():
                 id="el",
                 reference_node="node1",
                 el_reserve_margin=-1,
+                reserve_storage_minutes=30,
             ),
             dto.CarrierHeatData("heat"),
             dto.CarrierGasData(
@@ -61,7 +62,6 @@ def test_create_energy_system_data():
             planning_horizon=12,
             optimisation_timesteps=6,
             forecast_timesteps=6,
-            time_reserve_minutes=30,
             co2_tax=30,
             objective="exportRevenue",
         ),

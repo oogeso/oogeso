@@ -3,12 +3,12 @@ parameters:
   planning_horizon: 2 #8 # timesteps in each rolling optimisation
   optimisation_timesteps: 1 #4 # timesteps between each optimisation
   forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
-  time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   objective: penalty # select objective function to use
 
 carriers:
   - id: el
     el_reserve_margin: 2 # MWm -1=no limit
+    reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
     powerflow_method: "transport"
 
 nodes:
@@ -30,14 +30,7 @@ devices:
     name: Source
     flow_max: 20
     flow_min: 0
-#    max_ramp_up: 0.5
-#    max_ramp_down: 1
-#    start_stop:
-#        delay_start_minutes: 45 # min
-#        penalty_start: 200
-#        is_on_init: True
-    penalty_function: [[0,20],[0,5]]
-
+    penalty_function: [[0, 20], [0, 5]]
 
   - id: dem
     include: True
@@ -46,4 +39,3 @@ devices:
     name: "El demand"
     flow_min: 15
     flow_max: 15
-    #profile: demand

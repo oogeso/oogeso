@@ -65,7 +65,6 @@ time_delta_minutes      | int   | minutes per timestep
 planning_horizon        | int   | number of timesteps in each rolling optimisation
 optimisation_timesteps  | int   | number of timesteps between each optimisation
 forecast_timesteps      | int   | number of timesteps beyond which forecast (instead of nowcast) profile is used
-time_reserve_minutes    | int   | how long (minutes) stored energy must be sustained to count as reserve
 co2_tax                 | float | CO2 emission costs (NOK/kgCO2)
 emission_intensity_max    | float | maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit
 emission_rate_max         | float | maximum allowed emission rate (kgCO2/hour), -1=no limit
@@ -180,6 +179,7 @@ powerflow_method  | str | "transport"  or "dc_pf"
 reference_node    | str | id of node used as reference for voltage angles (with dc_pf method)
 el_reserve_margin | float | required globally spinning reserve (MW). 
 el_backup_margin  | float | (optional) required backup margin in case of genertor failure (MW)
+reserve_storage_minutes    | int   | how long (minutes) stored energy must be sustained to count as reserve
 
 
 ### Edges (electric)
