@@ -150,6 +150,7 @@ max_ramp_down   | float | (optioanl) maximum ramping (% of flow_max per min)
 start_stop      | StartStopData | (optional) see below
 reserve_factor  | float | (optional) how much of electric power counts towards the reserve (1=all, 0=none)
 op_cost         | float | (optional) Operating cost
+penalty_function    | tuple | (optional) flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values `([x1,x2,..],[y1,y2,...])`
 
 In addition to these parameters there are parameters that depend on the device *model*.  These are specified further down.
 
@@ -191,7 +192,7 @@ parameter | type | description
 reactance   | float | reactance (ohm/km) (used only with method "dc_pf")
 resistance  | float | resistance (ohm/km) (used only with method "dc_pf")
 voltage | float | voltage (kV) of line (single value) or transformer (tuple) (used only with method "dc_pf")
-power_loss_function | table|  piecewise linear function/table of power transfer (MW) vs loss (MW)
+power_loss_function | tuple|  (optional) piecewise linear function/table of power transfer (MW) vs loss (MW). A tuple containing a list of x values and a list of y values `([x1,x2,..],[y1,y2,...])`
 
 Note that for the (default) "transport" electricity power flow method, only the optional power_loss_function is relevant.
 
@@ -202,7 +203,6 @@ The table below shows device models used with electric only modelling, and their
 #### ```powersource```
 parameter | type | description
 ----------|------|------------
-penalty_function    | tuple | flow vs penalty function (piecewise linear)
 
 #### ```powersink```
 No extra data
