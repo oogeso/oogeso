@@ -342,25 +342,23 @@ class Device(ABC):
         as defined by penalty functions and start/stop penalties"""
         penalty_rate = 0
 
-        # Fixme: Add Optional penalty function in DeviceData.
-        if hasattr(self.dev_data, "penalty_function"):
-            if self.dev_data.penalty_function is not None:
-                if not hasattr(self, "_penalty_constraint"):
-                    logger.warning(f"Penalty function constraint is not implemented for {self.id}")
-                # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
-                # penalty for Pel > 0 only when device is actually online (penalty should be zero when
-                # device is offline)
-                penalty_offset = 0
-                if self.dev_data.start_stop is not None:
-                    # penalty_offset = penalty(Pel=0)
-                    penalty_offset = self.dev_data.penalty_function[1][0]
-                this_penalty = sum(
-                    pyomo_model.varDevicePenalty[self.id, "el", "out", t]
-                    + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
-                    for t in timesteps
-                )
-                # divide by number of timesteps to get average penalty rate (penalty per sec):
-                penalty_rate = this_penalty / len(timesteps)
+        if self.dev_data.penalty_function is not None:
+            if not hasattr(self, "_penalty_constraint"):
+                logger.warning(f"Penalty function constraint is not implemented for {self.id}")
+            # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
+            # penalty for Pel > 0 only when device is actually online (penalty should be zero when
+            # device is offline)
+            penalty_offset = 0
+            if self.dev_data.start_stop is not None:
+                # penalty_offset = penalty(Pel=0)
+                penalty_offset = self.dev_data.penalty_function[1][0]
+            this_penalty = sum(
+                pyomo_model.varDevicePenalty[self.id, "el", "out", t]
+                + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
+                for t in timesteps
+            )
+            # divide by number of timesteps to get average penalty rate (penalty per sec):
+            penalty_rate = this_penalty / len(timesteps)
 
         start_stop_penalty_rate = 0
         if self.dev_data.start_stop is not None:

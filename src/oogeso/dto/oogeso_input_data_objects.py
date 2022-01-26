@@ -34,6 +34,8 @@ class DeviceData:  # Parent class - use subclasses instead
     start_stop: Optional[StartStopData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
     op_cost: Optional[float] = None
+    # Penalty may be fuel, emissions, cost and combinations of these
+    penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: str = field(init=False)  # model name is derived from class name
 
     def __post_init__(self):
@@ -45,8 +47,6 @@ class DeviceData:  # Parent class - use subclasses instead
 
 @dataclass
 class DevicePowerSourceData(DeviceData):
-    # Penalty may be fuel, emissions, cost and combinations of these
-    penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
