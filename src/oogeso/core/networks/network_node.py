@@ -152,11 +152,7 @@ class NetworkNode:
                     if (carrier in self.pressure_max_deviation) and (term in self.pressure_max_deviation[carrier]):
                         max_dev = self.pressure_max_deviation[carrier][term]
                         if t == 0:
-                            logger.debug(
-                                "Using individual pressure limit for: {}, {}, {}, {}".format(
-                                    node, carrier, term, max_dev
-                                )
-                            )
+                            logger.debug(f"Using individual pressure limit for: {node}, {carrier}, {term}, {max_dev}")
             else:
                 nom_p = 0
         else:

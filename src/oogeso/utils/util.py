@@ -59,20 +59,72 @@ def get_device_from_model_name(model_name: str) -> Callable:
         raise NotImplementedError(f"Device {model_name} has not been implemented.")
 
 
-def get_class_from_dto(class_str: str) -> Callable:
-    """
-    Search dto module for a callable that matches the signature given as class str
-
-    Fixme: Replace this with a better division between DTO and core.
-    """
-    if class_str in dto.__dict__.keys():
-        return dto.__dict__[class_str]
-    elif class_str.lower() in [x.lower() for x in dto.__dict__.keys()]:
-        return [v for k, v in dto.__dict__.items() if k.lower() == class_str.lower()][0]
-    elif class_str.lower().replace("_", "") in [x.lower() for x in dto.__dict__.keys()]:
-        return [v for k, v in dto.__dict__.items() if k.lower() == class_str.lower().replace("_", "")][0]
+def get_device_data_class_from_str(model_name: str) -> Callable:
+    model_name = model_name.replace("_", "")
+    map_device_name_to_class = {
+        "powersource": dto.DevicePowerSourceData,
+        "powersink": dto.DevicePowerSinkData,
+        "storageel": dto.DeviceStorageElData,
+        "compressorel": dto.DeviceCompressorElData,
+        "compressorgas": dto.DeviceCompressorGasData,
+        "electrolyser": dto.DeviceElectrolyserData,
+        "fuelcell": dto.DeviceFuelCellData,
+        "gasheater": dto.DeviceGasHeaterData,
+        "gasturbine": dto.DeviceGasTurbineData,
+        "heatpump": dto.DeviceHeatPumpData,
+        "pumpoil": dto.DevicePumpOilData,
+        "pumpwater": dto.DevicePumpWaterData,
+        "separator": dto.DeviceSeparatorData,
+        "separator2": dto.DeviceSeparator2Data,
+        "sinkel": dto.DeviceSinkElData,
+        "sinkheat": dto.DeviceSinkHeatData,
+        "sinkgas": dto.DeviceSinkGasData,
+        "sinkoil": dto.DeviceSinkOilData,
+        "sinkwater": dto.DeviceSinkWaterData,
+        "sourceel": dto.DeviceSourceElData,
+        "sourcegas": dto.DeviceSourceGasData,
+        "sourceoil": dto.DeviceSourceOilData,
+        "sourcewater": dto.DeviceSourceWaterData,
+        "storagehydrogen": dto.DeviceStorageHydrogenData,
+        "wellgaslift": dto.DeviceWellGasLiftData,
+        "wellproduction": dto.DeviceWellProductionData,
+    }
+    if model_name in map_device_name_to_class:
+        return map_device_name_to_class[model_name]
     else:
-        raise NotImplementedError(f"Model {class_str} has not been implemented.")
+        raise NotImplementedError(f"Device data class for {model_name} has not been implemented.")
+
+
+def get_carrier_data_class_from_str(model_name: str) -> Callable:
+    map_carrier_name_to_class = {
+        "el": dto.CarrierElData,
+        "gas": dto.CarrierGasData,
+        "oil": dto.CarrierOilData,
+        "water": dto.CarrierWaterData,
+        "hydrogen": dto.CarrierHydrogenData,
+        "heat": dto.CarrierHeatData,
+        "wellstream": dto.CarrierWellStreamData,
+    }
+    if model_name in map_carrier_name_to_class:
+        return map_carrier_name_to_class[model_name]
+    else:
+        raise NotImplementedError(f"Carrier data class for {model_name} has not been implemented.")
+
+
+def get_edge_data_class_from_str(carrier_name: str) -> Callable:
+    map_edge_name_to_class = {
+        "el": dto.EdgeElData,
+        "gas": dto.EdgeGasData,
+        "oil": dto.EdgeOilData,
+        "water": dto.EdgeWaterData,
+        "hydrogen": dto.EdgeHydrogenData,
+        "heat": dto.EdgeHeatData,
+        "wellstream": dto.EdgeWellstreamData,
+    }
+    if carrier_name in map_edge_name_to_class:
+        return map_edge_name_to_class[carrier_name]
+    else:
+        raise NotImplementedError(f"Edge data class for {carrier_name} has not been implemented.")
 
 
 def create_time_series_data(
