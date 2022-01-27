@@ -135,6 +135,8 @@ def test_plot_network(leogo_test_data: dto.EnergySystemData, leogo_expected_resu
     simulator = oogeso.Simulator(data=leogo_test_data)
     simulator.result_object = leogo_expected_result
     op.plot_network(simulator, timestep=1)
+
+    op.plot_network(simulator, timestep=1, filename="testplot.png")
     # If no errors, it's OK
 
 
