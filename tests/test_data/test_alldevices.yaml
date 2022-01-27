@@ -1,0 +1,221 @@
+parameters:
+  time_delta_minutes: 15 # minutes per timestep
+  planning_horizon: 2 #8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 1 #4 # timesteps between each optimisation
+  forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
+  objective: penalty # select objective function to use
+
+carriers:
+  - id: el
+    reserve_storage_minutes: 30 # needed by storage_el
+  - id: heat
+  - id: hydrogen
+    energy_value: 50
+  - id: gas
+    rho_density: 0.8
+    R_individual_gas_constant: 500
+    G_gravity: 0.6
+    Pb_basepressure_MPa: 0.101 # MPa
+    Tb_basetemp_K: 288 # K = 15 degC
+    Z_compressibility: 0.9
+    energy_value: 40 # needed by compressor_gas at least
+    k_heat_capacity_ratio: 1.27
+  - id: oil
+    rho_density: 900
+    G_gravity: 0.6
+    darcy_friction: 3
+  - id: water
+    rho_density: 1000
+    G_gravity: 0.6
+    #Z_compressibility: 0.9
+    darcy_friction: 6
+  - id: wellstream
+    rho_density: 500
+    gas_oil_ratio: 500
+    water_cut: 0.6
+
+nodes:
+  - id: node1
+  - id: node2
+  - id: node0
+
+edges:
+  - id: edge1
+    carrier: el
+    node_from: node1
+    node_to: node2
+  - id: edge2
+    carrier: gas
+    node_from: node1
+    node_to: node2
+    pressure_from: 21
+    pressure_to: 20
+    diameter_mm: 200
+    temperature_K: 300
+    length_km: 10
+  - id: edge2b
+    carrier: gas
+    node_from: node0
+    node_to: node1
+    pressure_to: 10
+    diameter_mm: 200
+    temperature_K: 300
+    length_km: 10
+  - id: edge3
+    carrier: heat
+    node_from: node1
+    node_to: node2
+  - id: edge4
+    carrier: hydrogen
+    node_from: node1
+    node_to: node2
+  - id: edge5
+    carrier: oil
+    node_from: node1
+    node_to: node2
+    pressure_from: 21
+    pressure_to: 20
+    diameter_mm: 200
+    temperature_K: 300
+    length_km: 10
+  - id: edge5b
+    carrier: oil
+    node_from: node0
+    node_to: node1
+    pressure_to: 10
+    diameter_mm: 200
+    temperature_K: 300
+    length_km: 10
+  - id: edge6
+    carrier: water
+    node_from: node1
+    node_to: node2
+    pressure_from: 21
+    pressure_to: 10
+    diameter_mm: 200
+    temperature_K: 300
+    length_km: 10
+  - id: edge6b
+    carrier: water
+    node_from: node0
+    node_to: node1
+    pressure_to: 10
+    diameter_mm: 200
+    temperature_K: 300
+    length_km: 10
+  - id: edge7
+    carrier: wellstream
+    node_from: node1
+    node_to: node2
+
+devices:
+  - id: compressor_el
+    model: compressor_el
+    node_id: node1
+    eta: 1
+    temp_in: 300
+    Q0: 0.5
+  - id: compressor_gas
+    model: compressor_gas
+    node_id: node1
+    eta: 1
+    temp_in: 300
+    Q0: 0.5
+  - id: electrolyser
+    model: electrolyser
+    node_id: node1
+    eta: 0.5
+    eta_heat: 0.6
+  - id: fuelcell
+    model: fuelcell
+    node_id: node1
+    eta: 0.5
+    eta_heat: 0.5
+  - id: gasheater
+    model: gasheater
+    node_id: node1
+    eta: 0.5
+  - id: gasturbine
+    model: gasturbine
+    node_id: node1
+    flow_max: 10
+    fuel_A: 2
+    fuel_B: 1
+    eta_heat: 0.5
+  - id: heatpump
+    model: heatpump
+    node_id: node1
+    eta: 3.2
+  - id: powersource
+    model: powersource
+    node_id: node1
+  - id: powersink
+    model: powersink
+    node_id: node1
+  - id: pump_oil
+    model: pump_oil
+    node_id: node1
+    eta: 0.5
+  - id: pump_water
+    model: pump_water
+    node_id: node1
+    eta: 0.5
+  - id: separator
+    model: separator
+    node_id: node1
+    el_demand_factor: 0.5
+    heat_demand_factor: 0.6
+  - id: separator2
+    model: separator
+    node_id: node1
+    el_demand_factor: 0.5
+    heat_demand_factor: 0.6
+  - id: sink_el
+    model: sink_el
+    node_id: node1
+  - id: sink_gas
+    model: sink_gas
+    node_id: node1
+  - id: sink_heat
+    model: sink_heat
+    node_id: node1
+  - id: sink_oil
+    model: sink_oil
+    node_id: node1
+  - id: sink_water
+    model: sink_water
+    node_id: node1
+  - id: source_el
+    model: source_el
+    node_id: node1
+  - id: source_gas
+    model: source_gas
+    node_id: node1
+    naturalpressure: 22
+  - id: source_oil
+    model: source_oil
+    node_id: node1
+    naturalpressure: 22
+  - id: source_water
+    model: source_water
+    node_id: node1
+    naturalpressure: 22
+  - id: storage_el
+    model: storage_el
+    node_id: node1
+    flow_max: 5
+  - id: storage_hydrogen
+    model: storage_hydrogen
+    node_id: node1
+  - id: well_gaslift
+    model: well_gaslift
+    node_id: node1
+    gas_oil_ratio: 500
+    water_cut: 0.6
+    separator_pressure: 4
+    f_inj: 2
+    injection_pressure: 30
+  - id: well_production
+    model: well_production
+    node_id: node1
+    wellhead_pressure: 5

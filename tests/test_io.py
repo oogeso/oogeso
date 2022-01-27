@@ -65,3 +65,13 @@ def test_parquet_profiles():
     profiles_dfs2 = oogeso.io.file_io.read_profiles_from_parquet(filename=tmp_file, keys=["forecast", "nowcast"])
     assert isinstance(profiles_dfs2["forecast"], pd.DataFrame)
     assert isinstance(profiles_dfs2["nowcast"], pd.DataFrame)
+
+
+def test_yaml_input():
+    # Test that reading (deserialising) data from yaml file works for all device and network types
+    file_yaml = TEST_DATA_ROOT_PATH / "test_alldevices.yaml"
+    data = oogeso.io.read_data_from_yaml(file_yaml)
+    assert isinstance(data, oogeso.dto.EnergySystemData)
+
+    simulator = oogeso.Simulator(data)
+    assert isinstance(simulator, oogeso.Simulator)
