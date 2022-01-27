@@ -107,12 +107,6 @@ class DataclassJSONDecoder(json.JSONDecoder):
         return dct
 
 
-#    def default(self, obj: Any):
-#        if isinstance(obj, dto.EnergySystemData):
-#            return dto.EnergySystemData(obj=obj)  # noqa
-#        return json.JSONEncoder.default(self, obj)  # noqa
-
-
 def serialize_oogeso_data(energy_system_data: dto.EnergySystemData):
     json_string = json.dumps(energy_system_data, cls=DataclassJSONEncoder, indent=2)
     return json_string
@@ -154,14 +148,6 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
             result_data = dto.SimulationResult(**res_dfs)
             return result_data
         return dct
-
-
-#    @staticmethod
-#    def default(obj: Any):
-#        if isinstance(obj, dto.SimulationResult):
-#            print("HARALD HERE!!")
-#            return dto.SimulationResult(obj=obj)  # Fixme: Failing static test. No test coverage.
-#        return json.JSONEncoder().default(obj)
 
 
 def deserialize_oogeso_results(json_data):
