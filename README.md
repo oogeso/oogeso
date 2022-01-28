@@ -26,19 +26,12 @@ in order to use the plotting functionality you will need to install plotting lib
 pip install matplotlib plotly seaborn
 ```
 
-## User guide
+## User guide and examples
 The online user guide  gives more information about how to
 specify input data and run a simulation case.
 
 *  [User guide](https://oogeso.github.io/oogeso/)
 
-
-
-## Examples
-Check out the examples:
-
-* [Simple test case](https://github.com/oogeso/oogeso/blob/master/examples/test%20case2.ipynb)
-* [Test oil and gas platform](https://github.com/oogeso/oogeso/blob/master/examples/leogo_reference_platform.ipynb)
 
 ## Local installation
 Prerequisite: 
