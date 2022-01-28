@@ -9,8 +9,8 @@ from .plots import (
     plot_el_backup,
     plot_export_revenue,
     plot_gas_turbine_efficiency,
-    plot_network,
     plot_profiles,
     plot_reserve,
     plot_sum_power_mix,
 )
+from .plot_network import plot_network

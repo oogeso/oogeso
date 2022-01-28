@@ -75,11 +75,6 @@ class PowerSource(Device):
             )
         return list_to_reconstruct
 
-    # TODO: Make piecewise constraint implementation more elegant
-    # The varDevicePenalty seem to be required to have the same indices as the varDeviceFlow.
-    # But only (device_id, time) is relevant
-    # Could define a "varDevicePower" (or better name) representing the main variable
-    # used with p_max / q_max / penalty_function
     def _penalty_constraint(self, pyomo_model: pyo.Model):
         # Piecewise constraints require independent variable to be bounded:
         # ub = self.dev_data.flow_max

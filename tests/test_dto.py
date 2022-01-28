@@ -12,6 +12,7 @@ def test_create_energy_system_data():
                 id="el",
                 reference_node="node1",
                 el_reserve_margin=-1,
+                reserve_storage_minutes=30,
             ),
             dto.CarrierHeatData("heat"),
             dto.CarrierGasData(
@@ -61,8 +62,6 @@ def test_create_energy_system_data():
             planning_horizon=12,
             optimisation_timesteps=6,
             forecast_timesteps=6,
-            time_reserve_minutes=30,
-            max_pressure_deviation=-1,
             co2_tax=30,
             objective="exportRevenue",
         ),
@@ -76,3 +75,20 @@ def test_create_energy_system_data():
 
     json_str = json.dumps(energy_system, cls=serialisation.DataclassJSONEncoder, indent=2)
     assert isinstance(json_str, str)
+
+
+def test_serialisation_deserialisation(testcase2_data, testcase2_expected_result):
+
+    data_str = serialisation.serialize_oogeso_data(testcase2_data)
+    assert isinstance(data_str, str)
+
+    data_obj = serialisation.deserialize_oogeso_data(data_str)
+    assert isinstance(data_obj, dto.EnergySystemData)
+
+    assert data_obj == testcase2_data
+
+    res_str = serialisation.serialize_oogeso_results(testcase2_expected_result)
+    assert isinstance(res_str, str)
+
+    res_obj = serialisation.deserialize_oogeso_results(res_str)
+    assert isinstance(res_obj, dto.SimulationResult)

@@ -2,7 +2,6 @@ import logging
 
 import numpy as np
 import pandas as pd
-import pydot
 import pyomo.environ as pyo
 
 try:
@@ -78,14 +77,11 @@ def plot_device_profile(
     if type(devs) is not list:
         devs = [devs]
     if include_forecasts & (len(devs) > 1):
-        print("Can only plot one device when showing forecasts")
-        return
+        raise ValueError("Can only plot a single device when showing forecasts")
     df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device")
     if devs_shareload is None:
         # gas turbines:
         devs_shareload = [d for d, d_obj in optimiser.all_devices.items() if d_obj.dev_data.model == "gasturbine"]
-        # devs_shareload = [d for d in mc.instance.setDevice
-        #    if mc.instance.paramDevice[d]['model']=='gasturbine']
     if devs_shareload:  # list is non-empty
         devs_online = (df[devs_shareload] > 0).sum(axis=1)
         devs_sum = df[devs_shareload].sum(axis=1)
@@ -189,14 +185,11 @@ def plot_device_profile(
         # fig.show()
     elif plotter == "matplotlib":
         fig, axs = plt.subplots(nrows=nrows, ncols=1, shared_xaxes=True, figsize=(12, 1 + 3 * nrows))
-        #
-        #        fig = plt.figure()
         ax = axs[0]
         labels = []
         offset_online = 0
         # df.plot(ax=ax)
         for dev in devs:
-            # dev_param = mc.instance.paramDevice[dev]
             dev_data = optimiser.all_devices[dev].dev_data
             devname = "{}:{}".format(dev, dev_data.name)
             device_P_max = dev_data.flow_max
@@ -211,7 +204,6 @@ def plot_device_profile(
                 (res.profiles_forecast.loc[timerange, curve] * device_P_max).plot(ax=ax, linestyle=":")
                 labels = labels + ["--nowcast", "--forecast"]
             if include_on_off & (dev_data.start_stop is not None):
-                # df2=res.dfDeviceIsOn.unstack(0)[dev]+offset_online
                 offset_online += 0.1
                 df2[dev].plot(ax=ax, linestyle="--", color=col)
                 labels = labels + ["--online"]
@@ -351,13 +343,11 @@ def plot_sum_power_mix(
     df_flow_out.index = df_flow_out.index.droplevel(level=("carrier", "terminal"))
     df_flow_out = df_flow_out.unstack(0)
     columns_to_keep = optimiser.get_devices_in_out(carrier_out=carrier)
-    # logger.info("in: {}".format(columns_to_keep))
     df_flow_out = df_flow_out[columns_to_keep]
     df_flow_in = df_flow[mask_carrier & mask_in]
     df_flow_in.index = df_flow_in.index.droplevel(level=("carrier", "terminal"))
     df_flow_in = df_flow_in.unstack(0)
     columns_to_keep = optimiser.get_devices_in_out(carrier_in=carrier)
-    # logger.info("out: {}".format(columns_to_keep))
     df_flow_in = df_flow_in[columns_to_keep]
 
     if (devs_shareload is None) and (carrier in ["el", "heat"]):
@@ -410,7 +400,6 @@ def plot_sum_power_mix(
         # fig.show()
     elif plotter == "matplotlib":
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(12, 8))
-        # plt.figure(figsize=(12,4))
         plt.suptitle("Sum power ({})".format(carrier))
         df_flow_out.plot.area(ax=axes[0], linewidth=0)
         df_flow_in.plot.area(ax=axes[1], linewidth=0)
@@ -479,8 +468,6 @@ def plot_CO2_rate_per_device(
     device_shareload=None,
 ):
 
-    # df_info = pd.DataFrame.from_dict(dict(mc.instance.paramDevice.items())).T
-    # labels = (df_info.index.astype(str))# +'_'+df_info['name'])
     dfco2rate = sim_result.co2_rate_per_dev.unstack("device")
     all_devices = optimisation_model.all_devices
     dfplot = dfco2rate.loc[:, ~(dfco2rate == 0).all()].copy()
@@ -498,7 +485,6 @@ def plot_CO2_rate_per_device(
             mask = dfplot[c] > 0
             dfplot.loc[mask, c] = devs_mean[mask]
 
-    # dfplot.columns=labels
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
         for col in dfplot:
@@ -545,8 +531,6 @@ def plot_CO2_intensity(sim_result, filename=None):
     y_label = "CO2 intensity (kgCO2/Sm3oe)"
     df_plot = sim_result.co2_intensity
     if plotter == "plotly":
-        # fig = plotly.subplots.make_subplots(rows=1, cols=1)
-        # ,shared_xaxes=True,vertical_spacing=0.05)
         fig = px.line(df_plot, x=df_plot.index, y=df_plot.values)  # ,title=title)
         fig.update_xaxes(title_text=x_label)
         fig.update_yaxes(title_text=y_label)
@@ -574,7 +558,6 @@ def plot_profiles(profiles, filename=None):
                 df[(d.id, "nowcast")] = d.data_nowcast
         df.index.name = "timestep"
         df.columns = pd.MultiIndex.from_tuples(df.columns, names=("variable", "type"))
-        # df = df.stack("type")
     elif isinstance(profiles, dict):
         df = pd.concat(
             {
@@ -620,7 +603,6 @@ def plot_device_power_flow_pressure(sim_result, optimisation_model: pyo.Model, d
     dev_data = dev_obj.dev_data
     node = dev_data.node_id
     devname = "{}:{}".format(dev, dev_data.name)
-    # linecycler = itertools.cycle(['-','--',':','-.']*10)
     if carriers_inout is None:
         carriers_inout = {"in": dev_obj.carrier_in, "out": dev_obj.carrier_out}
     if "serial" in carriers_inout:
@@ -628,7 +610,6 @@ def plot_device_power_flow_pressure(sim_result, optimisation_model: pyo.Model, d
 
     plt.figure(figsize=(12, 4))
     ax = plt.gca()
-    # ax.plot(res.dfDevicePower.unstack(0)[dev],'-.',label="DevicePower")
     for inout, carriers in carriers_inout.items():
         if inout == "in":
             ls = "--"
@@ -656,262 +637,6 @@ def plot_device_power_flow_pressure(sim_result, optimisation_model: pyo.Model, d
         plt.savefig(filename, bbox_inches="tight")
 
 
-def plot_network(
-    simulator,
-    timestep=None,
-    filename=None,
-    prog="dot",
-    only_carrier=None,
-    rank_direction="LR",
-    plot_device_name=False,
-    number_format="{:.2g}",
-    hide_losses=False,
-    hide_edge_label=False,
-    **kwargs,
-):
-    """Plot energy network
-
-    simulator : Simulation object
-    timestep : int
-        which timestep to show values for
-    filename : string
-        Name of file
-    only_carrier : str or list
-        Restrict energy carriers to these types (None=plot all)
-    rankdir : str
-        Plotting direction TB=top to bottom, LR=left to right
-    numberformat : str
-        specify how numbers should be represented in plot
-    hide_losses : bool
-        Don't show losses on edges (if any)
-    hide_edgelabel : bool
-        Don't show any labels on edges
-    **kwargs :
-        Additional arguments passed on to pydot.Dot(...)
-    """
-
-    # Idea: in general, there are "in" and "out" terminals. If there are
-    # no serial devices, then these are merged into a single terminal
-    # (prettier plot"). Whether the single terminal is shown as an in or out
-    # terminal (left or irght), depends on whether it is an input or output
-    # of a majority of the connected devices.
-
-    optimiser = simulator.optimiser
-    model = optimiser
-    res = simulator.result_object
-
-    col = {
-        "t": {
-            "el": "red",
-            "gas": "orange",
-            "heat": "darkgreen",
-            "wellstream": "brown",
-            "oil": "black",
-            "water": "blue4",
-            "hydrogen": "deepskyblue2",
-        },
-        "e": {
-            "el": "red",
-            "gas": "orange",
-            "heat": "darkgreen",
-            "wellstream": "brown",
-            "oil": "black",
-            "water": "blue4",
-            "hydrogen": "deepskyblue2",
-        },
-        "d": "white",
-        "cluster": "lightgray",
-    }
-    # dotG = pydot.Dot(graph_type='digraph') #rankdir='LR',newrank='false')
-    dotG = pydot.Dot(graph_type="digraph", rankdir=rank_direction, **kwargs)
-    if only_carrier is None:
-        carriers = model.setCarrier
-    elif type(only_carrier) is str:
-        carriers = [only_carrier]
-    else:
-        carriers = only_carrier
-
-    # devicemodels = milp_compute.devicemodel_inout()
-
-    # plot all node and terminals:
-    for n_id, node_obj in optimiser.all_nodes.items():
-        cluster = pydot.Cluster(graph_name=n_id, label=n_id, style="filled", color=col["cluster"])
-        terms_in = pydot.Subgraph(rank="min")
-        gr_devices = pydot.Subgraph(rank="same")
-        terms_out = pydot.Subgraph(rank="max")
-        for carrier in carriers:
-            # add only terminals that are connected to something (device or edge)
-            if node_obj.is_non_trivial(carrier):
-                devs = node_obj.devices
-                num_in = 0
-                num_out = 0
-                for d, dev_obj in devs.items():
-                    dev_model = dev_obj.dev_data.model
-                    devlabel = "{}\n{}".format(d, dev_model)
-                    if plot_device_name:
-                        dev_name = dev_obj.dev_data.name
-                        devlabel = "{} {}".format(devlabel, dev_name)
-                    carriers_in = dev_obj.carrier_in
-                    carriers_out = dev_obj.carrier_out
-                    carriers_in_lim = list(set(carriers_in) & set(carriers))
-                    carriers_out_lim = list(set(carriers_out) & set(carriers))
-                    if (carriers_in_lim != []) or (carriers_out_lim != []):
-                        gr_devices.add_node(pydot.Node(d, color=col["d"], style="filled", label=devlabel))
-                    if carrier in carriers_in_lim:
-                        num_in += 1
-                        if timestep is None:
-                            devedgelabel = ""
-                        else:
-                            f_in = res.device_flow[(d, carrier, "in", timestep)]
-                            devedgelabel = number_format.format(f_in)
-                        if carrier in node_obj.devices_serial:
-                            n_in = n_id + "_" + carrier + "_in"
-                        else:
-                            n_in = n_id + "_" + carrier
-                        dotG.add_edge(
-                            pydot.Edge(
-                                dst=d,
-                                src=n_in,
-                                color=col["e"][carrier],
-                                fontcolor=col["e"][carrier],
-                                label=devedgelabel,
-                            )
-                        )
-                    if carrier in carriers_out_lim:
-                        num_out += 1
-                        if timestep is None:
-                            devedgelabel = ""
-                        else:
-                            f_out = res.device_flow[(d, carrier, "out", timestep)]
-                            devedgelabel = number_format.format(f_out)
-                        if carrier in node_obj.devices_serial:
-                            n_out = n_id + "_" + carrier + "_out"
-                        else:
-                            n_out = n_id + "_" + carrier
-                        dotG.add_edge(
-                            pydot.Edge(
-                                dst=n_out,
-                                src=d,
-                                color=col["e"][carrier],
-                                fontcolor=col["e"][carrier],
-                                label=devedgelabel,
-                            )
-                        )
-
-                # add in/out terminals
-                # supp = "_out" if carrier in node_obj.devices_serial else ""
-                label_in = carrier  # + "_in "
-                label_out = carrier  # + supp + " "
-                if timestep is None:
-                    pass
-                elif carrier in ["gas", "wellstream", "oil", "water"]:
-                    label_in += number_format.format(res.terminal_pressure[(n_id, carrier, "in", timestep)])
-                    label_out += number_format.format(res.terminal_pressure[(n_id, carrier, "out", timestep)])
-                elif carrier == "el":
-                    if optimiser.all_networks["el"].carrier_data.powerflow_method == "dc-pf":
-                        label_in += number_format.format(res.el_voltage_angle[(n_id, timestep)])
-                        label_out += number_format.format(res.el_voltage_angle[(n_id, timestep)])
-                # Add two terminals if there are serial devices, otherwise one:
-                if carrier in node_obj.devices_serial:
-                    terms_in.add_node(
-                        pydot.Node(
-                            name=n_id + "_" + carrier + "_in",
-                            color=col["t"][carrier],
-                            label=label_in,
-                            shape="box",
-                        )
-                    )
-                    terms_out.add_node(
-                        pydot.Node(
-                            name=n_id + "_" + carrier + "_out",
-                            color=col["t"][carrier],
-                            label=label_out,
-                            shape="box",
-                        )
-                    )
-                else:
-                    # TODO: make this in or out depending on connected devices
-                    if num_out > num_in:
-                        terms_out.add_node(
-                            pydot.Node(
-                                name=n_id + "_" + carrier,
-                                color=col["t"][carrier],
-                                label=label_out,
-                                shape="box",
-                            )
-                        )
-                    else:
-                        terms_in.add_node(
-                            pydot.Node(
-                                name=n_id + "_" + carrier,
-                                color=col["t"][carrier],
-                                label=label_out,
-                                shape="box",
-                            )
-                        )
-
-        cluster.add_subgraph(terms_in)
-        cluster.add_subgraph(gr_devices)
-        cluster.add_subgraph(terms_out)
-        dotG.add_subgraph(cluster)
-
-    # plot all edges (per carrier):
-    for carrier in carriers:
-        for i, edge_obj in optimiser.all_edges.items():
-            edge_data = edge_obj.edge_data
-            if edge_data.carrier == carrier:
-                headlabel = ""
-                taillabel = ""
-                if hide_edge_label:
-                    edgelabel = ""
-                elif timestep is None:
-                    edgelabel = ""
-                    if (not hide_edge_label) and hasattr(edge_data, "pressure_from"):
-                        edgelabel = "{} {}-{}".format(
-                            edgelabel,
-                            edge_data.pressure_from,
-                            edge_data.pressure_to,
-                        )
-                        # edgelabel = "{}-{}".format(edgelabel, edge_data.pressure["to"])
-                else:
-                    edgelabel = number_format.format(res.edge_flow[(i, timestep)])
-                    # Add loss
-                    if (not hide_losses) and (res.edge_loss is not None) and ((i, timestep) in res.edge_loss):
-                        # taillabel = " " + edgelabel
-                        losslabel = number_format.format(res.edge_loss[(i, timestep)])
-                        edgelabel = "{} [{}]".format(edgelabel, losslabel)
-                n_from = edge_data.node_from
-                n_to = edge_data.node_to
-                n_from_obj = optimiser.all_nodes[n_from]
-                n_to_obj = optimiser.all_nodes[n_to]
-                # name of terminal depends on whether it serial or single
-                if carrier in n_from_obj.devices_serial:
-                    t_out = n_from + "_" + carrier + "_out"
-                else:
-                    t_out = n_from + "_" + carrier
-                if carrier in n_to_obj.devices_serial:
-                    t_in = n_to + "_" + carrier + "_in"
-                else:
-                    t_in = n_to + "_" + carrier
-
-                dotG.add_edge(
-                    pydot.Edge(
-                        src=t_out,
-                        dst=t_in,
-                        color='"{0}:invis:{0}"'.format(col["e"][carrier]),
-                        fontcolor=col["e"][carrier],
-                        label=edgelabel,
-                        taillabel=taillabel,
-                        headlabel=headlabel,
-                    )
-                )
-
-    if filename is not None:
-        # prog='dot' gives the best layout.
-        dotG.write_png(filename, prog=prog)  # Fixme: Failing static test. No test coverage.
-    return dotG
-
-
 def plot_gas_turbine_efficiency(
     fuel_A=2.35, fuel_B=0.53, energy_content=40, co2_content=2.34, filename=None, P_max=None
 ):
@@ -923,12 +648,9 @@ def plot_gas_turbine_efficiency(
 
     x_pow = np.linspace(0, 1, 50)
     y_fuel = fuel_B + fuel_A * x_pow
-    # Pgas = Qgas*energycontent: Qgas=Pgas/Pmax * Pmax/energycontent
 
     nplots = 3 if P_max is None else 4
-    # if Pmax is not None
     plt.figure(figsize=(4 * nplots, 4))
-    # plt.suptitle("Gas turbine fuel characteristics")
 
     if P_max is not None:
         y_fuel_sm3 = y_fuel * P_max / energy_content  # Sm3/s

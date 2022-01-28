@@ -34,6 +34,8 @@ class DeviceData:  # Parent class - use subclasses instead
     start_stop: Optional[StartStopData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
     op_cost: Optional[float] = None
+    # Penalty may be fuel, emissions, cost and combinations of these
+    penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: str = field(init=False)  # model name is derived from class name
 
     def __post_init__(self):
@@ -45,8 +47,6 @@ class DeviceData:  # Parent class - use subclasses instead
 
 @dataclass
 class DevicePowerSourceData(DeviceData):
-    # Penalty may be fuel, emissions, cost and combinations of these
-    penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
 
 
@@ -105,6 +105,8 @@ class CarrierElData(CarrierData):
     el_reserve_margin: float = -1
     # required backup margin (MW), -1=no limit
     el_backup_margin: Optional[float] = -1  # MW, -1=no limit
+    # minutes, how long stored energy must be sustained to count as reserve:
+    reserve_storage_minutes: Optional[int] = None
 
 
 @dataclass
@@ -119,12 +121,8 @@ class OptimisationParametersData:
     optimisation_timesteps: int
     # timesteps beyond which forecast (instead of nowcast) profile is used:
     forecast_timesteps: int
-    # minutes, how long stored energy must be sustained to count as reserve:
-    time_reserve_minutes: Optional[int] = None
     # costs for co2 emissions (currency/kgCO2)
     co2_tax: Optional[float] = None
-    # global limit for allowable relative pressure deviation from nominal:
-    max_pressure_deviation: float = -1
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
     emission_intensity_max: Optional[float] = -1
     # limit on allowable emission intensity (kgCO2/hour), -1= no limit
@@ -151,7 +149,5 @@ class EnergySystemData:
     carriers: List[CarrierData]
     nodes: List[NodeData]
     edges: List[EdgeData]
-    # devices: Dict[str, DeviceData]
     devices: List[DeviceData]
     profiles: List[TimeSeriesData]
-    # profiles: Dict[str, TimeSeries]
