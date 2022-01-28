@@ -65,11 +65,9 @@ time_delta_minutes      | int   | minutes per timestep
 planning_horizon        | int   | number of timesteps in each rolling optimisation
 optimisation_timesteps  | int   | number of timesteps between each optimisation
 forecast_timesteps      | int   | number of timesteps beyond which forecast (instead of nowcast) profile is used
-time_reserve_minutes    | int   | how long (minutes) stored energy must be sustained to count as reserve
 co2_tax                 | float | CO2 emission costs (NOK/kgCO2)
 emission_intensity_max    | float | maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit
 emission_rate_max         | float | maximum allowed emission rate (kgCO2/hour), -1=no limit
-max_pressure_deviation  | float | global limit for allowable relative pressure deviation from nominal, -1=no limit
 objective     | string    | name of objective function to use (penalty, exportRevenue, costs)
 piecewise_repn | string | method for impelementation of peicewise linear constraints in pyomo
 optimisaion_return_data | list | (optional) list of variables to return from simulation
@@ -150,6 +148,7 @@ max_ramp_down   | float | (optioanl) maximum ramping (% of flow_max per min)
 start_stop      | StartStopData | (optional) see below
 reserve_factor  | float | (optional) how much of electric power counts towards the reserve (1=all, 0=none)
 op_cost         | float | (optional) Operating cost
+penalty_function    | tuple | (optional) flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values `([x1,x2,..],[y1,y2,...])`
 
 In addition to these parameters there are parameters that depend on the device *model*.  These are specified further down.
 
@@ -180,6 +179,7 @@ powerflow_method  | str | "transport"  or "dc_pf"
 reference_node    | str | id of node used as reference for voltage angles (with dc_pf method)
 el_reserve_margin | float | required globally spinning reserve (MW). 
 el_backup_margin  | float | (optional) required backup margin in case of genertor failure (MW)
+reserve_storage_minutes    | int   | how long (minutes) stored energy must be sustained to count as reserve
 
 
 ### Edges (electric)
@@ -191,7 +191,7 @@ parameter | type | description
 reactance   | float | reactance (ohm/km) (used only with method "dc_pf")
 resistance  | float | resistance (ohm/km) (used only with method "dc_pf")
 voltage | float | voltage (kV) of line (single value) or transformer (tuple) (used only with method "dc_pf")
-power_loss_function | table|  piecewise linear function/table of power transfer (MW) vs loss (MW)
+power_loss_function | tuple|  (optional) piecewise linear function/table of power transfer (MW) vs loss (MW). A tuple containing a list of x values and a list of y values `([x1,x2,..],[y1,y2,...])`
 
 Note that for the (default) "transport" electricity power flow method, only the optional power_loss_function is relevant.
 
@@ -200,9 +200,8 @@ Note that for the (default) "transport" electricity power flow method, only the 
 The table below shows device models used with electric only modelling, and their additional parameters. These are specified in addition to the [generic device parameters](#devices-devices).
 
 #### ```powersource```
-parameter | type | description
-----------|------|------------
-penalty_function    | tuple | flow vs penalty function (piecewise linear)
+No extra data
+
 
 #### ```powersink```
 No extra data

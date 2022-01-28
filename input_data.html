@@ -700,25 +700,17 @@ topology) and parameters for each element.</p>
 <td><p>int</p></td>
 <td><p>number of timesteps beyond which forecast (instead of nowcast) profile is used</p></td>
 </tr>
-<tr class="row-even"><td><p>time_reserve_minutes</p></td>
-<td><p>int</p></td>
-<td><p>how long (minutes) stored energy must be sustained to count as reserve</p></td>
-</tr>
-<tr class="row-odd"><td><p>co2_tax</p></td>
+<tr class="row-even"><td><p>co2_tax</p></td>
 <td><p>float</p></td>
 <td><p>CO2 emission costs (NOK/kgCO2)</p></td>
 </tr>
-<tr class="row-even"><td><p>emission_intensity_max</p></td>
+<tr class="row-odd"><td><p>emission_intensity_max</p></td>
 <td><p>float</p></td>
 <td><p>maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit</p></td>
 </tr>
-<tr class="row-odd"><td><p>emission_rate_max</p></td>
+<tr class="row-even"><td><p>emission_rate_max</p></td>
 <td><p>float</p></td>
 <td><p>maximum allowed emission rate (kgCO2/hour), -1=no limit</p></td>
-</tr>
-<tr class="row-even"><td><p>max_pressure_deviation</p></td>
-<td><p>float</p></td>
-<td><p>global limit for allowable relative pressure deviation from nominal, -1=no limit</p></td>
 </tr>
 <tr class="row-odd"><td><p>objective</p></td>
 <td><p>string</p></td>
@@ -898,6 +890,10 @@ that depends on the device type.</p>
 <td><p>float</p></td>
 <td><p>(optional) Operating cost</p></td>
 </tr>
+<tr class="row-odd"><td><p>penalty_function</p></td>
+<td><p>tuple</p></td>
+<td><p>(optional) flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
+</tr>
 </tbody>
 </table>
 <p>In addition to these parameters there are parameters that depend on the device <em>model</em>.  These are specified further down.</p>
@@ -972,6 +968,10 @@ that depends on the device type.</p>
 <td><p>float</p></td>
 <td><p>(optional) required backup margin in case of genertor failure (MW)</p></td>
 </tr>
+<tr class="row-even"><td><p>reserve_storage_minutes</p></td>
+<td><p>int</p></td>
+<td><p>how long (minutes) stored energy must be sustained to count as reserve</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1002,8 +1002,8 @@ that depends on the device type.</p>
 <td><p>voltage (kV) of line (single value) or transformer (tuple) (used only with method “dc_pf”)</p></td>
 </tr>
 <tr class="row-odd"><td><p>power_loss_function</p></td>
-<td><p>table</p></td>
-<td><p>piecewise linear function/table of power transfer (MW) vs loss (MW)</p></td>
+<td><p>tuple</p></td>
+<td><p>(optional) piecewise linear function/table of power transfer (MW) vs loss (MW). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -1015,20 +1015,7 @@ that depends on the device type.</p>
 <p>The table below shows device models used with electric only modelling, and their additional parameters. These are specified in addition to the <a class="reference external" href="#devices-devices">generic device parameters</a>.</p>
 <div class="section" id="powersource">
 <h4><code class="docutils literal notranslate"><span class="pre">powersource</span></code><a class="headerlink" href="#powersource" title="Permalink to this headline">¶</a></h4>
-<table class="colwidths-auto table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>penalty_function</p></td>
-<td><p>tuple</p></td>
-<td><p>flow vs penalty function (piecewise linear)</p></td>
-</tr>
-</tbody>
-</table>
+<p>No extra data</p>
 </div>
 <div class="section" id="powersink">
 <h4><code class="docutils literal notranslate"><span class="pre">powersink</span></code><a class="headerlink" href="#powersink" title="Permalink to this headline">¶</a></h4>
