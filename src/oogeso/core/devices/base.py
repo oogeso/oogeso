@@ -5,8 +5,8 @@ from typing import Dict, List, Optional, Union
 import pyomo.environ as pyo
 from pyomo.core import Constraint
 
+from oogeso import dto
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.dto import CarrierData, DeviceData, TimeSeriesData
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class Device(ABC):
     carrier_out: List
     serial: List
 
-    def __init__(self, dev_data: DeviceData, carrier_data_dict: Dict[str, CarrierData]):
+    def __init__(self, dev_data: dto.DeviceData, carrier_data_dict: Dict[str, dto.CarrierData]):
         """Device object constructor"""
         self.dev_data = dev_data
         self.id = dev_data.id
@@ -211,7 +211,7 @@ class Device(ABC):
             max_value = is_on * max_value
         return max_value
 
-    def set_flow_upper_bound(self, profiles: List[TimeSeriesData]) -> None:
+    def set_flow_upper_bound(self, profiles: List[dto.TimeSeriesData]) -> None:
         """
         Maximum flow value through entire profile.
 

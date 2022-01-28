@@ -24,14 +24,16 @@ def _make_test_data() -> EnergySystemData:
         forecast_timesteps=1,
     )
     carriers = [CarrierElData(id="el")]
-    nodes = [NodeData("node1"), NodeData("node2")]
-    edges = [EdgeElData("edge1_2", node_from="node1", node_to="node2")]
+    nodes = [NodeData(id="node1"), NodeData(id="node2")]
+    edges = [EdgeElData(id="edge1_2", node_from="node1", node_to="node2")]
     dev1 = DevicePowerSourceData(id="source1", node_id="node1", flow_max=20, penalty_function=([0, 20], [0, 5]))
     dev2 = DevicePowerSinkData(id="demand", node_id="node2", flow_min=15, flow_max=15, profile="demand")
     devices = [dev1, dev2]
     prof_demand = TimeSeriesData(id="demand", data=[1, 1, 1, 1], data_nowcast=[1.1, 1.1, 1.1, 1.1])
     profiles = [prof_demand]
-    energy_system_data = EnergySystemData(parameters, carriers, nodes, edges, devices, profiles=profiles)
+    energy_system_data = EnergySystemData(
+        parameters=parameters, carriers=carriers, nodes=nodes, edges=edges, devices=devices, profiles=profiles
+    )
     return energy_system_data
 
 

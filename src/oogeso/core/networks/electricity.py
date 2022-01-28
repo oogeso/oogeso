@@ -1,5 +1,4 @@
 import logging
-from dataclasses import asdict
 from typing import Dict, Optional, Tuple, Union
 
 import pyomo.environ as pyo
@@ -33,7 +32,7 @@ class ElNetwork(Network):
 
             logger.warning("Code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
-            edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
+            edgelist_el = {edge_id: edge.edge_data.dict() for edge_id, edge in self.edges.items()}
             coeff_B, coeff_DA = el_calc.compute_power_flow_matrices(nodelist, edgelist_el, base_Z=1)
             self.el_flow_coeff_B = coeff_B
             self.el_flow_coeff_DA = coeff_DA

@@ -14,21 +14,33 @@ from oogeso.dto.serialisation import DataclassJSONDecoder
 logger = logging.getLogger(__name__)
 
 
-def read_data_from_yaml(filename, profiles=None, profiles_nowcast=None) -> dto.EnergySystemData:
-    """Read input data from yaml file"""
+def read_data_from_yaml(
+    filename: Path, profiles: Optional[Dict[str, float]] = None, profiles_nowcast: Optional[Dict[str, float]] = None
+) -> dto.EnergySystemData:
+    """
+    Read input data from yaml file
+
+    :param filename: The yaml file to read
+    :param profiles: Overwrite the YAML profiles keyword
+    :param profiles_nowcast: Overwrite the YAML profiles_nowcast keyword
+    """
     with open(filename, "r") as text_file:
         data_dict = yaml.safe_load(text_file)
 
     if profiles is not None:
-        logger.debug("Adding profiles to data in yaml file")
         if "profiles" in data_dict:
             logger.warning("Overiding profile data in yaml file")
+        else:
+            logger.debug("Adding profiles to data in yaml file")
         data_dict["profiles"] = profiles
+
     if profiles_nowcast is not None:
-        logger.debug("Adding profiles to data in yaml file")
         if "profiles_nowcast" in data_dict:
             logger.warning("Overiding profile data in yaml file")
+        else:
+            logger.debug("Adding profiles to data in yaml file")
         data_dict["profiles_nowcast"] = profiles_nowcast
+
     json_str = json.dumps(data_dict)
     decoder = DataclassJSONDecoder()
     energy_system = decoder.decode(json_str)
