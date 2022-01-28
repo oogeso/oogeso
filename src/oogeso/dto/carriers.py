@@ -11,6 +11,8 @@ class CarrierElData(dto.CarrierData):
     el_reserve_margin: float = -1
     # required backup margin (MW), -1=no limit
     el_backup_margin: Optional[float] = -1  # MW, -1=no limit
+    # minutes, how long stored energy must be sustained to count as reserve:
+    reserve_storage_minutes: Optional[int] = None
 
 
 class CarrierHeatData(dto.CarrierData):

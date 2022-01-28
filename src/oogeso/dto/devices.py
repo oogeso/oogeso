@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 from pydantic import Field
 
@@ -7,8 +7,6 @@ from oogeso.dto.types import ModelType
 
 
 class DevicePowerSourceData(DeviceData):
-    # Penalty may be fuel, emissions, cost and combinations of these
-    penalty_function: Tuple[List[float], List[float]] = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.POWER_SOURCE
 

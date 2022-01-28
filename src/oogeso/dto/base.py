@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -32,12 +32,8 @@ class OptimisationParametersData(BaseModel):
     optimisation_timesteps: int
     # timesteps beyond which forecast (instead of nowcast) profile is used:
     forecast_timesteps: int
-    # minutes, how long stored energy must be sustained to count as reserve:
-    time_reserve_minutes: Optional[int] = None
     # costs for co2 emissions (currency/kgCO2)
     co2_tax: Optional[float] = None
-    # global limit for allowable relative pressure deviation from nominal:
-    max_pressure_deviation: float = -1
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
     emission_intensity_max: Optional[float] = -1
     # limit on allowable emission intensity (kgCO2/hour), -1= no limit
@@ -66,6 +62,8 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     start_stop: Optional[StartStopData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
     op_cost: Optional[float] = None
+    # Penalty may be fuel, emissions, cost and combinations of these
+    penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: ModelType
 
 

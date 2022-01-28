@@ -136,7 +136,7 @@ def test_plot_network(leogo_test_data: dto.EnergySystemData, leogo_expected_resu
     simulator.result_object = leogo_expected_result
     op.plot_network(simulator, timestep=1)
 
-    op.plot_network(simulator, timestep=1, filename="testplot.png")
+    op.plot_network(simulator, timestep=1)
     # If no errors, it's OK
 
 
