@@ -20,7 +20,7 @@ class Edge:
         self.node_from = node_from
         self.node_to = node_to
 
-    def define_constraints(self, pyomo_model: pyo.Model, piecewise_repn):
+    def define_constraints(self, pyomo_model: pyo.Model, piecewise_repn: str):
         """Builds constraints for the edge"""
 
         constr_edge_bounds = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_edge_flow_max_min)
@@ -94,7 +94,7 @@ class Edge:
             raise NotImplementedError("Only i 1 and 2 is implemented.")
         return expr  # noqa
 
-    def _loss_function_constraint(self, i: int, pyomo_model: pyo.Model, piecewise_repn):
+    def _loss_function_constraint(self, i: int, pyomo_model: pyo.Model, piecewise_repn: str):
 
         # Piecewise constraints require independent variable to be bounded:
         pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)
