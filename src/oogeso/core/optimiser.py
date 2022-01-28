@@ -246,6 +246,7 @@ class OptimisationModel(pyo.ConcreteModel):
         )
         self.paramPiecewiseRepn = pyo.Param(within=pyo.Any, default=self.optimisation_parameters.piecewise_repn)
 
+
     def _specify_variables(self):
         """specify pyomo model variables"""
         self.varEdgeFlow = pyo.Var(self.setEdge, self.setHorizon, within=pyo.Reals)
