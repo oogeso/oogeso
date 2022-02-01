@@ -3,7 +3,7 @@ FROM bitnami/python:3.10
 ARG INSTALL_DEV=true
 ENV PYTHONUNBUFFERED=1
 
-RUN apt update && apt install -y unzip git gcc g++ gfortran make wget file pkg-config libblas-dev liblapack-dev
+RUN apt update && apt install -y unzip git gcc g++ gfortran make wget file pkg-config libblas-dev liblapack-dev graphviz
 WORKDIR /coinbrew
 
 # Download repository with CBC solver and intstall
