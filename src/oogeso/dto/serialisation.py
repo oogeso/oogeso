@@ -156,13 +156,3 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
             result_data = dto.SimulationResult(**res_dfs)
             return result_data
         return dct
-
-
-def deserialize_oogeso_results(json_data):
-    result_data = json.loads(json_data, cls=OogesoResultJSONDecoder)
-    return result_data
-
-
-def serialize_oogeso_results(result_data: dto.SimulationResult):
-    json_string = json.dumps(result_data, cls=DataclassJSONEncoder, indent=2)
-    return json_string

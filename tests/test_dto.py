@@ -1,10 +1,5 @@
 from oogeso import dto
-from oogeso.dto.serialisation import (
-    deserialize_oogeso_data,
-    deserialize_oogeso_results,
-    serialize_oogeso_data,
-    serialize_oogeso_results,
-)
+from oogeso.dto.serialisation import deserialize_oogeso_data, serialize_oogeso_data
 
 
 def test_create_energy_system_data():
@@ -89,9 +84,3 @@ def test_serialisation_deserialisation(testcase2_data, testcase2_expected_result
     assert isinstance(data_obj, dto.EnergySystemData)
 
     assert data_obj == testcase2_data
-
-    res_str = serialize_oogeso_results(testcase2_expected_result)
-    assert isinstance(res_str, str)
-
-    res_obj = deserialize_oogeso_results(res_str)
-    assert isinstance(res_obj, dto.SimulationResult)
