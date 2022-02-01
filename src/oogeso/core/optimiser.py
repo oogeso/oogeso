@@ -12,7 +12,7 @@ from oogeso.core.devices.storage import StorageDevice
 from oogeso.core.networks import ElNetwork, Network
 from oogeso.core.networks.edge import Edge
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.utils.util import get_device_from_model_name, get_network_from_carrier_name
+from oogeso.dto.mapper import get_device_from_model_name, get_network_from_carrier_name
 
 logger = logging.getLogger(__name__)
 

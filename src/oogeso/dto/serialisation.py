@@ -1,14 +1,14 @@
 import json
 import logging
-from dataclasses import asdict, is_dataclass
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+from pydantic import BaseModel
 
 from oogeso import dto
-from oogeso.utils.util import (
-    get_device_data_class_from_str,
+from oogeso.dto.mapper import (
     get_carrier_data_class_from_str,
+    get_device_data_class_from_str,
     get_edge_data_class_from_str,
 )
 
@@ -19,15 +19,16 @@ class DataclassJSONEncoder(json.JSONEncoder):
     """Serialize (save to file)"""
 
     def default(self, obj: Any):
-        if is_dataclass(obj=obj):
-            dct = asdict(obj=obj)
-            return dct
+        if isinstance(obj, BaseModel):
+            return obj.dict()
         if isinstance(obj, pd.Series):
             dct = obj.reset_index().to_json(orient="records")
             return dct
         if isinstance(obj, pd.DataFrame):
             dct = obj.reset_index().to_json(orient="records")
             return dct
+        if isinstance(obj, BaseModel):
+            return obj.dict()
         return super().default(obj)
 
 
@@ -72,14 +73,16 @@ class DataclassJSONDecoder(json.JSONDecoder):
         data_nowcast = None
         if "data_nowcast" in dct:
             data_nowcast = dct["data_nowcast"]
-        return dto.TimeSeriesData(name, data, data_nowcast)
+        return dto.TimeSeriesData(id=name, data=data, data_nowcast=data_nowcast)
 
     def object_hook(self, dct):  # noqa
         carriers = []
         nodes = []
         edges = []
+        # devs = {}
         devs = []
         profiles = []
+        # profiles_nowcast = {}
         if "nodes" in dct:
             # Top level
             d_params = dct["parameters"]
@@ -95,6 +98,10 @@ class DataclassJSONDecoder(json.JSONDecoder):
             if "profiles" in dct:
                 for n in dct["profiles"]:
                     profiles.append(self._new_profile(n))
+                    # profiles[i] = self._new_profile(n)
+            # if "profiles_nowcast" in dct:
+            #    for i, n in dct["profiles_nowcast"].items():
+            #        profiles_nowcast[i] = self._new_profile(n)
             energy_system_data = dto.EnergySystemData(
                 carriers=carriers,
                 nodes=nodes,
@@ -102,6 +109,7 @@ class DataclassJSONDecoder(json.JSONDecoder):
                 devices=devs,
                 parameters=params,
                 profiles=profiles,
+                # profiles_nowcast=profiles_nowcast,
             )
             return energy_system_data
         return dct
@@ -148,13 +156,3 @@ class OogesoResultJSONDecoder(json.JSONDecoder):
             result_data = dto.SimulationResult(**res_dfs)
             return result_data
         return dct
-
-
-def deserialize_oogeso_results(json_data):
-    result_data = json.loads(json_data, cls=OogesoResultJSONDecoder)
-    return result_data
-
-
-def serialize_oogeso_results(result_data: dto.SimulationResult):
-    json_string = json.dumps(result_data, cls=DataclassJSONEncoder, indent=2)
-    return json_string

@@ -5,28 +5,28 @@ import pytest
 
 import oogeso
 import oogeso.io
-from oogeso.dto.oogeso_input_data_objects import EnergySystemData
+from oogeso import dto
 
 
-def make_test_data() -> EnergySystemData:
-    parameters = oogeso.dto.OptimisationParametersData(
+def make_test_data() -> dto.EnergySystemData:
+    parameters = dto.OptimisationParametersData(
         objective="penalty",
         time_delta_minutes=5,
         planning_horizon=3,
         optimisation_timesteps=1,
         forecast_timesteps=1,
     )
-    carriers = [oogeso.dto.CarrierElData(id="el")]
-    nodes = [oogeso.dto.NodeData("node1"), oogeso.dto.NodeData("node2")]
-    edges = [oogeso.dto.EdgeElData("edge1_2", node_from="node1", node_to="node2")]
-    dev1 = oogeso.dto.DevicePowerSourceData(
-        id="source1", node_id="node1", flow_max=20, penalty_function=([0, 20], [0, 5])
-    )
-    dev2 = oogeso.dto.DevicePowerSinkData(id="demand", node_id="node2", flow_min=15, flow_max=15, profile="demand")
+    carriers = [dto.carriers.CarrierElData(id="el")]
+    nodes = [dto.NodeData(id="node1"), dto.NodeData(id="node2")]
+    edges = [dto.EdgeElData(id="edge1_2", node_from="node1", node_to="node2")]
+    dev1 = dto.DevicePowerSourceData(id="source1", node_id="node1", flow_max=20, penalty_function=([0, 20], [0, 5]))
+    dev2 = dto.DevicePowerSinkData(id="demand", node_id="node2", flow_min=15, flow_max=15, profile="demand")
     devices = [dev1, dev2]
-    prof_demand = oogeso.dto.TimeSeriesData(id="demand", data=[1, 2, 3, 4], data_nowcast=[1.1, 2.1, 3.1, 4.1])
+    prof_demand = dto.TimeSeriesData(id="demand", data=[1, 2, 3, 4], data_nowcast=[1.1, 2.1, 3.1, 4.1])
     profiles = [prof_demand]
-    energy_system_data = oogeso.dto.EnergySystemData(parameters, carriers, nodes, edges, devices, profiles=profiles)
+    energy_system_data = dto.EnergySystemData(
+        parameters=parameters, carriers=carriers, nodes=nodes, edges=edges, devices=devices, profiles=profiles
+    )
     return energy_system_data
 
 

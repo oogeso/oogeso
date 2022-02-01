@@ -32,8 +32,8 @@ def test_integration_case1(testcase1_data: dto.EnergySystemData):
     assert (res.device_flow["source1", "el", "out"] == 15).all()
     assert (res.device_is_prep == 0).all()
     assert (res.device_is_on == 1).all()
-    assert res.device_starting is None
-    assert res.device_stopping is None
+    assert res.device_starting.empty
+    assert res.device_stopping.empty
     assert (res.edge_flow["el1"] == 15).all()
     assert (res.edge_loss["el1"] == 0).all()
     assert (res.penalty.unstack("device")["source1"] == 3.75).all()

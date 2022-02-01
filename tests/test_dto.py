@@ -1,7 +1,5 @@
-import json
-
 from oogeso import dto
-from oogeso.dto import serialisation
+from oogeso.dto.serialisation import deserialize_oogeso_data, serialize_oogeso_data
 
 
 def test_create_energy_system_data():
@@ -14,9 +12,9 @@ def test_create_energy_system_data():
                 el_reserve_margin=-1,
                 reserve_storage_minutes=30,
             ),
-            dto.CarrierHeatData("heat"),
+            dto.CarrierHeatData(id="heat"),
             dto.CarrierGasData(
-                "gas",
+                id="gas",
                 co2_content=0.4,
                 G_gravity=0.6,
                 Pb_basepressure_MPa=100,
@@ -28,7 +26,7 @@ def test_create_energy_system_data():
                 rho_density=0.6,
             ),
         ],
-        nodes=[dto.NodeData("node1"), dto.NodeData("node2")],
+        nodes=[dto.NodeData(id="node1"), dto.NodeData(id="node2")],
         edges=[
             dto.EdgeElData(
                 id="edge1",
@@ -70,25 +68,19 @@ def test_create_energy_system_data():
 
     # Only check if the calls raise exceptions:
 
-    energy_system_str = serialisation.serialize_oogeso_data(energy_system)
+    energy_system_str = energy_system.__str__()
     assert isinstance(energy_system_str, str)
 
-    json_str = json.dumps(energy_system, cls=serialisation.DataclassJSONEncoder, indent=2)
+    json_str = energy_system.json()
     assert isinstance(json_str, str)
 
 
 def test_serialisation_deserialisation(testcase2_data, testcase2_expected_result):
 
-    data_str = serialisation.serialize_oogeso_data(testcase2_data)
+    data_str = serialize_oogeso_data(testcase2_data)
     assert isinstance(data_str, str)
 
-    data_obj = serialisation.deserialize_oogeso_data(data_str)
+    data_obj = deserialize_oogeso_data(data_str)
     assert isinstance(data_obj, dto.EnergySystemData)
 
     assert data_obj == testcase2_data
-
-    res_str = serialisation.serialize_oogeso_results(testcase2_expected_result)
-    assert isinstance(res_str, str)
-
-    res_obj = serialisation.deserialize_oogeso_results(res_str)
-    assert isinstance(res_obj, dto.SimulationResult)

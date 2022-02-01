@@ -1,19 +1,16 @@
-from .oogeso_input_data_objects import (
+from oogeso.dto.base import (
     CarrierData,
-    CarrierElData,
     DeviceData,
-    DevicePowerSinkData,
-    DevicePowerSourceData,
-    DeviceStorageElData,
     EdgeData,
-    EdgeElData,
     EnergySystemData,
     NodeData,
     OptimisationParametersData,
+    SimulationResult,
     StartStopData,
     TimeSeriesData,
 )
-from .oogeso_input_data_objects_multienergy import (
+from oogeso.dto.carriers import (
+    CarrierElData,
     CarrierFluidData,
     CarrierGasData,
     CarrierHeatData,
@@ -21,6 +18,8 @@ from .oogeso_input_data_objects_multienergy import (
     CarrierOilData,
     CarrierWaterData,
     CarrierWellStreamData,
+)
+from oogeso.dto.devices import (
     DeviceCompressorElData,
     DeviceCompressorGasData,
     DeviceElectrolyserData,
@@ -28,6 +27,8 @@ from .oogeso_input_data_objects_multienergy import (
     DeviceGasHeaterData,
     DeviceGasTurbineData,
     DeviceHeatPumpData,
+    DevicePowerSinkData,
+    DevicePowerSourceData,
     DevicePumpData,
     DevicePumpOilData,
     DevicePumpWaterData,
@@ -42,9 +43,13 @@ from .oogeso_input_data_objects_multienergy import (
     DeviceSourceGasData,
     DeviceSourceOilData,
     DeviceSourceWaterData,
+    DeviceStorageElData,
     DeviceStorageHydrogenData,
     DeviceWellGasLiftData,
     DeviceWellProductionData,
+)
+from oogeso.dto.edges import (
+    EdgeElData,
     EdgeFluidData,
     EdgeGasData,
     EdgeHeatData,
@@ -53,4 +58,3 @@ from .oogeso_input_data_objects_multienergy import (
     EdgeWaterData,
     EdgeWellstreamData,
 )
-from .oogeso_output_data_objects import SimulationResult
