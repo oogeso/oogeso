@@ -19,5 +19,7 @@ COPY pyproject.toml poetry.lock ./
 
 RUN pip install poetry && poetry config virtualenvs.create false
 
-RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
+RUN poetry install --no-root
+
+# Need these optional dependencies to run the notebooks examples.
 RUN pip install matplotlib plotly seaborn ipywidgets IPython

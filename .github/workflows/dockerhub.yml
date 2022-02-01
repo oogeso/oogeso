@@ -4,6 +4,9 @@ name: Docker Hub Publish
 on:
   schedule:
     - cron: '0 0 * * *'
+  push:
+    paths:
+    - 'Dockerfile'
 
 jobs:
   docker:
