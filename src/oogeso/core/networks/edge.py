@@ -20,7 +20,7 @@ class Edge:
         self.node_from = node_from
         self.node_to = node_to
 
-    def define_constraints(self, pyomo_model: pyo.Model, piecewise_repn):
+    def define_constraints(self, pyomo_model: pyo.Model, piecewise_repn: str):
         """Builds constraints for the edge"""
 
         constr_edge_bounds = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_edge_flow_max_min)
@@ -94,7 +94,7 @@ class Edge:
             raise NotImplementedError("Only i 1 and 2 is implemented.")
         return expr  # noqa
 
-    def _loss_function_constraint(self, i: int, pyomo_model: pyo.Model, piecewise_repn):
+    def _loss_function_constraint(self, i: int, pyomo_model: pyo.Model, piecewise_repn: str):
 
         # Piecewise constraints require independent variable to be bounded:
         pyomo_model.varEdgeFlow12[self.id, :].setub(self.edge_data.flow_max)
@@ -107,13 +107,6 @@ class Edge:
             pw_y = lookup_table[1]
         else:
             raise ValueError("EdgeData does not contain a power loss function")
-        # # If we use loss function giving loss fraction instead of absolute loss in MW:
-        # pw_y_fraction = lookup_table[1]
-        # # Lookup table gives losses as a fraction, so to get absolute values we need
-        # # to multiply by power transfer
-        # # NOTE: This changes a linear curve to a second order curve, so need more than
-        # # two x-points to represent it properly.
-        # pw_y = [pw_y_fraction[i] * pw_x[i] for i in len(pw_x)]
         if i == 1:
             var_x = pyomo_model.varEdgeFlow12
             var_y = pyomo_model.varEdgeLoss12

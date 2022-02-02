@@ -1,4 +1,5 @@
 import sys
+import tempfile
 
 import pandas as pd
 import pytest
@@ -134,8 +135,9 @@ def test_plot_gas_turbine_efficiency():
 def test_plot_network(leogo_test_data: dto.EnergySystemData, leogo_expected_result: dto.SimulationResult):
     simulator = oogeso.Simulator(data=leogo_test_data)
     simulator.result_object = leogo_expected_result
-    op.plot_network(simulator, timestep=1)
-    # If no errors, it's OK
+
+    with tempfile.NamedTemporaryFile() as fp:
+        op.plot_network(simulator, timestep=1, filename=fp.name)
 
 
 @pytest.mark.skipif(

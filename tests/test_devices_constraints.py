@@ -39,10 +39,9 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
         planning_horizon=4,
         optimisation_timesteps=2,
         forecast_timesteps=2,
-        time_reserve_minutes=30,
     )
     carriers = [
-        dto.CarrierElData(id="el"),
+        dto.CarrierElData(id="el", reserve_storage_minutes=30),
         dto.CarrierGasData(
             id="gas",
             co2_content=2.34,

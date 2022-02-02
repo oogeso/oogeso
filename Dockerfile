@@ -3,7 +3,7 @@ FROM bitnami/python:3.10
 ARG INSTALL_DEV=true
 ENV PYTHONUNBUFFERED=1
 
-RUN apt update && apt install -y unzip git gcc g++ gfortran make wget file pkg-config libblas-dev liblapack-dev
+RUN apt update && apt install -y unzip git gcc g++ gfortran make wget file pkg-config libblas-dev liblapack-dev graphviz
 WORKDIR /coinbrew
 
 # Download repository with CBC solver and intstall
@@ -19,8 +19,7 @@ COPY pyproject.toml poetry.lock ./
 
 RUN pip install poetry && poetry config virtualenvs.create false
 
-RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
-RUN pip install matplotlib plotly seaborn ipywidgets IPython
+RUN poetry install --no-root
 
-COPY ./ ./
-ENV PYTHONPATH=/code/src
+# Need these optional dependencies to run the notebooks examples.
+RUN pip install matplotlib plotly seaborn ipywidgets IPython

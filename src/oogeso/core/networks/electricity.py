@@ -1,5 +1,4 @@
 import logging
-from dataclasses import asdict
 from typing import Dict, Optional, Tuple, Union
 
 import pyomo.environ as pyo
@@ -22,16 +21,18 @@ class ElNetwork(Network):
         super().__init__(carrier_data=carrier_data, edges=edges)
         self.carrier_data = carrier_data
         self.edges = edges
-        self.el_flow_coeff_B: Optional[Dict[Tuple[str, str], float]] = None  # Fixme: Is this the correct type?
-        self.el_flow_coeff_DA: Optional[Dict[Tuple[str, str], float]] = None  # Fixme: Is this the correct type?
+        self.el_flow_coeff_B: Optional[Dict[Tuple[str, str], float]] = None
+        self.el_flow_coeff_DA: Optional[Dict[Tuple[str, str], float]] = None
 
     def define_constraints(self, pyomo_model: pyo.Model) -> None:
         super().define_constraints(pyomo_model=pyomo_model)
 
         if self.carrier_data.powerflow_method == "dc-pf":
-            logger.warning("TODO: code for electric powerflow calculations need improvement (pu conversion)")
+            raise NotImplementedError("Power flow equation not implemented yet.")
+
+            logger.warning("Code for electric powerflow calculations need improvement (pu conversion)")
             nodelist = list(pyomo_model.setNode)  # self.all_nodes.keys()
-            edgelist_el = {edge_id: asdict(edge.edge_data) for edge_id, edge in self.edges.items()}
+            edgelist_el = {edge_id: edge.edge_data.dict() for edge_id, edge in self.edges.items()}
             coeff_B, coeff_DA = el_calc.compute_power_flow_matrices(nodelist, edgelist_el, base_Z=1)
             self.el_flow_coeff_B = coeff_B
             self.el_flow_coeff_DA = coeff_DA
@@ -59,7 +60,7 @@ class ElNetwork(Network):
         return expr
 
     def _rule_dc_power_flow_equations(
-        self, pyomo_model: pyo.Model, edge: dto.EdgeData, t: int
+        self, pyomo_model: pyo.Model, edge: str, t: int
     ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """Flow vs voltage angle"""
         base_mva = el_calc.elbase["baseMVA"]
@@ -69,7 +70,6 @@ class ElNetwork(Network):
 
         n2s = [k[1] for k in self.el_flow_coeff_DA.keys() if k[0] == edge]
 
-        # Fixme: Failing static test. Ensure correct type in init.
         rhs = sum([self.el_flow_coeff_DA[edge, n2] * (pyomo_model.varElVoltageAngle[n2, t] * base_angle)] for n2 in n2s)
         return lhs == rhs
 
@@ -91,9 +91,9 @@ class ElNetwork(Network):
         """
         alldevs = [d for d in pyomo_model.setDevice if d != exclude_device]
         # relevant devices are devices with el output or input
-        cap_avail = 0
-        p_generating = 0
-        loadreduction = 0
+        cap_avail = 0.0
+        p_generating = 0.0
+        loadreduction = 0.0
         for d in alldevs:
             dev_obj = all_devices[d]
             reserve = dev_obj.compute_el_reserve(pyomo_model, t)

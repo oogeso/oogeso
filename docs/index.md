@@ -170,7 +170,9 @@ For a quick demonstration of how Oogeso works, have a look at these
 Jupyter notebooks:
 
 
-* [Simple test case](https://github.com/oogeso/oogeso/blob/master/examples/test%20case2.ipynb)
-* [LEOGO platform](https://github.com/oogeso/oogeso/blob/master/examples/leogo_reference_platform.ipynb)
+* [Simple test case 1](https://github.com/oogeso/oogeso/blob/master/examples/test_case1.ipynb)
+* [Simple test case 2](https://github.com/oogeso/oogeso/blob/master/examples/test_case2.ipynb)
+* [LEOGO oil and gas platform](https://github.com/oogeso/oogeso/blob/master/examples/leogo_reference_platform.ipynb)
+* [Power distribution in interconnected installations](https://github.com/oogeso/oogeso/blob/master/examples/example_P1_powerdistribution.ipynb)
 
 

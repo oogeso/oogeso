@@ -34,10 +34,8 @@ class StorageEl(StorageDevice):
         dev = self.id
         dev_data: dto.DeviceStorageElData = self.dev_data
         time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
-        time_reserve_minutes = pyomo_model.optimisation_parameters.time_reserve_minutes
-        if time_reserve_minutes is None:
-            raise ValueError("You must specify a value for time_reserve_minutes")
-
+        el_data = self.carrier_data["el"]
+        time_reserve_minutes = el_data.reserve_storage_minutes
         if i == 1:
             # energy balance
             # (el_in*eta - el_out/eta)*dt = delta storage
@@ -195,10 +193,6 @@ class StorageHydrogen(StorageDevice):
             # see e.g. http://lpsolve.sourceforge.net/5.1/absolute.htm
             #
             # deviation from target and absolute value at the end of horizon
-            # TODO: Harald: is there any reason to penalise _positive_ deviation from the target?
-            # X_prime>(E_end-E_target)
-            # should we instead use
-            # X_prime >= 0 (we still need the lower limit (or bound) to avoid negative cost)
             if t != pyomo_model.setHorizon.last():
                 return pyo.Constraint.Skip  # noqa
             X_prime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]

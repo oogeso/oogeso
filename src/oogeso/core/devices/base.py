@@ -5,8 +5,8 @@ from typing import Dict, List, Optional, Union
 import pyomo.environ as pyo
 from pyomo.core import Constraint
 
+from oogeso import dto
 from oogeso.core.networks.network_node import NetworkNode
-from oogeso.dto import CarrierData, DeviceData, TimeSeriesData
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class Device(ABC):
     carrier_out: List
     serial: List
 
-    def __init__(self, dev_data: DeviceData, carrier_data_dict: Dict[str, CarrierData]):
+    def __init__(self, dev_data: dto.DeviceData, carrier_data_dict: Dict[str, dto.CarrierData]):
         """Device object constructor"""
         self.dev_data = dev_data
         self.id = dev_data.id
@@ -185,8 +185,6 @@ class Device(ABC):
                 constr_device_startup_delay,
             )
 
-            # TODO: Add constraints for minimum up and down-time
-
             # return list of constraints that need to be reconstructed:
             list_to_reconstruct = [
                 constr_device_startup_shutdown,
@@ -213,7 +211,7 @@ class Device(ABC):
             max_value = is_on * max_value
         return max_value
 
-    def set_flow_upper_bound(self, profiles: List[TimeSeriesData]) -> None:
+    def set_flow_upper_bound(self, profiles: List[dto.TimeSeriesData]) -> None:
         """
         Maximum flow value through entire profile.
 
@@ -344,25 +342,23 @@ class Device(ABC):
         as defined by penalty functions and start/stop penalties"""
         penalty_rate = 0
 
-        # Fixme: Add Optional penalty function in DeviceData.
-        if hasattr(self.dev_data, "penalty_function"):
-            if self.dev_data.penalty_function is not None:
-                if not hasattr(self, "_penalty_constraint"):
-                    logger.warning(f"Penalty function constraint is not implemented for {self.id}")
-                # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
-                # penalty for Pel > 0 only when device is actually online (penalty should be zero when
-                # device is offline)
-                penalty_offset = 0
-                if self.dev_data.start_stop is not None:
-                    # penalty_offset = penalty(Pel=0)
-                    penalty_offset = self.dev_data.penalty_function[1][0]
-                this_penalty = sum(
-                    pyomo_model.varDevicePenalty[self.id, "el", "out", t]
-                    + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
-                    for t in timesteps
-                )
-                # divide by number of timesteps to get average penalty rate (penalty per sec):
-                penalty_rate = this_penalty / len(timesteps)
+        if self.dev_data.penalty_function is not None:
+            if not hasattr(self, "_penalty_constraint"):
+                logger.warning(f"Penalty function constraint is not implemented for {self.id}")
+            # Since the penalty function may be nonzero at Pel=0 we need to split up so computed
+            # penalty for Pel > 0 only when device is actually online (penalty should be zero when
+            # device is offline)
+            penalty_offset = 0
+            if self.dev_data.start_stop is not None:
+                # penalty_offset = penalty(Pel=0)
+                penalty_offset = self.dev_data.penalty_function[1][0]
+            this_penalty = sum(
+                pyomo_model.varDevicePenalty[self.id, "el", "out", t]
+                + (pyomo_model.varDeviceIsOn[self.id, t] - 1) * penalty_offset
+                for t in timesteps
+            )
+            # divide by number of timesteps to get average penalty rate (penalty per sec):
+            penalty_rate = this_penalty / len(timesteps)
 
         start_stop_penalty_rate = 0
         if self.dev_data.start_stop is not None:

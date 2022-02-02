@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 
 import oogeso
-import oogeso.dto.serialisation
 import oogeso.io
+from oogeso.dto.serialisation import OogesoResultJSONDecoder
 from oogeso.utils.util import create_time_series_data
 
 EXAMPLE_DATA_ROOT_PATH = Path(__file__).parent.parent / "examples"
@@ -13,7 +13,7 @@ TEST_DATA_ROOT_PATH = Path(__file__).parent / "test_data"
 
 
 @pytest.fixture
-def testcase1_data() -> oogeso.dto.EnergySystemData:
+def testcase1_data() -> oogeso.dto.base.EnergySystemData:
     """
     Simple test case, electric only
     """
@@ -21,15 +21,15 @@ def testcase1_data() -> oogeso.dto.EnergySystemData:
 
 
 @pytest.fixture
-def testcase1_expected_result() -> oogeso.dto.EnergySystemData:
+def testcase1_expected_result() -> oogeso.dto.base.EnergySystemData:
     """Expected results for the testcase 2."""
     with open(TEST_DATA_ROOT_PATH / "testdata1_resultobject.json", "r", encoding="utf8") as infile:
-        res_expected = json.load(infile, cls=oogeso.dto.serialisation.OogesoResultJSONDecoder)
+        res_expected = json.load(infile, cls=OogesoResultJSONDecoder)
     return res_expected
 
 
 @pytest.fixture
-def testcase2_data() -> oogeso.dto.EnergySystemData:
+def testcase2_data() -> oogeso.dto.base.EnergySystemData:
     """
     Medium test case
     """
@@ -50,15 +50,15 @@ def testcase2_data() -> oogeso.dto.EnergySystemData:
 
 
 @pytest.fixture
-def testcase2_expected_result() -> oogeso.dto.EnergySystemData:
+def testcase2_expected_result() -> oogeso.dto.base.EnergySystemData:
     """Expected results for the testcase 2."""
     with open(TEST_DATA_ROOT_PATH / "testcase2_resultobject.json", "r", encoding="utf8") as infile:
-        res_expected = json.load(infile, cls=oogeso.dto.serialisation.OogesoResultJSONDecoder)
+        res_expected = json.load(infile, cls=OogesoResultJSONDecoder)
     return res_expected
 
 
 @pytest.fixture
-def leogo_test_data() -> oogeso.dto.EnergySystemData:
+def leogo_test_data() -> oogeso.dto.base.EnergySystemData:
     """
     Big and complex test case - the LEOGO case
     """
@@ -99,10 +99,10 @@ def leogo_test_data() -> oogeso.dto.EnergySystemData:
 
 
 @pytest.fixture
-def leogo_expected_result() -> oogeso.dto.EnergySystemData:
+def leogo_expected_result() -> oogeso.dto.base.EnergySystemData:
     """
     Expected results for the Leogo case
     """
     with open(TEST_DATA_ROOT_PATH / "leogo_resultobject.json", "r", encoding="utf8") as infile:
-        res_expected = json.load(infile, cls=oogeso.dto.serialisation.OogesoResultJSONDecoder)
+        res_expected = json.load(infile, cls=OogesoResultJSONDecoder)
     return res_expected

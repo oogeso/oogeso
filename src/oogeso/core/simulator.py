@@ -17,7 +17,7 @@ try:
 
     HAS_TQDM = True
 except ImportError:
-    logger.info("Consider installing tqdm to get progress bar")
+    logger.debug("Consider installing tqdm to get progress bar")
     trange = range
     HAS_TQDM = False
 
@@ -51,9 +51,6 @@ class Simulator:
             "nowcast": _df_profiles_nowcast,
             "forecast": _df_profiles_forecast,
         }
-
-    #    def setOptimiser(self, optimiser):
-    #        self.optimiser = optimiser
 
     def run_simulation(
         self,
@@ -137,7 +134,7 @@ class Simulator:
         for step in trange(time_start, time_end, steps):
             if not HAS_TQDM:
                 # no progress bar
-                logger.info("Solving timestep=%s", step)
+                logger.debug("Solving timestep=%s", step)
             # 1. Update problem formulation
             self.optimiser.update_optimisation_model(step, first=first, profiles=self.profiles)
             # 2. Solve for planning horizon
@@ -186,13 +183,13 @@ class Simulator:
                 # vrs=('util',None)
                 vrs = val["indx"]
                 constr = getattr(pyomo_instance, val["constr"])
-                logger.info(constr)
+                logger.debug(constr)
                 # sumduals = 0
                 for t in range(timelimit):
                     # Replace None by the timestep, ('util',None) -> ('util',t)
                     vrs1 = tuple(x if x is not None else t for x in vrs)
-                    logger.info(vrs1)
-                    logger.info(constr[vrs1])
+                    logger.debug(vrs1)
+                    logger.debug(constr[vrs1])
                     dual = pyomo_instance.dual[constr[vrs1]]
                     # The dual gives the improvement in the objective function
                     # if the constraint is relaxed by one unit.
@@ -247,7 +244,6 @@ class Simulator:
             df_co2intensity = None
 
         # Penalty values per device
-        # df_penalty=res["varDevicePenalty"], # this does not include start/stop penalty
         if return_all or "penalty" in return_variables:
             df_penalty = pd.DataFrame(
                 dtype=float64,

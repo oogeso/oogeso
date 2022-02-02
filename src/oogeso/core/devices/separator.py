@@ -124,9 +124,6 @@ class Separator2(Device):
         dev = self.id
         node = self.dev_data.node_id
         node_obj: NetworkNode = self.node
-        # wellstream_prop=self.pyomo_model.all_carriers['wellstream']
-        # flow_in = sum(model.varDeviceFlow[dev,f,'in',t]
-        #                for f in['oil','gas','water'])
         if i == 1:
             # component flow in = flow out
             lhs = pyomo_model.varDeviceFlow[dev, fc, "out", t]

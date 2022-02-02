@@ -120,15 +120,6 @@ class NetworkNode:
                 else:
                     P_inj += model.varEdgeFlow[edge_id, t]
 
-        # if (carrier,node) in model.paramNodeEdgesTo and (terminal=='in'):
-        #     for edg in model.paramNodeEdgesTo[(carrier,node)]:
-        #         # power into node from edge
-        #         P_inj += (model.varEdgeFlow[edg,t])
-        # elif (carrier,node) in model.paramNodeEdgesFrom and (terminal=='out'):
-        #     for edg in model.paramNodeEdgesFrom[(carrier,node)]:
-        #         # power out of node into edge
-        #         P_inj += (model.varEdgeFlow[edg,t])
-
         expr = P_inj == 0
         if (type(expr) is bool) and (expr is True):
             expr = pyo.Constraint.Skip
@@ -161,14 +152,7 @@ class NetworkNode:
                     if (carrier in self.pressure_max_deviation) and (term in self.pressure_max_deviation[carrier]):
                         max_dev = self.pressure_max_deviation[carrier][term]
                         if t == 0:
-                            logger.debug(
-                                "Using individual pressure limit for: {}, {}, {}, {}".format(
-                                    node, carrier, term, max_dev
-                                )
-                            )
-                    else:
-                        # Using globally set pressure deviation limit
-                        max_dev = model.paramMaxPressureDeviation
+                            logger.debug(f"Using individual pressure limit for: {node}, {carrier}, {term}, {max_dev}")
             else:
                 nom_p = 0
         else:

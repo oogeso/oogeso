@@ -3,17 +3,16 @@ parameters:
   planning_horizon: 8 # timesteps in each rolling optimisation
   optimisation_timesteps: 4 # timesteps between each optimisation
   forecast_timesteps: 4 # timesteps beyond which forecast (instead of nowcast) profile is used
-  time_reserve_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   co2_tax: 0.04 # $/kgCO2
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
-  max_pressure_deviation: -1 # global limit for allowable relative pressure deviation from nominal
   objective: exportRevenue # select objective function to use
 
 carriers:
   - id: el
     el_backup_margin: -1 # MW, -1=no limit
     el_reserve_margin: 5 # MWm -1=no limit
+    reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
     powerflow_method: "transport"
     reference_node: node1 # for electrical voltage angle
   - id: gas
@@ -101,9 +100,9 @@ devices:
     max_ramp_up: 0.5
     max_ramp_down: 1
     start_stop:
-        delay_start_minutes: 45 # min
-        penalty_start: 200
-        is_on_init: True
+      delay_start_minutes: 45 # min
+      penalty_start: 200
+      is_on_init: True
     flow_max: 20
     flow_min: 5
 
@@ -118,9 +117,9 @@ devices:
     max_ramp_up: 0.5
     max_ramp_down: 1
     start_stop:
-        delay_start_minutes: 45 # min
-        penalty_start: 200
-        is_on_init: True
+      delay_start_minutes: 45 # min
+      penalty_start: 200
+      is_on_init: True
     flow_max: 20
     flow_min: 5
 
@@ -135,8 +134,8 @@ devices:
     max_ramp_up: 0.5
     max_ramp_down: 1
     start_stop:
-        delay_start_minutes: 45 # min
-        penalty_start: 200
+      delay_start_minutes: 45 # min
+      penalty_start: 200
     flow_max: 20
     flow_min: 5
 
