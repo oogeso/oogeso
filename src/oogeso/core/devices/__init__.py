@@ -4,6 +4,7 @@ from .fuelcell import FuelCell
 from .gasheater import GasHeater
 from .gasturbine import GasTurbine
 from .dieselgenerator import DieselGenerator
+from .dieselheater import DieselHeater
 from .heatpump import HeatPump
 from .pump import PumpOil, PumpWater, PumpWellStream
 from .separator import Separator, Separator2

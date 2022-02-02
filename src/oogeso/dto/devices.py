@@ -104,6 +104,11 @@ class DeviceGasHeaterData(DeviceData):
     model: ModelType = ModelType.GAS_HEATER
 
 
+class DeviceDieselHeaterData(DeviceData):
+    eta: float = None  # efficiency
+    model: ModelType = ModelType.DIESEL_HEATER
+
+
 class DeviceGasTurbineData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None

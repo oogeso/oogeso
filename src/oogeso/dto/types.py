@@ -33,6 +33,7 @@ class ModelType(str, Enum):
     FUEL_CELL = "fuelcell"
     GAS_HEATER = "gasheater"
     GAS_TURBINE = "gasturbine"
+    DIESEL_HEATER = "dieselheater"
     DIESEL_GENERATOR = "dieselgenerator"
     PUMP = "pump"
     HEAT_PUMP = "heatpump"
