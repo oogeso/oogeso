@@ -18,6 +18,7 @@ carriers:
   - id: heat
   - id: hydrogen
     energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
+  - id: diesel
 
 devices:
   - id: wind
@@ -135,6 +136,18 @@ devices:
     name: heat dump
     node_id: load
 
+  - id: backup_east_1
+    flow_max: 1.8
+    flow_min: 0.3
+    fuel_A: 0.069
+    fuel_B: 0.0074
+    include: 0
+    model: diesel_generator
+    name: backup_east_1
+    is_on_init: 0
+    minimum_time_on_minutes: 15
+    node_id: diesel_backup
+
 edges:
   - id: el_wf_ps
     flow_max: 500.0
@@ -182,9 +195,22 @@ edges:
     node_to: load
     carrier: heat
 
+  - id: el_diesel_load
+    include: 1
+    node_from: diesel_backup
+    node_to: load
+    carrier: el
+
+  - id: heat_diesel_load
+    include: 1
+    node_from: diesel_backup
+    node_to: load
+    carrier: heat
+
 nodes:
   - id: wind_farm
   - id: powersupply
   - id: load
   - id: h2_storage
   - id: heatpump
+  - id: diesel_backup

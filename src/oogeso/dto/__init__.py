@@ -11,6 +11,7 @@ from oogeso.dto.base import (
 )
 from oogeso.dto.carriers import (
     CarrierElData,
+    CarrierDieselData,
     CarrierFluidData,
     CarrierGasData,
     CarrierHeatData,
@@ -23,6 +24,7 @@ from oogeso.dto.devices import (
     DeviceCompressorElData,
     DeviceCompressorGasData,
     DeviceElectrolyserData,
+    DeviceDieselGeneratorData,
     DeviceFuelCellData,
     DeviceGasHeaterData,
     DeviceGasTurbineData,

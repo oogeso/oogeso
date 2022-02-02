@@ -26,6 +26,7 @@ def get_device_from_model_name(model_name: str) -> Callable:
         "storageel": devices.StorageEl,
         "compressorel": devices.CompressorEl,
         "compressorgas": devices.CompressorGas,
+        "dieselgenerator": devices.DieselGenerator,
         "electrolyser": devices.Electrolyser,
         "fuelcell": devices.FuelCell,
         "gasheater": devices.GasHeater,
@@ -62,6 +63,7 @@ def get_device_data_class_from_str(model_name: str) -> Callable:
         "storageel": dto.DeviceStorageElData,
         "compressorel": dto.DeviceCompressorElData,
         "compressorgas": dto.DeviceCompressorGasData,
+        "dieselgenerator": dto.DeviceDieselGeneratorData,
         "electrolyser": dto.DeviceElectrolyserData,
         "fuelcell": dto.DeviceFuelCellData,
         "gasheater": dto.DeviceGasHeaterData,
@@ -94,6 +96,7 @@ def get_carrier_data_class_from_str(model_name: str) -> Callable:
     map_carrier_name_to_class = {
         "el": dto.CarrierElData,
         "gas": dto.CarrierGasData,
+        "diesel": dto.CarrierDieselData,
         "oil": dto.CarrierOilData,
         "water": dto.CarrierWaterData,
         "hydrogen": dto.CarrierHydrogenData,
