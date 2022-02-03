@@ -1,5 +1,6 @@
 import sys
 import tempfile
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -136,8 +137,10 @@ def test_plot_network(leogo_test_data: dto.EnergySystemData, leogo_expected_resu
     simulator = oogeso.Simulator(data=leogo_test_data)
     simulator.result_object = leogo_expected_result
 
-    with tempfile.NamedTemporaryFile() as fp:
-        op.plot_network(simulator, timestep=1, filename=fp.name)
+    # use temporary directory rather than file so it works cross-platform
+    with tempfile.TemporaryDirectory() as dirname:
+        filename = Path(dirname) / "testfile.png"
+        op.plot_network(simulator, timestep=1, filename=filename)
 
 
 @pytest.mark.skipif(

@@ -247,8 +247,5 @@ def plot_network(
 
     if filename is not None:
         # prog='dot' gives the best layout.
-        if hasattr(dotG, "write_png"):
-            dotG.write_png(filename, prog=prog)
-        else:
-            print("You need Graphviz installed to create image from Dot")
+        dotG.write(filename, prog=prog, format="png")
     return dotG
