@@ -27,7 +27,7 @@ class DieselGenerator(Device):
         dev = self.id
         param_diesel = self.carrier_data["diesel"]
         # el_power = model.varDeviceFlow[dev, "el", "out", t]
-        diesel_energy_content = param_diesel.energy_value  # MJ/l
+        diesel_energy_content = param_diesel.energy_value  # MJ/m3
         if i == 1:
             """generator el power out vs diesel fuel in"""
             # fuel consumption (diesel in) is a linear function of el power output
@@ -36,10 +36,10 @@ class DieselGenerator(Device):
             A = self.dev_data.fuel_A
             B = self.dev_data.fuel_B
             P_max = self.dev_data.flow_max
-            lhs = model.varDeviceFlow[dev, "diesel", "in", t] * diesel_energy_content / P_max
+            lhs = model.varDeviceFlow[dev, "diesel", "in", t] #* diesel_energy_content / P_max
             rhs = (
                 B * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
-                + A * model.varDeviceFlow[dev, "el", "out", t] / P_max
+                + A * model.varDeviceFlow[dev, "el", "out", t] #/ P_max
             )
             return lhs == rhs
         elif i == 2:
@@ -64,6 +64,6 @@ class DieselGenerator(Device):
     # overriding default
     def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
         param_diesel = self.carrier_data["diesel"]
-        dieselflow_co2 = param_diesel.co2_content  # kg/l
+        dieselflow_co2 = param_diesel.co2_content  # kg/m3
 
         return sum(pyomo_model.varDeviceFlow[self.id, "diesel", "in", t] for t in timesteps) * dieselflow_co2

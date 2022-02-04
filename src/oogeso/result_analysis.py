@@ -8,6 +8,7 @@ from oogeso import dto
 def compute_kpis(
     sim_result: dto.SimulationResult,
     sim_data: dto.EnergySystemData,
+    fuel_carrier: Optional[str] = "gas",
     wind_turbines: Optional[dto.DevicePowerSourceData] = None,
 ):
     """Compute key indicators of simulation results
@@ -32,16 +33,20 @@ def compute_kpis(
     kpi["kgCO2_per_Sm3oe"] = res.co2_intensity.mean()
 
     # fuel consumption
-    gasturbines = [
-        g.id
-        for g in sim_data.devices
-        # if isinstance(g, Gasturbine) # why doesn't isinstance work?
-        if g.model == "gasturbine"
-    ]
-    mask_gt = res.device_flow.index.get_level_values("device").isin(gasturbines)
+    if fuel_carrier == "gas":
+        fuel_devices = [
+            g.id
+            for g in sim_data.devices
+            # if isinstance(g, Gasturbine) # why doesn't isinstance work?
+            if g.model == "gasturbine"
+        ]
+    elif fuel_carrier == "diesel":
+        fuel_devices = [g.id for g in sim_data.devices if g.model in ["dieselgenerator", "dieselheater"]]
+
+    mask_gt = res.device_flow.index.get_level_values("device").isin(fuel_devices)
     gtflow = res.device_flow[mask_gt]
-    fuel = gtflow.unstack("carrier")["gas"].unstack("terminal")["in"].unstack().mean(axis=1)
-    kpi["gt_fuel_sm3_per_year"] = fuel.sum() * sec_per_year
+    fuel = gtflow.unstack("carrier")[fuel_carrier].unstack("terminal")["in"].unstack().mean(axis=1)
+    kpi["fuel_sm3_per_year"] = fuel.sum() * sec_per_year
 
     # electric power consumption
     el_dem = res.device_flow.unstack("carrier")["el"].unstack("terminal")["in"].dropna().unstack().mean(axis=1)
@@ -49,15 +54,15 @@ def compute_kpis(
     kpi["elconsumption_avg_mw"] = el_dem.sum()
 
     # number of generator starts
-    gt_starts = res.device_starting.unstack().sum(axis=1)[gasturbines].sum()
+    gt_starts = res.device_starting.unstack().sum(axis=1)[fuel_devices].sum()
     kpi["gt_starts_per_year"] = gt_starts * hour_per_year / kpi["hours_simulated"]
 
     # number of generator stops
-    gt_stops = res.device_stopping.unstack().sum(axis=1)[gasturbines].sum()
+    gt_stops = res.device_stopping.unstack().sum(axis=1)[fuel_devices].sum()
     kpi["gt_stops_per_year"] = gt_stops * hour_per_year / kpi["hours_simulated"]
 
     # running hours of generators
-    gt_ison_tsteps = res.device_is_on.unstack().sum(axis=1)[gasturbines].sum()
+    gt_ison_tsteps = res.device_is_on.unstack().sum(axis=1)[fuel_devices].sum()
     gt_ison = gt_ison_tsteps * td_min / 60
     kpi["gt_hoursrunning_per_year"] = gt_ison * hour_per_year / kpi["hours_simulated"]
 

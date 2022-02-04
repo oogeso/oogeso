@@ -9,6 +9,6 @@ from .heatpump import HeatPump
 from .pump import PumpOil, PumpWater, PumpWellStream
 from .separator import Separator, Separator2
 from .sink import PowerSink, SinkEl, SinkGas, SinkHeat, SinkOil, SinkWater
-from .source import PowerSource, SourceEl, SourceGas, SourceOil, SourceWater
+from .source import PowerSource, SourceEl, SourceGas, SourceDiesel, SourceOil, SourceWater
 from .storage import StorageEl, StorageHydrogen
 from .well import WellGasLift, WellProduction

@@ -18,6 +18,7 @@ class ModelType(str, Enum):
     POWER_SOURCE = "powersource"
     POWER_SINK = "powersink"
     STORAGE_EL = "storageel"
+    SOURCE_DIESEL = "sourcediesel"
     SOURCE_EL = "sourceel"
     SOURCE_GAS = "sourcegas"
     SOURCE_OIL = "sourceoil"

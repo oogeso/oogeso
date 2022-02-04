@@ -38,6 +38,10 @@ class DeviceSourceGasData(DeviceData):
     model: ModelType = ModelType.SOURCE_GAS
 
 
+class DeviceSourceDieselData(DeviceData):
+    model: ModelType = ModelType.SOURCE_DIESEL
+
+
 class DeviceSourceOilData(DeviceData):
     naturalpressure: float = None
     model: ModelType = ModelType.SOURCE_OIL

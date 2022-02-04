@@ -148,6 +148,35 @@ class SourceGas(Device):
         return pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
 
 
+class SourceDiesel(Device):
+    """Generic external source for diesel."""
+
+    dev_data: dto.DeviceSourceDieselData
+
+    carrier_in = []
+    carrier_out = ["diesel"]
+    serial = []
+
+    def __init__(
+        self,
+        dev_data: dto.DeviceSourceDieselData,
+        carrier_data_dict: Dict[str, dto.CarrierDieselData],
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def define_constraints(self, pyomo_model: pyo.Model):
+        """Specifies the list of constraints for the device"""
+        # add generic device constraints:
+        list_to_reconstruct = super().define_constraints(pyomo_model)
+        return list_to_reconstruct
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
+        return pyomo_model.varDeviceFlow[self.id, "diesel", "out", t]
+
+
 class SourceOil(Device):
     """Generic external source for oil."""
 

@@ -20,6 +20,7 @@ carriers:
     energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
   - id: diesel
 
+
 devices:
   - id: wind
     flow_max: 30
@@ -99,8 +100,8 @@ devices:
     model: storage_hydrogen
     name: h2_storage
     node_id: h2_storage
-    E_max: 10000000 # Sm3  # 130 MJ/Sm3 => 36110 MWh (around 40 days at 40 MW)
-    E_init: 5000000
+    E_max: 1000000 # Sm3  # 130 MJ/Sm3 => 3611 MWh (around 4 days at 40 MW)
+    E_init: 500000
     eta: 1
     #target_profile: h2target # "H2target", for planning beyond optimisation window
     #target_value: 500000 # Sm3, same as E_init
@@ -144,95 +145,103 @@ devices:
     name: el_dump
     node_id: load
 
+  - id: diesel_source
+    flow_max: 100
+    flow_min: 0
+    include: 0
+    model: source_diesel
+    name: diesel_source
+    node_id: diesel_backup
+
   - id: backup_east_1
     flow_max: 1.8
     flow_min: 0.3
-    fuel_A: 0.069
-    fuel_B: 0.0074
-    eta: 0.5
+    fuel_A: 0.000069
+    fuel_B: 0.0000074
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_1
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: backup_east_2
     flow_max: 1.8
     flow_min: 0.3
-    fuel_A: 0.069
-    fuel_B: 0.0074
-    eta: 0.5
+    fuel_A: 0.000069
+    fuel_B: 0.0000074
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_2
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: backup_east_3
     flow_max: 1.8
     flow_min: 0.3
-    fuel_A: 0.069
-    fuel_B: 0.0074
-    eta: 0.5
+    fuel_A: 0.000069
+    fuel_B: 0.0000074
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_3
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: backup_west_1
     flow_max: 2
     flow_min: 0.3
-    fuel_A: 0.069
-    fuel_B: 0.0074
-    eta: 0.5
+    fuel_A: 0.000069
+    fuel_B: 0.0000074
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_1
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: backup_west_2
     flow_max: 2
     flow_min: 0.3
-    fuel_A: 0.069
-    fuel_B: 0.0074
-    eta: 0.5
+    fuel_A: 0.000069
+    fuel_B: 0.0000074
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_2
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: backup_west_3
     flow_max: 2
     flow_min: 0.3
-    fuel_A: 0.069
-    fuel_B: 0.0074
-    eta: 0.5
+    fuel_A: 0.000069
+    fuel_B: 0.0000074
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_3
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: diesel_boiler_1
     flow_max: 8.5
@@ -241,10 +250,11 @@ devices:
     include: 0
     model: diesel_heater
     name: diesel_boiler_1
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: diesel_boiler_2
     flow_max: 8.5
@@ -253,10 +263,11 @@ devices:
     include: 0
     model: diesel_heater
     name: diesel_boiler_2
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
   - id: boiler_houses
     flow_max: 17
@@ -265,11 +276,11 @@ devices:
     include: 0
     model: diesel_heater
     name: boiler_houses
-    is_on_init: 0
-    minimum_time_on_minutes: 15
     op_cost: 1
     node_id: diesel_backup
-
+    start_stop:
+      is_on_init: 0
+      minimum_time_on_minutes: 15
 
 edges:
   - id: el_wf_ps
