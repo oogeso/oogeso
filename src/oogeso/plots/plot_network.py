@@ -49,6 +49,7 @@ def plot_network(
         "t": {
             "el": "red",
             "gas": "orange",
+            "diesel": "black",
             "heat": "darkgreen",
             "wellstream": "brown",
             "oil": "black",
@@ -58,6 +59,7 @@ def plot_network(
         "e": {
             "el": "red",
             "gas": "orange",
+            "diesel": "black",
             "heat": "darkgreen",
             "wellstream": "brown",
             "oil": "black",

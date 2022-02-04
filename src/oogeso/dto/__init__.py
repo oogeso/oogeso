@@ -24,6 +24,7 @@ from oogeso.dto.devices import (
     DeviceCompressorElData,
     DeviceCompressorGasData,
     DeviceElectrolyserData,
+    DeviceDieselHeaterData,
     DeviceDieselGeneratorData,
     DeviceFuelCellData,
     DeviceGasHeaterData,

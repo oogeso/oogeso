@@ -8,6 +8,7 @@ def get_network_from_carrier_name(carrier_name: str) -> Callable:
     map_carrier_to_model = {
         "el": networks.ElNetwork,
         "gas": networks.GasNetwork,
+        "diesel": networks.DieselNetwork,
         "oil": networks.OilNetwork,
         "water": networks.WaterNetwork,
         "wellstream": networks.WellStreamNetwork,

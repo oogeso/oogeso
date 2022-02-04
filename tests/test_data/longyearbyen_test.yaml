@@ -18,7 +18,7 @@ carriers:
   - id: heat
   - id: hydrogen
     energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
-  #- id: diesel
+  - id: diesel
 
 devices:
   - id: wind
@@ -81,7 +81,7 @@ devices:
     eta: 0.64 #efficiency (el to h2)
     eta_heat: 0.17 # heat recovery ratio
     reserve_factor: 1 #contributes to spinning reserve
-    op_cost: -0.02 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
+    op_cost: 0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
 
   - id: fuelcell
     include: 1
@@ -99,8 +99,8 @@ devices:
     model: storage_hydrogen
     name: h2_storage
     node_id: h2_storage
-    E_max: 1000000 # Sm3  # 130 MJ/Sm3 => 3611 MWh (around 4 days at 40 MW)
-    E_init: 500000
+    E_max: 10000000 # Sm3  # 130 MJ/Sm3 => 36110 MWh (around 40 days at 40 MW)
+    E_init: 5000000
     eta: 1
     #target_profile: h2target # "H2target", for planning beyond optimisation window
     #target_value: 500000 # Sm3, same as E_init
@@ -128,12 +128,20 @@ devices:
     eta: 2
     op_cost: 0.01
   
-  - id: heatdump
+  - id: heat_dump
     flow_max: 100
     flow_min: 0
     include: 1
     model: sink_heat
-    name: heat dump
+    name: heat_dump
+    node_id: load
+
+  - id: el_dump
+    flow_max: 100
+    flow_min: 0
+    include: 1
+    model: sink_el
+    name: el_dump
     node_id: load
 
   - id: backup_east_1
@@ -141,6 +149,8 @@ devices:
     flow_min: 0.3
     fuel_A: 0.069
     fuel_B: 0.0074
+    eta: 0.5
+    eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_1
@@ -154,6 +164,8 @@ devices:
     flow_min: 0.3
     fuel_A: 0.069
     fuel_B: 0.0074
+    eta: 0.5
+    eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_2
@@ -167,6 +179,8 @@ devices:
     flow_min: 0.3
     fuel_A: 0.069
     fuel_B: 0.0074
+    eta: 0.5
+    eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_3
@@ -180,6 +194,8 @@ devices:
     flow_min: 0.3
     fuel_A: 0.069
     fuel_B: 0.0074
+    eta: 0.5
+    eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_1
@@ -193,6 +209,8 @@ devices:
     flow_min: 0.3
     fuel_A: 0.069
     fuel_B: 0.0074
+    eta: 0.5
+    eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_2
@@ -206,6 +224,8 @@ devices:
     flow_min: 0.3
     fuel_A: 0.069
     fuel_B: 0.0074
+    eta: 0.5
+    eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_3

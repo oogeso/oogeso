@@ -24,7 +24,7 @@ class CarrierHydrogenData(dto.CarrierData):
 
 
 class CarrierDieselData(dto.CarrierData):
-    energy_value: float = 39  # MJ/l (calorific value) -> 13 MJ/l
+    energy_value: float = 39  # MJ/l (calorific value) -> 39 MJ/l
     co2_content: float = 2.64 # kg/l
 
 
