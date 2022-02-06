@@ -81,7 +81,7 @@ def plot_device_profile(
     df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device")
     if devs_shareload is None:
         # gas turbines:
-        devs_shareload = [d for d, d_obj in optimiser.all_devices.items() if d_obj.dev_data.model == "gasturbine"]
+        devs_shareload = [d for d, d_obj in optimiser.all_devices.items() if d_obj.dev_data.model in ["gasturbine", "dieselgenerator", "dieselheater"]]
     if devs_shareload:  # list is non-empty
         devs_online = (df[devs_shareload] > 0).sum(axis=1)
         devs_sum = df[devs_shareload].sum(axis=1)
@@ -91,6 +91,9 @@ def plot_device_profile(
             df.loc[mask, c] = devs_mean[mask]
     df.columns.name = "devices"
     df = df[devs]
+    if "pv" in devs:
+        pv = df.pop("pv")
+        df.insert(0,"pv",pv)
     nrows = 1
     if include_on_off:
         nrows = nrows + 1
@@ -120,7 +123,8 @@ def plot_device_profile(
                 stackgroup="P",
                 legendgroup=col,
                 row=1,
-                col=1,
+                col=1#,
+                #mode ='none'
             )
             if include_on_off & (dev_data.start_stop is not None):
                 fig.add_scatter(
@@ -223,10 +227,10 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
     dev_data = optimiser.all_devices[dev].dev_data
     device_name = "{}:{}".format(dev, dev_data.name)
 
-    if dev_data.model == "storage_hydrogen":
+    if dev_data.model == "storagehydrogen":
         carrier = "hydrogen"
         flow_title = "Flow (Sm3/s)"
-        energy_storage_title = "Energy storage( Sm3)"
+        energy_storage_title = "Energy storage (Sm3)"
     else:
         carrier = "el"
         flow_title = "Power (MW)"
@@ -450,7 +454,7 @@ def plot_export_revenue(sim_result, filename=None, currency="$"):
 
 
 def plot_CO2_rate(sim_result, filename=None):
-    plt.figure(figsize=(12, 4))
+    plt.figure(figsize=(24, 8))
     plt.title("CO2 emission rate (kgCO2/s)")
     ax = plt.gca()
     ax.set_ylabel("kgCO2/s")

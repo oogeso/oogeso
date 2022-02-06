@@ -19,6 +19,8 @@ carriers:
   - id: hydrogen
     energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
   - id: diesel
+    energy_value: 39000  # MJ/m3 (calorific value) -> 39 MJ/m3
+    co2_content: 2640 # kg/m3
 
 
 devices:
@@ -100,8 +102,8 @@ devices:
     model: storage_hydrogen
     name: h2_storage
     node_id: h2_storage
-    E_max: 1000000 # Sm3  # 130 MJ/Sm3 => 3611 MWh (around 4 days at 40 MW)
-    E_init: 500000
+    E_max: 3000000 # Sm3  # 13 MJ/Sm3 => 1083 MWh (around 15 days at 15 MW and 50% efficiency)
+    E_init: 1500000
     eta: 1
     #target_profile: h2target # "H2target", for planning beyond optimisation window
     #target_value: 500000 # Sm3, same as E_init
@@ -149,6 +151,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 0
+    op_cost: 5000 # NOK/m3
     model: source_diesel
     name: diesel_source
     node_id: diesel_backup
@@ -162,7 +165,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_east_1
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -177,7 +180,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_east_2
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -192,7 +195,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_east_3
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -207,7 +210,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_west_1
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -222,7 +225,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_west_2
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -237,7 +240,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_west_3
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -250,7 +253,7 @@ devices:
     include: 0
     model: diesel_heater
     name: diesel_boiler_1
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -263,7 +266,7 @@ devices:
     include: 0
     model: diesel_heater
     name: diesel_boiler_2
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
@@ -276,7 +279,7 @@ devices:
     include: 0
     model: diesel_heater
     name: boiler_houses
-    op_cost: 1
+    op_cost: 0.01
     node_id: diesel_backup
     start_stop:
       is_on_init: 0
