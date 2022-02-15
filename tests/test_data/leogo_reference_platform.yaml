@@ -6,7 +6,7 @@ parameters:
   co2_tax: 0.8 # NOK/kgCO2
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
-  objective: exportRevenue # select objective function to use
+  objective: costs # select objective function to use
 
 carriers:
   - id: el
@@ -40,54 +40,165 @@ carriers:
 
 devices:
   - id: Gen1
-    flow_max: 21.8
-    flow_min: 3.5
+    flow_max: 9
+    flow_min: 2
     eta_heat: 0.5
     fuel_A: 2.350
     fuel_B: 0.530
     include: 1
+    op_cost: 0.1
     max_ramp_down: 1 # change relative to capacity per minute, 1=100%/min
     max_ramp_up: 0.5 # 100%/min
     model: gasturbine
     name: gas turbine1
     node_id: powersupply
     start_stop:
-      penalty_start: 2000 # NOK
-      delay_start_minutes: 30 # min
+      #penalty_start: 2100 # NOK
+      minimum_time_on_minutes: 15
       is_on_init: True
 
   - id: Gen2
-    flow_max: 21.8
-    flow_min: 3.5
+    flow_max: 9
+    flow_min: 2
     eta_heat: 0.5
     fuel_A: 2.351
     fuel_B: 0.531
     include: 1
+    op_cost: 0.11
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: gasturbine
     name: gas turbine2
     node_id: powersupply
     start_stop:
-      penalty_start: 2000 # NOK
-      delay_start_minutes: 30 # min
+      #penalty_start: 2200 # NOK
+      minimum_time_on_minutes: 15
       is_on_init: True
 
   - id: Gen3
-    flow_max: 21.8
-    flow_min: 3.5
+    flow_max: 9
+    flow_min: 2
     eta_heat: 0.5
     fuel_A: 2.352
     fuel_B: 0.532
     include: 1
+    op_cost: 0.12
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: gasturbine
     name: gas turbine3
     node_id: powersupply
     start_stop:
-      penalty_start: 2000 # NOK
-      delay_start_minutes: 30 # min
+      #penalty_start: 2300 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
+
+  - id: Gen4
+    flow_max: 8
+    flow_min: 1.5
+    eta_heat: 0.5
+    fuel_A: 2.33
+    fuel_B: 0.53
+    include: 1
+    op_cost: 0.13
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine4
+    node_id: powersupply
+    start_stop:
+      #penalty_start: 2400 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
+
+  - id: Gen5
+    flow_max: 8
+    flow_min: 1.5
+    eta_heat: 0.5
+    fuel_A: 2.34
+    fuel_B: 0.54
+    include: 1
+    op_cost: 0.14
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine5
+    node_id: powersupply
+    start_stop:
+      #penalty_start: 2500 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
+
+  - id: Gen6
+    flow_max: 8
+    flow_min: 1.5
+    eta_heat: 0.5
+    fuel_A: 2.35
+    fuel_B: 0.55
+    include: 1
+    op_cost: 0.15
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine6
+    node_id: powersupply
+    start_stop:
+      #penalty_start: 2600 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
+
+  - id: Gen7
+    flow_max: 4
+    flow_min: 0.5
+    eta_heat: 0.5
+    fuel_A: 2.26
+    fuel_B: 0.46
+    include: 1
+    op_cost: 0.16
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine7
+    node_id: powersupply
+    start_stop:
+      #penalty_start: 2700 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
+
+  - id: Gen8
+    flow_max: 4
+    flow_min: 0.5
+    eta_heat: 0.5
+    fuel_A: 2.27
+    fuel_B: 0.47
+    include: 1
+    op_cost: 0.17
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine8
+    node_id: powersupply
+    start_stop:
+      #penalty_start: 2800 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
+
+  - id: Gen9
+    flow_max: 4
+    flow_min: 0.5
+    eta_heat: 0.5
+    fuel_A: 2.28
+    fuel_B: 0.48
+    include: 1
+    op_cost: 0.18
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: gasturbine
+    name: gas turbine9
+    node_id: powersupply
+    start_stop:
+      #penalty_start: 2900 # NOK
+      minimum_time_on_minutes: 15
       is_on_init: True
 
   - id: wind
@@ -323,6 +434,7 @@ devices:
     # reasonable that storage cost is e.g. 1/10 of cost for gas turbines
 
 edges:
+
   - id: cL1
     height_m: 0.0
     include: 1

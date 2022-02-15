@@ -111,6 +111,10 @@ class SimulationResult(BaseModel):
     device_storage_energy: Optional[pd.Series] = Field(default_factory=pd.Series)
     # Max available "flow" (power/fluid) from storage (Sm3/s or MW):
     device_storage_pmax: Optional[pd.Series] = Field(default_factory=pd.Series)
+    # Operational costs (sum of all devices) (CURRENCY/s):
+    op_cost: Optional[pd.Series] = Field(default_factory=pd.Series)
+    # Operational costs per device (CURRENCY/s):
+    op_cost_per_dev: Optional[pd.Series] = Field(default_factory=pd.Series)
     # Device assosiated penalty rate (PENALTY_UNIT/s):
     penalty: Optional[pd.Series] = Field(default_factory=pd.Series)
     # Flow rate (Sm3/s or MW):

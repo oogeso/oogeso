@@ -243,6 +243,32 @@ class Simulator:
         else:
             df_co2intensity = None
 
+        # Operational costs (sum)
+        if return_all or "op_cost" in return_variables:
+            df_op_cost_sum = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
+            for t in range(timelimit):
+                df_op_cost_sum.loc[t + timestep] = pyo.value(self.optimiser.compute_operating_costs(pyomo_instance, timesteps=[t]))
+            df_op_cost_sum.index.rename("time", inplace=True)
+        else:
+            df_op_cost_sum = None
+
+        # Operational costs per device:
+        if return_all or "op_cost_per_dev" in return_variables:
+            df_op_cost_dev = pd.DataFrame(
+                index=range(timestep, timestep + timelimit),
+                columns=pyomo_instance.setDevice,
+            )
+            for d, dev in self.optimiser.all_devices.items():
+                for t in range(timelimit):
+                    this_op_cost = dev.compute_operating_costs(pyomo_instance, [t])
+                    df_op_cost_dev.loc[t + timestep, d] = pyo.value(this_op_cost)
+            # change to multi-index series
+            df_op_cost_dev = df_op_cost_dev.stack()
+            df_op_cost_dev.index.rename(["time", "device"], inplace=True)
+            df_op_cost_dev = df_op_cost_dev.reorder_levels(["device", "time"])
+        else:
+            df_op_cost_dev = None
+
         # Penalty values per device
         if return_all or "penalty" in return_variables:
             df_penalty = pd.DataFrame(
@@ -353,6 +379,8 @@ class Simulator:
             terminal_flow=df_terminal_flow,
             terminal_pressure=df_terminal_pressure,
             el_voltage_angle=df_el_voltage_angle,
+            op_cost=df_op_cost_sum,
+            op_cost_per_dev=df_op_cost_dev,
             penalty=df_penalty,
             el_reserve=df_reserve,
             el_backup=df_backup,

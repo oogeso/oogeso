@@ -25,7 +25,8 @@ carriers:
 
 devices:
   - id: wind
-    flow_max: 30
+    flow_max: 1
+    flow_min: 1
     co2em: 0 # kgCO2/MWh_el
     op_cost: 0.003 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
     include: 1
@@ -35,7 +36,8 @@ devices:
     profile: V47
 
   - id: pv
-    flow_max: 25
+    flow_max: 1
+    flow_min: 1
     co2em: 0 # kgCO2/MWh_el
     op_cost: 0.002 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
     include: 1
@@ -76,7 +78,7 @@ devices:
     profile: heat_load
 
   - id: electrolyser
-    include: 1
+    include: 0
     model: electrolyser
     name: electrolyser
     node_id: h2_storage
@@ -84,10 +86,10 @@ devices:
     eta: 0.64 #efficiency (el to h2)
     eta_heat: 0.17 # heat recovery ratio
     reserve_factor: 1 #contributes to spinning reserve
-    op_cost: 0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
+    op_cost: -0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
 
   - id: fuelcell
-    include: 1
+    include: 0
     model: fuelcell
     name: fuelcell
     node_id: h2_storage
@@ -98,7 +100,7 @@ devices:
     reserve_factor: 1 #contributes to spinning reserve
 
   - id: h2_storage
-    include: 1
+    include: 0
     model: storage_hydrogen
     name: h2_storage
     node_id: h2_storage
@@ -121,6 +123,7 @@ devices:
     node_id: powersupply
     E_max: 7 # MWh
     E_init: 3 # MWh
+    eta: 0.95
 
   - id: heatpump
     include: 1
@@ -135,6 +138,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 1
+    op_cost: 0.1
     model: sink_heat
     name: heat_dump
     node_id: load
@@ -143,6 +147,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 1
+    op_cost: 0.1
     model: sink_el
     name: el_dump
     node_id: load
@@ -159,8 +164,8 @@ devices:
   - id: backup_east_1
     flow_max: 1.8
     flow_min: 0.3
-    fuel_A: 0.000069
-    fuel_B: 0.0000074
+    fuel_A: 2.699057523809524
+    fuel_B: 0.16423333333333373
     eta_heat: 0
     include: 0
     model: diesel_generator
@@ -168,44 +173,47 @@ devices:
     op_cost: 0.01
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
   - id: backup_east_2
     flow_max: 1.8
     flow_min: 0.3
-    fuel_A: 0.000069
-    fuel_B: 0.0000074
+    fuel_A: 2.699057523809524
+    fuel_B: 0.16423333333333373
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_2
-    op_cost: 0.01
+    op_cost: 0.01001
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
   - id: backup_east_3
     flow_max: 1.8
     flow_min: 0.3
-    fuel_A: 0.000069
-    fuel_B: 0.0000074
+    fuel_A: 2.699057523809524
+    fuel_B: 0.16423333333333373
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_east_3
-    op_cost: 0.01
+    op_cost: 0.01002
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
   - id: backup_west_1
     flow_max: 2
     flow_min: 0.3
-    fuel_A: 0.000069
-    fuel_B: 0.0000074
+    fuel_A: 2.6983536666666668
+    fuel_B: 0.16320687499999964
     eta_heat: 0
     include: 0
     model: diesel_generator
@@ -213,36 +221,39 @@ devices:
     op_cost: 0.01
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
   - id: backup_west_2
     flow_max: 2
     flow_min: 0.3
-    fuel_A: 0.000069
-    fuel_B: 0.0000074
+    fuel_A: 2.6983536666666668
+    fuel_B: 0.16320687499999964
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_2
-    op_cost: 0.01
+    op_cost: 0.01001
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
   - id: backup_west_3
     flow_max: 2
     flow_min: 0.3
-    fuel_A: 0.000069
-    fuel_B: 0.0000074
+    fuel_A: 2.6983536666666668
+    fuel_B: 0.16320687499999964
     eta_heat: 0
     include: 0
     model: diesel_generator
     name: backup_west_3
-    op_cost: 0.01
+    op_cost: 0.01002
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
@@ -256,6 +267,7 @@ devices:
     op_cost: 0.01
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
@@ -266,9 +278,10 @@ devices:
     include: 0
     model: diesel_heater
     name: diesel_boiler_2
-    op_cost: 0.01
+    op_cost: 0.01001
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 
@@ -282,6 +295,7 @@ devices:
     op_cost: 0.01
     node_id: diesel_backup
     start_stop:
+      penalty_start: 100
       is_on_init: 0
       minimum_time_on_minutes: 15
 

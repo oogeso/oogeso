@@ -23,6 +23,9 @@ class DieselGenerator(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
+        if dev_data.eta_heat == 0:
+            self.carrier_out = ["el"]
+
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         param_diesel = self.carrier_data["diesel"]
@@ -36,10 +39,10 @@ class DieselGenerator(Device):
             A = self.dev_data.fuel_A
             B = self.dev_data.fuel_B
             P_max = self.dev_data.flow_max
-            lhs = model.varDeviceFlow[dev, "diesel", "in", t] #* diesel_energy_content / P_max
+            lhs = model.varDeviceFlow[dev, "diesel", "in", t] * diesel_energy_content / P_max
             rhs = (
                 B * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
-                + A * model.varDeviceFlow[dev, "el", "out", t] #/ P_max
+                + A * model.varDeviceFlow[dev, "el", "out", t] / P_max
             )
             return lhs == rhs
         elif i == 2:
@@ -54,7 +57,10 @@ class DieselGenerator(Device):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_misc)
+        range_end = 2
+        if self.dev_data.eta_heat == 0:
+            range_end = 1
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, range_end), rule=self._rules_misc)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 

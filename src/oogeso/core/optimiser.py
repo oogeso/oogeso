@@ -583,15 +583,19 @@ class OptimisationModel(pyo.ConcreteModel):
         start_stop_costs = start_stop_costs / sum_time
         return start_stop_costs
 
-    def compute_operating_costs(self, model: pyo.Model):
+    def compute_operating_costs(self, model: pyo.Model, devices=None, timesteps=None):
         """term in objective function to represent fuel costs or similar
         as average per sec ($/s)
 
         opCost = energy costs (NOK/MJ, or NOK/Sm3)
         Note: el costs per MJ not per MWh
         """
+        if devices is None:
+            devices = self.setDevice
+        if timesteps is None:
+            timesteps = self.setHorizon
         sum_cost = 0
-        timesteps = self.setHorizon
+        #timesteps = self.setHorizon
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             sum_cost += dev_obj.compute_operating_costs(model, timesteps)
