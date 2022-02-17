@@ -115,6 +115,11 @@ class Device(ABC):
         rhs = prev_part - model.varDeviceStopping[dev, t]
         return lhs == rhs
 
+    def _rule_start_stop(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        """not allowed to start and stop in same timestep"""
+        dev = self.id
+        return model.varDeviceStarting[dev, t] + model.varDeviceStopping[dev, t] <= 1
+
     def _rule_startup_delay(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Constraint, pyo.Constraint.Skip]:
         """startup delay/preparation for GTs"""
         dev = self.id
@@ -124,7 +129,8 @@ class Device(ABC):
         # example: time_delta = 5 min, startupDelay= 8 min => T_delay=1
         T_delay = int(T_delay_min / time_delta_minutes)
         if T_delay == 0:
-            return pyo.Constraint.Skip  # noqa
+            # No preparation time, so fix variable to zero:
+            return pyomo_model.varDeviceIsPrep[dev, t] == 0
         # determine if was in preparation previously
         # dependent on value - so must reconstruct constraint each time
         steps_prev_prep = pyo.value(pyomo_model.paramDevicePrepTimestepsInitially[dev])
@@ -183,6 +189,12 @@ class Device(ABC):
                 pyomo_model,
                 f"constr_{self.id}_startdelay",
                 constr_device_startup_delay,
+            )
+            constr_device_start_stop = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_start_stop)
+            setattr(
+                pyomo_model,
+                f"constr_{self.id}_start_stop",
+                constr_device_start_stop,
             )
 
             # return list of constraints that need to be reconstructed:
