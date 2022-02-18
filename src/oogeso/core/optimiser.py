@@ -395,22 +395,6 @@ class OptimisationModel(pyo.ConcreteModel):
             for t in range(timesteps_use_nowcast, horizon):
                 self.paramProfiles[prof, t] = profiles["forecast"].loc[timestep + t, prof]
 
-        def _update_on_timesteps(_t_prev, _dev):
-            # sum up consequtive timesteps starting at tprev going
-            # backwards, where device has been in preparation phase
-            sum_on = 0
-            docontinue = True
-            for tt in range(_t_prev, -1, -1):
-                if pyo.value(self.varDeviceIsPrep[_dev, tt]) == 1:
-                    sum_on = sum_on + 1
-                else:
-                    docontinue = False
-                    break  # exit for loop
-            if docontinue:
-                # we got all the way back to 0, so must include initial value
-                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[_dev]
-            return sum_on
-
         def _count_consequtive_steps(_timestep, _dev, the_value, the_variable, the_parameter):
             """Count number of steps the_variable has had value=the_value"""
             count = 0
@@ -431,13 +415,9 @@ class OptimisationModel(pyo.ConcreteModel):
             for dev, dev_obj in self.all_devices.items():
                 # On/off status: (round because solver doesn't alwasy return an integer)
                 self.paramDeviceIsOnInitially[dev] = round(pyo.value(self.varDeviceIsOn[dev, t_prev]))
-                x = _update_on_timesteps(t_prev, dev)
                 self.paramDevicePrepTimestepsInitially[dev] = _count_consequtive_steps(
                     t_prev, dev, 1, self.varDeviceIsPrep, self.paramDevicePrepTimestepsInitially
                 )
-                # Fixme: remove this check
-                if x != self.paramDevicePrepTimestepsInitially[dev]:
-                    raise Exception("differs")
                 self.paramDeviceOnlineTimestepsInitially[dev] = _count_consequtive_steps(
                     t_prev, dev, 1, self.varDeviceIsOn, self.paramDeviceOnlineTimestepsInitially
                 )
