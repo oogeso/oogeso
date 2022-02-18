@@ -266,23 +266,23 @@ devices:
       minimum_time_on_minutes: 15
       is_on_init: True
 
-  # - id: Gen7
-  #   flow_max: 4
-  #   flow_min: 1.5
-  #   eta_heat: 0.5
-  #   fuel_A: 2.26
-  #   fuel_B: 0.46
-  #   include: 1
-  #   op_cost: 0.16
-  #   max_ramp_down: 1
-  #   max_ramp_up: 0.5
-  #   model: dieselgenerator
-  #   name: diesel turbine7
-  #   node_id: diesel_backup
-  #   start_stop:
-  #     penalty_start: 250 # NOK
-  #     minimum_time_on_minutes: 15
-  #     is_on_init: True
+  - id: Gen7
+    flow_max: 4
+    flow_min: 1.5
+    eta_heat: 0
+    fuel_A: 2.26
+    fuel_B: 0.46
+    include: 1
+    op_cost: 0.16
+    max_ramp_down: 1
+    max_ramp_up: 0.5
+    model: dieselgenerator
+    name: diesel turbine7
+    node_id: diesel_backup
+    start_stop:
+      penalty_start: 250 # NOK
+      minimum_time_on_minutes: 15
+      is_on_init: True
 
   # - id: Gen8
   #   flow_max: 4
