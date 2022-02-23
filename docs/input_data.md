@@ -133,22 +133,22 @@ that depends on the device type.
 
 Common parameters for all device types:
 
-parameter | type | description
-----------|------|------------
-id          | string    | unique device identifier
-node_id     | string    | identifier of node where it is connected
-name        | string    | display name
-model       | string    | name of device model type (see below)
-include     | bool      | (optional) wether to include the node
-profile     | string    | (optional) name of time series profile to use for scaling  (flow_max)
-flow_max        | float | (optional) maximum flow allowed (MW or Sm3/s)
-flow_min        | float | (optional) minimum flow allowed (MW or Sm3/s)
-max_ramp_up     | float | (optional) maximum ramping (% of flow_max per min)
-max_ramp_down   | float | (optioanl) maximum ramping (% of flow_max per min)
-start_stop      | StartStopData | (optional) see below
-reserve_factor  | float | (optional) how much of electric power counts towards the reserve (1=all, 0=none)
-op_cost         | float | (optional) Operating cost
-penalty_function    | tuple | (optional) flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values `([x1,x2,..],[y1,y2,...])`
+parameter | type | default | description
+----------|------|---------|---
+id          | string    || unique device identifier
+node_id     | string    || identifier of node where it is connected
+name        | string    |""| display name
+model       | string    || name of device model type (see below)
+include     | bool      |True| wether to include the node
+profile     | string    |None| name of time series profile to use for scaling  (flow_max)
+flow_max        | float | None| maximum flow allowed (MW or Sm3/s)
+flow_min        | float | None| minimum flow allowed (MW or Sm3/s)
+max_ramp_up     | float | None|maximum ramping (% of flow_max per min)
+max_ramp_down   | float | None| maximum ramping (% of flow_max per min)
+start_stop      | StartStopData | None| see below
+reserve_factor  | float | None| how much of electric power counts towards the reserve (1=all, 0=none)
+op_cost         | float | None| Operating cost
+penalty_function    | tuple | None| flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values `([x1,x2,..],[y1,y2,...])`
 
 In addition to these parameters there are parameters that depend on the device *model*.  These are specified further down.
 
@@ -156,14 +156,14 @@ In addition to these parameters there are parameters that depend on the device *
 
 Start-stop data may be provided if the device is modelled with start/stop constraints and or penalties.
 
-parameter | type | description
-----------|------|------------
-is_on_init          | bool  | device is initially on (True) or off (False)
-penalty_start       | float | startup penalty (cost)
-penalty_stop        | float | shutdown penalty (cost)
-delay_start_minutes | int | minutes delay from activation to being online
-minimum_time_on_minutes  | int | time device must be on once started (min)
-minimum_time_off_minutes | int | time device must be off once stopped (min)
+parameter | type | default | description
+----------|------|---------|---
+is_on_init          | bool  | False | device is initially on (True) or off (False)
+penalty_start       | float | 0 | startup penalty (cost)
+penalty_stop        | float | 0 | shutdown penalty (cost)
+delay_start_minutes | int | 0 | minutes delay from activation to being online
+minimum_time_on_minutes  | int | 0 | time device must be on once started (min)
+minimum_time_off_minutes | int | 0 | time device must be off once stopped (min)
 
 
 ## Electric system only modelling

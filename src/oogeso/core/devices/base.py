@@ -115,10 +115,22 @@ class Device(ABC):
         rhs = prev_part - model.varDeviceStopping[dev, t]
         return lhs == rhs
 
-    def _rule_start_stop(self, model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_start_stop(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         """not allowed to start and stop in same timestep"""
         dev = self.id
-        return model.varDeviceStarting[dev, t] + model.varDeviceStopping[dev, t] <= 1
+        if i == 1:
+            # cannot start and stope in sime timestep
+            return model.varDeviceStarting[dev, t] + model.varDeviceStopping[dev, t] <= 1
+        elif i == 2:
+            # cannot start when already on (in previous timestep):
+            if t == 0:
+                return model.varDeviceStarting[dev, t] + model.paramDeviceIsOnInitially[dev] <= 1
+            return model.varDeviceStarting[dev, t] + model.varDeviceIsOn[dev, t - 1] <= 1
+        elif i == 3:
+            # cannot stop when already off (in previous timestep):
+            if t == 0:
+                return model.varDeviceStopping[dev, t] + (1 - model.paramDeviceIsOnInitially[dev]) <= 1
+            return model.varDeviceStopping[dev, t] + (1 - model.varDeviceIsOn[dev, t - 1]) <= 1
 
     def _rule_startup_delay(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Constraint, pyo.Constraint.Skip]:
         """startup delay/preparation for GTs"""
@@ -168,7 +180,7 @@ class Device(ABC):
         prev_part = max(0, min(T_required - t, steps_prev_online))  # e.g. t=3: max(0,min(4-3,4))=max(0,1)=1
         tau_range = range(0, min(t, T_required))  # e.g. t=3: [0,1,2]
         lhs = pyomo_model.varDeviceStopping[dev, t] * T_required
-        rhs = sum(pyomo_model.varDeviceIsOn[dev, t - tau] for tau in tau_range) + prev_part
+        rhs = sum(pyomo_model.varDeviceIsOn[dev, t - 1 - tau] for tau in tau_range) + prev_part
         # e.g. t=3, prev_part=1
         return lhs <= rhs
 
@@ -189,7 +201,7 @@ class Device(ABC):
         prev_part = max(0, min(T_required - t, steps_prev))  # e.g. t=3: max(0,min(4-3,4))=max(0,1)=1
         tau_range = range(0, min(t, T_required))  # e.g. t=3: [0,1,2]
         lhs = pyomo_model.varDeviceStarting[dev, t] * T_required
-        rhs = sum((1 - pyomo_model.varDeviceIsOn[dev, t - tau]) for tau in tau_range) + prev_part
+        rhs = sum((1 - pyomo_model.varDeviceIsOn[dev, t - 1 - tau]) for tau in tau_range) + prev_part
         # e.g. t=3, prev_part=1
         return lhs <= rhs
 
@@ -236,7 +248,9 @@ class Device(ABC):
                 f"constr_{self.id}_startdelay",
                 constr_device_startup_delay,
             )
-            constr_device_start_stop = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_start_stop)
+            constr_device_start_stop = pyo.Constraint(
+                pyomo_model.setHorizon, pyo.RangeSet(1, 3), rule=self._rule_start_stop
+            )
             setattr(
                 pyomo_model,
                 f"constr_{self.id}_start_stop",

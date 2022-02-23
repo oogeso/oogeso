@@ -92,3 +92,130 @@ def test_integration_case_leogo(leogo_test_data: dto.EnergySystemData, leogo_exp
     assert np.allclose(
         (res_computed.co2_rate_per_dev - leogo_expected_result.co2_rate_per_dev).astype(float), 0, atol=1e-6
     )
+
+
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+def test_integration_startstop():
+    # Test that minimum online/offline time constraint, and startup penalty work as expected
+    parameters = oogeso.dto.OptimisationParametersData(
+        objective="penalty", time_delta_minutes=10, planning_horizon=20, optimisation_timesteps=20, forecast_timesteps=0
+    )
+    carriers = [oogeso.dto.CarrierElData(id="el")]
+    edges = []
+    nodes = [oogeso.dto.NodeData(id="node1")]
+    penalty1 = [[0, 6], [1.1, 1.2]]
+    penalty2 = [[0, 6], [2.1, 2.2]]
+    sec_per_timestep = 60 * 10  # 10 minutes
+    start_stop = {
+        1: oogeso.dto.StartStopData(
+            is_on_init=True, minimum_time_on_minutes=0, minimum_time_off_minutes=0, delay_start_minutes=0
+        ),
+        2: oogeso.dto.StartStopData(
+            is_on_init=True, minimum_time_on_minutes=20, minimum_time_off_minutes=0, delay_start_minutes=0
+        ),
+        3: oogeso.dto.StartStopData(
+            is_on_init=True, minimum_time_on_minutes=80, minimum_time_off_minutes=0, delay_start_minutes=0
+        ),
+        4: oogeso.dto.StartStopData(
+            is_on_init=True, minimum_time_on_minutes=0, minimum_time_off_minutes=0, delay_start_minutes=0
+        ),
+        5: oogeso.dto.StartStopData(
+            is_on_init=True, minimum_time_on_minutes=0, minimum_time_off_minutes=20, delay_start_minutes=0
+        ),
+        6: oogeso.dto.StartStopData(
+            is_on_init=True, minimum_time_on_minutes=0, minimum_time_off_minutes=80, delay_start_minutes=0
+        ),
+        7: oogeso.dto.StartStopData(is_on_init=True, delay_start_minutes=0, penalty_start=3 * sec_per_timestep),
+        8: oogeso.dto.StartStopData(is_on_init=True, delay_start_minutes=0, penalty_start=2.3 * sec_per_timestep * 4),
+    }
+    expected_is_on = {
+        1: [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+        2: [0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+        3: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+        4: [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        5: [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        6: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+        7: [0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],  # start penalty is small
+        8: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],  # start penalty is high
+    }
+    profiles = [
+        oogeso.dto.TimeSeriesData(
+            id="prof_load1", data=[3, 3, 3, 9, 4, 4, 4, 4, 4, 10, 5, 5, 5, 5, 5, 11, 11, 11, 11, 11, 11]
+        ),
+        oogeso.dto.TimeSeriesData(
+            id="prof_load2", data=[9, 9, 9, 3, 10, 10, 10, 10, 10, 4, 4, 4, 4, 4, 11, 5, 5, 5, 5, 5, 5]
+        ),
+        oogeso.dto.TimeSeriesData(
+            id="prof_load7", data=[3, 3, 3, 9, 4, 4, 4, 4, 10, 10, 5, 5, 5, 5, 5, 5, 11, 11, 11, 11, 11]
+        ),
+    ]
+    prof_id = {
+        1: "prof_load1",
+        2: "prof_load1",
+        3: "prof_load1",
+        4: "prof_load2",
+        5: "prof_load2",
+        6: "prof_load2",
+        7: "prof_load7",
+        8: "prof_load7",
+    }
+
+    # minimum on/of times
+    for test_num in range(1, 7):
+        devices = [
+            oogeso.dto.DevicePowerSinkData(
+                id="load", node_id="node1", profile=prof_id[test_num], flow_min=1, flow_max=10
+            ),
+            oogeso.dto.DevicePowerSourceData(
+                id="gen1",
+                node_id="node1",
+                flow_min=1,
+                flow_max=6,
+                start_stop=start_stop[test_num],
+                penalty_function=penalty1,
+            ),
+            oogeso.dto.DevicePowerSourceData(
+                id="gen2",
+                node_id="node1",
+                flow_min=1,
+                flow_max=6,
+                start_stop=start_stop[test_num],
+                penalty_function=penalty2,
+            ),
+        ]
+        test_data = oogeso.dto.EnergySystemData(
+            parameters=parameters, carriers=carriers, nodes=nodes, edges=edges, devices=devices, profiles=profiles
+        )
+        simulator = oogeso.Simulator(test_data)
+        sim_res = simulator.run_simulation(solver="cbc", time_range=None)
+        assert (sim_res.device_is_on["gen2"] == expected_is_on[test_num]).all()
+
+    # startup penalty
+    for test_num in range(7, 9):
+        devices = [
+            oogeso.dto.DevicePowerSinkData(
+                id="load", node_id="node1", profile=prof_id[test_num], flow_min=1, flow_max=10
+            ),
+            oogeso.dto.DevicePowerSourceData(
+                id="gen1",
+                node_id="node1",
+                flow_min=1,
+                flow_max=6,
+                start_stop=start_stop[test_num],
+                penalty_function=penalty1,
+            ),
+            oogeso.dto.DevicePowerSourceData(
+                id="gen2",
+                node_id="node1",
+                flow_min=1,
+                flow_max=6,
+                start_stop=start_stop[test_num],
+                penalty_function=penalty2,
+            ),
+        ]
+        test_data = oogeso.dto.EnergySystemData(
+            parameters=parameters, carriers=carriers, nodes=nodes, edges=edges, devices=devices, profiles=profiles
+        )
+        simulator = oogeso.Simulator(test_data)
+        sim_res = simulator.run_simulation(solver="cbc", time_range=None)
+        assert (sim_res.device_is_on["gen2"] == expected_is_on[test_num]).all()
