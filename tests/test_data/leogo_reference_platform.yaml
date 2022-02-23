@@ -45,7 +45,7 @@ devices:
     eta_heat: 0.5
     fuel_A: 2.350
     fuel_B: 0.530
-    include: 1
+    include: True
     op_cost: 0.1
     max_ramp_down: 1 # change relative to capacity per minute, 1=100%/min
     max_ramp_up: 0.5 # 100%/min

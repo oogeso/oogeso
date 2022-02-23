@@ -86,7 +86,7 @@ devices:
     eta: 0.64 #efficiency (el to h2)
     eta_heat: 0.17 # heat recovery ratio
     reserve_factor: 1 #contributes to spinning reserve
-    op_cost: -0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
+    op_cost: 0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
 
   - id: fuelcell
     include: 0
@@ -175,7 +175,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: backup_east_2
     flow_max: 1.8
@@ -191,7 +191,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: backup_east_3
     flow_max: 1.8
@@ -207,7 +207,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: backup_west_1
     flow_max: 2
@@ -223,7 +223,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: backup_west_2
     flow_max: 2
@@ -239,7 +239,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: backup_west_3
     flow_max: 2
@@ -255,7 +255,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: diesel_boiler_1
     flow_max: 8.5
@@ -269,7 +269,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: diesel_boiler_2
     flow_max: 8.5
@@ -283,7 +283,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
   - id: boiler_houses
     flow_max: 17
@@ -297,7 +297,7 @@ devices:
     start_stop:
       penalty_start: 100
       is_on_init: 0
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
 
 edges:
   - id: el_wf_ps

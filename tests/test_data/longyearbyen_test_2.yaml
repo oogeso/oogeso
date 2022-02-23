@@ -4,7 +4,7 @@ parameters:
   optimisation_timesteps: 24 # timesteps between each optimisation
   forecast_timesteps: 24 # timesteps beyond which forecast (instead of nowcast) profile is used
   #time_reserve_minutes: 1440 # minutes, how long stored energy must be sustained to count as reserve
-  co2_tax: 0.8 # NOK/kgCO2
+  co2_tax: None #0.8 # NOK/kgCO2
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
   objective: costs # select objective function to use
@@ -173,7 +173,7 @@ devices:
     node_id: diesel_backup
     start_stop:
       penalty_start: 100 # NOK
-      minimum_time_on_minutes: 15
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   - id: Gen2
@@ -183,15 +183,15 @@ devices:
     fuel_A: 2.351
     fuel_B: 0.531
     include: 1
-    op_cost: 0.11
+    op_cost: 0.1
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: dieselgenerator
     name: diesel turbine2
     node_id: diesel_backup
     start_stop:
-      penalty_start: 200 # NOK
-      minimum_time_on_minutes: 15
+      penalty_start: 100 # NOK
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   - id: Gen3
@@ -201,15 +201,15 @@ devices:
     fuel_A: 2.352
     fuel_B: 0.532
     include: 1
-    op_cost: 0.12
+    op_cost: 0.1
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: dieselgenerator
     name: diesel turbine3
     node_id: diesel_backup
     start_stop:
-      penalty_start: 210 # NOK
-      minimum_time_on_minutes: 15
+      penalty_start: 100 # NOK
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   - id: Gen4
@@ -219,15 +219,15 @@ devices:
     fuel_A: 2.33
     fuel_B: 0.53
     include: 1
-    op_cost: 0.13
+    op_cost: 0.1
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: dieselgenerator
     name: diesel turbine4
     node_id: diesel_backup
     start_stop:
-      penalty_start: 220 # NOK
-      minimum_time_on_minutes: 15
+      penalty_start: 100 # NOK
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   - id: Gen5
@@ -237,15 +237,15 @@ devices:
     fuel_A: 2.34
     fuel_B: 0.54
     include: 1
-    op_cost: 0.14
+    op_cost: 0.1
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: dieselgenerator
     name: diesel turbine5
     node_id: diesel_backup
     start_stop:
-      penalty_start: 230 # NOK
-      minimum_time_on_minutes: 15
+      penalty_start: 100 # NOK
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   - id: Gen6
@@ -255,15 +255,15 @@ devices:
     fuel_A: 2.35
     fuel_B: 0.55
     include: 1
-    op_cost: 0.15
+    op_cost: 0.1
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: dieselgenerator
     name: diesel turbine6
     node_id: diesel_backup
     start_stop:
-      penalty_start: 240 # NOK
-      minimum_time_on_minutes: 15
+      penalty_start: 100 # NOK
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   - id: Gen7
@@ -273,15 +273,15 @@ devices:
     fuel_A: 2.26
     fuel_B: 0.46
     include: 1
-    op_cost: 0.16
+    op_cost: 0.1
     max_ramp_down: 1
     max_ramp_up: 0.5
     model: dieselgenerator
     name: diesel turbine7
     node_id: diesel_backup
     start_stop:
-      penalty_start: 250 # NOK
-      minimum_time_on_minutes: 15
+      penalty_start: 100 # NOK
+      minimum_time_on_minutes: 60
       is_on_init: True
 
   # - id: Gen8
