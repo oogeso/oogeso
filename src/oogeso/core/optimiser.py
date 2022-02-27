@@ -140,6 +140,9 @@ class OptimisationModel(pyo.ConcreteModel):
             self.all_devices[dev_id] = new_device
 
         for node_data_obj in energy_system_data.nodes:
+            if node_data_obj.include is False:
+                # skip this node and move to next
+                continue
             new_node = networks.NetworkNode(node_data_obj)
             node_id = new_node.id
             self.all_nodes[node_id] = new_node

@@ -81,7 +81,7 @@ class EdgeData(BaseModel):  # Base model, use implementations below
 class NodeData(BaseModel):
     # unique identifier:
     id: str
-
+    include: Optional[bool] = True
 
 class SimulationResult(BaseModel):
     """Results from oogeso simulation

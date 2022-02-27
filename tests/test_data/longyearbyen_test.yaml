@@ -4,7 +4,7 @@ parameters:
   optimisation_timesteps: 24 # timesteps between each optimisation
   forecast_timesteps: 24 # timesteps beyond which forecast (instead of nowcast) profile is used
   #time_reserve_minutes: 1440 # minutes, how long stored energy must be sustained to count as reserve
-  co2_tax: 0.8 # NOK/kgCO2
+  co2_tax: 2 # NOK/kgCO2 https://www.regjeringen.no/contentassets/4eeae826fa5c4e21ad186eec1d9b7873/no/pdfs/prp202120220001ls1dddpdfs.pdf
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
   objective: costs # select objective function to use
@@ -13,7 +13,7 @@ carriers:
   - id: el
     powerflow_method: transport # transport, None, dc-pf
     el_backup_margin: -1 # MW, -1=no limit
-    el_reserve_margin: 5 # MWm -1=no limit
+    el_reserve_margin: -1 # MWm -1=no limit
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   - id: heat
   - id: hydrogen
@@ -33,7 +33,7 @@ devices:
     model: source_el
     name: wind_farm
     node_id: wind_farm
-    profile: V47
+    #profile: V47
 
   - id: pv
     flow_max: 1
@@ -44,7 +44,7 @@ devices:
     model: source_el
     name: pv
     node_id: powersupply
-    profile: PV
+    #profile: PV
 
   - id: loadshed
     # A "generator" to cover otherwise unmet el demand - representing load shed
@@ -156,7 +156,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 0
-    op_cost: 5000 # NOK/m3
+    op_cost: 7590 # NOK/m3 THEMA-og-Multiconsult-Energiforsyningen-på-Svalbard_final-1-1.pdf
     model: source_diesel
     name: diesel_source
     node_id: diesel_backup
