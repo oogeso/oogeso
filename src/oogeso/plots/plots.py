@@ -314,6 +314,7 @@ def plot_sum_power_mix(
     reverse_legend=True,
     exclude_zero=False,
     devs_shareload=None,
+    devs_combine=None,
 ):
     """
     Plot power mix
@@ -365,7 +366,11 @@ def plot_sum_power_mix(
         for c in devs_shareload:
             mask = df_flow_out[c] > 0
             df_flow_out.loc[mask, c] = devs_mean[mask]
-
+    if devs_combine:
+        for i in range(len(devs_combine[0])):
+            devs_sum = df_flow_out[devs_combine[1][i]].sum(axis=1)
+            df_flow_out[devs_combine[0][i]] = devs_sum
+            df_flow_out.drop(columns=devs_combine[1][i], inplace=True)
     if exclude_zero:
         df_flow_in = df_flow_in.loc[:, df_flow_in.sum() != 0]
         df_flow_out = df_flow_out.loc[:, df_flow_out.sum() != 0]
@@ -377,6 +382,7 @@ def plot_sum_power_mix(
                 x=df_flow_in.index,
                 y=df_flow_in[col],
                 line_shape="hv",
+                line_width=1,
                 name="in:" + col,
                 stackgroup="in",
                 legendgroup=col,
@@ -388,6 +394,7 @@ def plot_sum_power_mix(
                 x=df_flow_out.index,
                 y=df_flow_out[col],
                 line_shape="hv",
+                line_width=1,
                 name="out:" + col,
                 stackgroup="out",
                 legendgroup=col,
@@ -454,14 +461,30 @@ def plot_export_revenue(sim_result, filename=None, currency="$"):
 
 
 def plot_CO2_rate(sim_result, filename=None):
-    plt.figure(figsize=(24, 8))
-    plt.title("CO2 emission rate (kgCO2/s)")
-    ax = plt.gca()
-    ax.set_ylabel("kgCO2/s")
-    ax.set_xlabel("Timestep")
-    sim_result.co2_rate.plot()
-    if filename is not None:
-        plt.savefig(filename, bbox_inches="tight")
+    if plotter == "plotly":
+        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        fig.add_scatter(
+            x=sim_result.co2_rate.index,
+            y=sim_result.co2_rate.values,
+            line_shape="hv",
+            line_width=1,
+            stackgroup="one",
+            row=1,
+            col=1,
+        )
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Emission rate (kgCO2/s)")
+        fig.update_layout(height=600)
+        return fig
+    else:
+        plt.figure(figsize=(24, 8))
+        plt.title("CO2 emission rate (kgCO2/s)")
+        ax = plt.gca()
+        ax.set_ylabel("kgCO2/s")
+        ax.set_xlabel("Timestep")
+        sim_result.co2_rate.plot()
+        if filename is not None:
+            plt.savefig(filename, bbox_inches="tight")
 
 
 def plot_CO2_rate_per_device(
@@ -470,6 +493,7 @@ def plot_CO2_rate_per_device(
     filename=None,
     reverse_legend=False,
     device_shareload=None,
+    device_combine=None
 ):
 
     dfco2rate = sim_result.co2_rate_per_dev.unstack("device")
@@ -489,6 +513,12 @@ def plot_CO2_rate_per_device(
             mask = dfplot[c] > 0
             dfplot.loc[mask, c] = devs_mean[mask]
 
+    if device_combine:
+        for i in range(len(device_combine[0])):
+            devs_sum = dfplot[[x for x in device_combine[1][i] if x in dfplot.columns]].sum(axis=1)
+            dfplot[device_combine[0][i]] = devs_sum
+            dfplot.drop(dfplot.filter(device_combine[1][i]), axis=1, inplace=True)
+
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
         for col in dfplot:
@@ -496,6 +526,7 @@ def plot_CO2_rate_per_device(
                 x=dfplot.index,
                 y=dfplot[col],
                 line_shape="hv",
+                line_width=1,
                 name=col,
                 stackgroup="one",
                 row=1,
@@ -545,6 +576,105 @@ def plot_CO2_intensity(sim_result, filename=None):
         ax.set_ylabel(y_label)
         ax.set_xlabel(x_label)
         df_plot.plot()
+        if filename is not None:
+            plt.savefig(filename, bbox_inches="tight")
+    return fig
+
+def plot_op_cost(sim_result, filename=None):
+    if plotter == "plotly":
+        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        fig.add_scatter(
+            x=sim_result.op_cost.index,
+            y=sim_result.op_cost.values,
+            line_shape="hv",
+            line_width=1,
+            stackgroup="one",
+            row=1,
+            col=1,
+        )
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Operational cost (NOK/s)")
+        fig.update_layout(height=600)
+        return fig
+    else:
+        plt.figure(figsize=(24, 8))
+        plt.title("Operational cost (NOK/s)")
+        ax = plt.gca()
+        ax.set_ylabel("NOK/s")
+        ax.set_xlabel("Timestep")
+        sim_result.co2_rate.plot()
+        if filename is not None:
+            plt.savefig(filename, bbox_inches="tight")
+
+
+def plot_op_cost_per_device(
+    sim_result,
+    optimisation_model,
+    filename=None,
+    reverse_legend=False,
+    device_shareload=None,
+    device_combine=None
+):
+
+    dfopcost = sim_result.op_cost_per_dev.unstack("device")
+    all_devices = optimisation_model.all_devices
+    dfplot = dfopcost.loc[:, ~(dfopcost == 0).all()].copy()
+
+    if device_shareload is None:
+        # gas turbines:
+        device_shareload = [d for d, d_obj in all_devices.items() if d_obj.dev_data.model == "gasturbine"]
+
+    if device_shareload:  # list is non-empty
+        device_shareload = [d for d in device_shareload if d in dfplot]
+        devs_online = (dfplot[device_shareload] > 0).sum(axis=1)
+        devs_sum = dfplot[device_shareload].sum(axis=1)
+        devs_mean = devs_sum / devs_online
+        for c in device_shareload:
+            mask = dfplot[c] > 0
+            dfplot.loc[mask, c] = devs_mean[mask]
+
+    if device_combine:
+        for i in range(len(device_combine[0])):
+            devs_sum = dfplot[[x for x in device_combine[1][i] if x in dfplot.columns]].sum(axis=1)
+            dfplot.insert(loc=i, column=device_combine[0][i], value=devs_sum)
+            dfplot.drop(dfplot.filter(device_combine[1][i]), axis=1, inplace=True)
+
+    if plotter == "plotly":
+        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        for col in dfplot:
+            fig.add_scatter(
+                x=dfplot.index,
+                y=dfplot[col],
+                line_shape="hv",
+                line_width=1,
+                name=col,
+                stackgroup="one",
+                row=1,
+                col=1,
+            )
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Operational cost (NOK/s)")
+        if reverse_legend:
+            fig.update_layout(legend_traceorder="reversed")
+        fig.update_layout(height=600)
+    else:
+        fig = plt.figure(figsize=(12, 4))
+        ax = plt.gca()
+        ax.set_ylabel("Operational cost (NOK/s)")
+        ax.set_xlabel("Timestep")
+        dfplot.plot.area(ax=ax, linewidth=0)
+        if reverse_legend:
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(
+                handles[::-1],
+                labels[::-1],
+                loc="lower left",
+                bbox_to_anchor=(1.01, 0),
+                frameon=False,
+            )
+        else:
+            ax.legend(loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
+
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
     return fig
@@ -702,6 +832,7 @@ def plot_reserve(
     dynamic_margin=True,
     use_forecast=False,
     include_sum=True,
+    device_combine=None,
 ):
     """Plot unused online capacity by all el devices"""
     df_devs = pd.DataFrame()
@@ -722,7 +853,7 @@ def plot_reserve(
                     max_value = max_value * res.profiles_forecast.loc[timerange, ext_profile]
                 else:
                     max_value = max_value * res.profiles_nowcast.loc[timerange, ext_profile]
-            if dev_data.start_stop is not None:  # device_model in ["gasturbine"]:
+            if dev_data.start_stop is not None and dev_data.start_stop.delay_start_minutes>0 :  # device_model in ["gasturbine"]:
                 is_on = res.device_is_on[d]
                 max_value = is_on * max_value
             elif device_model in ["storage_el"]:
@@ -743,6 +874,11 @@ def plot_reserve(
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
+    if device_combine:
+        for i in range(len(device_combine[0])):
+            devs_sum = df_devs[[x for x in device_combine[1][i] if x in df_devs.columns]].sum(axis=1)
+            df_devs.insert(loc=i, column=device_combine[0][i], value=devs_sum)
+            df_devs.drop(df_devs.filter(device_combine[1][i]), axis=1, inplace=True)
     if plotter == "plotly":
         fig = px.area(df_devs, line_shape="hv")
         if include_sum:
@@ -750,7 +886,7 @@ def plot_reserve(
                 x=df_devs.index,
                 y=df_devs.sum(axis=1),
                 name="SUM",
-                line=dict(dash="dot", color="black"),
+                line=dict(dash="dot", color="black", width=1),
                 line_shape="hv",
             )
         if include_margin:

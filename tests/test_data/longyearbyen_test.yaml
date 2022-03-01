@@ -13,7 +13,7 @@ carriers:
   - id: el
     powerflow_method: transport # transport, None, dc-pf
     el_backup_margin: -1 # MW, -1=no limit
-    el_reserve_margin: -1 # MWm -1=no limit
+    el_reserve_margin: 5 # MWm -1=no limit
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   - id: heat
   - id: hydrogen
@@ -82,7 +82,7 @@ devices:
     model: electrolyser
     name: electrolyser
     node_id: h2_storage
-    flow_max: 60 # MW el
+    flow_max: 30 # MW el
     eta: 0.64 #efficiency (el to h2)
     eta_heat: 0.17 # heat recovery ratio
     reserve_factor: 1 #contributes to spinning reserve
