@@ -34,7 +34,7 @@ Please delete options that are not relevant.
    - [ ] Task 1
    - [ ] Task 2
 - [ ] :robot: I have added tests, or extended existing tests, to cover any new features or bugs fixed in this PR.
-- [ ] :book: I have considered adding a new entry in `CHANGES.md`.
+- [ ] :book: I have considered adding a new entry in `docs/changelog.md`.
 - [ ] :books: I have considered updating the documentation in `README.md` or `docs/*.md` .
 - [ ] :page_with_curl: The following issues are related:
    - [ ] #ISSUE_NUMBER
