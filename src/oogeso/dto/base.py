@@ -61,7 +61,10 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     max_ramp_up: Optional[float] = None
     start_stop: Optional[StartStopData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
-    op_cost: Optional[float] = None
+    op_cost: Optional[float] = None # variable operation and maintenance cost
+    # Fixed costs are not used in the optimization problem, but can be of interest
+    fixed_op_cost: Optional[float] = None # fixed operation and maintenance cost per time and flow_max
+    investment_cost: Optional[float] = None # initial investment cost per flow_max
     # Penalty may be fuel, emissions, cost and combinations of these
     penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: ModelType
@@ -73,6 +76,7 @@ class EdgeData(BaseModel):  # Base model, use implementations below
     node_to: str
     length_km: Optional[float] = None
     flow_max: float = None  # Maximum flow (MW or Sm3/s)
+    investment_cost: Optional[float] = None # Cost per flow_max and lenght_km of investment
     bidirectional: Optional[bool] = True
     include: bool = True  # whether to include object in problem formulation
     carrier: CarrierType

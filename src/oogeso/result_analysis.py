@@ -1,6 +1,8 @@
+from lib2to3.pgen2.token import OP
 from typing import Optional
 
 import pandas as pd
+from pyparsing import Opt
 
 from oogeso import dto
 
@@ -10,6 +12,7 @@ def compute_kpis(
     sim_data: dto.EnergySystemData,
     fuel_carrier: Optional[str] = "gas",
     wind_turbines: Optional[dto.DevicePowerSourceData] = None,
+    h2_storage: Optional[dto.DeviceStorageHydrogenData] = None,
 ):
     """Compute key indicators of simulation results
 
@@ -22,6 +25,8 @@ def compute_kpis(
     res = sim_result
     if wind_turbines is None:
         wind_turbines = list()
+    if h2_storage is None:
+        h2_storage = list()
 
     num_sim_timesteps = res.co2_rate.shape[0]
     timesteps = res.co2_rate.index
@@ -83,4 +88,14 @@ def compute_kpis(
                 p_avail[d] = P_max * res.profiles_nowcast.loc[timesteps, profile_ref]
     p_curtailed = (p_avail - p_wind).sum(axis=1)
     kpi["wind_curtailed_mwh_per_year"] = p_curtailed.mean() * hour_per_year
+
+    # Hydrogen produced and used
+    h2_energy_value = [c.energy_value for c in sim_data.carriers if c.id == "hydrogen"][0]
+    h2_prod = res.device_flow.unstack("carrier")["hydrogen"].unstack("terminal")["in"].dropna().unstack()
+    h2_prod_stored = h2_prod.T[h2_storage]
+    kpi["hydrogen_production_mwh_per_year"] = h2_prod_stored.sum(axis=1).mean() * h2_energy_value * hour_per_year
+    h2_used = res.device_flow.unstack("carrier")["hydrogen"].unstack("terminal")["out"].dropna().unstack()
+    h2_used_stored = h2_used.T[h2_storage]
+    kpi["hydrogen_usage_mwh_per_year"] = h2_used_stored.sum(axis=1).mean() * h2_energy_value * hour_per_year
+
     return kpi

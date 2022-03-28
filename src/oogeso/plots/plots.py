@@ -1,8 +1,13 @@
 import logging
+from typing import Optional
+from xml.etree.ElementInclude import include
 
 import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
+
+import oogeso
+from oogeso.core import optimiser
 
 try:
     import matplotlib.pyplot as plt
@@ -678,6 +683,150 @@ def plot_op_cost_per_device(
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
     return fig
+
+
+def plot_all_costs(
+    sim_result: oogeso.dto.SimulationResult,
+    optimization_model: oogeso.OptimisationModel,
+    filename: str = None,
+    investment: bool = True,
+    fuel: bool = True,
+    reverse_legend: bool = True,
+    ):
+    data = [["All costs"]]
+    cols = ["device"]
+    # Timestep length = minutes per timestep * seconds per minute
+    # Simulation time = number of timesteps timestep length
+    timestep_length = optimization_model.paramTimestepDeltaMinutes.value * 60
+    simulation_time = sim_result.op_cost.shape[0] * timestep_length
+    inv_sum = 0
+    fixed_op_cost_sum = 0
+    op_cost_sum = 0
+    fuel_cost_sum = 0
+    for dev, dev_obj in optimization_model.all_devices.items():
+        if dev_obj.dev_data.model == "sourcediesel" and fuel:
+            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+                fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+        else:
+            if dev_obj.dev_data.investment_cost is not None and dev_obj.dev_data.flow_max is not None:
+                inv_sum += dev_obj.dev_data.investment_cost*dev_obj.dev_data.flow_max
+            if dev_obj.dev_data.fixed_op_cost is not None:
+                fixed_op_cost_sum += dev_obj.dev_data.fixed_op_cost * dev_obj.dev_data.flow_max * simulation_time
+            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+                op_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+    if investment:
+        if inv_sum > 0:
+            data[0].append(inv_sum)
+            cols.append("Investment costs")
+    if fixed_op_cost_sum > 0:
+        data[0].append(fixed_op_cost_sum)
+        cols.append("Fixed operational and maintenance costs")
+    if op_cost_sum > 0:
+        data[0].append(op_cost_sum)
+        cols.append("Variable operational and maintenance costs")
+    if fuel_cost_sum > 0:
+        data[0].append(fuel_cost_sum)
+        cols.append("Fuel costs (diesel)")            
+    costs = pd.DataFrame(data, columns=cols)
+    if plotter == "plotly":
+        fig = px.bar(costs, y = cols, x='device')#, orientation = 'h')
+        fig.update_xaxes(title_text="Device")
+        fig.update_yaxes(title_text="Total costs (NOK)")
+        fig.update_layout(title="Total costs over the simulation", height=600)
+        if reverse_legend:
+            fig.update_layout(legend_traceorder="reversed")
+        return fig
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot all costs.")
+
+
+def plot_all_costs_per_device(
+    sim_result: oogeso.dto.SimulationResult,
+    optimization_model: oogeso.OptimisationModel,
+    filename: str = None,
+    investment: bool = True,
+    fuel: bool = True,
+    include_sum: bool = False,
+    reverse_legend: bool = True,
+    device_combine: Optional[list] = None,
+    ):
+    data = []
+    cols = ["device"]
+    # Timestep length = minutes per timestep * seconds per minute
+    # Simulation time = number of timesteps timestep length
+    timestep_length = optimization_model.paramTimestepDeltaMinutes.value * 60
+    simulation_time = sim_result.op_cost.shape[0] * timestep_length
+    for dev, dev_obj in optimization_model.all_devices.items():
+        inv_sum = 0
+        fixed_op_cost_sum = 0
+        op_cost_sum = 0
+        fuel_cost_sum = 0
+        if dev_obj.dev_data.model == "sourcediesel" and fuel:
+            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+                print(sim_result.op_cost_per_dev[dev].sum() * timestep_length)
+                fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+        else:
+            if investment:
+                if dev_obj.dev_data.investment_cost is not None and dev_obj.dev_data.flow_max is not None:
+                    inv_sum = dev_obj.dev_data.investment_cost*dev_obj.dev_data.flow_max
+            if dev_obj.dev_data.fixed_op_cost is not None:
+                fixed_op_cost_sum = dev_obj.dev_data.fixed_op_cost * dev_obj.dev_data.flow_max * simulation_time
+            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+                op_cost_sum = sim_result.op_cost_per_dev[dev].sum() * timestep_length
+        if investment and fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0):
+            data.append([dev, inv_sum, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum])
+        elif investment and not fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0):
+            data.append([dev, inv_sum, fixed_op_cost_sum, op_cost_sum])
+        elif not investment and fuel and (fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0):
+            data.append([dev, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum])
+        elif not investment and not fuel and (fixed_op_cost_sum > 0 or op_cost_sum > 0):
+            data.append([dev, fixed_op_cost_sum, op_cost_sum])
+    if investment:
+        cols.append("Investment costs")
+    cols.append("Fixed operational and maintenance costs")
+    cols.append("Variable operational and maintenance costs")
+    if fuel:
+        cols.append("Fuel costs (diesel)")
+    if device_combine:
+        for dev in device_combine[0]:
+            combine = [dev]
+            for i in range(len(data[0])-1):
+                combine.append(0)
+            data.append(combine)
+        for dev in data:
+            for i in range(len(device_combine[1])):
+                if dev[0] in device_combine[1][i]:
+                    for j in range(len(data)):
+                        if data[j][0] == device_combine[0][i]:
+                            new_data = []
+                            for k in range(len(data[0])-1):
+                                new_data.append(data[j][k+1] + dev[k+1])
+                            data[j][1:] = new_data
+    if include_sum:
+        totals = ["All costs"]
+        for i in range(len(data[0])-1):
+            totals.append(0)
+        for device in data:
+            for cost_id in range(1,len(data[0])):
+                totals[cost_id] += device[cost_id]
+        data.append(totals)
+
+    costs = pd.DataFrame(data, columns=cols)
+    if device_combine:
+        for i in range(len(device_combine[0])):
+            for dev in device_combine[1][i]:
+                costs.drop(costs[costs.device == dev].index, inplace=True)
+
+    if plotter == "plotly":
+        fig = px.bar(costs, y = cols, x='device')#, orientation = 'h')
+        fig.update_xaxes(title_text="Device")
+        fig.update_yaxes(title_text="Total costs (NOK)")
+        fig.update_layout(title="Total costs over the simulation", height=600)
+        if reverse_legend:
+            fig.update_layout(legend_traceorder="reversed")
+        return fig
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot all costs per device.")
 
 
 def plot_profiles(profiles, filename=None):

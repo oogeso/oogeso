@@ -28,6 +28,8 @@ devices:
     flow_max: 1
     flow_min: 1
     co2em: 0 # kgCO2/MWh_el
+    investment_cost: 0
+    fixed_op_cost: 0
     op_cost: 0.003 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
     include: 1
     model: source_el
@@ -39,11 +41,13 @@ devices:
     flow_max: 1
     flow_min: 1
     co2em: 0 # kgCO2/MWh_el
+    investment_cost: 0
+    fixed_op_cost: 0
     op_cost: 0.002 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
     include: 1
     model: source_el
     name: pv
-    node_id: powersupply
+    node_id: pv
     #profile: PV
 
   - id: loadshed
@@ -86,6 +90,8 @@ devices:
     eta: 0.64 #efficiency (el to h2)
     eta_heat: 0.17 # heat recovery ratio
     reserve_factor: 1 #contributes to spinning reserve
+    investment_cost: 0
+    fixed_op_cost: 0
     op_cost: 0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
 
   - id: fuelcell
@@ -96,6 +102,8 @@ devices:
     flow_max: 45 # MW el
     eta: 0.50 #efficiency (h2 to el)
     eta_heat: 0.4 #heat recovery ratio
+    investment_cost: 0
+    fixed_op_cost: 0
     op_cost: 0.03 # NOK/MJ (100 NOK/MWh = 0.03 NOK/MJ) #higher than wind, to favour wind when possible
     reserve_factor: 1 #contributes to spinning reserve
 
@@ -107,6 +115,7 @@ devices:
     E_max: 3000000 # Sm3  # 13 MJ/Sm3 => 1083 MWh (around 15 days at 15 MW and 50% efficiency)
     E_init: 1500000
     eta: 1
+    investment_cost: 0
     #target_profile: h2target # "H2target", for planning beyond optimisation window
     #target_value: 500000 # Sm3, same as E_init
     #E_cost: 0.001 # NOK/Sm3 deviation at end of optimization horizon
@@ -124,15 +133,22 @@ devices:
     E_max: 7 # MWh
     E_init: 3 # MWh
     eta: 0.95
+    investment_cost: 0
+    fixed_op_cost: 0
+    op_cost: 0
 
-  - id: heatpump
+  - id: geothermal
     include: 1
     model: heatpump
-    name: heatpump
-    node_id: heatpump
-    flow_max: 5
-    eta: 2
+    name: geothermal
+    node_id: geothermal
+    flow_max: 1.3
+    flow_min: 0
+    eta: 4
+    investment_cost: 0
+    fixed_op_cost: 0
     op_cost: 0.01
+    profile: geothermal
   
   - id: heat_dump
     flow_max: 100
@@ -170,6 +186,7 @@ devices:
     include: 0
     model: diesel_generator
     name: backup_east_1
+    fixed_op_cost: 0
     op_cost: 0.01
     node_id: diesel_backup
     start_stop:
@@ -214,7 +231,7 @@ devices:
     flow_min: 0.3
     fuel_A: 2.6983536666666668
     fuel_B: 0.16320687499999964
-    eta_heat: 0
+    eta_heat: 0.6
     include: 0
     model: diesel_generator
     name: backup_west_1
@@ -230,7 +247,7 @@ devices:
     flow_min: 0.3
     fuel_A: 2.6983536666666668
     fuel_B: 0.16320687499999964
-    eta_heat: 0
+    eta_heat: 0.6
     include: 0
     model: diesel_generator
     name: backup_west_2
@@ -246,7 +263,7 @@ devices:
     flow_min: 0.3
     fuel_A: 2.6983536666666668
     fuel_B: 0.16320687499999964
-    eta_heat: 0
+    eta_heat: 0.6
     include: 0
     model: diesel_generator
     name: backup_west_3
@@ -310,6 +327,16 @@ edges:
     resistance: 0.001
     carrier: el
 
+  - id: el_pv_ps
+    flow_max: 500.0
+    include: 1
+    length_km: 3
+    node_from: pv
+    node_to: powersupply
+    reactance: 0.01
+    resistance: 0.001
+    carrier: el
+
   - id: el_ps_load
     flow_max: 500.0
     include: 1
@@ -334,15 +361,15 @@ edges:
     node_to: h2_storage
     carrier: el
   
-  - id: el_ps_hp
+  - id: el_ps_geo
     include: 1
     node_from: powersupply
-    node_to: heatpump
+    node_to: geothermal
     carrier: el
 
-  - id: heat_hp_load
+  - id: heat_geo_load
     include: 1
-    node_from: heatpump
+    node_from: geothermal
     node_to: load
     carrier: heat
 
@@ -360,8 +387,9 @@ edges:
 
 nodes:
   - id: wind_farm
+  - id: pv
   - id: powersupply
   - id: load
   - id: h2_storage
-  - id: heatpump
+  - id: geothermal
   - id: diesel_backup
