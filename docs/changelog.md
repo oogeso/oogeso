@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## Unreleased
+
+## v1.0.1
+2022-04-06
 - Added: device constraints for minimum up and down time
 
 ## v1.0
