@@ -834,65 +834,80 @@ that depends on the device type.</p>
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
+<th class="head"><p>default</p></th>
 <th class="head"><p>description</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>id</p></td>
 <td><p>string</p></td>
+<td><p></p></td>
 <td><p>unique device identifier</p></td>
 </tr>
 <tr class="row-odd"><td><p>node_id</p></td>
 <td><p>string</p></td>
+<td><p></p></td>
 <td><p>identifier of node where it is connected</p></td>
 </tr>
 <tr class="row-even"><td><p>name</p></td>
 <td><p>string</p></td>
+<td><p>“”</p></td>
 <td><p>display name</p></td>
 </tr>
 <tr class="row-odd"><td><p>model</p></td>
 <td><p>string</p></td>
+<td><p></p></td>
 <td><p>name of device model type (see below)</p></td>
 </tr>
 <tr class="row-even"><td><p>include</p></td>
 <td><p>bool</p></td>
-<td><p>(optional) wether to include the node</p></td>
+<td><p>True</p></td>
+<td><p>wether to include the node</p></td>
 </tr>
 <tr class="row-odd"><td><p>profile</p></td>
 <td><p>string</p></td>
-<td><p>(optional) name of time series profile to use for scaling  (flow_max)</p></td>
+<td><p>None</p></td>
+<td><p>name of time series profile to use for scaling  (flow_max)</p></td>
 </tr>
 <tr class="row-even"><td><p>flow_max</p></td>
 <td><p>float</p></td>
-<td><p>(optional) maximum flow allowed (MW or Sm3/s)</p></td>
+<td><p>None</p></td>
+<td><p>maximum flow allowed (MW or Sm3/s)</p></td>
 </tr>
 <tr class="row-odd"><td><p>flow_min</p></td>
 <td><p>float</p></td>
-<td><p>(optional) minimum flow allowed (MW or Sm3/s)</p></td>
+<td><p>None</p></td>
+<td><p>minimum flow allowed (MW or Sm3/s)</p></td>
 </tr>
 <tr class="row-even"><td><p>max_ramp_up</p></td>
 <td><p>float</p></td>
-<td><p>(optional) maximum ramping (% of flow_max per min)</p></td>
+<td><p>None</p></td>
+<td><p>maximum ramping (% of flow_max per min)</p></td>
 </tr>
 <tr class="row-odd"><td><p>max_ramp_down</p></td>
 <td><p>float</p></td>
-<td><p>(optioanl) maximum ramping (% of flow_max per min)</p></td>
+<td><p>None</p></td>
+<td><p>maximum ramping (% of flow_max per min)</p></td>
 </tr>
 <tr class="row-even"><td><p>start_stop</p></td>
 <td><p>StartStopData</p></td>
-<td><p>(optional) see below</p></td>
+<td><p>None</p></td>
+<td><p>see below</p></td>
 </tr>
 <tr class="row-odd"><td><p>reserve_factor</p></td>
 <td><p>float</p></td>
-<td><p>(optional) how much of electric power counts towards the reserve (1=all, 0=none)</p></td>
+<td><p>None</p></td>
+<td><p>how much of electric power counts towards the reserve (1=all, 0=none)</p></td>
 </tr>
 <tr class="row-even"><td><p>op_cost</p></td>
 <td><p>float</p></td>
-<td><p>(optional) Operating cost</p></td>
+<td><p>None</p></td>
+<td><p>Operating cost</p></td>
 </tr>
 <tr class="row-odd"><td><p>penalty_function</p></td>
 <td><p>tuple</p></td>
-<td><p>(optional) flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
+<td><p>None</p></td>
+<td><p>flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -904,32 +919,39 @@ that depends on the device type.</p>
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
+<th class="head"><p>default</p></th>
 <th class="head"><p>description</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>is_on_init</p></td>
 <td><p>bool</p></td>
+<td><p>False</p></td>
 <td><p>device is initially on (True) or off (False)</p></td>
 </tr>
 <tr class="row-odd"><td><p>penalty_start</p></td>
 <td><p>float</p></td>
+<td><p>0</p></td>
 <td><p>startup penalty (cost)</p></td>
 </tr>
 <tr class="row-even"><td><p>penalty_stop</p></td>
 <td><p>float</p></td>
+<td><p>0</p></td>
 <td><p>shutdown penalty (cost)</p></td>
 </tr>
 <tr class="row-odd"><td><p>delay_start_minutes</p></td>
 <td><p>int</p></td>
+<td><p>0</p></td>
 <td><p>minutes delay from activation to being online</p></td>
 </tr>
 <tr class="row-even"><td><p>minimum_time_on_minutes</p></td>
 <td><p>int</p></td>
+<td><p>0</p></td>
 <td><p>time device must be on once started (min)</p></td>
 </tr>
 <tr class="row-odd"><td><p>minimum_time_off_minutes</p></td>
 <td><p>int</p></td>
+<td><p>0</p></td>
 <td><p>time device must be off once stopped (min)</p></td>
 </tr>
 </tbody>
