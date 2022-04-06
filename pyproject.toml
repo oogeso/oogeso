@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "oogeso"
-version = "1.0.0"
+version = "1.0.1"
 description = "Offshore Oil and Gas Field Energy System Operational Optimisation (OOGESO)"
 authors = ["Harald Svendsen <harald.svendsen@sintef.no>"]
 license = "MIT License (http://opensource.org/licenses/MIT)"

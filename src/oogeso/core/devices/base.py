@@ -115,6 +115,23 @@ class Device(ABC):
         rhs = prev_part - model.varDeviceStopping[dev, t]
         return lhs == rhs
 
+    def _rule_start_stop(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        """not allowed to start and stop in same timestep"""
+        dev = self.id
+        if i == 1:
+            # cannot start and stope in sime timestep
+            return model.varDeviceStarting[dev, t] + model.varDeviceStopping[dev, t] <= 1
+        elif i == 2:
+            # cannot start when already on (in previous timestep):
+            if t == 0:
+                return model.varDeviceStarting[dev, t] + model.paramDeviceIsOnInitially[dev] <= 1
+            return model.varDeviceStarting[dev, t] + model.varDeviceIsOn[dev, t - 1] <= 1
+        elif i == 3:
+            # cannot stop when already off (in previous timestep):
+            if t == 0:
+                return model.varDeviceStopping[dev, t] + (1 - model.paramDeviceIsOnInitially[dev]) <= 1
+            return model.varDeviceStopping[dev, t] + (1 - model.varDeviceIsOn[dev, t - 1]) <= 1
+
     def _rule_startup_delay(self, pyomo_model: pyo.Model, t: int) -> Union[bool, pyo.Constraint, pyo.Constraint.Skip]:
         """startup delay/preparation for GTs"""
         dev = self.id
@@ -124,7 +141,8 @@ class Device(ABC):
         # example: time_delta = 5 min, startupDelay= 8 min => T_delay=1
         T_delay = int(T_delay_min / time_delta_minutes)
         if T_delay == 0:
-            return pyo.Constraint.Skip  # noqa
+            # No preparation time, so fix variable to zero:
+            return pyomo_model.varDeviceIsPrep[dev, t] == 0
         # determine if was in preparation previously
         # dependent on value - so must reconstruct constraint each time
         steps_prev_prep = pyo.value(pyomo_model.paramDevicePrepTimestepsInitially[dev])
@@ -140,6 +158,52 @@ class Device(ABC):
         lhs = pyomo_model.varDeviceIsPrep[dev, t]
         rhs = sum(pyomo_model.varDeviceStarting[dev, t - tau] for tau in tau_range) + prev_part
         return lhs == rhs
+
+    def _rule_minimum_time_on(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Constraint, pyo.Constraint.Skip]:
+        """minimum online time before stopping device is allowed"""
+        dev = self.id
+        time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
+        T_online_min = self.dev_data.start_stop.minimum_time_on_minutes
+        # Delay in time-steps, rounding down.
+        T_required = int(T_online_min / time_delta_minutes)
+        if T_required == 0:
+            # No minimum online time - skip constraint
+            return pyo.Constraint.Skip
+        # dependent on value - so must reconstruct constraint each time
+        steps_prev_online = pyo.value(pyomo_model.paramDeviceOnlineTimestepsInitially[dev])
+
+        # The idea is sum up how many timesteps the devie has been on in the previous T_online_required number
+        # of timesteps previous to the present timestep (t). If t<T_online_required, we must include online status
+        # from the previous optimisation
+
+        # include online time previous to present optimistion window - but only the last ones
+        prev_part = max(0, min(T_required - t, steps_prev_online))  # e.g. t=3: max(0,min(4-3,4))=max(0,1)=1
+        tau_range = range(0, min(t, T_required))  # e.g. t=3: [0,1,2]
+        lhs = pyomo_model.varDeviceStopping[dev, t] * T_required
+        rhs = sum(pyomo_model.varDeviceIsOn[dev, t - 1 - tau] for tau in tau_range) + prev_part
+        # e.g. t=3, prev_part=1
+        return lhs <= rhs
+
+    def _rule_minimum_time_off(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Constraint, pyo.Constraint.Skip]:
+        """minimum offline time before starting device is allowed"""
+        dev = self.id
+        time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
+        T_min = self.dev_data.start_stop.minimum_time_off_minutes
+        # Delay in time-steps, rounding down.
+        T_required = int(T_min / time_delta_minutes)
+        if T_required == 0:
+            # No minimum offline time - skip constraint
+            return pyo.Constraint.Skip
+        # dependent on value - so must reconstruct constraint each time
+        steps_prev = pyo.value(pyomo_model.paramDeviceOfflineTimestepsInitially[dev])
+
+        # include offline time previous to present optimistion window - but only the last ones
+        prev_part = max(0, min(T_required - t, steps_prev))  # e.g. t=3: max(0,min(4-3,4))=max(0,1)=1
+        tau_range = range(0, min(t, T_required))  # e.g. t=3: [0,1,2]
+        lhs = pyomo_model.varDeviceStarting[dev, t] * T_required
+        rhs = sum((1 - pyomo_model.varDeviceIsOn[dev, t - 1 - tau]) for tau in tau_range) + prev_part
+        # e.g. t=3, prev_part=1
+        return lhs <= rhs
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[Constraint]:
         """Build constraints for the device and add to pyomo model.
@@ -184,11 +248,33 @@ class Device(ABC):
                 f"constr_{self.id}_startdelay",
                 constr_device_startup_delay,
             )
+            constr_device_start_stop = pyo.Constraint(
+                pyomo_model.setHorizon, pyo.RangeSet(1, 3), rule=self._rule_start_stop
+            )
+            setattr(
+                pyomo_model,
+                f"constr_{self.id}_start_stop",
+                constr_device_start_stop,
+            )
+            constr_device_minimum_time_on = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_minimum_time_on)
+            setattr(
+                pyomo_model,
+                f"constr_{self.id}_minimum_time_on",
+                constr_device_minimum_time_on,
+            )
+            constr_device_minimum_time_off = pyo.Constraint(pyomo_model.setHorizon, rule=self._rule_minimum_time_off)
+            setattr(
+                pyomo_model,
+                f"constr_{self.id}_minimum_time_off",
+                constr_device_minimum_time_off,
+            )
 
             # return list of constraints that need to be reconstructed:
             list_to_reconstruct = [
                 constr_device_startup_shutdown,
                 constr_device_startup_delay,
+                constr_device_minimum_time_on,
+                constr_device_minimum_time_off,
             ]
         return list_to_reconstruct
 

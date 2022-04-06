@@ -233,6 +233,12 @@ class OptimisationModel(pyo.ConcreteModel):
         self.paramDevicePrepTimestepsInitially = pyo.Param(
             self.setDevice, mutable=True, within=pyo.Integers, initialize=0
         )
+        self.paramDeviceOnlineTimestepsInitially = pyo.Param(
+            self.setDevice, mutable=True, within=pyo.Integers, initialize=1000
+        )
+        self.paramDeviceOfflineTimestepsInitially = pyo.Param(
+            self.setDevice, mutable=True, within=pyo.Integers, initialize=1000
+        )
         # needed for ramp rate limits:
         self.paramDevicePowerInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
         # needed for energy storage:
@@ -389,21 +395,18 @@ class OptimisationModel(pyo.ConcreteModel):
             for t in range(timesteps_use_nowcast, horizon):
                 self.paramProfiles[prof, t] = profiles["forecast"].loc[timestep + t, prof]
 
-        def _update_on_timesteps(_t_prev, _dev):
-            # sum up consequtive timesteps starting at tprev going
-            # backwards, where device has been in preparation phase
-            sum_on = 0
-            docontinue = True
-            for tt in range(_t_prev, -1, -1):
-                if pyo.value(self.varDeviceIsPrep[_dev, tt]) == 1:
-                    sum_on = sum_on + 1
+        def _count_consequtive_steps(_timestep, _dev, the_value, the_variable, the_parameter):
+            """Count number of steps the_variable has had value=the_value"""
+            count = 0
+            for tt in range(_timestep, -1, -1):  # tt = [_timestep,..,2,1,0]
+                if pyo.value(the_variable[_dev, tt]) == the_value:
+                    count = count + 1
                 else:
-                    docontinue = False
-                    break  # exit for loop
-            if docontinue:
-                # we got all the way back to 0, so must include initial value
-                sum_on = sum_on + self.paramDevicePrepTimestepsInitially[_dev]
-            return sum_on
+                    break
+            if count == _timestep:
+                # all timesteps back to beginning, so include count from previous optimisation
+                count = count + the_parameter[_dev]
+            return count
 
         # Update startup/shutdown info
         # pick the last value from previous optimistion prior to the present time
@@ -412,7 +415,15 @@ class OptimisationModel(pyo.ConcreteModel):
             for dev, dev_obj in self.all_devices.items():
                 # On/off status: (round because solver doesn't alwasy return an integer)
                 self.paramDeviceIsOnInitially[dev] = round(pyo.value(self.varDeviceIsOn[dev, t_prev]))
-                self.paramDevicePrepTimestepsInitially[dev] = _update_on_timesteps(t_prev, dev)
+                self.paramDevicePrepTimestepsInitially[dev] = _count_consequtive_steps(
+                    t_prev, dev, 1, self.varDeviceIsPrep, self.paramDevicePrepTimestepsInitially
+                )
+                self.paramDeviceOnlineTimestepsInitially[dev] = _count_consequtive_steps(
+                    t_prev, dev, 1, self.varDeviceIsOn, self.paramDeviceOnlineTimestepsInitially
+                )
+                self.paramDeviceOfflineTimestepsInitially[dev] = _count_consequtive_steps(
+                    t_prev, dev, 0, self.varDeviceIsOn, self.paramDeviceOfflineTimestepsInitially
+                )
                 # Initial power output (relevant for ramp rate constraint):
                 if dev_obj.dev_data.max_ramp_up is not None:
                     self.paramDevicePowerInitially[dev] = dev_obj.get_flow_var(self, t_prev)
