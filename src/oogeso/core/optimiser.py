@@ -594,7 +594,7 @@ class OptimisationModel(pyo.ConcreteModel):
         start_stop_costs = start_stop_costs / sum_time
         return start_stop_costs
 
-    def compute_operating_costs(self, model: pyo.Model):
+    def compute_operating_costs(self, model: pyo.Model, timesteps=None):
         """term in objective function to represent fuel costs or similar
         as average per sec ($/s)
 
@@ -602,17 +602,19 @@ class OptimisationModel(pyo.ConcreteModel):
         Note: el costs per MJ not per MWh
         """
         sum_cost = 0
-        timesteps = self.setHorizon
+        if timesteps is None:
+            timesteps = self.setHorizon
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             sum_cost += dev_obj.compute_operating_costs(model, timesteps)
         return sum_cost
 
-    def compute_cost_for_depleted_storage(self, model: pyo.Model):
+    def compute_cost_for_depleted_storage(self, model: pyo.Model, timesteps=None):
         """term in objective function to discourage depleting battery,
         making sure it is used only when required"""
         store_cost = 0
-        timesteps = self.setHorizon
+        if timesteps is None:
+            timesteps = self.setHorizon
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             store_cost += dev_obj.compute_cost_for_depleted_storage(model, timesteps)
