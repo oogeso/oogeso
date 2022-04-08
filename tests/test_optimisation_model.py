@@ -117,6 +117,22 @@ def test_optimiser_compute():
     assert export_revenue == 0
 
 
+def test_optimiser_methods(testcase2_data):
+    simulator = oogeso.Simulator(testcase2_data)
+    optimiser = simulator.optimiser
+
+    # check that the expression size (number of nodes in expression tree) is as expected:
+    co2_expr1 = optimiser.compute_CO2(model=optimiser, devices=None, timesteps=[0])
+    assert co2_expr1.size() == 10
+    co2_expr2 = optimiser.compute_CO2(model=optimiser)
+    assert co2_expr2.size() == 36
+
+    start_penalty1 = optimiser.compute_startup_penalty(model=optimiser, devices=None, timesteps=[0])
+    assert start_penalty1.size() == 12
+    start_penalty2 = optimiser.compute_startup_penalty(model=optimiser)
+    assert start_penalty2.size() == 36
+
+
 @pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
 def test_optimisation_solve():
     """Check that it solves simple problem with CBC solver"""

@@ -412,7 +412,7 @@ class Device(ABC):
         sum_cost = 0
         if self.dev_data.op_cost is not None:
             op_cost = self.dev_data.op_cost
-            for t in pyomo_model.setHorizon:
+            for t in timesteps:
                 var_P = self.get_flow_var(pyomo_model=pyomo_model, t=t)
                 sum_cost += op_cost * var_P
         # average per sec (simulation timestep drops out)
