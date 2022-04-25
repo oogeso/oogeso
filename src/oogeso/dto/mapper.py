@@ -49,6 +49,7 @@ def get_device_from_model_name(model_name: str) -> Callable:
         "sourceoil": devices.SourceOil,
         "sourcewater": devices.SourceWater,
         "storagehydrogen": devices.StorageHydrogen,
+        "storagehydrogencompressor": devices.StorageHydrogenCompressor,
         "wellgaslift": devices.WellGasLift,
         "wellproduction": devices.WellProduction,
     }
@@ -88,6 +89,7 @@ def get_device_data_class_from_str(model_name: str) -> Callable:
         "sourceoil": dto.DeviceSourceOilData,
         "sourcewater": dto.DeviceSourceWaterData,
         "storagehydrogen": dto.DeviceStorageHydrogenData,
+        "storagehydrogencompressor": dto.DeviceStorageHydrogenCompressorData,
         "wellgaslift": dto.DeviceWellGasLiftData,
         "wellproduction": dto.DeviceWellProductionData,
     }

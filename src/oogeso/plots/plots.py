@@ -232,10 +232,10 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
     dev_data = optimiser.all_devices[dev].dev_data
     device_name = "{}:{}".format(dev, dev_data.name)
 
-    if dev_data.model == "storagehydrogen":
+    if dev_data.model in ["storagehydrogen", "storagehydrogencompressor"]:
         carrier = "hydrogen"
-        flow_title = "Flow (Sm3/s)"
-        energy_storage_title = "Energy storage (Sm3)"
+        flow_title = "Flow (Nm3/s)"
+        energy_storage_title = "Energy storage (Nm3)"
     else:
         carrier = "el"
         flow_title = "Power (MW)"
@@ -878,6 +878,40 @@ def plot_profiles(profiles, filename=None):
             plt.savefig(filename, bbox_inches="tight")
     return fig
 
+
+def plot_unused_profile_power(
+    simulator: oogeso.Simulator,
+    reverse_legend: bool = True,
+    ):
+    fig = None
+    profiles = simulator.profiles["nowcast"]
+    unused_power = []
+    labels = []
+    for d, d_obj in simulator.optimiser.all_devices.items():
+        if d_obj.dev_data.model == "sourceel" and d_obj.dev_data.profile is not None:
+            id = d_obj.dev_data.id
+            labels.append(id)
+            unused_power.append(profiles[d_obj.dev_data.profile][:len(simulator.result_object.device_flow[id]["el"]["out"])] * d_obj.dev_data.flow_max - simulator.result_object.device_flow[id]["el"]["out"])
+    data = pd.DataFrame(np.array(unused_power).T, columns=labels)
+    if plotter == "plotly":
+        fig = plotly.subplots.make_subplots(rows=1, cols=1)
+        for col in data:
+            fig.add_scatter(
+                x=data.index,
+                y=data[col],
+                line_shape="hv",
+                line_width=1,
+                name=col,
+                stackgroup="one",
+                row=1,
+                col=1,
+            )
+        fig.update_xaxes(title_text="Timestep")
+        fig.update_yaxes(title_text="Unused power (MW)")
+        if reverse_legend:
+            fig.update_layout(legend_traceorder="reversed")
+        fig.update_layout(height=600)
+    return fig
 
 def plot_device_power_flow_pressure(sim_result, optimisation_model: pyo.Model, dev, carriers_inout=None, filename=None):
     res = sim_result

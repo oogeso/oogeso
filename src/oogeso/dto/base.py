@@ -15,6 +15,17 @@ class StartStopData(BaseModel):
     minimum_time_off_minutes: float = 0  # Minimum off-time in minutes once stopped
 
 
+class CompressorData(BaseModel):
+    eta: float = 1 # Compressor efficiency
+    eta_heat: float = 0 # Compressor waste heat recovery
+    temperature: float = 273.15 # Final temperature of compressed hydrogen in Kelvin
+    T_min: float = 200 # Lowest probable input temperature (used for adiabatic calculations)
+    T_max: float = 500 # Highest probable input temperature (used for adiabatic calculations)
+    p_in: float = 0.1 # Pressure of input hydrogen in MPa
+    p_max: float = 70 # Maximum pressure of hydrogen in storage tank
+    isothermal_adiabatic: float = 0 # Isothermal (0), adiabatic (1), or any value in between
+
+
 class TimeSeriesData(BaseModel):
     id: str
     data: List[float]
@@ -60,14 +71,18 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     max_ramp_down: Optional[float] = None
     max_ramp_up: Optional[float] = None
     start_stop: Optional[StartStopData] = None
+    compressor: Optional[CompressorData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
     op_cost: Optional[float] = None # variable operation and maintenance cost
+    op_cost_in: Optional[float] = None # variable operation and maintenance cost for inflow variable
+    op_cost_out: Optional[float] = None # variable operation and maintenance cost for outflow variable
     # Fixed costs are not used in the optimization problem, but can be of interest
     fixed_op_cost: Optional[float] = None # fixed operation and maintenance cost per time and flow_max
     investment_cost: Optional[float] = None # initial investment cost per flow_max
     # Penalty may be fuel, emissions, cost and combinations of these
     penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: ModelType
+    electrolyser_id: Optional[str] = None # name of electrolyser device, if relevant
 
 
 class EdgeData(BaseModel):  # Base model, use implementations below

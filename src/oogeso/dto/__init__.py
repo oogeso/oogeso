@@ -7,6 +7,7 @@ from oogeso.dto.base import (
     OptimisationParametersData,
     SimulationResult,
     StartStopData,
+    CompressorData,
     TimeSeriesData,
 )
 from oogeso.dto.carriers import (
@@ -49,6 +50,7 @@ from oogeso.dto.devices import (
     DeviceSourceWaterData,
     DeviceStorageElData,
     DeviceStorageHydrogenData,
+    DeviceStorageHydrogenCompressorData,
     DeviceWellGasLiftData,
     DeviceWellProductionData,
 )

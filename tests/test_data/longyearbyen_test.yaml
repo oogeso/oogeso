@@ -17,7 +17,7 @@ carriers:
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   - id: heat
   - id: hydrogen
-    energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
+    energy_value: 12.8 # MJ/Nm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
   - id: diesel
     energy_value: 39000  # MJ/m3 (calorific value) -> 39 MJ/m3
     co2_content: 2640 # kg/m3
@@ -30,7 +30,7 @@ devices:
     co2em: 0 # kgCO2/MWh_el
     investment_cost: 0
     fixed_op_cost: 0
-    op_cost: 0.003 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
+    op_cost: 0.001 # NOK/MJ (10 NOK/MWh = 0.003 NOK/MJ)
     include: 1
     model: source_el
     name: wind_farm
@@ -86,13 +86,13 @@ devices:
     model: electrolyser
     name: electrolyser
     node_id: h2_storage
-    flow_max: 30 # MW el
+    flow_max: 50 # MW el
     eta: 0.64 #efficiency (el to h2)
     eta_heat: 0.17 # heat recovery ratio
     reserve_factor: 1 #contributes to spinning reserve
     investment_cost: 0
     fixed_op_cost: 0
-    op_cost: 0.01 #NOK/MJ (same as fuel cell - to give incentinve to fill storage)
+    op_cost: -0.01 #NOK/MJ (same as fuel cell - to give incentive to fill storage)
 
   - id: fuelcell
     include: 0
@@ -104,18 +104,29 @@ devices:
     eta_heat: 0.4 #heat recovery ratio
     investment_cost: 0
     fixed_op_cost: 0
-    op_cost: 0.03 # NOK/MJ (100 NOK/MWh = 0.03 NOK/MJ) #higher than wind, to favour wind when possible
+    op_cost: 0.02 # NOK/MJ (100 NOK/MWh = 0.03 NOK/MJ) #higher than wind, to favour wind when possible
     reserve_factor: 1 #contributes to spinning reserve
 
   - id: h2_storage
     include: 0
-    model: storage_hydrogen
-    name: h2_storage
+    model: storage_hydrogen_compressor
+    name: compressed_h2_storage
     node_id: h2_storage
-    E_max: 3000000 # Sm3  # 13 MJ/Sm3 => 1083 MWh (around 15 days at 15 MW and 50% efficiency)
+    flow_max: 5
+    E_min: 100
+    E_max: 3000000 # Nm3  # 13 MJ/Sm3 => 10830 MWh (around 15 days at 15 MW and 50% efficiency)
     E_init: 1500000
     eta: 1
+    op_cost_in: -0.005 # Fill incentive
+    op_cost_out: 0.02
     investment_cost: 0
+    compressor:
+      eta: 0.95
+      eta_heat: 0.4
+      isothermal_adiabatic: 0.5 #0.0 # 0 for isothermal limit, 1 for adiabatic limit, can also be any float in between
+      temperature: 300 # K 
+      p_in: 1 # MPa, (10 bar) pressure of hydrogen arriving from electrolyser
+      p_max: 70 # MPa, (700 bar) maximum pressure of hydrogen in storage tank
     #target_profile: h2target # "H2target", for planning beyond optimisation window
     #target_value: 500000 # Sm3, same as E_init
     #E_cost: 0.001 # NOK/Sm3 deviation at end of optimization horizon
@@ -135,7 +146,8 @@ devices:
     eta: 0.95
     investment_cost: 0
     fixed_op_cost: 0
-    op_cost: 0
+    op_cost_in: -0.0011 # Slight fill incentive
+    op_cost_out: 0.001
 
   - id: geothermal
     include: 1
@@ -149,12 +161,24 @@ devices:
     fixed_op_cost: 0
     op_cost: 0.01
     profile: geothermal
+
+  - id: resistive_heater
+    include: 1
+    model: heatpump
+    name: resistive_heater
+    node_id: resistive_heater
+    flow_max: 5
+    flow_min: 0
+    eta: 0.95
+    investment_cost: 0
+    fixed_op_cost: 0
+    op_cost: 0.001
   
   - id: heat_dump
     flow_max: 100
     flow_min: 0
     include: 1
-    op_cost: 0.1
+    op_cost: 0 #0.001
     model: sink_heat
     name: heat_dump
     node_id: load
@@ -373,6 +397,18 @@ edges:
     node_to: load
     carrier: heat
 
+  - id: el_ps_rh
+    include: 1
+    node_from: powersupply
+    node_to: resistive_heater
+    carrier: el
+
+  - id: heat_rh_load
+    include: 1
+    node_from: resistive_heater
+    node_to: load
+    carrier: heat
+
   - id: el_diesel_load
     include: 1
     node_from: diesel_backup
@@ -392,4 +428,5 @@ nodes:
   - id: load
   - id: h2_storage
   - id: geothermal
+  - id: resistive_heater
   - id: diesel_backup

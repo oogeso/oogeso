@@ -14,6 +14,7 @@ from .plots import (
     plot_export_revenue,
     plot_gas_turbine_efficiency,
     plot_profiles,
+    plot_unused_profile_power,
     plot_reserve,
     plot_sum_power_mix,
 )

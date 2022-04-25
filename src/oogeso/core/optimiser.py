@@ -245,7 +245,7 @@ class OptimisationModel(pyo.ConcreteModel):
         # needed for ramp rate limits:
         self.paramDevicePowerInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
         # needed for energy storage:
-        self.paramDeviceEnergyInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
+        self.paramDeviceEnergyInitially = pyo.Param(self.setDevice, mutable=True, within=pyo.NonNegativeReals, initialize=0)
         # target energy level at end of horizon (useful for long-term storage)
         self.paramDeviceEnergyTarget = pyo.Param(self.setDevice, mutable=True, within=pyo.Reals, initialize=0)
 
@@ -266,11 +266,17 @@ class OptimisationModel(pyo.ConcreteModel):
         self.varDeviceIsOn = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=1)
         self.varDeviceStarting = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=None)
         self.varDeviceStopping = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=None)
-        self.varDeviceStorageEnergy = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Reals)
+        self.varDeviceStorageEnergy = pyo.Var(self.setDevice, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
         # available reserve power from storage (linked to power rating and storage level):
         self.varDeviceStoragePmax = pyo.Var(self.setDevice, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
-        # binary variable related to available powr from storage:
+        self.varDeviceCompressorEnergy = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Reals, initialize=0)
+        self.varDeviceCompressorEnergyIso = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Reals, initialize=0)
+        self.varDeviceCompressorPIso = pyo.Var(self.setDevice, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
+        # binary variables related to available powr from storage:
         self.varStorY = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary)
+        self.varStorY2 = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary)
+        self.varStorIn = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=0)
+        self.varStorOut = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=0)
         # absolute value variable for storage with target level:
         self.varDeviceStorageDeviationFromTarget = pyo.Var(self.setDevice, within=pyo.NonNegativeReals, initialize=0)
         self.varPressure = pyo.Var(

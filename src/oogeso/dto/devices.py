@@ -170,13 +170,23 @@ class DeviceSeparator2Data(DeviceData):
 
 
 class DeviceStorageHydrogenData(DeviceData):
-    E_max: float = 0  # MWh storage capacity (maximum stored energy)
+    E_max: float = 0  # Nm3 storage capacity (maximum stored energy)
     E_min: float = 0
     eta: float = 1  # efficiency
     target_profile: Optional[str] = None  # target profile for use of (seasonal) storage
     E_cost: float = 0  # cost for depleting storage
     E_init: float = 0
     model: ModelType = ModelType.STORAGE_HYDROGEN
+
+
+class DeviceStorageHydrogenCompressorData(DeviceData):
+    E_max: float = 0  # Nm3 storage capacity (maximum stored energy)
+    E_min: float = 0
+    eta: float = 1  # efficiency
+    target_profile: Optional[str] = None  # target profile for use of (seasonal) storage
+    E_cost: float = 0  # cost for depleting storage
+    E_init: float = 0
+    model: ModelType = ModelType.STORAGE_HYDROGEN_COMPRESSOR
 
 
 class DeviceWellProductionData(DeviceData):

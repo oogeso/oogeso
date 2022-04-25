@@ -38,6 +38,7 @@ class Device(ABC):
         dev_data = self.dev_data
         if hasattr(dev_data, "E_init"):
             pyomo_model.paramDeviceEnergyInitially[dev_id] = dev_data.E_init
+            pyomo_model.varDeviceStorageEnergy[dev_id, 0] = dev_data.E_init
         if dev_data.start_stop is not None:
             pyomo_model.paramDeviceIsOnInitially[dev_id] = dev_data.start_stop.is_on_init
         if hasattr(dev_data, "P_init"):

@@ -63,6 +63,10 @@ class DataclassJSONDecoder(json.JSONDecoder):
         if start_stop is not None:
             startstop_obj = dto.StartStopData(**start_stop)
             dct["start_stop"] = startstop_obj
+        compressor: Optional[Dict] = dct.pop("compressor", None)
+        if compressor is not None:
+            compressor_obj = dto.CompressorData(**compressor)
+            dct["compressor"] = compressor_obj
         dev_class = get_device_data_class_from_str(model_name=model)
         return dev_class(**dct)
 

@@ -43,6 +43,7 @@ class ModelType(str, Enum):
     SEPARATOR = "separator"
     SEPARATOR2 = "separator2"
     STORAGE_HYDROGEN = "storagehydrogen"
+    STORAGE_HYDROGEN_COMPRESSOR = "storagehydrogencompressor"
     WELL_PRODUCTION = "wellproduction"
     WELL_GAS_LIFT = "wellgaslift"
 
