@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import pyomo.environ as pyo
 
@@ -44,3 +44,24 @@ class HeatPump(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+
+    # Overriding default
+    def compute_operating_costs(self, pyomo_model: pyo.Model, timesteps: Union[pyo.Set, List[int]]) -> float:
+        """average operating cost within selected timespan"""
+        # By using op_cost_in and op_cost_out, the operational costs can be given as cost per electricity usage,
+        # cost per heat production, or a combination of the two for potentially nonconstant eta.
+        sum_cost = 0
+        if self.dev_data.op_cost is not None and self.dev_data.op_cost_in is None:
+            self.dev_data.op_cost_in = self.dev_data.op_cost
+        if self.dev_data.op_cost_in is not None:
+            op_cost = self.dev_data.op_cost_in
+            for t in timesteps: #pyomo_model.setHorizon:
+                var_P = pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+                sum_cost += op_cost * var_P
+        if self.dev_data.op_cost_out is not None:
+            op_cost = self.dev_data.op_cost_out
+            for t in timesteps: #pyomo_model.setHorizon:
+                var_P = pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
+                sum_cost += op_cost * var_P
+        # average per sec (simulation timestep drops out)
+        return sum_cost / len(timesteps)
