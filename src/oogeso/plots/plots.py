@@ -5,6 +5,7 @@ from xml.etree.ElementInclude import include
 import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
+from pyparsing import col
 
 import oogeso
 from oogeso.core import optimiser
@@ -225,7 +226,7 @@ def plot_device_profile(
     return fig
 
 
-def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None):
+def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None, dev_color_dict=None):
     """Plot power in/out of device and storage level (if any)"""
     res = sim_result
     optimiser = optimisation_model
@@ -262,13 +263,23 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
                 fill="tozeroy",
             )
         if not df_storage_energy.empty:
-            fig.add_scatter(
-                x=df_storage_energy.index,
-                y=df_storage_energy,
-                name="storage",
-                secondary_y=False,
-                fill="tozeroy",
-            )  # ,line=dict(dash='dot'))
+            if dev_color_dict is not None:
+                fig.add_scatter(
+                    x=df_storage_energy.index,
+                    y=df_storage_energy,
+                    name="storage",
+                    secondary_y=False,
+                    fill="tozeroy",
+                    line_color = dev_color_dict[dev]
+                )  # ,line=dict(dash='dot'))
+            else:
+                fig.add_scatter(
+                    x=df_storage_energy.index,
+                    y=df_storage_energy,
+                    name="storage",
+                    secondary_y=False,
+                    fill="tozeroy",
+                )  # ,line=dict(dash='dot'))
             if energy_fill_opacity is not None:
                 k = len(fig["data"]) - 1
                 linecol = plotly.colors.DEFAULT_PLOTLY_COLORS[k]
@@ -320,6 +331,8 @@ def plot_sum_power_mix(
     exclude_zero=False,
     devs_shareload=None,
     devs_combine=None,
+    devs_exclude=None,
+    dev_color_dict=None,
 ):
     """
     Plot power mix
@@ -375,6 +388,8 @@ def plot_sum_power_mix(
         for i in range(len(devs_combine[0])):
             devs_sum = df_flow_out[devs_combine[1][i]].sum(axis=1)
             df_flow_out[devs_combine[0][i]] = devs_sum
+            if dev_color_dict is not None:
+                dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
             df_flow_out.drop(columns=devs_combine[1][i], inplace=True)
     if exclude_zero:
         df_flow_in = df_flow_in.loc[:, df_flow_in.sum() != 0]
@@ -383,29 +398,59 @@ def plot_sum_power_mix(
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05)
         for col in df_flow_in:
-            fig.add_scatter(
-                x=df_flow_in.index,
-                y=df_flow_in[col],
-                line_shape="hv",
-                line_width=1,
-                name="in:" + col,
-                stackgroup="in",
-                legendgroup=col,
-                row=2,
-                col=1,
-            )
+            if col not in devs_exclude:
+                if dev_color_dict is not None:
+                    fig.add_scatter(
+                        x=df_flow_in.index,
+                        y=df_flow_in[col],
+                        line_shape="hv",
+                        line_width=1,
+                        line_color=dev_color_dict[col],
+                        name="in:" + col,
+                        stackgroup="in",
+                        legendgroup=col,
+                        row=2,
+                        col=1,
+                    )
+                else:
+                    fig.add_scatter(
+                        x=df_flow_in.index,
+                        y=df_flow_in[col],
+                        line_shape="hv",
+                        line_width=1,
+                        name="in:" + col,
+                        stackgroup="in",
+                        legendgroup=col,
+                        row=2,
+                        col=1,
+                    )
         for col in df_flow_out:
-            fig.add_scatter(
-                x=df_flow_out.index,
-                y=df_flow_out[col],
-                line_shape="hv",
-                line_width=1,
-                name="out:" + col,
-                stackgroup="out",
-                legendgroup=col,
-                row=1,
-                col=1,
-            )
+            if col not in devs_exclude:
+                if dev_color_dict is not None:
+                    fig.add_scatter(
+                        x=df_flow_out.index,
+                        y=df_flow_out[col],
+                        line_shape="hv",
+                        line_width=1,
+                        line_color=dev_color_dict[col],
+                        name="out:" + col,
+                        stackgroup="out",
+                        legendgroup=col,
+                        row=1,
+                        col=1,
+                    )
+                else:
+                    fig.add_scatter(
+                        x=df_flow_out.index,
+                        y=df_flow_out[col],
+                        line_shape="hv",
+                        line_width=1,
+                        name="out:" + col,
+                        stackgroup="out",
+                        legendgroup=col,
+                        row=1,
+                        col=1,
+                    )
         fig.update_xaxes(row=1, col=1, title_text="")
         fig.update_xaxes(row=2, col=1, title_text="Timestep")
         fig.update_yaxes(row=1, col=1, title_text="Power supply (MW)")
@@ -473,6 +518,7 @@ def plot_CO2_rate(sim_result, filename=None):
             y=sim_result.co2_rate.values,
             line_shape="hv",
             line_width=1,
+            line_color="black",
             stackgroup="one",
             row=1,
             col=1,
@@ -497,46 +543,64 @@ def plot_CO2_rate_per_device(
     optimisation_model,
     filename=None,
     reverse_legend=False,
-    device_shareload=None,
-    device_combine=None
+    devs_shareload=None,
+    devs_combine=None,
+    devs_exclude=None,
+    dev_color_dict=None,
 ):
 
     dfco2rate = sim_result.co2_rate_per_dev.unstack("device")
     all_devices = optimisation_model.all_devices
     dfplot = dfco2rate.loc[:, ~(dfco2rate == 0).all()].copy()
 
-    if device_shareload is None:
+    if devs_shareload is None:
         # gas turbines:
-        device_shareload = [d for d, d_obj in all_devices.items() if d_obj.dev_data.model == "gasturbine"]
+        devs_shareload = [d for d, d_obj in all_devices.items() if d_obj.dev_data.model == "gasturbine"]
 
-    if device_shareload:  # list is non-empty
-        device_shareload = [d for d in device_shareload if d in dfplot]
-        devs_online = (dfplot[device_shareload] > 0).sum(axis=1)
-        devs_sum = dfplot[device_shareload].sum(axis=1)
+    if devs_shareload:  # list is non-empty
+        devs_shareload = [d for d in devs_shareload if d in dfplot]
+        devs_online = (dfplot[devs_shareload] > 0).sum(axis=1)
+        devs_sum = dfplot[devs_shareload].sum(axis=1)
         devs_mean = devs_sum / devs_online
-        for c in device_shareload:
+        for c in devs_shareload:
             mask = dfplot[c] > 0
             dfplot.loc[mask, c] = devs_mean[mask]
 
-    if device_combine:
-        for i in range(len(device_combine[0])):
-            devs_sum = dfplot[[x for x in device_combine[1][i] if x in dfplot.columns]].sum(axis=1)
-            dfplot[device_combine[0][i]] = devs_sum
-            dfplot.drop(dfplot.filter(device_combine[1][i]), axis=1, inplace=True)
+    if devs_combine:
+        for i in range(len(devs_combine[0])):
+            devs_sum = dfplot[[x for x in devs_combine[1][i] if x in dfplot.columns]].sum(axis=1)
+            dfplot[devs_combine[0][i]] = devs_sum
+            if dev_color_dict is not None:
+                dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
+            dfplot.drop(dfplot.filter(devs_combine[1][i]), axis=1, inplace=True)
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
         for col in dfplot:
-            fig.add_scatter(
-                x=dfplot.index,
-                y=dfplot[col],
-                line_shape="hv",
-                line_width=1,
-                name=col,
-                stackgroup="one",
-                row=1,
-                col=1,
-            )
+            if col not in devs_exclude:
+                if dev_color_dict is not None:
+                    fig.add_scatter(
+                        x=dfplot.index,
+                        y=dfplot[col],
+                        line_shape="hv",
+                        line_width=1,
+                        line_color=dev_color_dict[col],
+                        name=col,
+                        stackgroup="one",
+                        row=1,
+                        col=1,
+                    )
+                else:
+                    fig.add_scatter(
+                        x=dfplot.index,
+                        y=dfplot[col],
+                        line_shape="hv",
+                        line_width=1,
+                        name=col,
+                        stackgroup="one",
+                        row=1,
+                        col=1,
+                    )
         fig.update_xaxes(title_text="Timestep")
         fig.update_yaxes(title_text="Emission rate (kgCO2/s)")
         if reverse_legend:
@@ -617,46 +681,64 @@ def plot_op_cost_per_device(
     optimisation_model,
     filename=None,
     reverse_legend=False,
-    device_shareload=None,
-    device_combine=None
+    devs_shareload=None,
+    devs_combine=None,
+    devs_exclude=None,
+    dev_color_dict=None,
 ):
 
     dfopcost = sim_result.op_cost_per_dev.unstack("device")
     all_devices = optimisation_model.all_devices
     dfplot = dfopcost.loc[:, ~(dfopcost == 0).all()].copy()
 
-    if device_shareload is None:
+    if devs_shareload is None:
         # gas turbines:
-        device_shareload = [d for d, d_obj in all_devices.items() if d_obj.dev_data.model == "gasturbine"]
+        devs_shareload = [d for d, d_obj in all_devices.items() if d_obj.dev_data.model == "gasturbine"]
 
-    if device_shareload:  # list is non-empty
-        device_shareload = [d for d in device_shareload if d in dfplot]
-        devs_online = (dfplot[device_shareload] > 0).sum(axis=1)
-        devs_sum = dfplot[device_shareload].sum(axis=1)
+    if devs_shareload:  # list is non-empty
+        devs_shareload = [d for d in devs_shareload if d in dfplot]
+        devs_online = (dfplot[devs_shareload] > 0).sum(axis=1)
+        devs_sum = dfplot[devs_shareload].sum(axis=1)
         devs_mean = devs_sum / devs_online
-        for c in device_shareload:
+        for c in devs_shareload:
             mask = dfplot[c] > 0
             dfplot.loc[mask, c] = devs_mean[mask]
 
-    if device_combine:
-        for i in range(len(device_combine[0])):
-            devs_sum = dfplot[[x for x in device_combine[1][i] if x in dfplot.columns]].sum(axis=1)
-            dfplot.insert(loc=i, column=device_combine[0][i], value=devs_sum)
-            dfplot.drop(dfplot.filter(device_combine[1][i]), axis=1, inplace=True)
+    if devs_combine:
+        for i in range(len(devs_combine[0])):
+            devs_sum = dfplot[[x for x in devs_combine[1][i] if x in dfplot.columns]].sum(axis=1)
+            dfplot.insert(loc=i, column=devs_combine[0][i], value=devs_sum)
+            if dev_color_dict is not None:
+                dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
+            dfplot.drop(dfplot.filter(devs_combine[1][i]), axis=1, inplace=True)
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
         for col in dfplot:
-            fig.add_scatter(
-                x=dfplot.index,
-                y=dfplot[col],
-                line_shape="hv",
-                line_width=1,
-                name=col,
-                stackgroup="one",
-                row=1,
-                col=1,
-            )
+            if col not in devs_exclude:
+                if dev_color_dict is not None:
+                    fig.add_scatter(
+                        x=dfplot.index,
+                        y=dfplot[col],
+                        line_shape="hv",
+                        line_width=1,
+                        line_color=dev_color_dict[col],
+                        name=col,
+                        stackgroup="one",
+                        row=1,
+                        col=1,
+                    )
+                else:
+                    fig.add_scatter(
+                        x=dfplot.index,
+                        y=dfplot[col],
+                        line_shape="hv",
+                        line_width=1,
+                        name=col,
+                        stackgroup="one",
+                        row=1,
+                        col=1,
+                    )
         fig.update_xaxes(title_text="Timestep")
         fig.update_yaxes(title_text="Operational cost (NOK/s)")
         if reverse_legend:
@@ -695,6 +777,7 @@ def plot_all_costs(
     ):
     data = [["All costs"]]
     cols = ["device"]
+    color_dict = dict()
     # Timestep length = minutes per timestep * seconds per minute
     # Simulation time = number of timesteps timestep length
     timestep_length = optimization_model.paramTimestepDeltaMinutes.value * 60
@@ -703,33 +786,50 @@ def plot_all_costs(
     fixed_op_cost_sum = 0
     op_cost_sum = 0
     fuel_cost_sum = 0
+    co2_cost_sum = 0
     for dev, dev_obj in optimization_model.all_devices.items():
+        if dev_obj.dev_data.model in ["storageel", "storagehydrogen", "storagehydrogencompressor"]:
+            installed_capacity = dev_obj.dev_data.E_max
+        elif dev_obj.dev_data.model == "heatpump":
+            installed_capacity = dev_obj.dev_data.flow_max*dev_obj.dev_data.eta
+        else:
+            installed_capacity = dev_obj.dev_data.flow_max
         if dev_obj.dev_data.model == "sourcediesel" and fuel:
-            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+            if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
                 fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
         else:
-            if dev_obj.dev_data.investment_cost is not None and dev_obj.dev_data.flow_max is not None:
-                inv_sum += dev_obj.dev_data.investment_cost*dev_obj.dev_data.flow_max
+            if dev_obj.dev_data.investment_cost is not None and installed_capacity is not None:
+                inv_sum += dev_obj.dev_data.investment_cost*installed_capacity
             if dev_obj.dev_data.fixed_op_cost is not None:
-                fixed_op_cost_sum += dev_obj.dev_data.fixed_op_cost * dev_obj.dev_data.flow_max * simulation_time
-            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+                fixed_op_cost_sum += dev_obj.dev_data.fixed_op_cost * installed_capacity * simulation_time
+            if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
                 op_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+            if sim_result.co2_rate_per_dev[dev] is not None:
+                co2_cost_sum += sim_result.co2_rate_per_dev[dev].sum() * timestep_length
     if investment:
         if inv_sum > 0:
             data[0].append(inv_sum)
             cols.append("Investment costs")
+            color_dict["Investment costs"] = "#9467bd" # Purple
     if fixed_op_cost_sum > 0:
         data[0].append(fixed_op_cost_sum)
         cols.append("Fixed operational and maintenance costs")
+        color_dict["Fixed operational and maintenance costs"] = "#8c564b" # Brown
     if op_cost_sum > 0:
         data[0].append(op_cost_sum)
         cols.append("Variable operational and maintenance costs")
+        color_dict["Variable operational and maintenance costs"] = "#636EFA" # Blue
     if fuel_cost_sum > 0:
         data[0].append(fuel_cost_sum)
-        cols.append("Fuel costs (diesel)")            
+        cols.append("Fuel costs (diesel)")
+        color_dict["Fuel costs (diesel)"] = "#808080" # Gray
+    if co2_cost_sum > 0:
+        data[0].append(co2_cost_sum)
+        cols.append("CO2 costs")
+        color_dict["CO2 costs"] = "#000000" # Black
     costs = pd.DataFrame(data, columns=cols)
     if plotter == "plotly":
-        fig = px.bar(costs, y = cols, x='device')#, orientation = 'h')
+        fig = px.bar(costs, y = cols, x='device', color_discrete_map = color_dict)#, orientation = 'h')
         fig.update_xaxes(title_text="Device")
         fig.update_yaxes(title_text="Total costs (NOK)")
         fig.update_layout(title="Total costs over the simulation", height=600)
@@ -748,10 +848,12 @@ def plot_all_costs_per_device(
     fuel: bool = True,
     include_sum: bool = False,
     reverse_legend: bool = True,
-    device_combine: Optional[list] = None,
+    devs_combine: Optional[list] = None,
+    devs_exclude = None,
     ):
     data = []
     cols = ["device"]
+    color_dict = dict()
     # Timestep length = minutes per timestep * seconds per minute
     # Simulation time = number of timesteps timestep length
     timestep_length = optimization_model.paramTimestepDeltaMinutes.value * 60
@@ -761,43 +863,58 @@ def plot_all_costs_per_device(
         fixed_op_cost_sum = 0
         op_cost_sum = 0
         fuel_cost_sum = 0
+        co2_cost_sum = 0
+        if dev_obj.dev_data.model in ["storageel", "storagehydrogen", "storagehydrogencompressor"]:
+            installed_capacity = dev_obj.dev_data.E_max
+        elif dev_obj.dev_data.model == "heatpump":
+            installed_capacity = dev_obj.dev_data.flow_max*dev_obj.dev_data.eta
+        else:
+            installed_capacity = dev_obj.dev_data.flow_max
         if dev_obj.dev_data.model == "sourcediesel" and fuel:
-            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+            if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
                 print(sim_result.op_cost_per_dev[dev].sum() * timestep_length)
                 fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
         else:
             if investment:
-                if dev_obj.dev_data.investment_cost is not None and dev_obj.dev_data.flow_max is not None:
-                    inv_sum = dev_obj.dev_data.investment_cost*dev_obj.dev_data.flow_max
+                if dev_obj.dev_data.investment_cost is not None and installed_capacity is not None:
+                    inv_sum = dev_obj.dev_data.investment_cost*installed_capacity
             if dev_obj.dev_data.fixed_op_cost is not None:
-                fixed_op_cost_sum = dev_obj.dev_data.fixed_op_cost * dev_obj.dev_data.flow_max * simulation_time
-            if dev_obj.dev_data.op_cost is not None and sim_result.op_cost_per_dev is not None:
+                fixed_op_cost_sum = dev_obj.dev_data.fixed_op_cost * installed_capacity * simulation_time
+            if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
                 op_cost_sum = sim_result.op_cost_per_dev[dev].sum() * timestep_length
-        if investment and fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0):
-            data.append([dev, inv_sum, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum])
+            if sim_result.co2_rate_per_dev[dev] is not None:
+                co2_cost_sum += sim_result.co2_rate_per_dev[dev].sum() * timestep_length
+        if investment and fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0 or co2_cost_sum > 0):
+            data.append([dev, inv_sum, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum, co2_cost_sum])
         elif investment and not fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0):
             data.append([dev, inv_sum, fixed_op_cost_sum, op_cost_sum])
-        elif not investment and fuel and (fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0):
-            data.append([dev, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum])
+        elif not investment and fuel and (fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0 or co2_cost_sum > 0):
+            data.append([dev, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum, co2_cost_sum])
         elif not investment and not fuel and (fixed_op_cost_sum > 0 or op_cost_sum > 0):
             data.append([dev, fixed_op_cost_sum, op_cost_sum])
     if investment:
         cols.append("Investment costs")
+        color_dict["Investment costs"] = "#9467bd" # Purple
     cols.append("Fixed operational and maintenance costs")
+    color_dict["Fixed operational and maintenance costs"] = "#8c564b" # Brown
     cols.append("Variable operational and maintenance costs")
+    color_dict["Variable operational and maintenance costs"] = "#636EFA" # Blue
     if fuel:
         cols.append("Fuel costs (diesel)")
-    if device_combine:
-        for dev in device_combine[0]:
+        color_dict["Fuel costs (diesel)"] = "#808080" # Gray
+        cols.append("CO2 costs")
+        color_dict["CO2 costs"] = "#000000" # Black
+    if devs_combine:
+        for dev in devs_combine[0]:
             combine = [dev]
             for i in range(len(data[0])-1):
                 combine.append(0)
             data.append(combine)
         for dev in data:
-            for i in range(len(device_combine[1])):
-                if dev[0] in device_combine[1][i]:
+            for i in range(len(devs_combine[1])):
+                if dev[0] in devs_combine[1][i]:
                     for j in range(len(data)):
-                        if data[j][0] == device_combine[0][i]:
+                        if data[j][0] == devs_combine[0][i]:
                             new_data = []
                             for k in range(len(data[0])-1):
                                 new_data.append(data[j][k+1] + dev[k+1])
@@ -812,13 +929,16 @@ def plot_all_costs_per_device(
         data.append(totals)
 
     costs = pd.DataFrame(data, columns=cols)
-    if device_combine:
-        for i in range(len(device_combine[0])):
-            for dev in device_combine[1][i]:
+    if devs_combine:
+        for i in range(len(devs_combine[0])):
+            for dev in devs_combine[1][i]:
                 costs.drop(costs[costs.device == dev].index, inplace=True)
+    if devs_exclude:
+        for dev in devs_exclude:
+            costs.drop(costs[costs.device == dev].index, inplace=True)
 
     if plotter == "plotly":
-        fig = px.bar(costs, y = cols, x='device')#, orientation = 'h')
+        fig = px.bar(costs, y = cols, x='device', color_discrete_map=color_dict)#, orientation = 'h')
         fig.update_xaxes(title_text="Device")
         fig.update_yaxes(title_text="Total costs (NOK)")
         fig.update_layout(title="Total costs over the simulation", height=600)
@@ -1015,7 +1135,9 @@ def plot_reserve(
     dynamic_margin=True,
     use_forecast=False,
     include_sum=True,
-    device_combine=None,
+    devs_combine=None,
+    devs_exclude=None,
+    dev_color_dict=None,
 ):
     """Plot unused online capacity by all el devices"""
     df_devs = pd.DataFrame()
@@ -1057,13 +1179,21 @@ def plot_reserve(
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
-    if device_combine:
-        for i in range(len(device_combine[0])):
-            devs_sum = df_devs[[x for x in device_combine[1][i] if x in df_devs.columns]].sum(axis=1)
-            df_devs.insert(loc=i, column=device_combine[0][i], value=devs_sum)
-            df_devs.drop(df_devs.filter(device_combine[1][i]), axis=1, inplace=True)
+    if devs_combine:
+        for i in range(len(devs_combine[0])):
+            devs_sum = df_devs[[x for x in devs_combine[1][i] if x in df_devs.columns]].sum(axis=1)
+            df_devs.insert(loc=i, column=devs_combine[0][i], value=devs_sum)
+            if dev_color_dict is not None:
+                dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
+            df_devs.drop(df_devs.filter(devs_combine[1][i]), axis=1, inplace=True)
+    if devs_exclude:
+        for dev in devs_exclude:
+            df_devs.drop(df_devs[df_devs.device == dev].index, inplace=True)
     if plotter == "plotly":
-        fig = px.area(df_devs, line_shape="hv")
+        if dev_color_dict is not None:
+            fig = px.area(df_devs, line_shape="hv", color="device", color_discrete_map=dev_color_dict)
+        else:
+            fig = px.area(df_devs, line_shape="hv")
         if include_sum:
             fig.add_scatter(
                 x=df_devs.index,
