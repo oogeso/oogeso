@@ -79,6 +79,7 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     # Fixed costs are not used in the optimization problem, but can be of interest
     fixed_op_cost: Optional[float] = None # fixed operation and maintenance cost per time and flow_max
     investment_cost: Optional[float] = None # initial investment cost per flow_max
+    lifetime: Optional[float] = None # Estimated lifetime of the investment
     # Penalty may be fuel, emissions, cost and combinations of these
     penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: ModelType
