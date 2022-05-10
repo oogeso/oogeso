@@ -621,11 +621,12 @@ class OptimisationModel(pyo.ConcreteModel):
             sum_cost += dev_obj.compute_operating_costs(model, timesteps)
         return sum_cost
 
-    def compute_cost_for_depleted_storage(self, model: pyo.Model):
+    def compute_cost_for_depleted_storage(self, model: pyo.Model, timesteps=None):
         """term in objective function to discourage depleting battery,
         making sure it is used only when required"""
         store_cost = 0
-        timesteps = self.setHorizon
+        if timesteps is None:
+            timesteps = self.setHorizon
         for dev in self.setDevice:
             dev_obj = self.all_devices[dev]
             store_cost += dev_obj.compute_cost_for_depleted_storage(model, timesteps)
