@@ -20,14 +20,15 @@ class CarrierHeatData(dto.CarrierData):
 
 
 class CarrierHydrogenData(dto.CarrierData):
-    energy_value: float = 13  # MJ/Nm3 (calorific value) -> 13 MJ/Sm3
-    rho_density: float = 0.08988 # kg/Nm3
+    energy_value: float = 12.7 # MJ/Nm3 (calorific value) -> 12.7 MJ/Nm3
+    rho_density: float = 0.08985 # kg/Nm3
     molecular_weight: float = 2.016 # g/mol
     gamma: float = 1.41 # ratio of heat capacities
 
+
 class CarrierDieselData(dto.CarrierData):
-    energy_value: float = 39*10**3  # MJ/m3 (calorific value) -> 39 MJ/m3
-    co2_content: float = 2.64*10**3 # kg/m3
+    energy_value: float = 37.94*10**3  # MJ/m3 (calorific value) -> 37940 MJ/m3
+    co2_content: float = 2.629*10**3 # kg/m3
 
 
 class CarrierFluidData(dto.CarrierData):
