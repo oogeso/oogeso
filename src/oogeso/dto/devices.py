@@ -100,6 +100,7 @@ class DeviceElectrolyserData(DeviceData):
 class DeviceFuelCellData(DeviceData):
     eta: float = None  # efficiency
     eta_heat: float = None  # heat recovery efficiency
+    electrolyser_id: Optional[str] = None # id of electrolyser device, to avoid using fuell cell and electrolyser simultaneously if desired
     model: ModelType = ModelType.FUEL_CELL
 
 
@@ -117,10 +118,6 @@ class DeviceGasTurbineData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None
     eta_heat: float = None
-    #    is_on_init: bool = False
-    #    startup_cost: float = None
-    #    startup_delay: float = None  # Minutes from activation to power delivery
-    #    shutdown_cost: float = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.GAS_TURBINE
 
@@ -128,11 +125,8 @@ class DeviceGasTurbineData(DeviceData):
 class DeviceDieselGeneratorData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None
+    eta: float = None # Approximate eta based on fuel parameters to estimate heat reserve
     eta_heat: float = None
-    #    is_on_init: bool = False
-    #    startup_cost: float = None
-    #    startup_delay: float = None  # Minutes from activation to power delivery
-    #    shutdown_cost: float = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.DIESEL_GENERATOR
 

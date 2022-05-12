@@ -9,7 +9,7 @@ from oogeso import dto
 from oogeso.core import networks
 from oogeso.core.devices.base import Device
 from oogeso.core.devices.storage import StorageDevice
-from oogeso.core.networks import ElNetwork, Network
+from oogeso.core.networks import ElNetwork, HeatNetwork, Network
 from oogeso.core.networks.edge import Edge
 from oogeso.core.networks.network_node import NetworkNode
 from oogeso.dto.mapper import get_device_from_model_name, get_network_from_carrier_name
@@ -32,7 +32,7 @@ class OptimisationModel(pyo.ConcreteModel):
         self.all_nodes: Dict[str, NetworkNode] = {}
         self.all_edges: Dict[str, Edge] = {}
         # self.all_carriers = {}
-        self.all_networks: Dict[str, Union[Network, ElNetwork]] = {}
+        self.all_networks: Dict[str, Union[Network, ElNetwork, HeatNetwork]] = {}
 
         # Model parameters
         self.optimisation_parameters = data.parameters
@@ -372,7 +372,14 @@ class OptimisationModel(pyo.ConcreteModel):
                 rule=self._rule_el_backup_margin,
             )
         else:
-            logger.debug("No el_backup_margin limit specified")
+            logger.debug("No heat_backup_margin limit specified")
+        # 4.5 heat reserve margin:
+        heat_parameters: dto.CarrierHeatData = self.all_networks["heat"].carrier_data
+        heat_reserve_margin = heat_parameters.heat_reserve_margin
+        if (heat_reserve_margin is not None) and (heat_reserve_margin >= 0):
+            self.constr_O_heatReserveMargin = pyo.Constraint(self.setHorizon, rule=self._rule_heat_reserve_margin)
+        else:
+            logger.debug("No heat_reserve_margin limit specified")
 
     def update_optimisation_model(self, timestep, profiles, first=False):
         """Update Pyomo model instance
@@ -538,6 +545,30 @@ class OptimisationModel(pyo.ConcreteModel):
             capacity_unused = network_el.compute_el_reserve(pyomo_model=pyomo_model, t=t, all_devices=self.all_devices)
         else:
             raise ValueError("network_el does not have the function compute_el_reserve")
+
+        return capacity_unused >= margin
+
+    def _rule_heat_reserve_margin(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        """Reserve margin constraint (heat supply)
+        Not used capacity by power suppliers/storage/load flexibility
+        must be larger than some specified margin
+        (to cope with unforeseen variations)
+        """
+        # exclude constraint for first timesteps since the point of the
+        # dispatch margin is exactly to cope with forecast errors
+        if t < self.optimisation_parameters.forecast_timesteps:
+            return pyo.Constraint.Skip  # noqa
+
+        network_heat = self.all_networks["heat"]
+
+        if hasattr(network_heat.carrier_data, "heat_reserve_margin"):
+            margin = network_heat.carrier_data.heat_reserve_margin
+        else:
+            raise ValueError("network_el.carrier_data does not have the attribute heat_reserve_margin")
+        if hasattr(network_heat, "compute_heat_reserve") and callable(getattr(network_heat, "compute_heat_reserve")):
+            capacity_unused = network_heat.compute_heat_reserve(pyomo_model=pyomo_model, t=t, all_devices=self.all_devices)
+        else:
+            raise ValueError("network_heat does not have the function compute_heat_reserve")
 
         return capacity_unused >= margin
 

@@ -73,6 +73,7 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     start_stop: Optional[StartStopData] = None
     compressor: Optional[CompressorData] = None
     reserve_factor: float = 0  # contribution to electrical spinning reserve
+    reserve_heat_factor: float = 0 # contribution to heat reserve
     op_cost: Optional[float] = None # variable operation and maintenance cost
     op_cost_in: Optional[float] = None # variable operation and maintenance cost for inflow variable
     op_cost_out: Optional[float] = None # variable operation and maintenance cost for outflow variable
@@ -83,7 +84,6 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     # Penalty may be fuel, emissions, cost and combinations of these
     penalty_function: Optional[Tuple[List[float], List[float]]] = None
     model: ModelType
-    electrolyser_id: Optional[str] = None # name of electrolyser device, if relevant
 
 
 class EdgeData(BaseModel):  # Base model, use implementations below
@@ -157,6 +157,8 @@ class SimulationResult(BaseModel):
     co2_intensity: Optional[pd.Series] = Field(default_factory=pd.Series)
     # Available online electrical reserve capacity (MW):
     el_reserve: Optional[pd.Series] = Field(default_factory=pd.Series)
+    # Available online heat reserve capacity (MW):
+    heat_reserve: Optional[pd.Series] = Field(default_factory=pd.Series)
     # Available online electrical backup per device (MW):
     el_backup: Optional[pd.Series] = Field(default_factory=pd.Series)
     # Value of duals (associated with constraints)

@@ -128,6 +128,10 @@ class Edge:
         return constr_penalty
 
 
+class HeatEdge(Edge):
+    edge_data: dto.EdgeHeatData
+
+
 class FluidEdge(Edge):
     edge_data: dto.EdgeFluidData
 

@@ -14,11 +14,13 @@ try:
     import matplotlib.pyplot as plt
     import plotly
     import plotly.express as px
+    import plotly.io as pio
     import seaborn as sns
 except ImportError:
     raise ImportError("In order to run this plotting module you need to install matplotlib, plotly and seaborn.")
 
 sns.set_style("whitegrid")  # Optional: sns.set_palette("dark")
+pio.templates.default = "plotly_white"
 
 plotter = "plotly"  # matplotlib
 
@@ -49,6 +51,7 @@ def plot_device_profile(
     sim_result,
     optimisation_model,
     devs,
+    carrier="el",
     filename=None,
     reverse_legend=True,
     include_forecasts=False,
@@ -84,7 +87,7 @@ def plot_device_profile(
         devs = [devs]
     if include_forecasts & (len(devs) > 1):
         raise ValueError("Can only plot a single device when showing forecasts")
-    df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device")
+    df = res.device_flow.unstack(["carrier", "terminal"])[(carrier, "out")].unstack("device")
     if devs_shareload is None:
         # gas turbines:
         devs_shareload = [d for d, d_obj in optimiser.all_devices.items() if d_obj.dev_data.model in ["gasturbine", "dieselgenerator", "dieselheater"]]
@@ -351,6 +354,8 @@ def plot_sum_power_mix(
     filename : Name of file
     reverse_legend : Use reverse legend
     exclude_zero : To exclude zero values
+    devs_combine : list of lists of devices to combine and the name of the combined device
+    devs_exclude : list of devices to exclude from the plotting
     """
     # optimiser = simulator.optimiser
     res = sim_result
@@ -386,14 +391,20 @@ def plot_sum_power_mix(
             df_flow_out.loc[mask, c] = devs_mean[mask]
     if devs_combine:
         for i in range(len(devs_combine[0])):
-            devs_sum = df_flow_out[devs_combine[1][i]].sum(axis=1)
+            combine_names = []
+            for name in devs_combine[1][i]:
+                if name in df_flow_out:
+                    combine_names.append(name)
+            devs_sum = df_flow_out[combine_names].sum(axis=1)
             df_flow_out[devs_combine[0][i]] = devs_sum
             if dev_color_dict is not None:
                 dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
-            df_flow_out.drop(columns=devs_combine[1][i], inplace=True)
+            df_flow_out.drop(columns=combine_names, inplace=True)
     if exclude_zero:
         df_flow_in = df_flow_in.loc[:, df_flow_in.sum() != 0]
         df_flow_out = df_flow_out.loc[:, df_flow_out.sum() != 0]
+    if devs_exclude is None:
+        devs_exclude = []
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05)
@@ -573,6 +584,8 @@ def plot_CO2_rate_per_device(
             if dev_color_dict is not None:
                 dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
             dfplot.drop(dfplot.filter(devs_combine[1][i]), axis=1, inplace=True)
+    if devs_exclude is None:
+        devs_exclude = []
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
@@ -711,6 +724,8 @@ def plot_op_cost_per_device(
             if dev_color_dict is not None:
                 dev_color_dict[devs_combine[0][i]] = dev_color_dict[devs_combine[1][i][0]]
             dfplot.drop(dfplot.filter(devs_combine[1][i]), axis=1, inplace=True)
+    if devs_exclude is None:
+        devs_exclude = []
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
@@ -1131,6 +1146,7 @@ def plot_gas_turbine_efficiency(
 def plot_reserve(
     sim_result,
     optimisation_model,
+    carrier="el",
     include_margin=True,
     dynamic_margin=True,
     use_forecast=False,
@@ -1139,17 +1155,22 @@ def plot_reserve(
     devs_exclude=None,
     dev_color_dict=None,
 ):
-    """Plot unused online capacity by all el devices"""
+    """Plot unused online capacity by all {carrier} devices"""
     df_devs = pd.DataFrame()
     res = sim_result
     optimiser = optimisation_model
-    timerange = list(res.el_reserve.index)
+    if carrier == "el":
+        timerange = list(res.el_reserve.index)
+    elif carrier == "heat":
+        timerange = list(res.heat_reserve.index)
+    else:
+        raise ValueError(f"Carrier: {carrier} has not been implemented for plot reserve.")
     margin_incr = pd.DataFrame(0, index=timerange, columns=["margin"])
     for d, dev_obj in optimiser.all_devices.items():
         dev_data = dev_obj.dev_data
         device_model = dev_data.model
         rf = 1
-        if "el" in dev_obj.carrier_out:
+        if carrier in dev_obj.carrier_out:
             # Generators and storage
             max_value = dev_data.flow_max
             if dev_data.profile is not None:
@@ -1158,24 +1179,28 @@ def plot_reserve(
                     max_value = max_value * res.profiles_forecast.loc[timerange, ext_profile]
                 else:
                     max_value = max_value * res.profiles_nowcast.loc[timerange, ext_profile]
-            if dev_data.start_stop is not None and dev_data.start_stop.delay_start_minutes>0 :  # device_model in ["gasturbine"]:
+            if dev_data.start_stop is not None and dev_data.start_stop.delay_start_minutes>0:
                 is_on = res.device_is_on[d]
                 max_value = is_on * max_value
-            elif device_model in ["storage_el"]:
-                max_value = res.dfDeviceStoragePmax[d] + res.device_flow[d, "el", "in"]
-            if dev_data.reserve_factor is not None:
-                reserve_factor = dev_data.reserve_factor
-                if reserve_factor == 0:
-                    # device does not count towards reserve
-                    rf = 0
-                if dynamic_margin:
-                    # instead of reducing reserve, increase the margin instead
-                    # R*0.8-M = R - (M+0.2R) - this shows better in the plot what
-                    margin_incr["margin"] += rf * max_value * (1 - reserve_factor)
-                else:
-                    max_value = max_value * reserve_factor
+            elif device_model in ["storage_"+carrier]:
+                max_value = res.dfDeviceStoragePmax[d] + res.device_flow[d, carrier, "in"]
+            if carrier == "el":
+                if dev_data.reserve_factor is not None:
+                    reserve_factor = dev_data.reserve_factor
+            elif carrier == "heat":
+                if dev_data.reserve_heat_factor is not None:
+                    reserve_factor = dev_data.reserve_heat_factor
+            if reserve_factor == 0:
+                # device does not count towards reserve
+                rf = 0
+            if dynamic_margin:
+                # instead of reducing reserve, increase the margin instead
+                # R*0.8-M = R - (M+0.2R) - this shows better in the plot what
+                margin_incr["margin"] += rf * max_value * (1 - reserve_factor)
+            else:
+                max_value = max_value * reserve_factor
             cap_avail = rf * max_value
-            p_generating = rf * res.device_flow[d, "el", "out"]
+            p_generating = rf * res.device_flow[d, carrier, "out"]
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
@@ -1203,7 +1228,10 @@ def plot_reserve(
                 line_shape="hv",
             )
         if include_margin:
-            margin = optimiser.all_networks["el"].carrier_data.el_reserve_margin
+            if carrier == "el":
+                margin = optimiser.all_networks[carrier].carrier_data.el_reserve_margin
+            elif carrier == "heat":
+                margin = optimiser.all_networks[carrier].carrier_data.heat_reserve_margin
             # wind contribution (cf compute reserve)
             margin_incr["margin"] = margin_incr["margin"] + margin
             fig.add_scatter(
@@ -1221,7 +1249,10 @@ def plot_reserve(
         if include_sum:
             df_devs.sum(axis=1).plot(style=":", color="black", drawstyle="steps-post")
         if include_margin:
-            margin = optimiser.all_networks["el"].carrier_data.el_reserve_margin
+            if carrier == "el":
+                margin = optimiser.all_networks[carrier].carrier_data.el_reserve_margin
+            elif carrier == "heat":
+                margin = optimiser.all_networks[carrier].carrier_data.heat_reserve_margin
             # wind contribution (cf compute reserve)
             margin_incr["margin"] = margin_incr["margin"] + margin
             margin_incr[["margin"]].plot(style=":", color="red", ax=ax)

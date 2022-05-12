@@ -103,11 +103,14 @@ class Simulator:
             "el_voltage_angle",
             "penalty",
             "el_reserve",
+            "heat_reserve"
             "el_backup",
             "export_revenue",
             "co2_rate",
             "co2_intensity",
             "co2_rate_per_dev",
+            "op_cost",
+            "op_cost_per_dev",
             "duals",
 
         """
@@ -318,6 +321,16 @@ class Simulator:
             df_reserve.index.rename("time", inplace=True)
         else:
             df_reserve = None
+        if return_all or "heat_reserve" in return_variables:
+            df_reserve_heat = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
+            for t in range(timelimit):
+                rescap = pyo.value(
+                    self.optimiser.all_networks["heat"].compute_heat_reserve(pyomo_instance, t, self.optimiser.all_devices)
+                )
+                df_reserve_heat.loc[t + timestep] = rescap
+            df_reserve_heat.index.rename("time", inplace=True)
+        else:
+            df_reserve_heat = None
 
         # Backup capacity
         if return_all or "el_backup" in return_variables:
@@ -383,6 +396,7 @@ class Simulator:
             op_cost_per_dev=df_op_cost_dev,
             penalty=df_penalty,
             el_reserve=df_reserve,
+            heat_reserve=df_reserve_heat,
             el_backup=df_backup,
             export_revenue=df_export_revenue,
             co2_rate=df_co2_rate_sum,

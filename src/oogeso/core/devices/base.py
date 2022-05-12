@@ -376,19 +376,54 @@ class Device(ABC):
                 # towards the reserve, relevant for wind power
                 # (equivalently, this may be seen as increaseing the
                 # reserve margin requirement)
-                reserve_factor = self.dev_data.reserve_factor
-                max_value = max_value * reserve_factor
-                if reserve_factor == 0:
-                    # no reserve contribution
-                    rf = 0
+                rf = self.dev_data.reserve_factor
             cap_avail = rf * max_value
             p_generating = rf * pyomo_model.varDeviceFlow[self.id, "el", "out", t]
         elif "el" in self.carrier_in:
-            # Loads (only consider if resere factor has been set)
+            # Loads (only consider if reserve factor has been set)
             if self.dev_data.reserve_factor is not None:
                 # load reduction possible
                 f_lr = self.dev_data.reserve_factor
                 load_reduction = f_lr * pyomo_model.varDeviceFlow[self.id, "el", "in", t]
+        reserve = {
+            "capacity_available": cap_avail,
+            "capacity_used": p_generating,
+            "loadreduction_available": load_reduction,
+        }
+        return reserve
+
+    def compute_heat_reserve(self, pyomo_model: pyo.Model, t: int) -> Dict[str, float]:
+        """Compute available reserve heat from this device
+
+        device parameter "reserve_heat_factor" specifies how large part of the
+        available capacity should count towards the reserve (1=all, 0=none)
+        """
+        rf = 1
+        load_reduction = 0
+        cap_avail = 0
+        p_generating = 0
+        if "heat" in self.carrier_out:
+            # Generators and storage
+            if "el" in self.carrier_out:
+                max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t) * (1 - self.dev_data.eta) / self.dev_data.eta * self.dev_data.eta_heat
+            elif "el" in self.carrier_in:
+                max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t) * self.dev_data.eta
+            else:
+                max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t)
+            if self.dev_data.reserve_heat_factor is not None:
+                # safety margin - only count a part of the forecast power
+                # towards the reserve
+                # (equivalently, this may be seen as increaseing the
+                # reserve margin requirement)
+                rf = self.dev_data.reserve_heat_factor
+            cap_avail = rf * max_value
+            p_generating = rf * pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
+        elif "heat" in self.carrier_in:
+            # Loads (only consider if reserve heat factor has been set)
+            if self.dev_data.reserve_heat_factor is not None:
+                # load reduction possible
+                f_lr = self.dev_data.reserve_heat_factor
+                load_reduction = f_lr * pyomo_model.varDeviceFlow[self.id, "heat", "in", t]
         reserve = {
             "capacity_available": cap_avail,
             "capacity_used": p_generating,
