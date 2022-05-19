@@ -111,7 +111,7 @@ class StorageEl(StorageDevice):
             else:
                 return pyo.Constraint.Skip  # noqa
         elif i == 10:
-            # Constraint 5-7: varDeviceFlow[dev, "hydrogen", "in", t] and varDeviceFlow[dev, "hydrogen", "out", t] cannot both be nonzero
+            # Constraint 10-12: varDeviceFlow[dev, "el", "in", t] and varDeviceFlow[dev, "el", "out", t] cannot both be nonzero
             # ref: https://stackoverflow.com/questions/71372177/
             big_M = dev_data.E_max
             lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
@@ -317,8 +317,6 @@ class StorageHydrogenCompressor(StorageDevice):
         self.Z_min = compressibility_factor(dev_data.compressor.p_in, dev_data.compressor.temperature)
         self.p_init = tank_pressure(self, dev_data.E_init, linear = False)
         self.Z_init = compressibility_factor(self.p_init, dev_data.compressor.temperature)
-        self.T_out_ad = dev_data.compressor.temperature * (self.p_init / dev_data.compressor.p_in)**((self.carrier_data["hydrogen"].gamma - 1) / self.carrier_data["hydrogen"].gamma) 
-        self.Z_out_ad = compressibility_factor(self.p_init, self.T_out_ad)
 
     def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
@@ -350,15 +348,12 @@ class StorageHydrogenCompressor(StorageDevice):
             if t > 0:
                 self.p_init = tank_pressure(self, pyomo_model.paramDeviceEnergyInitially[dev], linear = False)
                 self.Z_init = compressibility_factor(self.p_init, dev_data.compressor.temperature)
-                if dev_data.compressor.isothermal_adiabatic != 0:
-                    self.T_out_ad = dev_data.compressor.temperature * (self.p_init / dev_data.compressor.p_in)**((self.carrier_data["hydrogen"].gamma - 1) / self.carrier_data["hydrogen"].gamma) 
-                    self.Z_out_ad = compressibility_factor(self.p_init, self.T_out_ad)
             lhs = pyomo_model.varDeviceCompressorEnergy[dev, t]
             rhs = compute_hydrogen_compressor_demand(pyomo_model, self, 
                 isothermal_adiabatic = dev_data.compressor.isothermal_adiabatic, t=t) / dev_data.compressor.eta
             return lhs == rhs
         elif i == 4:
-            # Constraint 4-7: varDeviceFlow[dev, "el", "in", t] = max{varDeviceCompressorEnergy,0}
+            # Constraint 4-6: varDeviceFlow[dev, "el", "in", t] = max{varDeviceCompressorEnergy,0}
             # ref: https://or.stackexchange.com/a/1174
             lhs = pyomo_model.varDeviceCompressorEnergy[dev, t]
             rhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
@@ -368,12 +363,11 @@ class StorageHydrogenCompressor(StorageDevice):
             rhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
             return lhs <= rhs
         elif i == 6:
-            #big_M = dev_data.E_max / 10 # Taking out 10 % of max storage in one timestep is quite big
             lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
-            rhs = pyomo_model.varDeviceCompressorEnergy[dev, t] * pyomo_model.varStorY[dev,t] #0 + big_M * pyomo_model.varStorY[dev, t]
+            rhs = pyomo_model.varDeviceCompressorEnergy[dev, t] * pyomo_model.varStorY[dev,t]
             return lhs <= rhs
         elif i == 7:
-            # Constraint 8-10: varDeviceFlow[dev, "hydrogen", "in", t] and varDeviceFlow[dev, "hydrogen", "out", t] cannot both be nonzero
+            # Constraint 7-9: varDeviceFlow[dev, "hydrogen", "in", t] and varDeviceFlow[dev, "hydrogen", "out", t] cannot both be nonzero
             # ref: https://stackoverflow.com/questions/71372177/
             big_M = dev_data.E_max / 10 # Taking out 10 % of max storage in one timestep is quite big
             lhs = pyomo_model.varDeviceFlow[dev, "hydrogen", "in", t]
@@ -395,7 +389,7 @@ class StorageHydrogenCompressor(StorageDevice):
                 isothermal_adiabatic = 0, t=t) / self.dev_data.compressor.eta
             return lhs == rhs
         elif i == 11:
-            # Constraint 12-15: varDeviceCompressorPIso[dev, t] = max{varDeviceCompressorEnergyIso,0}
+            # Constraint 11-13: varDeviceCompressorPIso[dev, t] = max{varDeviceCompressorEnergyIso,0}
             # ref: https://or.stackexchange.com/a/1174
             lhs = pyomo_model.varDeviceCompressorEnergyIso[dev, t]
             rhs = pyomo_model.varDeviceCompressorPIso[dev, t]
@@ -405,9 +399,8 @@ class StorageHydrogenCompressor(StorageDevice):
             rhs = pyomo_model.varDeviceCompressorPIso[dev, t]
             return lhs <= rhs
         elif i == 13:
-            big_M = dev_data.E_max / 10 # Taking out 10 % of max storage in one timestep is quite big
             lhs = pyomo_model.varDeviceCompressorPIso[dev, t]
-            rhs = pyomo_model.varDeviceCompressorEnergyIso[dev, t] * pyomo_model.varStorY2[dev,t] #0 + big_M * pyomo_model.varStorY2[dev, t]
+            rhs = pyomo_model.varDeviceCompressorEnergyIso[dev, t] * pyomo_model.varStorY2[dev,t]
             return lhs <= rhs
         elif i == 14:
             """Device heat production"""
@@ -465,16 +458,12 @@ def compute_hydrogen_compressor_demand(
     # If no hydrogen is added, the compressor need not run
     flow_in = model.varDeviceFlow[device_obj.id, "hydrogen", "in", t]
     time_delta_minutes = model.paramTimestepDeltaMinutes
-    delta_t = time_delta_minutes * 60  # seconds
-    dev_data = device_obj.dev_data
-    eta = 1
-    if dev_data.eta is not None:
-        eta = dev_data.eta
-    extra_stored_energy = flow_in * delta_t * eta #model.varDeviceFlow[device_obj.id, "hydrogen", "in", t] * delta_t * eta
+    delta_t = time_delta_minutes * 60 # seconds
+    extra_stored_energy = flow_in * delta_t
 
     # Isothermal compression
     if isothermal_adiabatic == 0:
-        W = isothermal_work(device_obj, extra_stored_energy) #, final_pressure, linear=linear)
+        W = isothermal_work(device_obj, extra_stored_energy)
         P = W / delta_t * 10**(-6) # Change from work (J) to power (MW)
         return P
     elif isothermal_adiabatic == 1:
@@ -482,7 +471,7 @@ def compute_hydrogen_compressor_demand(
         P = W / delta_t * 10**(-6) # Change from work (J) to power (MW)
         return P
     else:
-        W_iso = isothermal_work(device_obj, extra_stored_energy) #, final_pressure, linear=linear)
+        W_iso = isothermal_work(device_obj, extra_stored_energy)
         W_ad = adiabatic_work(device_obj, extra_stored_energy)
         W = (1 - isothermal_adiabatic) * W_iso + isothermal_adiabatic * W_ad
         P = W / delta_t * 10**(-6) # Change from work (J) to power (MW)
@@ -565,5 +554,5 @@ def adiabatic_work(
     R = 8.31446261815324 # Universal gas constant
     n = E_extra * hydrogen_data.rho_density * 10**3 / hydrogen_data.molecular_weight
 
-    W = - n * R * T_in * gamma / (1 - gamma) * ((p_init / p_in)**((gamma - 1) / gamma) - 1)
+    W = n * R * T_in * gamma / (gamma - 1) * ((p_init / p_in)**((gamma - 1) / gamma) - 1)
     return W

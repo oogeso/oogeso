@@ -16,6 +16,7 @@ carriers:
     el_reserve_margin: 5 # MWm -1=no limit
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   - id: heat
+    heat_reserve_margin: 5
   - id: hydrogen
     #energy_value: 12.7 # MJ/Nm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
   - id: diesel
@@ -188,7 +189,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 1
-    op_cost: 0.01
+    op_cost: 0.1
     model: sink_el
     name: el_dump
     node_id: load

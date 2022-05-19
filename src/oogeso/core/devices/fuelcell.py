@@ -30,8 +30,9 @@ class FuelCell(Device):
         energy_value = param_hydrogen.energy_value  # MJ/Sm3
         efficiency = dev_data.eta
         eta_heat = dev_data.eta_heat  # heat recovery efficiency
-        big_M = 2*dev_data.flow_max
         electrolyser_dev = dev_data.electrolyser_id
+        if electrolyser_dev is not None:
+            big_M = dev_data.flow_max / (energy_value * efficiency) + pyomo_model.all_devices[electrolyser_dev].dev_data.flow_max * pyomo_model.all_devices[electrolyser_dev].dev_data.eta / energy_value
         if i == 1:
             """hydrogen to el"""
             lhs = pyomo_model.varDeviceFlow[dev, "el", "out", t]  # MW

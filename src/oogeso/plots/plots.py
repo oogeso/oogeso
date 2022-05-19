@@ -1187,20 +1187,25 @@ def plot_reserve(
             if carrier == "el":
                 if dev_data.reserve_factor is not None:
                     reserve_factor = dev_data.reserve_factor
+                    max_value = max_value * reserve_factor
             elif carrier == "heat":
                 if dev_data.reserve_heat_factor is not None:
                     reserve_factor = dev_data.reserve_heat_factor
+                if "el" in dev_obj.carrier_out:
+                    max_value = max_value * (1 - dev_data.eta) / dev_data.eta * dev_data.eta_heat
+                elif "el" in dev_obj.carrier_in:
+                    max_value = max_value * dev_data.eta
+                else:
+                    max_value = max_value * reserve_factor
             if reserve_factor == 0:
                 # device does not count towards reserve
                 rf = 0
             if dynamic_margin:
                 # instead of reducing reserve, increase the margin instead
                 # R*0.8-M = R - (M+0.2R) - this shows better in the plot what
-                margin_incr["margin"] += rf * max_value * (1 - reserve_factor)
-            else:
-                max_value = max_value * reserve_factor
+                margin_incr["margin"] += rf * max_value - rf * reserve_factor * res.device_flow[d, carrier, "out"]
             cap_avail = rf * max_value
-            p_generating = rf * res.device_flow[d, carrier, "out"]
+            p_generating = rf * reserve_factor * res.device_flow[d, carrier, "out"]
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
@@ -1232,8 +1237,10 @@ def plot_reserve(
                 margin = optimiser.all_networks[carrier].carrier_data.el_reserve_margin
             elif carrier == "heat":
                 margin = optimiser.all_networks[carrier].carrier_data.heat_reserve_margin
-            # wind contribution (cf compute reserve)
-            margin_incr["margin"] = margin_incr["margin"] + margin
+            if dynamic_margin:
+                margin_incr["margin"] = margin_incr["margin"] - margin
+            else:
+                margin_incr["margin"] = margin
             fig.add_scatter(
                 x=margin_incr.index,
                 y=margin_incr["margin"],

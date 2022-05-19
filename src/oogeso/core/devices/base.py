@@ -407,7 +407,10 @@ class Device(ABC):
             if "el" in self.carrier_out:
                 max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t) * (1 - self.dev_data.eta) / self.dev_data.eta * self.dev_data.eta_heat
             elif "el" in self.carrier_in:
-                max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t) * self.dev_data.eta
+                if self.dev_data.eta_heat is not None:
+                    max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t) * (1 - self.dev_data.eta) * self.dev_data.eta_heat
+                else:
+                    max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t) * self.dev_data.eta
             else:
                 max_value = self.get_max_flow(pyomo_model=pyomo_model, t=t)
             if self.dev_data.reserve_heat_factor is not None:

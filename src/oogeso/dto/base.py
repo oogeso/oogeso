@@ -19,8 +19,8 @@ class CompressorData(BaseModel):
     eta: float = 1 # Compressor efficiency
     eta_heat: float = 0 # Compressor waste heat recovery
     temperature: float = 273.15 # Final temperature of compressed hydrogen in Kelvin
-    T_min: float = 200 # Lowest probable input temperature (used for adiabatic calculations)
-    T_max: float = 500 # Highest probable input temperature (used for adiabatic calculations)
+    #T_min: float = 200 # Lowest probable input temperature (used for adiabatic calculations)
+    #T_max: float = 500 # Highest probable input temperature (used for adiabatic calculations)
     p_in: float = 0.1 # Pressure of input hydrogen in MPa
     p_max: float = 70 # Maximum pressure of hydrogen in storage tank
     isothermal_adiabatic: float = 0 # Isothermal (0), adiabatic (1), or any value in between
