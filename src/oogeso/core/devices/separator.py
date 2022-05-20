@@ -101,7 +101,7 @@ class Separator2(Device):
     Alternative separator model - using oil/gas/water input instead of
     """
 
-    carrier_in = ["oil", "gas", "water", "heat", "el"]
+    carrier_in = ["oil", "gas", "water", "heat"]
     carrier_out = ["oil", "gas", "water"]
     serial = ["oil", "gas", "water"]
 
@@ -137,25 +137,15 @@ class Separator2(Device):
         else:
             raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
 
-    def _rule_separator2_energy(
-        self, pyomo_model: pyo.Model, t: int, i: int
-    ) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rule_separator2_heat(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         dev_data: dto.DeviceSeparator2Data = self.dev_data
         flow_in = sum(pyomo_model.varDeviceFlow[dev, f, "in", t] for f in ["oil", "gas", "water"])
 
-        if i == 1:
-            # electricity demand
-            lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
-            rhs = flow_in * dev_data.el_demand_factor
-            return lhs == rhs
-        elif i == 2:
-            # heat demand
-            lhs = pyomo_model.varDeviceFlow[dev, "heat", "in", t]
-            rhs = flow_in * dev_data.heat_demand_factor
-            return lhs == rhs
-        else:
-            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
+        # heat demand
+        lhs = pyomo_model.varDeviceFlow[dev, "heat", "in", t]
+        rhs = flow_in * dev_data.heat_demand_factor
+        return lhs == rhs
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
@@ -177,8 +167,7 @@ class Separator2(Device):
 
         constr_separator2_energy = pyo.Constraint(
             pyomo_model.setHorizon,
-            pyo.RangeSet(1, 2),
-            rule=self._rule_separator2_energy,
+            rule=self._rule_separator2_heat,
         )
         # add constraints to model:
         setattr(
