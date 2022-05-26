@@ -374,12 +374,13 @@ class OptimisationModel(pyo.ConcreteModel):
         else:
             logger.debug("No heat_backup_margin limit specified")
         # 4.5 heat reserve margin:
-        heat_parameters: dto.CarrierHeatData = self.all_networks["heat"].carrier_data
-        heat_reserve_margin = heat_parameters.heat_reserve_margin
-        if (heat_reserve_margin is not None) and (heat_reserve_margin >= 0):
-            self.constr_O_heatReserveMargin = pyo.Constraint(self.setHorizon, rule=self._rule_heat_reserve_margin)
-        else:
-            logger.debug("No heat_reserve_margin limit specified")
+        if hasattr(self.all_networks, "heat"):
+            heat_parameters: dto.CarrierHeatData = self.all_networks["heat"].carrier_data
+            heat_reserve_margin = heat_parameters.heat_reserve_margin
+            if (heat_reserve_margin is not None) and (heat_reserve_margin >= 0):
+                self.constr_O_heatReserveMargin = pyo.Constraint(self.setHorizon, rule=self._rule_heat_reserve_margin)
+            else:
+                logger.debug("No heat_reserve_margin limit specified")
 
     def update_optimisation_model(self, timestep, profiles, first=False):
         """Update Pyomo model instance
