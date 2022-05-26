@@ -58,6 +58,7 @@ def plot_device_profile(
     include_on_off=False,
     include_prep=False,
     devs_shareload=None,
+    names=None,
 ):
     """plot forecast and actual profile (available power), and device output
 
@@ -123,11 +124,15 @@ def plot_device_profile(
             dev = col
             dev_data = optimiser.all_devices[dev].dev_data
             k = (k + 1) % len(colour)  # repeat colour cycle if necessary
+            if names is not None:
+                name = names[col]
+            else:
+                name = col
             fig.add_scatter(
                 x=df.index,
                 y=df[col],
                 line_shape="hv",
-                name=col,
+                name=name,
                 line=dict(color=colour[k]),
                 stackgroup="P",
                 legendgroup=col,
@@ -140,7 +145,7 @@ def plot_device_profile(
                     x=df2.index,
                     y=df2[col],
                     line_shape="hv",
-                    name=col,
+                    name=name,
                     line=dict(color=colour[k], dash="dash"),
                     stackgroup="ison",
                     legendgroup=col,
@@ -153,7 +158,7 @@ def plot_device_profile(
                     x=df_prep.index,
                     y=df_prep[col],
                     line_shape="hv",
-                    name=col,
+                    name=name,
                     line=dict(color=colour[k], dash="dash"),
                     stackgroup="ison",
                     legendgroup=col,
@@ -229,21 +234,26 @@ def plot_device_profile(
     return fig
 
 
-def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None, dev_color_dict=None):
+def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, include_flow=True, filename=None, energy_fill_opacity=None, dev_color_dict=None, names=None, sy=False):
     """Plot power in/out of device and storage level (if any)"""
     res = sim_result
     optimiser = optimisation_model
     dev_data = optimiser.all_devices[dev].dev_data
     device_name = "{}:{}".format(dev, dev_data.name)
 
+    if include_flow or sy:
+        sy = True
+    else:
+        sy = False
+
     if dev_data.model in ["storagehydrogen", "storagehydrogencompressor"]:
         carrier = "hydrogen"
         flow_title = "Flow (Nm3/s)"
-        energy_storage_title = "Energy storage (Nm3)"
+        energy_storage_title = "Energy storage [Nm<sup>3</sup>]"
     else:
         carrier = "el"
         flow_title = "Power (MW)"
-        energy_storage_title = "Energy storage (MWh)"
+        energy_storage_title = "Energy storage [MWh]"
     # Power flow in/out
     df_flow = res.device_flow[dev, carrier].unstack("terminal")
     if res.device_storage_energy is None:
@@ -253,24 +263,31 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
     if dev in df_storage_energy:
         df_storage_energy = df_storage_energy[dev]
         df_storage_energy.index = df_storage_energy.index + 1
+    if names is not None:
+        names["in"] = "In"
+        names["out"] = "Out"
+        for y in df_flow:
+            if y in names.keys():
+                df_flow.rename(columns={y:names[y]}, inplace=True)
 
     if plotter == "plotly":
-        fig = plotly.subplots.make_subplots(specs=[[{"secondary_y": True}]])
-        for col in df_flow.columns:
-            fig.add_scatter(
-                x=df_flow.index,
-                y=df_flow[col],
-                line_shape="hv",
-                name=col,
-                secondary_y=True,
-                fill="tozeroy",
-            )
+        fig = plotly.subplots.make_subplots(specs=[[{"secondary_y": sy}]])
+        if include_flow:
+            for col in df_flow.columns:
+                fig.add_scatter(
+                    x=df_flow.index,
+                    y=df_flow[col],
+                    line_shape="hv",
+                    name=col,
+                    secondary_y=True,
+                    fill="tozeroy",
+                )
         if not df_storage_energy.empty:
             if dev_color_dict is not None:
                 fig.add_scatter(
                     x=df_storage_energy.index,
                     y=df_storage_energy,
-                    name="storage",
+                    name="Storage",
                     secondary_y=False,
                     fill="tozeroy",
                     line_color = dev_color_dict[dev]
@@ -279,7 +296,7 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
                 fig.add_scatter(
                     x=df_storage_energy.index,
                     y=df_storage_energy,
-                    name="storage",
+                    name="Storage",
                     secondary_y=False,
                     fill="tozeroy",
                 )  # ,line=dict(dash='dot'))
@@ -290,9 +307,10 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
                 fillcol = "rgba({}, {})".format(linecol[4:][:-1], opacity)
                 fig["data"][k]["fillcolor"] = fillcol
                 fig["data"][k]["fill"] = "tozeroy"
-            fig.update_yaxes(title_text=energy_storage_title, secondary_y=False, side="right")
+            fig.update_yaxes(title_text=energy_storage_title, secondary_y=False, side="left")
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text=flow_title, secondary_y=True, side="left")
+        if include_flow:
+            fig.update_yaxes(title_text=flow_title, secondary_y=True, side="right")
 
     elif plotter == "matplotlib":
         fig = plt.figure(figsize=(12, 4))
@@ -336,6 +354,7 @@ def plot_sum_power_mix(
     devs_combine=None,
     devs_exclude=None,
     dev_color_dict=None,
+    names=None,
 ):
     """
     Plot power mix
@@ -405,6 +424,16 @@ def plot_sum_power_mix(
         df_flow_out = df_flow_out.loc[:, df_flow_out.sum() != 0]
     if devs_exclude is None:
         devs_exclude = []
+    if names is not None:
+        for y in df_flow_in:
+            if y in names.keys():
+                df_flow_in.rename(columns={y:names[y]}, inplace=True)
+        for y in df_flow_out:
+            if y in names.keys():
+                df_flow_out.rename(columns={y:names[y]}, inplace=True)
+        for d in devs_exclude:
+            if d in names.keys():
+                devs_exclude.append(names[d])
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05)
@@ -417,7 +446,7 @@ def plot_sum_power_mix(
                         line_shape="hv",
                         line_width=1,
                         line_color=dev_color_dict[col],
-                        name="in:" + col,
+                        name="In: " + col,
                         stackgroup="in",
                         legendgroup=col,
                         row=2,
@@ -429,7 +458,7 @@ def plot_sum_power_mix(
                         y=df_flow_in[col],
                         line_shape="hv",
                         line_width=1,
-                        name="in:" + col,
+                        name="In: " + col,
                         stackgroup="in",
                         legendgroup=col,
                         row=2,
@@ -444,7 +473,7 @@ def plot_sum_power_mix(
                         line_shape="hv",
                         line_width=1,
                         line_color=dev_color_dict[col],
-                        name="out:" + col,
+                        name="Out: " + col,
                         stackgroup="out",
                         legendgroup=col,
                         row=1,
@@ -456,7 +485,7 @@ def plot_sum_power_mix(
                         y=df_flow_out[col],
                         line_shape="hv",
                         line_width=1,
-                        name="out:" + col,
+                        name="Out: " + col,
                         stackgroup="out",
                         legendgroup=col,
                         row=1,
@@ -535,14 +564,14 @@ def plot_CO2_rate(sim_result, filename=None):
             col=1,
         )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Emission rate (kgCO2/s)")
+        fig.update_yaxes(title_text="CO<sub>2</sub> emission rate [kg/s]")
         fig.update_layout(height=600)
         return fig
     else:
         plt.figure(figsize=(24, 8))
-        plt.title("CO2 emission rate (kgCO2/s)")
+        plt.title("CO<sub>2</sub> emission rate [kg/s]")
         ax = plt.gca()
-        ax.set_ylabel("kgCO2/s")
+        ax.set_ylabel("kg/s")
         ax.set_xlabel("Timestep")
         sim_result.co2_rate.plot()
         if filename is not None:
@@ -558,6 +587,7 @@ def plot_CO2_rate_per_device(
     devs_combine=None,
     devs_exclude=None,
     dev_color_dict=None,
+    names=None,
 ):
 
     dfco2rate = sim_result.co2_rate_per_dev.unstack("device")
@@ -586,6 +616,13 @@ def plot_CO2_rate_per_device(
             dfplot.drop(dfplot.filter(devs_combine[1][i]), axis=1, inplace=True)
     if devs_exclude is None:
         devs_exclude = []
+    if names is not None:
+        for y in dfplot:
+            if y in names.keys():
+                dfplot.rename(columns={y:names[y]}, inplace=True)
+        for d in devs_exclude:
+            if d in names.keys():
+                devs_exclude.append(names[d])
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
@@ -615,14 +652,14 @@ def plot_CO2_rate_per_device(
                         col=1,
                     )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Emission rate (kgCO2/s)")
+        fig.update_yaxes(title_text="CO<sub>2</sub> emission rate [kg/s]")
         if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
     else:
         fig = plt.figure(figsize=(12, 4))
         ax = plt.gca()
-        ax.set_ylabel("Emission rate (kgCO2/s)")
+        ax.set_ylabel("CO<sub>2</sub> emission rate [kg/s]")
         ax.set_xlabel("Timestep")
         dfplot.plot.area(ax=ax, linewidth=0)
         if reverse_legend:
@@ -675,12 +712,12 @@ def plot_op_cost(sim_result, filename=None):
             col=1,
         )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Operational cost (NOK/s)")
+        fig.update_yaxes(title_text="Operational cost [NOK/s]")
         fig.update_layout(height=600)
         return fig
     else:
         plt.figure(figsize=(24, 8))
-        plt.title("Operational cost (NOK/s)")
+        plt.title("Operational cost [NOK/s]")
         ax = plt.gca()
         ax.set_ylabel("NOK/s")
         ax.set_xlabel("Timestep")
@@ -698,6 +735,7 @@ def plot_op_cost_per_device(
     devs_combine=None,
     devs_exclude=None,
     dev_color_dict=None,
+    names=None,
 ):
 
     dfopcost = sim_result.op_cost_per_dev.unstack("device")
@@ -726,6 +764,13 @@ def plot_op_cost_per_device(
             dfplot.drop(dfplot.filter(devs_combine[1][i]), axis=1, inplace=True)
     if devs_exclude is None:
         devs_exclude = []
+    if names is not None:
+        for y in dfplot:
+            if y in names.keys():
+                dfplot.rename(columns={y:names[y]}, inplace=True)
+        for d in devs_exclude:
+            if d in names.keys():
+                devs_exclude.append(names[d])
 
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
@@ -755,14 +800,14 @@ def plot_op_cost_per_device(
                         col=1,
                     )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Operational cost (NOK/s)")
+        fig.update_yaxes(title_text="Operational cost [NOK/s]")
         if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
     else:
         fig = plt.figure(figsize=(12, 4))
         ax = plt.gca()
-        ax.set_ylabel("Operational cost (NOK/s)")
+        ax.set_ylabel("Operational cost [NOK/s]")
         ax.set_xlabel("Timestep")
         dfplot.plot.area(ax=ax, linewidth=0)
         if reverse_legend:
@@ -786,9 +831,15 @@ def plot_all_costs(
     sim_result: oogeso.dto.SimulationResult,
     optimization_model: oogeso.OptimisationModel,
     filename: str = None,
+    fixed: bool = True,
     investment: bool = True,
     fuel: bool = True,
+    co2: bool = True,
+    year_avg: bool = False,
     reverse_legend: bool = True,
+    divide_investment_by_lifetime: bool = False,
+    annuity_interest_rate: float = None,
+    non_inv_mult_factor: float = 1,
     ):
     data = [["All costs"]]
     cols = ["device"]
@@ -802,51 +853,79 @@ def plot_all_costs(
     op_cost_sum = 0
     fuel_cost_sum = 0
     co2_cost_sum = 0
+    inv_lifetime = 1
+    hours_per_year = 8760
     for dev, dev_obj in optimization_model.all_devices.items():
+        if divide_investment_by_lifetime or annuity_interest_rate is not None:
+            if dev_obj.dev_data.lifetime is not None:
+                inv_lifetime = dev_obj.dev_data.lifetime
         if dev_obj.dev_data.model in ["storageel", "storagehydrogen", "storagehydrogencompressor"]:
             installed_capacity = dev_obj.dev_data.E_max
         elif dev_obj.dev_data.model == "heatpump":
             installed_capacity = dev_obj.dev_data.flow_max*dev_obj.dev_data.eta
         else:
             installed_capacity = dev_obj.dev_data.flow_max
-        if dev_obj.dev_data.model == "sourcediesel" and fuel:
-            if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
-                fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+        if dev_obj.dev_data.model == "sourcediesel":
+            if fuel and (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
+                if year_avg:
+                    fuel_cost_sum += sim_result.op_cost_per_dev[dev].mean() * hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length * non_inv_mult_factor
         else:
-            if dev_obj.dev_data.investment_cost is not None and installed_capacity is not None:
-                inv_sum += dev_obj.dev_data.investment_cost*installed_capacity
+            if dev_obj.dev_data.investment_cost is not None and installed_capacity is not None and annuity_interest_rate is not None:
+                inv_sum += dev_obj.dev_data.investment_cost*installed_capacity / ((1 - 1 / ((1 + annuity_interest_rate)**inv_lifetime)) / annuity_interest_rate)
+            elif dev_obj.dev_data.investment_cost is not None and installed_capacity is not None:
+                inv_sum += dev_obj.dev_data.investment_cost*installed_capacity / inv_lifetime
             if dev_obj.dev_data.fixed_op_cost is not None:
-                fixed_op_cost_sum += dev_obj.dev_data.fixed_op_cost * installed_capacity * simulation_time
+                if year_avg:
+                    fixed_op_cost_sum += dev_obj.dev_data.fixed_op_cost * installed_capacity * hours_per_year * timestep_length * non_inv_mult_factor    
+                else:
+                    fixed_op_cost_sum += dev_obj.dev_data.fixed_op_cost * installed_capacity * simulation_time * non_inv_mult_factor
             if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
-                op_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+                if year_avg:
+                    op_cost_sum += sim_result.op_cost_per_dev[dev].mean() * hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    op_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length * non_inv_mult_factor
             if sim_result.co2_rate_per_dev[dev] is not None:
-                co2_cost_sum += sim_result.co2_rate_per_dev[dev].sum() * timestep_length
+                if year_avg:
+                    co2_cost_sum += sim_result.co2_rate_per_dev[dev].mean() * hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    co2_cost_sum += sim_result.co2_rate_per_dev[dev].sum() * timestep_length * non_inv_mult_factor
     if investment:
         if inv_sum > 0:
             data[0].append(inv_sum)
-            cols.append("Investment costs")
-            color_dict["Investment costs"] = "#9467bd" # Purple
-    if fixed_op_cost_sum > 0:
+            if divide_investment_by_lifetime:
+                cols.append("Investment costs per device lifetime")
+                color_dict["Investment costs per device lifetime"] = "#9467bd" # Purple
+            elif annuity_interest_rate is not None:
+                cols.append("Annualized investment costs")
+                color_dict["Annualized investment costs"] = "#9467bd" # Purple
+            else:
+                cols.append("Investment costs")
+                color_dict["Investment costs"] = "#9467bd" # Purple
+    if fixed and fixed_op_cost_sum > 0:
         data[0].append(fixed_op_cost_sum)
-        cols.append("Fixed operational and maintenance costs")
+        cols.append("Fixed O&M costs") #operational and maintenance costs")
         color_dict["Fixed operational and maintenance costs"] = "#8c564b" # Brown
+        color_dict["Fixed O&M costs"] = "#8c564b" # Brown
     if op_cost_sum > 0:
         data[0].append(op_cost_sum)
-        cols.append("Variable operational and maintenance costs")
+        cols.append("Variable O&M costs") #operational and maintenance costs")
         color_dict["Variable operational and maintenance costs"] = "#636EFA" # Blue
+        color_dict["Variable O&M costs"] = "#636EFA" # Blue
     if fuel_cost_sum > 0:
         data[0].append(fuel_cost_sum)
         cols.append("Fuel costs (diesel)")
         color_dict["Fuel costs (diesel)"] = "#808080" # Gray
-    if co2_cost_sum > 0:
+    if co2 and co2_cost_sum > 0:
         data[0].append(co2_cost_sum)
-        cols.append("CO2 costs")
-        color_dict["CO2 costs"] = "#000000" # Black
+        cols.append("CO<sub>2</sub> costs")
+        color_dict["CO<sub>2</sub> costs"] = "#000000" # Black
     costs = pd.DataFrame(data, columns=cols)
     if plotter == "plotly":
         fig = px.bar(costs, y = cols, x='device', color_discrete_map = color_dict)#, orientation = 'h')
         fig.update_xaxes(title_text="Device")
-        fig.update_yaxes(title_text="Total costs (NOK)")
+        fig.update_yaxes(title_text="Total costs [NOK]")
         fig.update_layout(title="Total costs over the simulation", height=600)
         if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
@@ -859,18 +938,24 @@ def plot_all_costs_per_device(
     sim_result: oogeso.dto.SimulationResult,
     optimization_model: oogeso.OptimisationModel,
     filename: str = None,
+    fixed: bool = True,
     investment: bool = True,
     fuel: bool = True,
     include_sum: bool = False,
+    year_avg: bool = False,
     reverse_legend: bool = True,
     devs_combine: Optional[list] = None,
     devs_exclude = None,
+    names = None,
+    divide_investment_by_lifetime: bool = False,
+    annuity_interest_rate: float = None,
+    non_inv_mult_factor: float = 1,
     ):
     data = []
     cols = ["device"]
     color_dict = dict()
     # Timestep length = minutes per timestep * seconds per minute
-    # Simulation time = number of timesteps timestep length
+    # Simulation time = number of timesteps * timestep length
     timestep_length = optimization_model.paramTimestepDeltaMinutes.value * 60
     simulation_time = sim_result.op_cost.shape[0] * timestep_length
     for dev, dev_obj in optimization_model.all_devices.items():
@@ -879,6 +964,11 @@ def plot_all_costs_per_device(
         op_cost_sum = 0
         fuel_cost_sum = 0
         co2_cost_sum = 0
+        inv_lifetime = 1
+        hours_per_year = 8760
+        if investment and (divide_investment_by_lifetime or annuity_interest_rate is not None):
+            if dev_obj.dev_data.lifetime is not None:
+                inv_lifetime = dev_obj.dev_data.lifetime
         if dev_obj.dev_data.model in ["storageel", "storagehydrogen", "storagehydrogencompressor"]:
             installed_capacity = dev_obj.dev_data.E_max
         elif dev_obj.dev_data.model == "heatpump":
@@ -887,18 +977,31 @@ def plot_all_costs_per_device(
             installed_capacity = dev_obj.dev_data.flow_max
         if dev_obj.dev_data.model == "sourcediesel" and fuel:
             if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
-                print(sim_result.op_cost_per_dev[dev].sum() * timestep_length)
-                fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length
+                if year_avg:
+                    fuel_cost_sum += sim_result.op_cost_per_dev[dev].mean() * hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    fuel_cost_sum += sim_result.op_cost_per_dev[dev].sum() * timestep_length * non_inv_mult_factor
         else:
             if investment:
-                if dev_obj.dev_data.investment_cost is not None and installed_capacity is not None:
-                    inv_sum = dev_obj.dev_data.investment_cost*installed_capacity
+                if dev_obj.dev_data.investment_cost is not None and installed_capacity is not None and annuity_interest_rate is not None:
+                    inv_sum = dev_obj.dev_data.investment_cost*installed_capacity / ((1 - 1 / ((1 + annuity_interest_rate)**inv_lifetime)) / annuity_interest_rate)
+                elif dev_obj.dev_data.investment_cost is not None and installed_capacity is not None:
+                    inv_sum = dev_obj.dev_data.investment_cost*installed_capacity / inv_lifetime
             if dev_obj.dev_data.fixed_op_cost is not None:
-                fixed_op_cost_sum = dev_obj.dev_data.fixed_op_cost * installed_capacity * simulation_time
+                if year_avg:
+                    fixed_op_cost_sum = dev_obj.dev_data.fixed_op_cost * installed_capacity * hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    fixed_op_cost_sum = dev_obj.dev_data.fixed_op_cost * installed_capacity * simulation_time * non_inv_mult_factor
             if (dev_obj.dev_data.op_cost is not None or dev_obj.dev_data.op_cost_in is not None or dev_obj.dev_data.op_cost_out is not None) and sim_result.op_cost_per_dev is not None:
-                op_cost_sum = sim_result.op_cost_per_dev[dev].sum() * timestep_length
+                if year_avg:
+                    op_cost_sum = sim_result.op_cost_per_dev[dev].mean() *hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    op_cost_sum = sim_result.op_cost_per_dev[dev].sum() * timestep_length * non_inv_mult_factor
             if sim_result.co2_rate_per_dev[dev] is not None:
-                co2_cost_sum += sim_result.co2_rate_per_dev[dev].sum() * timestep_length
+                if year_avg:
+                    co2_cost_sum += sim_result.co2_rate_per_dev[dev].mean() * hours_per_year * timestep_length * non_inv_mult_factor
+                else:
+                    co2_cost_sum += sim_result.co2_rate_per_dev[dev].sum() * timestep_length * non_inv_mult_factor
         if investment and fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0 or fuel_cost_sum > 0 or co2_cost_sum > 0):
             data.append([dev, inv_sum, fixed_op_cost_sum, op_cost_sum, fuel_cost_sum, co2_cost_sum])
         elif investment and not fuel and (inv_sum > 0 or fixed_op_cost_sum > 0 or op_cost_sum > 0):
@@ -908,17 +1011,27 @@ def plot_all_costs_per_device(
         elif not investment and not fuel and (fixed_op_cost_sum > 0 or op_cost_sum > 0):
             data.append([dev, fixed_op_cost_sum, op_cost_sum])
     if investment:
-        cols.append("Investment costs")
-        color_dict["Investment costs"] = "#9467bd" # Purple
-    cols.append("Fixed operational and maintenance costs")
-    color_dict["Fixed operational and maintenance costs"] = "#8c564b" # Brown
-    cols.append("Variable operational and maintenance costs")
+        if divide_investment_by_lifetime:
+            cols.append("Investment costs per device lifetime")
+            color_dict["Investment costs per device lifetime"] = "#9467bd" # Purple
+        elif annuity_interest_rate is not None:
+            cols.append("Annualized investment costs")
+            color_dict["Annualized investment costs"] = "#9467bd" # Purple
+        else:
+            cols.append("Investment costs")
+            color_dict["Investment costs"] = "#9467bd" # Purple
+    if fixed:
+        cols.append("Fixed O&M costs") #operational and maintenance costs")
+        color_dict["Fixed operational and maintenance costs"] = "#8c564b" # Brown
+        color_dict["Fixed O&M costs"] = "#8c564b" # Brown
+    cols.append("Variable O&M costs") #operational and maintenance costs")
     color_dict["Variable operational and maintenance costs"] = "#636EFA" # Blue
+    color_dict["Variable O&M costs"] = "#636EFA" # Blue
     if fuel:
         cols.append("Fuel costs (diesel)")
         color_dict["Fuel costs (diesel)"] = "#808080" # Gray
-        cols.append("CO2 costs")
-        color_dict["CO2 costs"] = "#000000" # Black
+        cols.append("CO<sub>2</sub> costs")
+        color_dict["CO<sub>2</sub> costs"] = "#000000" # Black
     if devs_combine:
         for dev in devs_combine[0]:
             combine = [dev]
@@ -935,7 +1048,7 @@ def plot_all_costs_per_device(
                                 new_data.append(data[j][k+1] + dev[k+1])
                             data[j][1:] = new_data
     if include_sum:
-        totals = ["All costs"]
+        totals = ["All devices"]
         for i in range(len(data[0])-1):
             totals.append(0)
         for device in data:
@@ -951,11 +1064,15 @@ def plot_all_costs_per_device(
     if devs_exclude:
         for dev in devs_exclude:
             costs.drop(costs[costs.device == dev].index, inplace=True)
+    if names is not None:
+        for y in costs['device']:
+            if y in names.keys():
+                costs['device'].replace({y:names[y]}, inplace=True)
 
     if plotter == "plotly":
         fig = px.bar(costs, y = cols, x='device', color_discrete_map=color_dict)#, orientation = 'h')
         fig.update_xaxes(title_text="Device")
-        fig.update_yaxes(title_text="Total costs (NOK)")
+        fig.update_yaxes(title_text="Total costs [NOK]")
         fig.update_layout(title="Total costs over the simulation", height=600)
         if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
@@ -1017,6 +1134,7 @@ def plot_profiles(profiles, filename=None):
 def plot_unused_profile_power(
     simulator: oogeso.Simulator,
     reverse_legend: bool = True,
+    names=None,
     ):
     fig = None
     profiles = simulator.profiles["nowcast"]
@@ -1028,6 +1146,10 @@ def plot_unused_profile_power(
             labels.append(id)
             unused_power.append(profiles[d_obj.dev_data.profile][:len(simulator.result_object.device_flow[id]["el"]["out"])] * d_obj.dev_data.flow_max - simulator.result_object.device_flow[id]["el"]["out"])
     data = pd.DataFrame(np.array(unused_power).T, columns=labels)
+    if names is not None:
+        for y in data:
+            if y in names.keys():
+                data.rename(columns={y:names[y]}, inplace=True)
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=1, cols=1)
         for col in data:
@@ -1042,7 +1164,7 @@ def plot_unused_profile_power(
                 col=1,
             )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Unused power (MW)")
+        fig.update_yaxes(title_text="Unused power [MW]")
         if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
@@ -1154,6 +1276,7 @@ def plot_reserve(
     devs_combine=None,
     devs_exclude=None,
     dev_color_dict=None,
+    names = None,
 ):
     """Plot unused online capacity by all {carrier} devices"""
     df_devs = pd.DataFrame()
@@ -1219,6 +1342,10 @@ def plot_reserve(
     if devs_exclude:
         for dev in devs_exclude:
             df_devs.drop(df_devs[df_devs.device == dev].index, inplace=True)
+    if names is not None:
+        for y in df_devs:
+            if y in names.keys():
+                df_devs.rename(columns={y:names[y]}, inplace=True)
     if plotter == "plotly":
         if dev_color_dict is not None:
             fig = px.area(df_devs, line_shape="hv", color="device", color_discrete_map=dev_color_dict)
@@ -1249,7 +1376,7 @@ def plot_reserve(
                 mode="lines",
             )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Reserve (MW)")
+        fig.update_yaxes(title_text="Reserve [MW]")
         #    return df_devs,margin_incr
     elif plotter == "matplotlib":
         ax = df_devs.plot.area()
@@ -1265,14 +1392,14 @@ def plot_reserve(
             margin_incr[["margin"]].plot(style=":", color="red", ax=ax)
 
         plt.xlabel("Timestep")
-        plt.ylabel("Reserve (MW)")
+        plt.ylabel("Reserve [MW]")
         fig = plt.gcf()
     else:
         raise ValueError(f"Plotter: {plotter} has not been implemented for plot reserve.")
     return fig
 
 
-def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=False):
+def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=False, names=None):
     """plot reserve capacity vs device power output"""
     res = sim_result
     res_dev = res.el_backup.unstack("device")
@@ -1284,6 +1411,13 @@ def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=F
     df_device_flow = df_device_flow[mask_carrier & mask_out].unstack(0)
     df_device_flow = df_device_flow[res_dev.columns]
     df_margin = (res_dev - df_device_flow).min(axis=1)
+    if names is not None:
+        for y in res_dev:
+            if y in names.keys():
+                res_dev.rename(columns={y:names[y]}, inplace=True)
+        for y in df_device_flow:
+            if y in names.keys():
+                df_device_flow.rename(columns={y:names[y]}, inplace=True)
     if plotter == "plotly":
         fig = px.line()  # title="Online backup capacity (solid lines) vs device output (dotted lines)")
         colour = plotly.colors.DEFAULT_PLOTLY_COLORS
@@ -1316,7 +1450,7 @@ def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=F
                 line_shape="hv",
             )
         fig.update_xaxes(title_text="Timestep")
-        fig.update_yaxes(title_text="Power (MW)")
+        fig.update_yaxes(title_text="Power [MW]")
     elif plotter == "matplotlib":
         fig = plt.figure(figsize=(12, 4))
         ax = plt.gca()

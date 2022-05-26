@@ -18,7 +18,6 @@ class CarrierElData(dto.CarrierData):
 class CarrierHeatData(dto.CarrierData):
     # required (globally) reserve (MW), -1=no limit
     heat_reserve_margin: float = -1
-    pass
 
 
 class CarrierHydrogenData(dto.CarrierData):

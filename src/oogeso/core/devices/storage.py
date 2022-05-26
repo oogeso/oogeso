@@ -447,6 +447,27 @@ class StorageHydrogenCompressor(StorageDevice):
                 sum_cost += op_cost_out * h_out
         # average per sec (simulation timestep drops out)
         return sum_cost / len(timesteps)
+    
+    def compute_heat_reserve(self, pyomo_model: pyo.Model, t: int) -> Dict[str, float]:
+        """Compute available reserve heat from this device
+        Currently the compressor only produces waste heat from compressing,
+        and no additional heat can be provided.
+
+        device parameter "reserve_heat_factor" specifies how large part of the
+        available capacity should count towards the reserve (1=all, 0=none)
+        """
+        rf = 1
+        if self.dev_data.reserve_heat_factor is not None:
+            rf = self.dev_data.reserve_heat_factor
+        cap_avail = rf * pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
+        p_generating = rf * pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
+        load_reduction = 0
+        reserve = {
+            "capacity_available": cap_avail,
+            "capacity_used": p_generating,
+            "loadreduction_available": load_reduction,
+        }
+        return reserve
 
 def compute_hydrogen_compressor_demand(
     model: pyo.Model,

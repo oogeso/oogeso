@@ -53,7 +53,7 @@ class HeatNetwork(Network):
             compute reserve by devices excluding this one
         """
         alldevs = [d for d in pyomo_model.setDevice if d != exclude_device]
-        # relevant devices are devices with el output or input
+        # relevant devices are devices with heat output or input
         cap_avail = 0.0
         p_generating = 0.0
         loadreduction = 0.0
