@@ -27,7 +27,10 @@ class GasTurbine(Device):
             self.carrier_out = ["el"]
 
         if dev_data.eta is None:
-            dev_data.eta = 1 / (self.dev_data.fuel_A + self.dev_data.fuel_B)
+            if self.dev_data.fuel_A is not None and self.dev_data.fuel_B is not None:
+                dev_data.eta = 1 / (self.dev_data.fuel_A + self.dev_data.fuel_B)
+            else:
+                dev_data.eta = 1
 
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
