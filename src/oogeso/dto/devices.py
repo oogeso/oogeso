@@ -117,6 +117,7 @@ class DeviceDieselHeaterData(DeviceData):
 class DeviceGasTurbineData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None
+    eta: float = None # Approximate eta based on fuel parameters to estimate heat reserve
     eta_heat: float = None
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.GAS_TURBINE

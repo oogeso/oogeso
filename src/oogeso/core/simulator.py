@@ -1,5 +1,6 @@
 import logging
 from typing import Optional, Sequence, Tuple
+from attr import has
 
 import pandas as pd
 import pyomo.environ as pyo
@@ -321,7 +322,7 @@ class Simulator:
             df_reserve.index.rename("time", inplace=True)
         else:
             df_reserve = None
-        if return_all or "heat_reserve" in return_variables:
+        if return_all or "heat_reserve" in return_variables and hasattr(self.optimiser.all_networks, "heat"):
             df_reserve_heat = pd.Series(dtype=float64, index=range(timestep, timestep + timelimit))
             for t in range(timelimit):
                 rescap = pyo.value(

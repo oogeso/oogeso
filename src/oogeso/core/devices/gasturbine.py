@@ -23,6 +23,12 @@ class GasTurbine(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
+        if dev_data.eta_heat == 0:
+            self.carrier_out = ["el"]
+
+        if dev_data.eta is None:
+            dev_data.eta = 1 / (self.dev_data.fuel_A + self.dev_data.fuel_B)
+
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         param_gas = self.carrier_data["gas"]
