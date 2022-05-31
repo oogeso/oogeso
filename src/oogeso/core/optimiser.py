@@ -279,6 +279,8 @@ class OptimisationModel(pyo.ConcreteModel):
         self.varStorOut = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=0)
         # absolute value variable for storage with target level:
         self.varDeviceStorageDeviationFromTarget = pyo.Var(self.setDevice, within=pyo.NonNegativeReals, initialize=0)
+        # binary variable stating whether storage is below target level for storage with target level:
+        self.varDeviceStorageBelowTarget = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=0,)
         self.varPressure = pyo.Var(
             self.setNode,
             self.setCarrier,

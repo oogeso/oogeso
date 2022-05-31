@@ -113,16 +113,19 @@ class StorageEl(StorageDevice):
         elif i == 10:
             # Constraint 10-12: varDeviceFlow[dev, "el", "in", t] and varDeviceFlow[dev, "el", "out", t] cannot both be nonzero
             # ref: https://stackoverflow.com/questions/71372177/
+            return pyo.Constraint.Skip
             big_M = dev_data.E_max
             lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
             rhs = pyomo_model.varStorIn[dev, t] * big_M
             return lhs <= rhs
         elif i == 11:
+            return pyo.Constraint.Skip
             big_M = dev_data.E_max
             lhs = pyomo_model.varDeviceFlow[dev, "el", "out", t]
             rhs = pyomo_model.varStorOut[dev, t] * big_M
             return lhs <= rhs
         elif i == 12:
+            return pyo.Constraint.Skip
             lhs = pyomo_model.varStorIn[dev, t] + pyomo_model.varStorOut[dev, t]
             rhs = 1
             return lhs <= rhs
@@ -367,42 +370,62 @@ class StorageHydrogenCompressor(StorageDevice):
             rhs = pyomo_model.varDeviceCompressorEnergy[dev, t] * pyomo_model.varStorY[dev,t]
             return lhs <= rhs
         elif i == 7:
-            # Constraint 7-9: varDeviceFlow[dev, "hydrogen", "in", t] and varDeviceFlow[dev, "hydrogen", "out", t] cannot both be nonzero
+            # Constraint 7 and 8: varDeviceStorageBelowTarget[dev, t] = 0 if deviation is negative; 1 otherwise
+            if t != pyomo_model.setHorizon.last():
+                return pyo.Constraint.Skip
+            E_target = pyomo_model.paramDeviceEnergyTarget[dev]
+            var_E = pyomo_model.varDeviceStorageEnergy[dev, t]
+            deviation = E_target - var_E
+            lhs = deviation / dev_data.E_max # This value will be between -1 and 1
+            rhs = pyomo_model.varDeviceStorageBelowTarget[dev, t]
+            return lhs <= rhs
+        elif i == 8:
+            # Constraint 7 and 8: varDeviceStorageBelowTarget[dev, t] = 0 if deviation is negative; 1 otherwise
+            if t != pyomo_model.setHorizon.last():
+                return pyo.Constraint.Skip
+            E_target = pyomo_model.paramDeviceEnergyTarget[dev]
+            var_E = pyomo_model.varDeviceStorageEnergy[dev, t]
+            deviation = E_target - var_E
+            lhs = pyomo_model.varDeviceStorageBelowTarget[dev, t] - 1
+            rhs = deviation / dev_data.E_max * pyomo_model.varDeviceStorageBelowTarget[dev, t] # This value will be between -1 and 1
+            return lhs <= rhs
+        elif i == 9:
+            # Constraint 9-11: varDeviceFlow[dev, "hydrogen", "in", t] and varDeviceFlow[dev, "hydrogen", "out", t] cannot both be nonzero
             # ref: https://stackoverflow.com/questions/71372177/
             big_M = dev_data.E_max / 10 # Taking out 10 % of max storage in one timestep is quite big
             lhs = pyomo_model.varDeviceFlow[dev, "hydrogen", "in", t]
             rhs = pyomo_model.varStorIn[dev, t] * big_M
             return lhs <= rhs
-        elif i == 8:
+        elif i == 10:
             big_M = dev_data.E_max / 10 # Taking out 10 % of max storage in one timestep is quite big
             lhs = pyomo_model.varDeviceFlow[dev, "hydrogen", "out", t]
             rhs = pyomo_model.varStorOut[dev, t] * big_M
             return lhs <= rhs
-        elif i == 9:
+        elif i == 11:
             lhs = pyomo_model.varStorIn[dev, t] + pyomo_model.varStorOut[dev, t]
             rhs = 1
             return lhs <= rhs
-        elif i == 10:
+        elif i == 12:
             """Device isothermal compressor demand"""
             lhs = pyomo_model.varDeviceCompressorEnergyIso[dev, t]
             rhs = compute_hydrogen_compressor_demand(pyomo_model, self, 
                 isothermal_adiabatic = 0, t=t) / self.dev_data.compressor.eta
             return lhs == rhs
-        elif i == 11:
-            # Constraint 11-13: varDeviceCompressorPIso[dev, t] = max{varDeviceCompressorEnergyIso,0}
+        elif i == 13:
+            # Constraint 13-15: varDeviceCompressorPIso[dev, t] = max{varDeviceCompressorEnergyIso,0}
             # ref: https://or.stackexchange.com/a/1174
             lhs = pyomo_model.varDeviceCompressorEnergyIso[dev, t]
             rhs = pyomo_model.varDeviceCompressorPIso[dev, t]
             return lhs <= rhs
-        elif i == 12:
+        elif i == 14:
             lhs = 0
             rhs = pyomo_model.varDeviceCompressorPIso[dev, t]
             return lhs <= rhs
-        elif i == 13:
+        elif i == 15:
             lhs = pyomo_model.varDeviceCompressorPIso[dev, t]
             rhs = pyomo_model.varDeviceCompressorEnergyIso[dev, t] * pyomo_model.varStorY2[dev,t]
             return lhs <= rhs
-        elif i == 14:
+        elif i == 16:
             """Device heat production"""
             """heat output = (el energy in - isothermal el energy needed) * heat efficiency"""
             lhs = pyomo_model.varDeviceFlow[dev, "heat", "out", t]
@@ -418,9 +441,9 @@ class StorageHydrogenCompressor(StorageDevice):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        range_end = 14
+        range_end = 16
         if self.dev_data.compressor.eta_heat == 0 or self.dev_data.compressor.isothermal_adiabatic == 0:
-            range_end = 9
+            range_end = 11
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, range_end), rule=self._rules)
         # add constraints to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
@@ -468,6 +491,19 @@ class StorageHydrogenCompressor(StorageDevice):
             "loadreduction_available": load_reduction,
         }
         return reserve
+    
+    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: pyo.Set):
+        # cost rate kr/s
+        # Cost associated with deviation from target value
+        # below target = cost, above target = no cost   => gives signal to fill storage up to target level
+        dev_data = self.dev_data
+        E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
+        t_end = pyomo_model.setHorizon.last()
+        var_E = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
+        storage_cost = dev_data.E_cost * (E_target - var_E) * pyomo_model.varDeviceStorageBelowTarget[self.id, t_end]
+        # from cost (kr) to cost rate (kr/s):
+        storage_cost = storage_cost / len(timesteps)
+        return storage_cost
 
 def compute_hydrogen_compressor_demand(
     model: pyo.Model,

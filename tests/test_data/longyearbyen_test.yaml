@@ -108,7 +108,7 @@ devices:
     fixed_op_cost: 0
     op_cost: 0.02 # NOK/MJ (100 NOK/MWh = 0.03 NOK/MJ) #higher than wind, to favour wind when possible
     reserve_factor: 1 #contributes to spinning reserve
-    electrolyser_id: electrolyser
+    #electrolyser_id: electrolyser
 
   - id: h2_storage
     include: 0
@@ -120,8 +120,8 @@ devices:
     E_max: 3000000 # Nm3  # 13 MJ/Sm3 => 10830 MWh (around 15 days at 15 MW and 50% efficiency)
     E_init: 1500000
     eta: 1
-    op_cost_in: -0.05 # Fill incentive
-    op_cost_out: 0 #0.01 #0.55
+    #op_cost_in: -0.05 # Fill incentive
+    #op_cost_out: 0 #0.01 #0.55
     investment_cost: 0
     compressor:
       eta: 0.95
@@ -144,8 +144,8 @@ devices:
     eta: 0.95
     investment_cost: 0
     fixed_op_cost: 0
-    op_cost_in: 0 #-0.001 # Slight fill incentive
-    op_cost_out: 0.0015
+    #op_cost_in: 0 #-0.001 # Slight fill incentive
+    #op_cost_out: 0.0015
 
   - id: geothermal
     include: 0
@@ -180,7 +180,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 1
-    op_cost: 0.00001
+    op_cost: 0.01
     model: sink_heat
     name: heat_dump
     node_id: load
@@ -189,7 +189,7 @@ devices:
     flow_max: 100
     flow_min: 0
     include: 1
-    op_cost: 0.1
+    op_cost: 1
     model: sink_el
     name: el_dump
     node_id: load
