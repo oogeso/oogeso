@@ -934,6 +934,128 @@ def plot_all_costs(
         raise ValueError(f"Plotter: {plotter} has not been implemented for plot all costs.")
 
 
+def plot_all_losses(
+    sim_result: oogeso.dto.SimulationResult,
+    simulator: oogeso.Simulator,
+    pv_devs = None,
+    wind_devs = None,
+    battery_devs = None,
+    eboiler_devs = None,
+    h2_devs = None,
+    heat_dump_devs = None,
+    reverse_legend: bool = True,
+    ):
+    data = [["All losses"]]
+    cols = ["device"]
+    color_dict = dict()
+
+    hours_per_year = 8760
+    curtailed_pv = 0
+    curtailed_wind = 0
+    battery_loss = 0
+    eboiler_loss = 0
+    hydrogen_loss = 0
+    curtailed_heat = 0
+
+    incl_pv = False
+    incl_wind = False
+    incl_battery = False
+    incl_eboiler = False
+    incl_hydrogen = False
+    incl_heat_dump = False
+
+    if pv_devs is not None and pv_devs[0] in simulator.optimiser.setDevice:
+        incl_pv = True
+    if wind_devs is not None and wind_devs[0] in simulator.optimiser.setDevice:
+        incl_wind = True
+    if battery_devs is not None and battery_devs[0] in simulator.optimiser.setDevice:
+        incl_battery = True
+    if eboiler_devs is not None and eboiler_devs[0] in simulator.optimiser.setDevice:
+        incl_eboiler = True
+    if h2_devs is not None and h2_devs[0] in simulator.optimiser.setDevice:
+        incl_hydrogen = True
+    if heat_dump_devs is not None and heat_dump_devs[0] in simulator.optimiser.setDevice:
+        incl_heat_dump = True
+
+    if incl_pv or incl_wind:
+        profiles = simulator.profiles["nowcast"]
+        unused_power = []
+        labels = []
+        for d, d_obj in simulator.optimiser.all_devices.items():
+            if d_obj.dev_data.model == "sourceel" and d_obj.dev_data.profile is not None:
+                id = d_obj.dev_data.id
+                labels.append(id)
+                unused_power.append(profiles[d_obj.dev_data.profile][:len(simulator.result_object.device_flow[id]["el"]["out"])] * d_obj.dev_data.flow_max - simulator.result_object.device_flow[id]["el"]["out"])
+        curtailed_data = pd.DataFrame(np.array(unused_power).T, columns=labels)
+
+    for dev, dev_obj in simulator.optimiser.all_devices.items():
+        if incl_pv:
+            if dev_obj.dev_data.id in pv_devs:
+                curtailed_pv += curtailed_data[dev_obj.dev_data.id].mean()*hours_per_year
+        if incl_wind:
+            if dev_obj.dev_data.id in wind_devs:
+                curtailed_wind += curtailed_data[dev_obj.dev_data.id].mean()*hours_per_year
+        if incl_battery:
+            if dev_obj.dev_data.id in battery_devs:
+                battery_el_in = sim_result.device_flow[dev, "el", "in"].mean()*hours_per_year
+                battery_el_out = sim_result.device_flow[dev, "el", "out"].mean()*hours_per_year
+                battery_energy_loss = battery_el_in - battery_el_out
+                battery_loss += battery_energy_loss
+        if incl_eboiler:
+            if dev_obj.dev_data.id in eboiler_devs:
+                eboiler_el_in = sim_result.device_flow[dev, "el", "in"].mean()*hours_per_year
+                eboiler_heat_out = sim_result.device_flow[dev, "heat", "out"].mean()*hours_per_year
+                eboiler_energy_loss = eboiler_el_in - eboiler_heat_out
+                eboiler_loss += eboiler_energy_loss
+        if incl_hydrogen:
+            if dev_obj.dev_data.id in h2_devs:
+                h2_el_in = sim_result.device_flow[dev, "el", "in"].mean()*hours_per_year
+                h2_el_out = sim_result.device_flow[dev, "el", "out"].mean()*hours_per_year
+                h2_heat_out = sim_result.device_flow[dev, "heat", "out"].mean()*hours_per_year
+                h2_energy_loss = h2_el_in - h2_el_out - h2_heat_out
+                hydrogen_loss += h2_energy_loss
+        if incl_heat_dump:
+            if dev_obj.dev_data.id in heat_dump_devs:
+                curtailed_heat += sim_result.device_flow[dev, "heat", "in"].mean()*hours_per_year
+
+    if incl_heat_dump:
+        data[0].append(curtailed_heat)
+        cols.append("Curtailed heat")
+        color_dict["Curtailed heat"] = "#1a601a" # Dark green
+    if incl_battery:
+        data[0].append(battery_loss)
+        cols.append("Round-trip battery loss") #operational and maintenance costs")
+        color_dict["Round-trip battery loss"] = "#7B0000" # Dark red
+    if incl_pv:
+        data[0].append(curtailed_pv)
+        cols.append("Curtailed PV")
+        color_dict["Curtailed PV"] = "#ff7f0e" # Orange
+    if incl_wind:
+        data[0].append(curtailed_wind)
+        cols.append("Curtailed wind")
+        color_dict["Curtailed wind"] = "#2ca02c" # Green
+    if incl_eboiler:
+        data[0].append(eboiler_loss)
+        cols.append("E-boiler loss")
+        color_dict["E-boiler loss"] = "#e377c2" # Pink
+    if incl_hydrogen:
+        data[0].append(hydrogen_loss)
+        cols.append("Round-trip H<sub>2</sub> loss")
+        color_dict["Round-trip H<sub>2</sub> loss"] = "#9467bd" # Purple
+
+    losses = pd.DataFrame(data, columns=cols)
+    if plotter == "plotly":
+        fig = px.bar(losses, y = cols, x='device', color_discrete_map = color_dict)#, orientation = 'h')
+        fig.update_xaxes(title_text="Device system")
+        fig.update_yaxes(title_text="Total energy losses per year [MWH]")
+        fig.update_layout(title="Losses over the simulation", height=600)
+        if reverse_legend:
+            fig.update_layout(legend_traceorder="reversed")
+        return fig
+    else:
+        raise ValueError(f"Plotter: {plotter} has not been implemented for plot all costs.")
+
+
 def plot_all_costs_per_device(
     sim_result: oogeso.dto.SimulationResult,
     optimization_model: oogeso.OptimisationModel,

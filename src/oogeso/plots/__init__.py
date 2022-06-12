@@ -6,6 +6,7 @@ from .plots import (
     plot_op_cost_per_device,
     plot_all_costs,
     plot_all_costs_per_device,
+    plot_all_losses,
     plot_device_power_energy,
     plot_device_power_flow_pressure,
     plot_device_profile,
