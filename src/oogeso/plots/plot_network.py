@@ -147,12 +147,12 @@ def plot_network(
                 if timestep is None:
                     pass
                 elif carrier in ["gas", "wellstream", "oil", "water"]:
-                    label_in += number_format.format(res.terminal_pressure[(n_id, carrier, "in", timestep)])
-                    label_out += number_format.format(res.terminal_pressure[(n_id, carrier, "out", timestep)])
+                    label_in += "_" + number_format.format(res.terminal_pressure[(n_id, carrier, "in", timestep)])
+                    label_out += "_" + number_format.format(res.terminal_pressure[(n_id, carrier, "out", timestep)])
                 elif carrier == "el":
                     if optimiser.all_networks["el"].carrier_data.powerflow_method == "dc-pf":
-                        label_in += number_format.format(res.el_voltage_angle[(n_id, timestep)])
-                        label_out += number_format.format(res.el_voltage_angle[(n_id, timestep)])
+                        label_in += "_" + number_format.format(res.el_voltage_angle[(n_id, timestep)])
+                        label_out += "_" + number_format.format(res.el_voltage_angle[(n_id, timestep)])
                 # Add two terminals if there are serial devices, otherwise one:
                 if carrier in node_obj.devices_serial:
                     terms_in.add_node(

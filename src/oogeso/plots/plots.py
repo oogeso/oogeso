@@ -8,6 +8,7 @@ try:
     import matplotlib.pyplot as plt
     import plotly
     import plotly.express as px
+    import plotly.io as pio
     import seaborn as sns
 except ImportError:
     raise ImportError("In order to run this plotting module you need to install matplotlib, plotly and seaborn.")
@@ -101,8 +102,8 @@ def plot_device_profile(
     timerange = list(res.device_is_on.index.get_level_values("time"))
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=nrows, cols=1, shared_xaxes=True)
-        colour = plotly.colors.DEFAULT_PLOTLY_COLORS
-        k = 0
+        colour = pio.templates[pio.templates.default].layout.colorway
+        k = -1
         row_on_off = 2
         row_prep = 2
         if include_on_off:
@@ -223,7 +224,8 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
     dev_data = optimiser.all_devices[dev].dev_data
     device_name = "{}:{}".format(dev, dev_data.name)
 
-    if dev_data.model == "storage_hydrogen":
+    if dev_data.model == "storagehydrogen":  # Fixme: replace with isinstance class type
+        # isinstance(dev_data.model,oogeso.dto.DeviceStorageHydrogenData)
         carrier = "hydrogen"
         flow_title = "Flow (Sm3/s)"
         energy_storage_title = "Energy storage( Sm3)"
@@ -698,13 +700,29 @@ def plot_reserve(
     dynamic_margin=True,
     use_forecast=False,
     include_sum=True,
+    devs_shareload=None,
 ):
-    """Plot unused online capacity by all el devices"""
+    """Plot unused online capacity by all el devices
+    devs_shareload : list ([]=ignore, None=do it for gas turbines)
+        list of devices for which power should be shared evenly (typically gas turbines)
+        The optimision returns somewhat random distribution of load per device,
+        in reality they will share load more or less evenly due to their
+        frequency droop settings. Rather than imposing this in the optimisation,
+        this is included in the plots.
+    """
     df_devs = pd.DataFrame()
     res = sim_result
     optimiser = optimisation_model
     timerange = list(res.el_reserve.index)
     margin_incr = pd.DataFrame(0, index=timerange, columns=["margin"])
+    if devs_shareload is None:
+        # split load evently amongst gas turbines:
+        devs_shareload = [d for d, d_obj in optimiser.all_devices.items() if d_obj.dev_data.model == "gasturbine"]
+        logger.debug("Shared load=%s", devs_shareload)
+    if devs_shareload:  # list is non-empty
+        devs_online = res.device_is_on[devs_shareload].unstack("device").sum(axis=1)
+        devs_sum = res.device_flow.unstack("device").loc[("el", "out")][devs_shareload].sum(axis=1)
+        devs_mean = devs_sum / devs_online
     for d, dev_obj in optimiser.all_devices.items():
         dev_data = dev_obj.dev_data
         device_model = dev_data.model
@@ -736,6 +754,9 @@ def plot_reserve(
                     max_value = max_value * reserve_factor
             cap_avail = rf * max_value
             p_generating = rf * res.device_flow[d, "el", "out"]
+            if d in devs_shareload:
+                # plot evenly distributed output (devs_mean)
+                p_generating = rf * res.device_is_on[d] * devs_mean
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
