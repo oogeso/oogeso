@@ -150,7 +150,7 @@ devices:
 
   - id: REC
     Q0: 45.7 # Sm3/s - nominal flow rate (used in linearisation)
-    eta: 0.65
+    eta: 0.8255 # 0.65 change to compensate for missing k factor in compressor power expression 0.65*1.27
     include: 1
     model: compressor_el
     name: compressor
@@ -189,7 +189,7 @@ devices:
 
   - id: WST_lift
     Q0: 5
-    eta: 0.65
+    eta: 0.8255 # 0.65 change to compensate for missing k factor in compressor power expression
     include: 1
     model: compressor_el
     name: lift compressor
