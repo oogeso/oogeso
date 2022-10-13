@@ -38,7 +38,7 @@ class Simulator:
         # Optimisation model object:
         self.optimiser = OptimisationModel(data=data)
 
-        self.result_object = None
+        self.result_object: Optional[dto.SimulationResult] = None
 
         # Storing time-series profiles:
         _df_profiles_forecast = pd.DataFrame()
@@ -172,7 +172,7 @@ class Simulator:
         # Retrieve variable values as dictionary with pandas series
         res = self.optimiser.extract_all_variable_values(timelimit, timestep)
 
-        if (return_all or "dfDuals" in return_variables) and (store_duals is not None):
+        if (return_all or ("dfDuals" in return_variables)) and (store_duals is not None):
             # Save dual values
             # store_duals = {
             #   'elcost': {'constr':'constrDevicePmin','indx':('util',None)}

@@ -9,6 +9,9 @@ max-branches = 14
 max-attributes = 15
 min-public-methods = 1
 
+[MASTER]
+extension-pkg-whitelist=pydantic
+
 [BASIC]
 
 # Variable names which should always be accepted
