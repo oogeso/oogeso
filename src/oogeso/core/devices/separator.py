@@ -50,25 +50,20 @@ class Separator(Device):
             rhs = flow_in * comp_water
             return lhs == rhs
         elif i == 4:
-            # electricity demand
-            lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
-            rhs = flow_in * dev_data.el_demand_factor
-            return lhs == rhs
-        elif i == 5:
             lhs = pyomo_model.varDeviceFlow[dev, "heat", "in", t]
             rhs = flow_in * dev_data.heat_demand_factor
             return lhs == rhs
-        elif i == 6:
+        elif i == 5:
             # gas pressure out = nominal
             lhs = pyomo_model.varPressure[(node, "gas", "out", t)]
             rhs = node_obj.get_pressure_nominal("gas", "out")
             return lhs == rhs  # noqa
-        elif i == 7:
+        elif i == 6:
             # oil pressure out = nominal
             lhs = pyomo_model.varPressure[(node, "oil", "out", t)]
             rhs = node_obj.get_pressure_nominal("oil", "out")
             return lhs == rhs  # noqa
-        elif i == 8:
+        elif i == 7:
             # water pressure out = nominal
             lhs = pyomo_model.varPressure[(node, "water", "out", t)]
             rhs = node_obj.get_pressure_nominal("water", "out")
@@ -81,7 +76,7 @@ class Separator(Device):
 
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr_separator = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 8), rule=self._rule_separator)
+        constr_separator = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 7), rule=self._rule_separator)
         # add constraints to model:
         setattr(
             pyomo_model,

@@ -159,8 +159,6 @@ devices:
     temp_in: 300
 
   - id: SEP
-    #el_demand_factor: 0.0
-    dummy_nonexistant_parameter: 1.2
     heat_demand_factor: 0.07
     include: 1
     model: separator2
@@ -430,7 +428,7 @@ edges:
     length_km: 0.01
     node_from: separator
     node_to: recompressor
-    pressure_from: 1.3  # MPa, We tune this to get realistic power demand on recompressor unit
+    pressure_from: 1.3 # MPa, We tune this to get realistic power demand on recompressor unit
     pressure_to: 1.3
     temperature_K: 300.0
     carrier: gas
@@ -567,13 +565,13 @@ edges:
     pressure_to_maxdeviation: 0.0
     carrier: water
 
-#  - id: wcool
-#    include: 1
-#    height_m: 0.0
-#    length_km: 0
-#    node_from: water_deck
-#    node_to: cooling
-#    carrier: water
+  #  - id: wcool
+  #    include: 1
+  #    height_m: 0.0
+  #    length_km: 0
+  #    node_from: water_deck
+  #    node_to: cooling
+  #    carrier: water
 
   - id: w5
     height_m: 0.0
@@ -603,6 +601,6 @@ nodes:
   - id: water_intake
   - id: waterlift
   - id: water_deck
-#  - id: cooling
+  #  - id: cooling
   - id: wells
   - id: h2storage

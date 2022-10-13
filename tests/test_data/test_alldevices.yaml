@@ -163,12 +163,10 @@ devices:
   - id: separator
     model: separator
     node_id: node1
-    el_demand_factor: 0.5
     heat_demand_factor: 0.6
   - id: separator2
     model: separator
     node_id: node1
-    el_demand_factor: 0.5
     heat_demand_factor: 0.6
   - id: sink_el
     model: sink_el

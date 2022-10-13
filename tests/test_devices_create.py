@@ -99,7 +99,7 @@ def test_pump_water():
 
 
 def test_separator():
-    dev_data = dto.DeviceSeparatorData(**dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5)
+    dev_data = dto.DeviceSeparatorData(**dev_data_generic, heat_demand_factor=0.5)
     carrier_data_dict = {}
     obj = devices.Separator(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.Separator)
@@ -107,7 +107,7 @@ def test_separator():
 
 
 def test_separator2():
-    dev_data = dto.DeviceSeparator2Data(**dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5)
+    dev_data = dto.DeviceSeparator2Data(**dev_data_generic, heat_demand_factor=0.5)
     carrier_data_dict = {}
     obj = devices.Separator2(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.Separator2)

@@ -137,7 +137,6 @@ class DevicePumpWaterData(DevicePumpData):
 
 
 class DeviceSeparatorData(DeviceData):
-    el_demand_factor: float = None  # electricity demand factor
     heat_demand_factor: float = None  # heat demand factor
     model: ModelType = ModelType.SEPARATOR
 
