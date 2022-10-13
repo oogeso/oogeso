@@ -154,7 +154,7 @@ class SimulationResult(BaseModel):
                     new_df = pd.concat([my_df, other_df]).sort_index()
                     if isinstance(new_df.index[0], tuple):  # Fix for multi-index DataFrame and Series
                         new_df.index = pd.MultiIndex.from_tuples(new_df.index)
-                        new_df.index.names = other_df.index.names
+                    new_df.index.names = other_df.index.names
                     setattr(self, field_name, new_df)
 
 
