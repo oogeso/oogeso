@@ -75,6 +75,8 @@ def test_integration_case_leogo(leogo_test_data: dto.EnergySystemData, leogo_exp
     res_computed = simulator.run_simulation("cbc", time_range=(0, 40))
 
     # Check that results are as expected.
+    deviation = res_computed.device_flow-leogo_expected_result.device_flow
+    print(deviation[deviation!=0])
     assert res_computed.device_flow.shape == leogo_expected_result.device_flow.shape
     assert np.allclose(res_computed.device_flow, leogo_expected_result.device_flow)
     assert (res_computed.device_is_on == leogo_expected_result.device_is_on).all()

@@ -24,7 +24,7 @@ carriers:
     energy_value: 40 # MJ/Sm3 (calorific value)
     k_heat_capacity_ratio: 1.27
     pressure_method: weymouth
-    rho_density: 0.84 # kg/m3
+    rho_density: 0.66141732283 #kg/m3 - changed from 0.84 to compensate for k factor fix in compressor power
   - id: heat
   - id: oil
     darcy_friction: 0.02
@@ -123,8 +123,8 @@ devices:
     reserve_factor: 0 #does not contribute towards reserve
 
   - id: PQ_load
-    flow_max: 3
-    flow_min: 3
+    flow_max: 2.5
+    flow_min: 2.5
     include: 1
     model: sink_el
     name: general el load
@@ -132,8 +132,8 @@ devices:
     reserve_factor: 0
 
   - id: ACO
-    flow_max: 3.5
-    flow_min: 3.5
+    flow_max: 1.0
+    flow_min: 1.0
     include: 1
     model: sink_el
     name: air compressors
@@ -148,18 +148,17 @@ devices:
     node_id: pump_oil
     reserve_factor: 0
 
-  - id: REC
-    Q0: 45.7 # Sm3/s - nominal flow rate (used in linearisation)
-    eta: 0.65
+  - id: GEX
+    Q0: 68 # Sm3/s - nominal flow rate (used in linearisation)
+    eta: 0.75
     include: 1
     model: compressor_el
-    name: compressor
+    name: gas export compressor
     node_id: compressor_gas
     reserve_factor: 0
     temp_in: 300
 
-  - id: SEP_2
-    el_demand_factor: 0.05
+  - id: SEP
     heat_demand_factor: 0.07
     include: 1
     model: separator2
@@ -167,10 +166,20 @@ devices:
     node_id: separator
     reserve_factor: 0
 
+  - id: REC
+    include: 1
+    eta: 0.75
+    Q0: 72
+    model: compressor_el
+    name: re-compressor
+    node_id: recompressor
+    reserve_factor: 0
+    temp_in: 300
+
   - id: SWL
     flow_max: 1000
     flow_min: 0
-    eta: 0.8
+    eta: 0.75
     include: 1
     model: pump_water
     name: seawater lift
@@ -180,22 +189,12 @@ devices:
   - id: WIN
     flow_max: 1000
     flow_min: 0
-    eta: 0.8
+    eta: 0.75
     include: 1
     model: pump_water
     name: water injection pump
     node_id: pump_water
     reserve_factor: 0
-
-  - id: WST_lift
-    Q0: 5
-    eta: 0.65
-    include: 1
-    model: compressor_el
-    name: lift compressor
-    node_id: compressor_lift
-    reserve_factor: 0
-    temp_in: 300
 
   - id: ex_g
     include: 1
@@ -250,11 +249,19 @@ devices:
     node_id: water_intake
 
   - id: water_disp
-    include: 1
+    include: 0
     model: sink_water
     name: water disposal
     node_id: water_disp
     price: { "water": -0.1 } # NOK/Sm3 (cost to discourage water disposal)
+
+  - id: water_cool
+    include: 1
+    flow_max: 0.2
+    flow_min: 0.2
+    model: sink_water
+    name: cooling water
+    node_id: water_deck
 
   - id: wellL1
     include: 1
@@ -327,7 +334,7 @@ edges:
     height_m: 0.0
     include: 1
     length_km: 1.0
-    node_from: compressor_lift
+    node_from: compressor_gas
     node_to: wells
     pressure_from: 20.0
     pressure_to: 20.0
@@ -369,7 +376,7 @@ edges:
     include: 1
     length_km: 0.01
     node_from: powersupply
-    node_to: separator
+    node_to: recompressor
     reactance: 0.01
     resistance: 0.001
     carrier: el
@@ -414,27 +421,30 @@ edges:
     resistance: 0.001
     carrier: el
 
-  - id: eL1
-    flow_max: 500.0
+  - id: g1a
+    diameter_mm: 500.0
+    height_m: 0.0
     include: 1
     length_km: 0.01
-    node_from: powersupply
-    node_to: compressor_lift
-    reactance: 0.01
-    resistance: 0.001
-    carrier: el
+    node_from: separator
+    node_to: recompressor
+    pressure_from: 1.3 # MPa, We tune this to get realistic power demand on recompressor unit
+    pressure_to: 1.3
+    temperature_K: 300.0
+    carrier: gas
 
   - id: g1
     diameter_mm: 500.0
     height_m: 0.0
     include: 1
     length_km: 0.01
-    node_from: separator
+    node_from: recompressor
     node_to: compressor_gas
     pressure_from: 2.0
     pressure_to: 2.0
     temperature_K: 300.0
     carrier: gas
+    pressure_from_maxdeviation: 0.0
 
   - id: g2
     diameter_mm: 200.0
@@ -443,8 +453,8 @@ edges:
     length_km: 5.0
     node_from: compressor_gas
     node_to: export
-    pressure_from: 10.0
-    pressure_to: 6.0
+    pressure_from: 20.0
+    pressure_to: 20.0
     pressure_to_maxdeviation: 0.0
     temperature_K: 300.0
     carrier: gas
@@ -454,23 +464,11 @@ edges:
     height_m: 0.0
     include: 1
     length_km: 0.01
-    node_from: separator
+    node_from: recompressor
     node_to: powersupply
     pressure_from: 2.0
     pressure_to: 2.0
     temperature_K: 300.0
-    carrier: gas
-
-  - id: gL1
-    #diameter_mm: 500.0
-    #temperature_K: 300.0
-    height_m: 0.0
-    include: 1
-    length_km: 1.0
-    node_from: separator
-    node_to: compressor_lift
-    pressure_from: 2.0
-    pressure_to: 2.0
     carrier: gas
 
   - id: h1
@@ -508,7 +506,7 @@ edges:
     node_from: pump_oil
     node_to: export
     pressure_from: 5.0
-    pressure_to: 3.0
+    pressure_to: 5.0
     pressure_to_maxdeviation: 0.0
     carrier: oil
 
@@ -519,7 +517,7 @@ edges:
     length_km: 0.01
     node_from: water_intake
     node_to: waterlift
-    pressure_from: 0.1
+    pressure_from: 0.1 # 0.1 MPa = 1 atm
     pressure_to: 0.1
     carrier: water
 
@@ -529,10 +527,18 @@ edges:
     include: 1
     length_km: 0.01
     node_from: waterlift
-    node_to: pump_water
+    node_to: water_deck
     num_pipes: 3
-    pressure_from: 1.14 # MPa
+    pressure_from: 1.14 # MPa # TODO Check this one
     pressure_to: 0.7 # MPa
+    carrier: water
+
+  - id: w1b
+    diameter_mm: 200.0
+    include: 1
+    length_km: 0.0
+    node_from: water_deck
+    node_to: pump_water
     carrier: water
 
   - id: w2
@@ -554,36 +560,47 @@ edges:
     node_from: pump_water
     node_to: water_injection
     num_pipes: 15
-    pressure_from: 25.12 #Harald changed from 27.0 # MPa
-    pressure_to: 26.0 # MPa
+    pressure_from: 25
+    pressure_to: 25 # MPa
     pressure_to_maxdeviation: 0.0
     carrier: water
 
+  #  - id: wcool
+  #    include: 1
+  #    height_m: 0.0
+  #    length_km: 0
+  #    node_from: water_deck
+  #    node_to: cooling
+  #    carrier: water
+
   - id: w5
     height_m: 0.0
-    include: 1
+    include: 0
     length_km: 1.0
     node_from: separator
     node_to: water_disp
     carrier: water
 
   - id: elhyd
+    include: 0
     node_from: powersupply
     node_to: h2storage
     carrier: el
 
 nodes:
   - id: compressor_gas
-  - id: compressor_lift
   - id: export
   - id: powersupply
   - id: pump_oil
   - id: pump_water
   - id: separator
+  - id: recompressor
   - id: utility
   - id: water_disp
   - id: water_injection
   - id: water_intake
   - id: waterlift
+  - id: water_deck
+  #  - id: cooling
   - id: wells
   - id: h2storage

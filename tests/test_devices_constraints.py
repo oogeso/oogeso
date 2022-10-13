@@ -175,13 +175,13 @@ def test_pump_water_constraints():
 
 
 def test_separator_constraints():
-    dev_data = dto.DeviceSeparatorData(**dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5)
+    dev_data = dto.DeviceSeparatorData(**dev_data_generic, heat_demand_factor=0.5)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)
 
 
 def test_separator2_constraints():
-    dev_data = dto.DeviceSeparator2Data(**dev_data_generic, el_demand_factor=0.1, heat_demand_factor=0.5)
+    dev_data = dto.DeviceSeparator2Data(**dev_data_generic, heat_demand_factor=0.5)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)
 

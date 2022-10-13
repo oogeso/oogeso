@@ -140,7 +140,7 @@ def compute_compressor_demand(
     T1 = dev_data.temp_in  # inlet temperature
     eta = dev_data.eta  # isentropic efficiency
     a = (k - 1) / k
-    c = rho / eta * 1 / (k - 1) * Z * R * T1
+    c = rho / eta * k / (k - 1) * Z * R * T1
     node = node_obj.id
     if t is None:
         t = 0

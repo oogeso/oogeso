@@ -1,12 +1,12 @@
 from typing import List, Optional, Tuple
 
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Extra
 
 from oogeso.dto.types import CarrierType, ModelType
 
 
-class StartStopData(BaseModel):
+class StartStopData(BaseModel, extra=Extra.forbid):
     is_on_init: bool = False  # Initial on/off status
     penalty_start: float = 0  # Startup "cost"
     penalty_stop: float = 0  # Shutdown "cost"
@@ -15,13 +15,13 @@ class StartStopData(BaseModel):
     minimum_time_off_minutes: float = 0  # Minimum off-time in minutes once stopped
 
 
-class TimeSeriesData(BaseModel):
+class TimeSeriesData(BaseModel, extra=Extra.forbid):
     id: str
     data: List[float]
     data_nowcast: Optional[List[float]] = None
 
 
-class OptimisationParametersData(BaseModel):
+class OptimisationParametersData(BaseModel, extra=Extra.forbid):
     # name of objective function to use:
     objective: str
     # minutes per timestep:
@@ -44,11 +44,11 @@ class OptimisationParametersData(BaseModel):
     optimisation_return_data: Optional[List[str]] = None
 
 
-class CarrierData(BaseModel):
+class CarrierData(BaseModel, extra=Extra.forbid):
     id: str
 
 
-class DeviceData(BaseModel):  # Parent class - use subclasses instead
+class DeviceData(BaseModel, extra=Extra.forbid):  # Parent class - use subclasses instead
     id: str  # unique identifier
     node_id: str  # reference to node identifier
     name: str = ""
@@ -67,7 +67,7 @@ class DeviceData(BaseModel):  # Parent class - use subclasses instead
     model: ModelType
 
 
-class EdgeData(BaseModel):  # Base model, use implementations below
+class EdgeData(BaseModel, extra=Extra.forbid):  # Base model, use implementations below
     id: str
     node_from: str
     node_to: str
@@ -78,12 +78,12 @@ class EdgeData(BaseModel):  # Base model, use implementations below
     carrier: CarrierType
 
 
-class NodeData(BaseModel):
+class NodeData(BaseModel, extra=Extra.forbid):
     # unique identifier:
     id: str
 
 
-class SimulationResult(BaseModel):
+class SimulationResult(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=True):
     """Results from oogeso simulation
 
     The results are stored in a set of multi-index Series, with
@@ -141,9 +141,6 @@ class SimulationResult(BaseModel):
     profiles_forecast: Optional[pd.DataFrame] = Field(default_factory=pd.DataFrame)
     profiles_nowcast: Optional[pd.DataFrame] = Field(default_factory=pd.DataFrame)
 
-    class Config:
-        arbitrary_types_allowed = True
-
     def append_results(self, sim_res):
         exclude_list = ["df_profiles_forecast", "df_profiles_forecast"]
         for field_name in self.__fields__:
@@ -154,11 +151,11 @@ class SimulationResult(BaseModel):
                     new_df = pd.concat([my_df, other_df]).sort_index()
                     if isinstance(new_df.index[0], tuple):  # Fix for multi-index DataFrame and Series
                         new_df.index = pd.MultiIndex.from_tuples(new_df.index)
-                        new_df.index.names = other_df.index.names
+                    new_df.index.names = other_df.index.names
                     setattr(self, field_name, new_df)
 
 
-class EnergySystemData(BaseModel):
+class EnergySystemData(BaseModel, extra=Extra.forbid):
     parameters: OptimisationParametersData
     carriers: List[CarrierData]
     nodes: List[NodeData]
