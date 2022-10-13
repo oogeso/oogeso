@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## Unreleased
+2022-10-13
+- Fix: Corrected bug in compressor power demand expression
+- Modified separator device definition
+- Fix: Post-processing using selected time span
 
 ## v1.0.1
 2022-04-06
@@ -29,12 +33,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## v0.3
 2021-11-26
--initial package publish on PyPi
+- initial package publish on PyPi
 
 ## v0.2
 2020-11-01
--complete model
+- complete model
 
 ## v0.1
 2020-05-11
--unfinished development
+- unfinished development
