@@ -42,7 +42,7 @@ pydantic = "^1.9.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6"
-mypy = "^0.9"
+mypy = "^0.931"
 pylint = "^2"
 black = "^21.10b"
 nbmake = "^1"
