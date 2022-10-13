@@ -165,6 +165,7 @@ class Simulator:
 
         return_all = False
         if not return_variables:
+            return_variables = []
             return_all = True
         else:
             logger.debug("Storing only a subset of the data generated.")

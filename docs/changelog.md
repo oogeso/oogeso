@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## Unreleased
+
+## v1.0.2
 2022-10-13
 - Fix: Corrected bug in compressor power demand expression
 - Modified separator device definition
