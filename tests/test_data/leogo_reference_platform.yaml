@@ -16,7 +16,6 @@ carriers:
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
   - id: gas
     co2_content: 2.34 # kg/Sm3 - see SSB 2016 report
-    G_gravity: 0.6
     Pb_basepressure_MPa: 0.101 # MPa
     R_individual_gas_constant: 500 # J/(kg K)
     Tb_basetemp_K: 288 # K = 15 degC
@@ -24,7 +23,7 @@ carriers:
     energy_value: 40 # MJ/Sm3 (calorific value)
     k_heat_capacity_ratio: 1.27
     pressure_method: weymouth
-    rho_density: 0.66141732283 #kg/m3 - changed from 0.84 to compensate for k factor fix in compressor power
+    rho_density: 0.8 #kg/Sm3
   - id: heat
   - id: oil
     darcy_friction: 0.02

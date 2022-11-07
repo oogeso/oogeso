@@ -14,7 +14,6 @@ carriers:
   - id: gas
     rho_density: 0.8
     R_individual_gas_constant: 500
-    G_gravity: 0.6
     Pb_basepressure_MPa: 0.101 # MPa
     Tb_basetemp_K: 288 # K = 15 degC
     Z_compressibility: 0.9
@@ -22,11 +21,9 @@ carriers:
     k_heat_capacity_ratio: 1.27
   - id: oil
     rho_density: 900
-    G_gravity: 0.6
     darcy_friction: 3
   - id: water
     rho_density: 1000
-    G_gravity: 0.6
     #Z_compressibility: 0.9
     darcy_friction: 6
   - id: wellstream

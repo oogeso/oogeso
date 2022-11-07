@@ -17,7 +17,6 @@ carriers:
     reference_node: node1 # for electrical voltage angle
   - id: gas
     co2_content: 2.34 # kg/Sm3 - see SSB 2016 report
-    G_gravity: 0.6
     Pb_basepressure_MPa: 0.101 # MPa
     R_individual_gas_constant: 500 # J/(kg K)
     Tb_basetemp_K: 288 # K = 15 degC

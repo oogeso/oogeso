@@ -45,7 +45,6 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
         dto.CarrierGasData(
             id="gas",
             co2_content=2.34,
-            G_gravity=0.6,
             Pb_basepressure_MPa=0.1,
             R_individual_gas_constant=500,
             Tb_basetemp_K=288,
