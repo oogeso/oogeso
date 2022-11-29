@@ -28,14 +28,14 @@ jobs:
           - '3.11'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v2.5.0
 
       - name: Setup Python
-        uses: actions/setup-python@v2.3.1
+        uses: actions/setup-python@v4.3.0
         with:
           python-version: ${{matrix.python-version}}
 
-      - uses: snok/install-poetry@v1.3.0
+      - uses: snok/install-poetry@v1.3.3
         with:
           virtualenvs-create: true
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: Cache dependencies
         id: cache-deps
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v3.0.11
         with:
           path: ${{github.workspace}}/.venv
           key: ${{ matrix.os }}-${{ hashFiles('**/poetry.lock') }}
