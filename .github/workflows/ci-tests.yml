@@ -22,4 +22,4 @@ jobs:
       - name: Test Oogeso
         run: docker run --rm -w /code -v "$(pwd):/code" haraldsvendsen/oogeso bash -c "poetry install && poetry run pytest"
       - name: Test Example Notebooks
-        run: docker run --rm -w /code -v "$(pwd):/code" haraldsvendsen/oogeso bash -c "poetry install && poetry run pytest --nbmake ./examples"
+        run: docker run --rm -w /code -v "$(pwd):/code" haraldsvendsen/oogeso bash -c "poetry install --all-extras && poetry run pytest --nbmake ./examples"
