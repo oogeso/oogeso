@@ -8,18 +8,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/setup-python@v2.3.1
+    - uses: actions/setup-python@v4.3.0
 
     - uses: actions/checkout@master
       with:
         fetch-depth: 0
 
     - name: Setup Python 3.7
-      uses: actions/setup-python@v2.3.1
+      uses: actions/setup-python@v4.3.0
       with:
         python-version: '3.7'
 
-    - uses: snok/install-poetry@v1.3.0
+    - uses: snok/install-poetry@v1.3.3
       with:
         virtualenvs-create: true
 

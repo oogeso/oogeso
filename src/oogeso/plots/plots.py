@@ -8,6 +8,7 @@ try:
     import matplotlib.pyplot as plt
     import plotly
     import plotly.express as px
+    import plotly.subplots
     import plotly.io as pio
     import seaborn as sns
 except ImportError:
