@@ -42,13 +42,30 @@ def compute_power_flow_matrices(nodes, branches, base_Z=1):
     G.add_nodes_from(nodes)
     G.add_edges_from(edges)
     A_incidence_matrix = -nx.incidence_matrix(G, oriented=True, nodelist=nodes, edgelist=edges).T
+    
+    # NOTE:
+    # networkx returns ndarray instead of matrix (after recent change)
+    # this affectts the * operator, which meanselement-wise multiplication, 
+    # for numpy.matrix but not for numpy.ndarray
+    # To get elementwise multiplication below, we therefore convert to matrix.
+    # Example
+    # This gives correct result:
+    #     (scipy.sparse.csc_matrix(A_incidence_matrix).T*scipy.sparse.csc_matrix(Bf)).todense() 
+    # This fails (when the matrices are (sparse) ndarrays):
+    #     (A_incidence_matrix.T*Bf)
+    A_incidence_matrix = scipy.sparse.csc_matrix(A_incidence_matrix)
+
     # Diagonal matrix
     D = scipy.sparse.diags(-susceptance, offsets=0)
+    # Element-wise multiplication:
     DA = D * A_incidence_matrix
 
     # Bf constructed from incidence matrix with branch susceptance
     # used as weight (this is quite fast)
     Bf = -nx.incidence_matrix(G, oriented=True, nodelist=nodes, edgelist=edges, weight="b").T
+    # See note above for this conversion
+    Bf = scipy.sparse.csc_matrix(Bf)
+    # Element-wise multiplication:
     Bbus = A_incidence_matrix.T * Bf
 
     coeff_B = dict()
