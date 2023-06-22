@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## Unreleased
+- Fix: Removed redundant gas property (gas gravity)
 
 ## v1.0.2
 2022-10-13
