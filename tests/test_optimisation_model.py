@@ -25,7 +25,12 @@ def make_test_data() -> dto.EnergySystemData:
     prof_demand = dto.TimeSeriesData(id="demand", data=[1, 2, 3, 4], data_nowcast=[1.1, 2.1, 3.1, 4.1])
     profiles = [prof_demand]
     energy_system_data = dto.EnergySystemData(
-        parameters=parameters, carriers=carriers, nodes=nodes, edges=edges, devices=devices, profiles=profiles
+        parameters=parameters,
+        carriers=carriers,
+        nodes=nodes,
+        edges=edges,
+        devices=devices,
+        profiles=profiles,
     )
     return energy_system_data
 
@@ -133,7 +138,10 @@ def test_optimiser_methods(testcase2_data):
     assert start_penalty2.size() > 0
 
 
-@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+@pytest.mark.skipif(
+    not pyo.SolverFactory("cbc").available(),
+    reason="Skipping test because CBC is not available.",
+)
 def test_optimisation_solve():
     """Check that it solves simple problem with CBC solver"""
 
