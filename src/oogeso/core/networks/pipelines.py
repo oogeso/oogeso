@@ -12,7 +12,7 @@ from oogeso.core.networks.network import Network
 logger = logging.getLogger(__name__)
 
 GRAVITY_ACCELERATION_CONSTANT = 9.8  # m/s^2
-
+AIR_DENSITY = 1.225  # kg/Sm3
 
 class FluidNetwork(Network):
     carrier_data: dto.CarrierFluidData
@@ -72,7 +72,8 @@ class FluidNetwork(Network):
         height_difference = edge_data.height_m
         length = edge_data.length_km
         diameter = edge_data.diameter_mm
-        s = 0.0684 * (ga.G_gravity * height_difference / (temp * ga.Z_compressibility))
+        gravity_G = ga.rho_density/AIR_DENSITY
+        s = 0.0684 * (gravity_G * height_difference / (temp * ga.Z_compressibility))
         if s > 0:
             # height difference - use equivalent length
             sfactor = (np.exp(s) - 1) / s
@@ -82,7 +83,7 @@ class FluidNetwork(Network):
             4.3328e-8
             * ga.Tb_basetemp_K
             / ga.Pb_basepressure_MPa
-            * (ga.G_gravity * temp * length * ga.Z_compressibility) ** (-1 / 2)
+            * (gravity_G * temp * length * ga.Z_compressibility) ** (-1 / 2)
             * diameter ** (8 / 3)
         )
         exp_s = np.exp(s)

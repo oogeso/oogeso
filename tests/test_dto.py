@@ -16,7 +16,6 @@ def test_create_energy_system_data():
             dto.CarrierGasData(
                 id="gas",
                 co2_content=0.4,
-                G_gravity=0.6,
                 Pb_basepressure_MPa=100,
                 R_individual_gas_constant=9,
                 Tb_basetemp_K=300,
