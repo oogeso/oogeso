@@ -20,7 +20,6 @@ viscosity       | float | viscosity (kg/(m s))
 parameter | type | description
 ----------|------|-------------
 co2_content          | float |   amount of CO2 per volume (kg/Sm3)
-G_gravity           | float |  gas gravity constant
 Pb_basepressure_MPa | float | base pressure (MPa) (1 atm=0.101 MPa)
 Tb_basetemp_K       | float | base temperature (K) (15 degC=288 K)
 R_individual_gas_constant   | float     | individual gas constant (J/(kg K))
