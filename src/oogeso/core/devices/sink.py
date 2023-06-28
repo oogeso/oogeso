@@ -166,3 +166,26 @@ class SinkWater(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "water", "in", t]
+
+
+class SinkCarbon(Device):
+    """
+    CO2 sink (emitted or stored)
+    """
+
+    carrier_in = ["carbon"]
+    carrier_out = []
+    serial = []
+
+    def __init__(
+        self,
+        dev_data: dto.DeviceSinkCarbonData,
+        carrier_data_dict: Dict[str, dto.CarrierCarbonData],
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
+        return pyomo_model.varDeviceFlow[self.id, "carbon", "in", t]

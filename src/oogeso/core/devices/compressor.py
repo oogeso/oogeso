@@ -63,7 +63,7 @@ class CompressorGas(Device):
     """
 
     carrier_in = ["gas"]
-    carrier_out = ["gas"]
+    carrier_out = ["gas", "carbon"]
     serial = ["gas"]
 
     def __init__(
@@ -76,41 +76,47 @@ class CompressorGas(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
-    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         node_obj: NetworkNode = self.node
         gas_data = self.carrier_data["gas"]
-        gas_energy_content = gas_data.energy_value  # MJ/Sm3
-        power_demand = compute_compressor_demand(pyomo_model, self, node_obj, gas_data, linear=True, t=t)
+        if i == 1:
+            gas_energy_content = gas_data.energy_value  # MJ/Sm3
+            power_demand = compute_compressor_demand(pyomo_model, self, node_obj, gas_data, linear=True, t=t)
 
-        # matter conservation:
-        lhs = pyomo_model.varDeviceFlow[dev, "gas", "out", t]
-        rhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t] - power_demand / gas_energy_content
-
-        return lhs == rhs
+            # matter conservation:
+            lhs = pyomo_model.varDeviceFlow[dev, "gas", "out", t]
+            rhs = pyomo_model.varDeviceFlow[dev, "gas", "in", t] - power_demand / gas_energy_content
+            return lhs == rhs
+        elif i == 2:
+            gasflow_co2 = gas_data.co2_content  # kg/m3
+            lhs = pyomo_model.varDeviceFlow[dev, "carbon", "out", t]
+            rhs = gasflow_co2 * (
+                pyomo_model.varDeviceFlow[dev, "gas", "in", t] - pyomo_model.varDeviceFlow[dev, "gas", "out", t]
+            )
+            return lhs == rhs
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
 
         list_to_reconstruct = super().define_constraints(pyomo_model)
-
-        constr = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "compr"), constr)
         return list_to_reconstruct
 
-    # overriding default
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]):
-        d = self.id
-        gas_data = self.carrier_data["gas"]
-        gasflow_co2 = gas_data.co2_content  # kg/m3
+    # # overriding default
+    # def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]):
+    #     d = self.id
+    #     gas_data = self.carrier_data["gas"]
+    #     gasflow_co2 = gas_data.co2_content  # kg/m3
 
-        return (
-            sum(
-                (pyomo_model.varDeviceFlow[d, "gas", "in", t] - pyomo_model.varDeviceFlow[d, "gas", "out", t])
-                for t in timesteps
-            )
-            * gasflow_co2
-        )
+    #     return (
+    #         sum(
+    #             (pyomo_model.varDeviceFlow[d, "gas", "in", t] - pyomo_model.varDeviceFlow[d, "gas", "out", t])
+    #             for t in timesteps
+    #         )
+    #         * gasflow_co2
+    #     )
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         return pyomo_model.varDeviceFlow[self.id, "gas", "in", t]

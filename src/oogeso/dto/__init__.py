@@ -35,6 +35,7 @@ from oogeso.dto.devices import (
     DevicePumpWaterData,
     DeviceSeparator2Data,
     DeviceSeparatorData,
+    DeviceSinkCarbonData,
     DeviceSinkElData,
     DeviceSinkGasData,
     DeviceSinkHeatData,

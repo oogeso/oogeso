@@ -19,6 +19,7 @@ carriers:
     Z_compressibility: 0.9
     energy_value: 40 # needed by compressor_gas at least
     k_heat_capacity_ratio: 1.27
+    co2_content: 2.34 # kg/Sm3 
   - id: oil
     rho_density: 900
     darcy_friction: 3
@@ -30,6 +31,7 @@ carriers:
     rho_density: 500
     gas_oil_ratio: 500
     water_cut: 0.6
+  - id: carbon
 
 nodes:
   - id: node1
@@ -179,6 +181,9 @@ devices:
     node_id: node1
   - id: sink_water
     model: sink_water
+    node_id: node1
+  - id: sink_carbon
+    model: sink_carbon
     node_id: node1
   - id: source_el
     model: source_el

@@ -65,7 +65,6 @@ time_delta_minutes      | int   | minutes per timestep
 planning_horizon        | int   | number of timesteps in each rolling optimisation
 optimisation_timesteps  | int   | number of timesteps between each optimisation
 forecast_timesteps      | int   | number of timesteps beyond which forecast (instead of nowcast) profile is used
-co2_tax                 | float | CO2 emission costs (NOK/kgCO2)
 emission_intensity_max    | float | maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit
 emission_rate_max         | float | maximum allowed emission rate (kgCO2/hour), -1=no limit
 objective     | string    | name of objective function to use (penalty, exportRevenue, costs)

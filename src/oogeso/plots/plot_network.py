@@ -54,6 +54,7 @@ def plot_network(
             "oil": "black",
             "water": "blue4",
             "hydrogen": "deepskyblue2",
+            "carbon": "black",
         },
         "e": {
             "el": "red",
@@ -63,6 +64,7 @@ def plot_network(
             "oil": "black",
             "water": "blue4",
             "hydrogen": "deepskyblue2",
+            "carbon": "black",
         },
         "d": "white",
         "cluster": "lightgray",

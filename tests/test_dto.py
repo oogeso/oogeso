@@ -3,7 +3,6 @@ from oogeso.dto.serialisation import deserialize_oogeso_data, serialize_oogeso_d
 
 
 def test_create_energy_system_data():
-
     energy_system = dto.EnergySystemData(
         carriers=[
             dto.CarrierElData(
@@ -59,7 +58,6 @@ def test_create_energy_system_data():
             planning_horizon=12,
             optimisation_timesteps=6,
             forecast_timesteps=6,
-            co2_tax=30,
             objective="exportRevenue",
         ),
         profiles=[dto.TimeSeriesData(id="profile1", data=[12, 10, 21])],
@@ -75,7 +73,6 @@ def test_create_energy_system_data():
 
 
 def test_serialisation_deserialisation(testcase2_data, testcase2_expected_result):
-
     data_str = serialize_oogeso_data(testcase2_data)
     assert isinstance(data_str, str)
 

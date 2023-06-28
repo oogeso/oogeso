@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
 import pandas as pd
-from pydantic import BaseModel, Field, Extra
+from pydantic import BaseModel, Extra, Field
 
 from oogeso.dto.types import CarrierType, ModelType
 
@@ -32,8 +32,6 @@ class OptimisationParametersData(BaseModel, extra=Extra.forbid):
     optimisation_timesteps: int
     # timesteps beyond which forecast (instead of nowcast) profile is used:
     forecast_timesteps: int
-    # costs for co2 emissions (currency/kgCO2)
-    co2_tax: Optional[float] = None
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
     emission_intensity_max: Optional[float] = -1
     # limit on allowable emission intensity (kgCO2/hour), -1= no limit
