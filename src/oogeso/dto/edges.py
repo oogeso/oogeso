@@ -25,6 +25,11 @@ class EdgeHydrogenData(EdgeData):
     carrier: CarrierType = CarrierType.HYDROGEN
 
 
+class EdgeCarbonData(EdgeData):
+    bidirectional: bool = False
+    carrier: CarrierType = CarrierType.CARBON
+
+
 class EdgeFluidData(EdgeData):
     # wellstream, oil, water, gas
     pressure_from: float = None

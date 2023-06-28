@@ -23,6 +23,10 @@ class CarrierHydrogenData(dto.CarrierData):
     energy_value: float = 13  # MJ/Sm3 (calorific value) -> 13 MJ/Sm3
 
 
+class CarrierCarbonData(dto.CarrierData):
+    pass
+
+
 class CarrierFluidData(dto.CarrierData):
     # Todo: Consider if we need one DTO for each fluid type, or if we can do with one DTO.
     rho_density: float  # kg/m3 -> 900 kg/m3

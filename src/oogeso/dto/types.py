@@ -9,6 +9,7 @@ class CarrierType(str, Enum):
     WATER = "water"
     HEAT = "heat"
     HYDROGEN = "hydrogen"
+    CARBON = "carbon"
     FLUID = "fluid"
     GAS = "gas"
 

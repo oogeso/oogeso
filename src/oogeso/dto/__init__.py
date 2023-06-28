@@ -10,6 +10,7 @@ from oogeso.dto.base import (
     TimeSeriesData,
 )
 from oogeso.dto.carriers import (
+    CarrierCarbonData,
     CarrierElData,
     CarrierFluidData,
     CarrierGasData,
@@ -49,6 +50,7 @@ from oogeso.dto.devices import (
     DeviceWellProductionData,
 )
 from oogeso.dto.edges import (
+    EdgeCarbonData,
     EdgeElData,
     EdgeFluidData,
     EdgeGasData,
