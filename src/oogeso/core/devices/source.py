@@ -49,19 +49,6 @@ class SourceEl(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
-    # # overriding default
-    # def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]):
-    #     # co2 content in fuel combustion
-    #     # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
-    #     # need to convert co2em to kgCO2/(MW*s)
-    #     if self.dev_data.co2em is not None:
-    #         return (
-    #             sum(pyomo_model.varDeviceFlow[self.id, "el", "out", t] * self.dev_data.co2em for t in timesteps)
-    #             * 1
-    #             / 3600
-    #         )
-    #     return 0.0
-
 
 class PowerSource(Device):
     """Generic external source for electricity (e.g. cable or wind turbine)."""

@@ -93,7 +93,6 @@ def _device_method_calls(optimistion_model: OptimisationModel):
     dev_obj = optimistion_model.all_devices["the_id"]
     timesteps = [0]
     # Check that these calls don't give errors
-    # dev_obj.compute_CO2(optimistion_model, timesteps)
     dev_obj.compute_cost_for_depleted_storage(optimistion_model, timesteps)
     dev_obj.compute_el_reserve(optimistion_model, t=0)
     dev_obj.compute_export(optimistion_model, value="volume", carriers=["oil", "gas", "el"], timesteps=timesteps)

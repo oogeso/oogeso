@@ -66,10 +66,3 @@ class GasTurbine(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
-
-    # # overriding default
-    # def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-    #     param_gas = self.carrier_data["gas"]
-    #     gasflow_co2 = param_gas.co2_content  # kg/m3
-
-    #     return sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gasflow_co2

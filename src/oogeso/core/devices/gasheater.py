@@ -52,8 +52,3 @@ class GasHeater(Device):
         # using heat output as dimensioning variable
         # (alternative could be to use gas input)
         return pyomo_model.varDeviceFlow[self.id, "heat", "out", t]
-
-    # def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-    #     param_gas = self.carrier_data["gas"]
-    #     gas_flow_co2 = param_gas.co2_content  # kg/m3
-    #     return sum(pyomo_model.varDeviceFlow[self.id, "gas", "in", t] for t in timesteps) * gas_flow_co2

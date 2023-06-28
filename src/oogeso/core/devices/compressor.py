@@ -104,20 +104,6 @@ class CompressorGas(Device):
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "compr"), constr)
         return list_to_reconstruct
 
-    # # overriding default
-    # def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]):
-    #     d = self.id
-    #     gas_data = self.carrier_data["gas"]
-    #     gasflow_co2 = gas_data.co2_content  # kg/m3
-
-    #     return (
-    #         sum(
-    #             (pyomo_model.varDeviceFlow[d, "gas", "in", t] - pyomo_model.varDeviceFlow[d, "gas", "out", t])
-    #             for t in timesteps
-    #         )
-    #         * gasflow_co2
-    #     )
-
     def get_flow_var(self, pyomo_model: pyo.Model, t: int) -> float:
         return pyomo_model.varDeviceFlow[self.id, "gas", "in", t]
 
