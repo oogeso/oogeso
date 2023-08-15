@@ -125,8 +125,7 @@ class Simulator:
             time_end = time_range[1]
 
         result_object = dto.SimulationResult(
-            profiles_nowcast=self.profiles["nowcast"],
-            profiles_forecast=self.profiles["forecast"],
+            profiles_nowcast=self.profiles["nowcast"], profiles_forecast=self.profiles["forecast"]
         )
         self.result_object = result_object
 
