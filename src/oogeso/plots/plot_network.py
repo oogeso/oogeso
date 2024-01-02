@@ -54,6 +54,7 @@ def plot_network(
             "oil": "black",
             "water": "blue4",
             "hydrogen": "deepskyblue2",
+            "carbon": "black",
         },
         "e": {
             "el": "red",
@@ -63,6 +64,7 @@ def plot_network(
             "oil": "black",
             "water": "blue4",
             "hydrogen": "deepskyblue2",
+            "carbon": "black",
         },
         "d": "white",
         "cluster": "lightgray",
@@ -89,7 +91,7 @@ def plot_network(
                 num_in = 0
                 num_out = 0
                 for d, dev_obj in devs.items():
-                    dev_model = dev_obj.dev_data.model
+                    dev_model = dev_obj.dev_data.model.name
                     devlabel = "{}\n{}".format(d, dev_model)
                     if plot_device_name:
                         dev_name = dev_obj.dev_data.name

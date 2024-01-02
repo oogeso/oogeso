@@ -5,7 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## Unreleased
+## v1.1.0
+2023-08-16
+- Add carbon network to keep track of emissions more easily (and allow CCS in the future)
 - Fix: Removed redundant gas property (gas gravity)
 
 ## v1.0.2

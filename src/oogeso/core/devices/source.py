@@ -12,7 +12,7 @@ class SourceEl(Device):
     dev_data: dto.DeviceSourceElData
 
     carrier_in = []
-    carrier_out = ["el"]
+    carrier_out = ["el", "carbon"]
     serial = []
 
     def __init__(
@@ -25,21 +25,29 @@ class SourceEl(Device):
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
 
+    def _rules(self, pyomo_model: pyo.Model, t: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        dev = self.id
+        """carbon emission"""
+        if self.dev_data.co2em is None:
+            return pyo.Constraint.Skip
+        else:
+            # co2em is kgCO2/MWh_el, flow_carbon = kg/s, flow_el = MW
+            # need to convert co2em to kgCO2/(MW*s). 1h = 3600s.
+            lhs = pyomo_model.varDeviceFlow[dev, "carbon", "out", t]
+            rhs = pyomo_model.varDeviceFlow[self.id, "el", "out", t] * self.dev_data.co2em / 3600
+            return lhs == rhs
+
+    def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
+        """Specifies the list of constraints for the device"""
+
+        list_to_reconstruct = super().define_constraints(pyomo_model)
+        constr = pyo.Constraint(pyomo_model.setHorizon, rule=self._rules)
+        # add constraint to model:
+        setattr(pyomo_model, f"constr_{self.id}_co2", constr)
+        return list_to_reconstruct
+
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
-
-    # overriding default
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]):
-        # co2 content in fuel combustion
-        # co2em is kgCO2/MWh_el, deltaT is seconds, deviceFlow is MW
-        # need to convert co2em to kgCO2/(MW*s)
-        if self.dev_data.co2em is not None:
-            return (
-                sum(pyomo_model.varDeviceFlow[self.id, "el", "out", t] * self.dev_data.co2em for t in timesteps)
-                * 1
-                / 3600
-            )
-        return 0.0
 
 
 class PowerSource(Device):

@@ -35,7 +35,7 @@ These tables shows edgeparameters used in addition to the [generic edge paramete
 
 Additional edge data specific to edge type:
 
-### ```heat, hydrogen```
+### ```heat, hydrogen, carbon```
 No additional data used.
 
 ### ```gas, oil, water```
@@ -103,8 +103,10 @@ parameter | type | description
 eta_el      | float | electricity demand as fraction of flow rate (MW/(Sm3/s))
 eta_heat    | float | heat demand as fraction of flow rate (MW/(Sm3/s))
 
-### ```sink_gas, sink_oil```
-No additional data
+### ```sink_gas, sink_oil, sink_carbon```
+parameter | type | description
+----------|------|------------
+price     | float | revenue for exported fluid (negative cost in the optimisation)
 
 ### ```source_water```
 parameter | type | description

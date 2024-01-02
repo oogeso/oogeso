@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
 import pandas as pd
-from pydantic import BaseModel, Field, Extra
+from pydantic import BaseModel, Extra, Field
 
 from oogeso.dto.types import CarrierType, ModelType
 
@@ -32,8 +32,6 @@ class OptimisationParametersData(BaseModel, extra=Extra.forbid):
     optimisation_timesteps: int
     # timesteps beyond which forecast (instead of nowcast) profile is used:
     forecast_timesteps: int
-    # costs for co2 emissions (currency/kgCO2)
-    co2_tax: Optional[float] = None
     # limit on allowable emission intensity (kgCO2/Sm3oe), -1=no limit
     emission_intensity_max: Optional[float] = -1
     # limit on allowable emission intensity (kgCO2/hour), -1= no limit
@@ -98,45 +96,45 @@ class SimulationResult(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=Tr
     """
 
     # Input/output flow per device and network type:
-    device_flow: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_flow: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Device startup preparation status (boolean):
-    device_is_prep: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_is_prep: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Device on/off status (boolean):
-    device_is_on: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_is_on: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Device starting status (boolean):
-    device_starting: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_starting: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Device stopping status (boolean):
-    device_stopping: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_stopping: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Energy storage filling level (Sm3 or MJ)
-    device_storage_energy: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_storage_energy: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Max available "flow" (power/fluid) from storage (Sm3/s or MW):
-    device_storage_pmax: Optional[pd.Series] = Field(default_factory=pd.Series)
+    device_storage_pmax: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Device assosiated penalty rate (PENALTY_UNIT/s):
-    penalty: Optional[pd.Series] = Field(default_factory=pd.Series)
+    penalty: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Flow rate (Sm3/s or MW):
-    edge_flow: Optional[pd.Series] = Field(default_factory=pd.Series)
+    edge_flow: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Loss rate (MW) - only relevant for energy flow (el and heat):
-    edge_loss: Optional[pd.Series] = Field(default_factory=pd.Series)
+    edge_loss: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Voltage angle at node - only relevant for electricity floc computed via dc-pf:
-    el_voltage_angle: Optional[pd.Series] = Field(default_factory=pd.Series)
+    el_voltage_angle: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Pressure at node (MPa):
-    terminal_pressure: Optional[pd.Series] = Field(default_factory=pd.Series)
+    terminal_pressure: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Direct flow between in and out terminal of node - relevant if there is no device inbetween:
-    terminal_flow: Optional[pd.Series] = Field(default_factory=pd.Series)
+    terminal_flow: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Emission rate (sum of all devices) (kgCO2/s):
-    co2_rate: Optional[pd.Series] = Field(default_factory=pd.Series)
+    co2_rate: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Emission rate per device (kgCO2/s):
-    co2_rate_per_dev: Optional[pd.Series] = Field(default_factory=pd.Series)
+    co2_rate_per_dev: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Revenue rate for exported oil/gas (CURRENCY/s):
-    export_revenue: Optional[pd.Series] = Field(default_factory=pd.Series)
+    export_revenue: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # CO2 intensity of exported oil/gas (kgCO2/Sm3oe):
-    co2_intensity: Optional[pd.Series] = Field(default_factory=pd.Series)
+    co2_intensity: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Available online electrical reserve capacity (MW):
-    el_reserve: Optional[pd.Series] = Field(default_factory=pd.Series)
+    el_reserve: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Available online electrical backup per device (MW):
-    el_backup: Optional[pd.Series] = Field(default_factory=pd.Series)
+    el_backup: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Value of duals (associated with constraints)
-    duals: Optional[pd.Series] = Field(default_factory=pd.Series)
+    duals: Optional[pd.Series] = Field(default_factory=lambda: pd.Series(dtype="float64"))
     # Time-series profiles used in simulation (copied from the input)
     profiles_forecast: Optional[pd.DataFrame] = Field(default_factory=pd.DataFrame)
     profiles_nowcast: Optional[pd.DataFrame] = Field(default_factory=pd.DataFrame)

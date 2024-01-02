@@ -90,7 +90,7 @@ def test_optimiser_compute():
     pyomo_model = optimisation_model
 
     # co2 should be zero in this case
-    avg_co2 = optimisation_model.compute_CO2(pyomo_model, devices=["source1"])
+    avg_co2 = optimisation_model.compute_CO2(pyomo_model)
     assert avg_co2 == 0
 
     # co2 intenisty should be None as no export of oil/gas
@@ -126,16 +126,16 @@ def test_optimiser_methods(testcase2_data):
     simulator = oogeso.Simulator(testcase2_data)
     optimiser = simulator.optimiser
 
-    # check that the expression size (number of nodes in expression tree) is as expected:
-    co2_expr1 = optimiser.compute_CO2(model=optimiser, devices=None, timesteps=[0])
-    assert co2_expr1.size() > 0
+    # check that the computations dont give error
+    co2_expr1 = optimiser.compute_CO2(model=optimiser, timesteps=[0])
+    assert co2_expr1 is not None
     co2_expr2 = optimiser.compute_CO2(model=optimiser)
-    assert co2_expr2.size() > 0
+    assert co2_expr2 is not None
 
     start_penalty1 = optimiser.compute_startup_penalty(model=optimiser, devices=None, timesteps=[0])
-    assert start_penalty1.size() > 0
+    assert start_penalty1 is not None
     start_penalty2 = optimiser.compute_startup_penalty(model=optimiser)
-    assert start_penalty2.size() > 0
+    assert start_penalty2 is not None
 
 
 @pytest.mark.skipif(

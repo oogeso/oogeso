@@ -9,6 +9,7 @@ class CarrierType(str, Enum):
     WATER = "water"
     HEAT = "heat"
     HYDROGEN = "hydrogen"
+    CARBON = "carbon"
     FLUID = "fluid"
     GAS = "gas"
 
@@ -26,6 +27,7 @@ class ModelType(str, Enum):
     SINK_GAS = "sinkgas"
     SINK_OIL = "sinkoil"
     SINK_WATER = "sinkwater"
+    SINK_CARBON = "sinkcarbon"
     COMPRESSOR_EL = "compressorel"
     COMPRESSOR_GAS = "compressorgas"
     ELECTROLYSER = "electrolyser"

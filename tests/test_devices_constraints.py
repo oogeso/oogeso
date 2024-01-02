@@ -61,6 +61,7 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
         dto.CarrierOilData(id="oil", darcy_friction=0.02, rho_density=900, viscosity=0.002),
         dto.CarrierWaterData(id="water", darcy_friction=0.01, rho_density=900, viscosity=0.01),
         dto.CarrierHydrogenData(id="hydrogen"),
+        dto.CarrierCarbonData(id="carbon"),
         dto.CarrierWellStreamData(
             id="wellstream",
             darcy_friction=0.01,
@@ -147,7 +148,6 @@ def _device_method_calls(optimistion_model: OptimisationModel):
     timesteps = pyo.Set(initialize=[0])
     timesteps.construct()
     # Check that these calls don't give errors
-    dev_obj.compute_CO2(optimistion_model, timesteps)
     dev_obj.compute_cost_for_depleted_storage(optimistion_model, timesteps)
     dev_obj.compute_el_reserve(optimistion_model, t=0)
     dev_obj.compute_export(

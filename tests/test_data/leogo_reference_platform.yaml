@@ -3,7 +3,6 @@ parameters:
   planning_horizon: 24 # timesteps in each rolling optimisation
   optimisation_timesteps: 6 # timesteps between each optimisation
   forecast_timesteps: 2 #6 # timesteps beyond which forecast (instead of nowcast) profile is used
-  co2_tax: 0.8 # NOK/kgCO2
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
   objective: exportRevenue # select objective function to use
@@ -36,6 +35,7 @@ carriers:
     rho_density: 1000 # kg/m3
   - id: hydrogen
     energy_value: 13 # MJ/Sm3 - see https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
+  - id: carbon
 
 devices:
   - id: Gen1
@@ -327,6 +327,12 @@ devices:
     # gas 4.19 NOK/Sm3 = 4.14/40 kr/MJ = 0.1035*3600 kr/MWh = 372.6 kr/MWh (selling price = cost for gas)
     # -with efficiency 0.3 this becomes about 1000 kr/MWh_el
     # reasonable that storage cost is e.g. 1/10 of cost for gas turbines
+  - id: sink_co2
+    include: 1
+    model: sink_carbon
+    node_id: powersupply
+    price: {"carbon": -0.8} # NOK/kgCO2
+
 
 edges:
   - id: cL1
