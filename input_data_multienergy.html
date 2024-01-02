@@ -1,677 +1,398 @@
 
 <!DOCTYPE html>
 
-<html>
+
+<html lang="en" data-content_root="./" >
+
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <title>Extra input data with multi-energy modelling &#8212; Oogeso Docs</title>
-    
-  <link href="_static/css/theme.css" rel="stylesheet">
-  <link href="_static/css/index.ff1ffe594081f20da1ef19478df9384b.css" rel="stylesheet">
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=5b4479735964841361fd" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=5b4479735964841361fd" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=5b4479735964841361fd" rel="stylesheet" />
 
-    
-  <link rel="stylesheet"
-    href="_static/vendor/fontawesome/5.13.0/css/all.min.css">
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+  
+  <link href="_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=5b4479735964841361fd" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
 
-    
-      
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=384b581d" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=5b4479735964841361fd" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=5b4479735964841361fd" />
+  <script src="_static/vendor/fontawesome/6.1.2/js/all.min.js?digest=5b4479735964841361fd"></script>
 
-    
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/sphinx-book-theme.css?digest=84ace793992934648b4de8eed757e5a2" />
-    
-  <link rel="preload" as="script" href="_static/js/index.be7d3bbb2ef33a8344ce.js">
-
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx-book-theme.9d8b4a8b9bb19db25eeaddc40d639ba2.js"></script>
-    <link rel="shortcut icon" href="_static/logo_oogeso.png"/>
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'input_data_multienergy';</script>
+    <link rel="icon" href="_static/logo_oogeso.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Output data" href="output_data.html" />
     <link rel="prev" title="Input data" href="input_data.html" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="docsearch:language" content="None">
-    
-
-    <!-- Google Analytics -->
-    
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
   </head>
-  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="80">
-    
-    <div class="container-fluid" id="banner"></div>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
 
-    
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <div id="pst-scroll-pixel-helper"></div>
 
-    <div class="container-xl">
-      <div class="row">
-          
-<!-- Checkboxes to toggle the left sidebar -->
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle navigation sidebar">
-<label class="overlay" for="__navigation">
-    <div class="visually-hidden">Toggle navigation sidebar</div>
-</label>
-<div class="col-12 col-md-3 bd-sidebar site-navigation " id="site-navigation">
-    
-        <div class="navbar-brand-box">
-    <a class="navbar-brand text-wrap" href="index.html">
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>
+    Back to top
+  </button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
       
-        <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
+      <div class="bd-sidebar-primary bd-sidebar">
         
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
       
-      
-      <img src="_static/logo_oogeso.png" class="logo" alt="logo">
-      
-      
-      <h1 class="site-logo" id="site-title">Oogeso Docs</h1>
-      
-    </a>
-</div><form class="bd-search d-flex align-items-center" action="search.html" method="get">
-  <i class="icon fas fa-search"></i>
-  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
-</form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
-    <div class="bd-toc-item active">
-        <p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Overview
- </span>
-</p>
+    
+    
+    <img src="_static/logo_oogeso.png" class="logo__image only-light" alt="Oogeso Docs - Home"/>
+    <script>document.write(`<img src="_static/logo_oogeso.png" class="logo__image only-dark" alt="Oogeso Docs - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><ul class="navbar-icon-links navbar-nav"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/oogeso/oogeso" title="GitHub" class="nav-link" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i></span>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="index.html">
-   User Guide
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">User Guide</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Input Data
- </span>
-</p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Input Data</span></p>
 <ul class="current nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="input_data.html">
-   Input data
-  </a>
- </li>
- <li class="toctree-l1 current active">
-  <a class="current reference internal" href="#">
-   Extra input data with multi-energy modelling
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="input_data.html">Input data</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Extra input data with multi-energy modelling</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Output
- </span>
-</p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Output</span></p>
 <ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="output_data.html">
-   Output data
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="output_data.html">Output data</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  About the project
- </span>
-</p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">About the project</span></p>
 <ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="changelog.html">
-   Changelog
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference external" href="https://github.com/oogeso/oogeso">
-   GitHub repo
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference external" href="https://pypi.org/project/oogeso/">
-   PyPi
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/oogeso/oogeso">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/oogeso/">PyPi</a></li>
 </ul>
 
     </div>
-</nav> <!-- To handle the deprecated key -->
-
-<div class="navbar_extra_footer">
-  Theme by the <a href="https://ebp.jupyterbook.org">Executable Book Project</a>
-</div>
-
-</div>
-
-
-          
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
 
 
-          
-<!-- This is an invisible pixel that we watch to see if we've scrolled. -->
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
 <div class="sbt-scroll-pixel-helper"></div>
-<main class="col py-md-3 pl-md-4 bd-content overflow-auto" role="main">
-    
-    <div class="topbar container-xl fixed-top">
-    <div class="topbar-contents row">
-        <div class="col-12 col-md-3 bd-topbar-whitespace site-navigation show"></div>
-        <div class="col pl-md-4 topbar-main">
-            <div class="topbar-left">
-                
-                <label class="nav-toggle-button" for="__navigation">
-                    <div class="visually-hidden">Toggle navigation</div>
-                    <i class="fas fa-bars"></i>
-                </label>
-                
-            </div>
-            
-<div class="dropdown-buttons-trigger">
-    <button id="dropdown-buttons-trigger" class="btn btn-secondary topbarbtn" aria-label="Download this page"><i
-            class="fas fa-download"></i></button>
 
-    <div class="dropdown-buttons">
-        <!-- ipynb file if we had a myst markdown file -->
-        
-        <!-- Download raw file -->
-        <a class="dropdown-buttons" href="_sources/input_data_multienergy.md.txt"><button type="button"
-                class="btn btn-secondary topbarbtn" title="Download source file" data-toggle="tooltip"
-                data-placement="left">.md</button></a>
-        <!-- Download PDF via print -->
-        <button type="button" id="download-print" class="btn btn-secondary topbarbtn" title="Print to PDF"
-                onclick="printPdf(this)" data-toggle="tooltip" data-placement="left">.pdf</button>
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
     </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data_multienergy.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button"
+   title="Suggest edit"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/input_data_multienergy.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
 </div>
 
-            <!-- Source interaction buttons -->
 
-<div class="dropdown-buttons-trigger">
-    <button id="dropdown-buttons-trigger" class="btn btn-secondary topbarbtn"
-        aria-label="Connect with source repository"><i class="fab fa-github"></i></button>
-    <div class="dropdown-buttons sourcebuttons">
-        
-        
-        <a class="edit-button" href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data_multienergy.md"><button
-                type="button" class="btn btn-secondary topbarbtn" data-toggle="tooltip" data-placement="left"
-                title="Edit this page"><i class="fas fa-pencil-alt"></i>suggest edit</button></a>
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
     </div>
+  
 </div>
+</div>
+              
+              
 
-            <!-- Full screen (wrap in <a> to have style consistency -->
-
-<a class="full-screen-button"><button type="button" class="btn btn-secondary topbarbtn" data-toggle="tooltip"
-        data-placement="bottom" onclick="toggleFullScreen()" aria-label="Fullscreen mode"
-        title="Fullscreen mode"><i
-            class="fas fa-expand"></i></button></a>
-
-            <!-- Launch buttons -->
-
-        </div>
-
-        <!-- Table of contents -->
-        <div class="d-none d-md-block col-md-2 bd-toc show noprint">
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Extra input data with multi-energy modelling</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
             
-            <div class="tocsection onthispage pt-5 pb-3">
-                <i class="fas fa-list"></i> Contents
+            <div>
+                <h2> Contents </h2>
             </div>
-            <nav id="bd-toc-nav" aria-label="Page">
+            <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#energy-carriers-carriers">
-   Energy carriers (
-   <code class="docutils literal notranslate">
-    <span class="pre">
-     carriers
-    </span>
-   </code>
-   )
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#heat-hydrogen">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       heat,
-      </span>
-      <span class="pre">
-       hydrogen
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#oil-water-wellstream">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       oil,
-      </span>
-      <span class="pre">
-       water,
-      </span>
-      <span class="pre">
-       wellstream
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#gas">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       gas
-      </span>
-     </code>
-    </a>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#edges-edges">
-   Edges (
-   <code class="docutils literal notranslate">
-    <span class="pre">
-     edges
-    </span>
-   </code>
-   )
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#id1">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       heat,
-      </span>
-      <span class="pre">
-       hydrogen
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#gas-oil-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       gas,
-      </span>
-      <span class="pre">
-       oil,
-      </span>
-      <span class="pre">
-       water
-      </span>
-     </code>
-    </a>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#devices-devices">
-   Devices (
-   <code class="docutils literal notranslate">
-    <span class="pre">
-     devices
-    </span>
-   </code>
-   )
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#gasturbine">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       gasturbine
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#source-el">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       source_el
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#sink-el-sink-heat-sink-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       sink_el,
-      </span>
-      <span class="pre">
-       sink_heat,
-      </span>
-      <span class="pre">
-       sink_water
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#pump-oil-pump-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       pump_oil,
-      </span>
-      <span class="pre">
-       pump_water
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#compressor-el">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       compressor_el
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#separator">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       separator
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#separator2">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       separator2
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#sink-gas-sink-oil">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       sink_gas,
-      </span>
-      <span class="pre">
-       sink_oil
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#source-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       source_water
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#well-gaslift">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       well_gaslift
-      </span>
-     </code>
-    </a>
-   </li>
-  </ul>
- </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
 </ul>
-
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-edges">Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen-carbon"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen,</span> <span class="pre">carbon</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas-oil-water"><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gasturbine"><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-el"><code class="docutils literal notranslate"><span class="pre">source_el</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-el-sink-heat-sink-water"><code class="docutils literal notranslate"><span class="pre">sink_el,</span> <span class="pre">sink_heat,</span> <span class="pre">sink_water</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pump-oil-pump-water"><code class="docutils literal notranslate"><span class="pre">pump_oil,</span> <span class="pre">pump_water</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#compressor-el"><code class="docutils literal notranslate"><span class="pre">compressor_el</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#separator"><code class="docutils literal notranslate"><span class="pre">separator</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#separator2"><code class="docutils literal notranslate"><span class="pre">separator2</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-gas-sink-oil-sink-carbon"><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
+</ul>
+</li>
+</ul>
             </nav>
         </div>
     </div>
 </div>
-    <div id="main-content" class="row">
-        <div class="col-12 col-md-9 pl-md-3 pr-md-0">
-            <!-- Table of contents that is only displayed when printing the page -->
-            <div id="jb-print-docs-body" class="onlyprint">
-                <h1>Extra input data with multi-energy modelling</h1>
-                <!-- Table of contents -->
-                <div id="print-main-content">
-                    <div id="jb-print-toc">
-                        
-                        <div>
-                            <h2> Contents </h2>
-                        </div>
-                        <nav aria-label="Page">
-                            <ul class="visible nav section-nav flex-column">
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#energy-carriers-carriers">
-   Energy carriers (
-   <code class="docutils literal notranslate">
-    <span class="pre">
-     carriers
-    </span>
-   </code>
-   )
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#heat-hydrogen">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       heat,
-      </span>
-      <span class="pre">
-       hydrogen
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#oil-water-wellstream">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       oil,
-      </span>
-      <span class="pre">
-       water,
-      </span>
-      <span class="pre">
-       wellstream
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#gas">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       gas
-      </span>
-     </code>
-    </a>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#edges-edges">
-   Edges (
-   <code class="docutils literal notranslate">
-    <span class="pre">
-     edges
-    </span>
-   </code>
-   )
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#id1">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       heat,
-      </span>
-      <span class="pre">
-       hydrogen
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#gas-oil-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       gas,
-      </span>
-      <span class="pre">
-       oil,
-      </span>
-      <span class="pre">
-       water
-      </span>
-     </code>
-    </a>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#devices-devices">
-   Devices (
-   <code class="docutils literal notranslate">
-    <span class="pre">
-     devices
-    </span>
-   </code>
-   )
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#gasturbine">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       gasturbine
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#source-el">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       source_el
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#sink-el-sink-heat-sink-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       sink_el,
-      </span>
-      <span class="pre">
-       sink_heat,
-      </span>
-      <span class="pre">
-       sink_water
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#pump-oil-pump-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       pump_oil,
-      </span>
-      <span class="pre">
-       pump_water
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#compressor-el">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       compressor_el
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#separator">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       separator
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#separator2">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       separator2
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#sink-gas-sink-oil">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       sink_gas,
-      </span>
-      <span class="pre">
-       sink_oil
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#source-water">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       source_water
-      </span>
-     </code>
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#well-gaslift">
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       well_gaslift
-      </span>
-     </code>
-    </a>
-   </li>
-  </ul>
- </li>
-</ul>
 
-                        </nav>
-                    </div>
-                </div>
-            </div>
-            
-              <div>
+              
                 
-  <div class="tex2jax_ignore mathjax_ignore section" id="extra-input-data-with-multi-energy-modelling">
-<h1>Extra input data with multi-energy modelling<a class="headerlink" href="#extra-input-data-with-multi-energy-modelling" title="Permalink to this headline">¶</a></h1>
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="extra-input-data-with-multi-energy-modelling">
+<h1>Extra input data with multi-energy modelling<a class="headerlink" href="#extra-input-data-with-multi-energy-modelling" title="Link to this heading">#</a></h1>
 <p>This page summarises input data used with multi-energy moddeling with Oogeso. This data is in addition to the data described in</p>
-<div class="section" id="energy-carriers-carriers">
-<h2>Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#energy-carriers-carriers" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="heat-hydrogen">
-<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code><a class="headerlink" href="#heat-hydrogen" title="Permalink to this headline">¶</a></h3>
+<section id="energy-carriers-carriers">
+<h2>Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#energy-carriers-carriers" title="Link to this heading">#</a></h2>
+<section id="heat-hydrogen">
+<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code><a class="headerlink" href="#heat-hydrogen" title="Link to this heading">#</a></h3>
 <p>No additional data required</p>
-</div>
-<div class="section" id="oil-water-wellstream">
-<h3><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code><a class="headerlink" href="#oil-water-wellstream" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="oil-water-wellstream">
+<h3><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code><a class="headerlink" href="#oil-water-wellstream" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -697,10 +418,10 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="gas">
-<h3><code class="docutils literal notranslate"><span class="pre">gas</span></code><a class="headerlink" href="#gas" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="gas">
+<h3><code class="docutils literal notranslate"><span class="pre">gas</span></code><a class="headerlink" href="#gas" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -746,19 +467,19 @@
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div class="section" id="edges-edges">
-<h2>Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)<a class="headerlink" href="#edges-edges" title="Permalink to this headline">¶</a></h2>
-<p>These tables shows edgeparameters used in addition to the <a class="reference external" href="input_data.md#network-edges-edges">generic edge parameters</a>.</p>
+</section>
+</section>
+<section id="edges-edges">
+<h2>Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)<a class="headerlink" href="#edges-edges" title="Link to this heading">#</a></h2>
+<p>These tables shows edgeparameters used in addition to the <a class="reference internal" href="input_data.html#network-edges-edges"><span class="std std-ref">generic edge parameters</span></a>.</p>
 <p>Additional edge data specific to edge type:</p>
-<div class="section" id="id1">
-<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<section id="heat-hydrogen-carbon">
+<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen,</span> <span class="pre">carbon</span></code><a class="headerlink" href="#heat-hydrogen-carbon" title="Link to this heading">#</a></h3>
 <p>No additional data used.</p>
-</div>
-<div class="section" id="gas-oil-water">
-<h3><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code><a class="headerlink" href="#gas-oil-water" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="gas-oil-water">
+<h3><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code><a class="headerlink" href="#gas-oil-water" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -774,7 +495,7 @@
 <td><p>float</p></td>
 <td><p>nominal pressure (MPa) at start point (required if it is not given by device parameter)</p></td>
 </tr>
-<tr class="row-even"><td><p>pressure.to</p></td>
+<tr class="row-even"><td><p><a class="reference external" href="http://pressure.to">pressure.to</a></p></td>
 <td><p>float</p></td>
 <td><p>nominal pressure (MPa) at start point (required if it is not given by device parameter)</p></td>
 </tr>
@@ -788,14 +509,14 @@
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div class="section" id="devices-devices">
-<h2>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Permalink to this headline">¶</a></h2>
-<p>These tables shows additional devices and device parameters used in addition to the <a class="reference external" href="input_data.md#devices-devices">generic device parameters</a> in multi-energy modelling.</p>
-<div class="section" id="gasturbine">
-<h3><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code><a class="headerlink" href="#gasturbine" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+</section>
+<section id="devices-devices">
+<h2>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Link to this heading">#</a></h2>
+<p>These tables shows additional devices and device parameters used in addition to the <a class="reference internal" href="input_data.html#devices-devices"><span class="std std-ref">generic device parameters</span></a> in multi-energy modelling.</p>
+<section id="gasturbine">
+<h3><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code><a class="headerlink" href="#gasturbine" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -837,10 +558,10 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="source-el">
-<h3><code class="docutils literal notranslate"><span class="pre">source_el</span></code><a class="headerlink" href="#source-el" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="source-el">
+<h3><code class="docutils literal notranslate"><span class="pre">source_el</span></code><a class="headerlink" href="#source-el" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -858,14 +579,14 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="sink-el-sink-heat-sink-water">
-<h3><code class="docutils literal notranslate"><span class="pre">sink_el,</span> <span class="pre">sink_heat,</span> <span class="pre">sink_water</span></code><a class="headerlink" href="#sink-el-sink-heat-sink-water" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="sink-el-sink-heat-sink-water">
+<h3><code class="docutils literal notranslate"><span class="pre">sink_el,</span> <span class="pre">sink_heat,</span> <span class="pre">sink_water</span></code><a class="headerlink" href="#sink-el-sink-heat-sink-water" title="Link to this heading">#</a></h3>
 <p>No additional data required</p>
-</div>
-<div class="section" id="pump-oil-pump-water">
-<h3><code class="docutils literal notranslate"><span class="pre">pump_oil,</span> <span class="pre">pump_water</span></code><a class="headerlink" href="#pump-oil-pump-water" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="pump-oil-pump-water">
+<h3><code class="docutils literal notranslate"><span class="pre">pump_oil,</span> <span class="pre">pump_water</span></code><a class="headerlink" href="#pump-oil-pump-water" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -879,10 +600,10 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="compressor-el">
-<h3><code class="docutils literal notranslate"><span class="pre">compressor_el</span></code><a class="headerlink" href="#compressor-el" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="compressor-el">
+<h3><code class="docutils literal notranslate"><span class="pre">compressor_el</span></code><a class="headerlink" href="#compressor-el" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -904,16 +625,16 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="separator">
-<h3><code class="docutils literal notranslate"><span class="pre">separator</span></code><a class="headerlink" href="#separator" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="separator">
+<h3><code class="docutils literal notranslate"><span class="pre">separator</span></code><a class="headerlink" href="#separator" title="Link to this heading">#</a></h3>
 <p>No additional data.</p>
 <p>This separator model assues a single wellstream input flow.</p>
-</div>
-<div class="section" id="separator2">
-<h3><code class="docutils literal notranslate"><span class="pre">separator2</span></code><a class="headerlink" href="#separator2" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="separator2">
+<h3><code class="docutils literal notranslate"><span class="pre">separator2</span></code><a class="headerlink" href="#separator2" title="Link to this heading">#</a></h3>
 <p>This separator model assumes separate input flows for oil, gas, and water.</p>
-<table class="colwidths-auto table">
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -931,14 +652,27 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="sink-gas-sink-oil">
-<h3><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil</span></code><a class="headerlink" href="#sink-gas-sink-oil" title="Permalink to this headline">¶</a></h3>
-<p>No additional data</p>
-</div>
-<div class="section" id="source-water">
-<h3><code class="docutils literal notranslate"><span class="pre">source_water</span></code><a class="headerlink" href="#source-water" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="sink-gas-sink-oil-sink-carbon">
+<h3><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code><a class="headerlink" href="#sink-gas-sink-oil-sink-carbon" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>price</p></td>
+<td><p>float</p></td>
+<td><p>revenue for exported fluid (negative cost in the optimisation)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="source-water">
+<h3><code class="docutils literal notranslate"><span class="pre">source_water</span></code><a class="headerlink" href="#source-water" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -952,10 +686,10 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="well-gaslift">
-<h3><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code><a class="headerlink" href="#well-gaslift" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="well-gaslift">
+<h3><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code><a class="headerlink" href="#well-gaslift" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -985,49 +719,130 @@
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
-              </div>
+                </article>
               
-            
-                <!-- Previous / next buttons -->
-<div class='prev-next-area'> 
-    <a class='left-prev' id="prev-link" href="input_data.html" title="previous page">
-        <i class="fas fa-angle-left"></i>
-        <div class="prev-next-info">
-            <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">Input data</p>
-        </div>
+
+              
+              
+              
+              
+                <footer class="prev-next-footer">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="input_data.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Input data</p>
+      </div>
     </a>
-    <a class='right-next' id="next-link" href="output_data.html" title="next page">
-    <div class="prev-next-info">
+    <a class="right-next"
+       href="output_data.html"
+       title="next page">
+      <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
         <p class="prev-next-title">Output data</p>
-    </div>
-    <i class="fas fa-angle-right"></i>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
     </a>
 </div>
+                </footer>
+              
+            </div>
             
-        </div>
-    </div>
-    <footer class="footer">
-  <p>
-    
-      By SINTEF<br/>
-    
-        &copy; Copyright 2022, SINTEF.<br/>
-  </p>
-</footer>
-</main>
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-edges">Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen-carbon"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen,</span> <span class="pre">carbon</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas-oil-water"><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gasturbine"><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-el"><code class="docutils literal notranslate"><span class="pre">source_el</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-el-sink-heat-sink-water"><code class="docutils literal notranslate"><span class="pre">sink_el,</span> <span class="pre">sink_heat,</span> <span class="pre">sink_water</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pump-oil-pump-water"><code class="docutils literal notranslate"><span class="pre">pump_oil,</span> <span class="pre">pump_water</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#compressor-el"><code class="docutils literal notranslate"><span class="pre">compressor_el</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#separator"><code class="docutils literal notranslate"><span class="pre">separator</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#separator2"><code class="docutils literal notranslate"><span class="pre">separator2</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-gas-sink-oil-sink-carbon"><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
 
-      </div>
-    </div>
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
   
-  <script src="_static/js/index.be7d3bbb2ef33a8344ce.js"></script>
+  <div class="footer-item">
+    
+<p class="component-author">
+By SINTEF
+</p>
 
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2022, SINTEF.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=5b4479735964841361fd"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=5b4479735964841361fd"></script>
+
+  <footer class="bd-footer">
+  </footer>
   </body>
 </html>

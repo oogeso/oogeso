@@ -1,682 +1,459 @@
 
 <!DOCTYPE html>
 
-<html>
+
+<html lang="en" data-content_root="./" >
+
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <title>Input data &#8212; Oogeso Docs</title>
-    
-  <link href="_static/css/theme.css" rel="stylesheet">
-  <link href="_static/css/index.ff1ffe594081f20da1ef19478df9384b.css" rel="stylesheet">
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=5b4479735964841361fd" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=5b4479735964841361fd" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=5b4479735964841361fd" rel="stylesheet" />
 
-    
-  <link rel="stylesheet"
-    href="_static/vendor/fontawesome/5.13.0/css/all.min.css">
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+  
+  <link href="_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=5b4479735964841361fd" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
 
-    
-      
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=384b581d" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=5b4479735964841361fd" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=5b4479735964841361fd" />
+  <script src="_static/vendor/fontawesome/6.1.2/js/all.min.js?digest=5b4479735964841361fd"></script>
 
-    
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/sphinx-book-theme.css?digest=84ace793992934648b4de8eed757e5a2" />
-    
-  <link rel="preload" as="script" href="_static/js/index.be7d3bbb2ef33a8344ce.js">
-
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx-book-theme.9d8b4a8b9bb19db25eeaddc40d639ba2.js"></script>
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
     <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <link rel="shortcut icon" href="_static/logo_oogeso.png"/>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'input_data';</script>
+    <link rel="icon" href="_static/logo_oogeso.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Extra input data with multi-energy modelling" href="input_data_multienergy.html" />
     <link rel="prev" title="User Guide" href="index.html" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="docsearch:language" content="None">
-    
-
-    <!-- Google Analytics -->
-    
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
   </head>
-  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="80">
-    
-    <div class="container-fluid" id="banner"></div>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
 
-    
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <div id="pst-scroll-pixel-helper"></div>
 
-    <div class="container-xl">
-      <div class="row">
-          
-<!-- Checkboxes to toggle the left sidebar -->
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle navigation sidebar">
-<label class="overlay" for="__navigation">
-    <div class="visually-hidden">Toggle navigation sidebar</div>
-</label>
-<div class="col-12 col-md-3 bd-sidebar site-navigation " id="site-navigation">
-    
-        <div class="navbar-brand-box">
-    <a class="navbar-brand text-wrap" href="index.html">
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>
+    Back to top
+  </button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
       
-        <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
+      <div class="bd-sidebar-primary bd-sidebar">
         
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
       
-      
-      <img src="_static/logo_oogeso.png" class="logo" alt="logo">
-      
-      
-      <h1 class="site-logo" id="site-title">Oogeso Docs</h1>
-      
-    </a>
-</div><form class="bd-search d-flex align-items-center" action="search.html" method="get">
-  <i class="icon fas fa-search"></i>
-  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
-</form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
-    <div class="bd-toc-item active">
-        <p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Overview
- </span>
-</p>
+    
+    
+    <img src="_static/logo_oogeso.png" class="logo__image only-light" alt="Oogeso Docs - Home"/>
+    <script>document.write(`<img src="_static/logo_oogeso.png" class="logo__image only-dark" alt="Oogeso Docs - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><ul class="navbar-icon-links navbar-nav"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/oogeso/oogeso" title="GitHub" class="nav-link" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i></span>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="index.html">
-   User Guide
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">User Guide</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Input Data
- </span>
-</p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Input Data</span></p>
 <ul class="current nav bd-sidenav">
- <li class="toctree-l1 current active">
-  <a class="current reference internal" href="#">
-   Input data
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="input_data_multienergy.html">
-   Extra input data with multi-energy modelling
-  </a>
- </li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Input data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input_data_multienergy.html">Extra input data with multi-energy modelling</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Output
- </span>
-</p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Output</span></p>
 <ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="output_data.html">
-   Output data
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="output_data.html">Output data</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  About the project
- </span>
-</p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">About the project</span></p>
 <ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="changelog.html">
-   Changelog
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference external" href="https://github.com/oogeso/oogeso">
-   GitHub repo
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference external" href="https://pypi.org/project/oogeso/">
-   PyPi
-  </a>
- </li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/oogeso/oogeso">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/oogeso/">PyPi</a></li>
 </ul>
 
     </div>
-</nav> <!-- To handle the deprecated key -->
-
-<div class="navbar_extra_footer">
-  Theme by the <a href="https://ebp.jupyterbook.org">Executable Book Project</a>
-</div>
-
-</div>
-
-
-          
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
 
 
-          
-<!-- This is an invisible pixel that we watch to see if we've scrolled. -->
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
 <div class="sbt-scroll-pixel-helper"></div>
-<main class="col py-md-3 pl-md-4 bd-content overflow-auto" role="main">
-    
-    <div class="topbar container-xl fixed-top">
-    <div class="topbar-contents row">
-        <div class="col-12 col-md-3 bd-topbar-whitespace site-navigation show"></div>
-        <div class="col pl-md-4 topbar-main">
-            <div class="topbar-left">
-                
-                <label class="nav-toggle-button" for="__navigation">
-                    <div class="visually-hidden">Toggle navigation</div>
-                    <i class="fas fa-bars"></i>
-                </label>
-                
-            </div>
-            
-<div class="dropdown-buttons-trigger">
-    <button id="dropdown-buttons-trigger" class="btn btn-secondary topbarbtn" aria-label="Download this page"><i
-            class="fas fa-download"></i></button>
 
-    <div class="dropdown-buttons">
-        <!-- ipynb file if we had a myst markdown file -->
-        
-        <!-- Download raw file -->
-        <a class="dropdown-buttons" href="_sources/input_data.md.txt"><button type="button"
-                class="btn btn-secondary topbarbtn" title="Download source file" data-toggle="tooltip"
-                data-placement="left">.md</button></a>
-        <!-- Download PDF via print -->
-        <button type="button" id="download-print" class="btn btn-secondary topbarbtn" title="Print to PDF"
-                onclick="printPdf(this)" data-toggle="tooltip" data-placement="left">.pdf</button>
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
     </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button"
+   title="Suggest edit"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/input_data.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
 </div>
 
-            <!-- Source interaction buttons -->
 
-<div class="dropdown-buttons-trigger">
-    <button id="dropdown-buttons-trigger" class="btn btn-secondary topbarbtn"
-        aria-label="Connect with source repository"><i class="fab fa-github"></i></button>
-    <div class="dropdown-buttons sourcebuttons">
-        
-        
-        <a class="edit-button" href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data.md"><button
-                type="button" class="btn btn-secondary topbarbtn" data-toggle="tooltip" data-placement="left"
-                title="Edit this page"><i class="fas fa-pencil-alt"></i>suggest edit</button></a>
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
     </div>
+  
 </div>
+</div>
+              
+              
 
-            <!-- Full screen (wrap in <a> to have style consistency -->
-
-<a class="full-screen-button"><button type="button" class="btn btn-secondary topbarbtn" data-toggle="tooltip"
-        data-placement="bottom" onclick="toggleFullScreen()" aria-label="Fullscreen mode"
-        title="Fullscreen mode"><i
-            class="fas fa-expand"></i></button></a>
-
-            <!-- Launch buttons -->
-
-        </div>
-
-        <!-- Table of contents -->
-        <div class="d-none d-md-block col-md-2 bd-toc show noprint">
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Input data</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
             
-            <div class="tocsection onthispage pt-5 pb-3">
-                <i class="fas fa-list"></i> Contents
+            <div>
+                <h2> Contents </h2>
             </div>
-            <nav id="bd-toc-nav" aria-label="Page">
+            <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#contents">
-   Contents
-  </a>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#introduction">
-   Introduction
-  </a>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#data">
-   Data
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#general-parameters-parameters">
-     General parameters (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       parameters
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#time-series-profiles-profiles">
-     Time-series profiles (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       profiles
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#energy-carriers-carriers">
-     Energy carriers (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       carriers
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#network-nodes-nodes">
-     Network nodes (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       nodes
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#network-edges-edges">
-     Network edges (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       edges
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#devices-devices">
-     Devices (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       devices
-      </span>
-     </code>
-     )
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">
-       Start and stop data (
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         StartStopData
-        </span>
-       </code>
-       )
-      </a>
-     </li>
-    </ul>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#electric-system-only-modelling">
-   Electric system only modelling
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#carriers-electricity">
-     Carriers (electricity)
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#id-el">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         id:
-        </span>
-        <span class="pre">
-         el
-        </span>
-       </code>
-      </a>
-     </li>
-    </ul>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#edges-electric">
-     Edges (electric)
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#carrier-el">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         carrier:
-        </span>
-        <span class="pre">
-         el
-        </span>
-       </code>
-      </a>
-     </li>
-    </ul>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#devices-electric-only">
-     Devices (electric only)
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#powersource">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         powersource
-        </span>
-       </code>
-      </a>
-     </li>
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#powersink">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         powersink
-        </span>
-       </code>
-      </a>
-     </li>
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#storage-el">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         storage_el
-        </span>
-       </code>
-      </a>
-     </li>
-    </ul>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#multi-energy-system-modelling">
-   Multi-energy system modelling
-  </a>
- </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#general-parameters-parameters">General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#time-series-profiles-profiles">Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-nodes-nodes">Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-edges-edges">Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)</a></li>
 </ul>
-
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#electric-system-only-modelling">Electric system only modelling</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carriers-electricity">Carriers (electricity)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id-el"><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-electric">Edges (electric)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#carrier-el"><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-electric-only">Devices (electric only)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersource"><code class="docutils literal notranslate"><span class="pre">powersource</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersink"><code class="docutils literal notranslate"><span class="pre">powersink</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-el"><code class="docutils literal notranslate"><span class="pre">storage_el</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-energy-system-modelling">Multi-energy system modelling</a></li>
+</ul>
             </nav>
         </div>
     </div>
 </div>
-    <div id="main-content" class="row">
-        <div class="col-12 col-md-9 pl-md-3 pr-md-0">
-            <!-- Table of contents that is only displayed when printing the page -->
-            <div id="jb-print-docs-body" class="onlyprint">
-                <h1>Input data</h1>
-                <!-- Table of contents -->
-                <div id="print-main-content">
-                    <div id="jb-print-toc">
-                        
-                        <div>
-                            <h2> Contents </h2>
-                        </div>
-                        <nav aria-label="Page">
-                            <ul class="visible nav section-nav flex-column">
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#contents">
-   Contents
-  </a>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#introduction">
-   Introduction
-  </a>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#data">
-   Data
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#general-parameters-parameters">
-     General parameters (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       parameters
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#time-series-profiles-profiles">
-     Time-series profiles (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       profiles
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#energy-carriers-carriers">
-     Energy carriers (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       carriers
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#network-nodes-nodes">
-     Network nodes (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       nodes
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#network-edges-edges">
-     Network edges (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       edges
-      </span>
-     </code>
-     )
-    </a>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#devices-devices">
-     Devices (
-     <code class="docutils literal notranslate">
-      <span class="pre">
-       devices
-      </span>
-     </code>
-     )
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">
-       Start and stop data (
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         StartStopData
-        </span>
-       </code>
-       )
-      </a>
-     </li>
-    </ul>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#electric-system-only-modelling">
-   Electric system only modelling
-  </a>
-  <ul class="nav section-nav flex-column">
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#carriers-electricity">
-     Carriers (electricity)
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#id-el">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         id:
-        </span>
-        <span class="pre">
-         el
-        </span>
-       </code>
-      </a>
-     </li>
-    </ul>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#edges-electric">
-     Edges (electric)
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#carrier-el">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         carrier:
-        </span>
-        <span class="pre">
-         el
-        </span>
-       </code>
-      </a>
-     </li>
-    </ul>
-   </li>
-   <li class="toc-h3 nav-item toc-entry">
-    <a class="reference internal nav-link" href="#devices-electric-only">
-     Devices (electric only)
-    </a>
-    <ul class="nav section-nav flex-column">
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#powersource">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         powersource
-        </span>
-       </code>
-      </a>
-     </li>
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#powersink">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         powersink
-        </span>
-       </code>
-      </a>
-     </li>
-     <li class="toc-h4 nav-item toc-entry">
-      <a class="reference internal nav-link" href="#storage-el">
-       <code class="docutils literal notranslate">
-        <span class="pre">
-         storage_el
-        </span>
-       </code>
-      </a>
-     </li>
-    </ul>
-   </li>
-  </ul>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#multi-energy-system-modelling">
-   Multi-energy system modelling
-  </a>
- </li>
-</ul>
 
-                        </nav>
-                    </div>
-                </div>
-            </div>
-            
-              <div>
+              
                 
-  <div class="tex2jax_ignore mathjax_ignore section" id="input-data">
-<h1>Input data<a class="headerlink" href="#input-data" title="Permalink to this headline">¶</a></h1>
-<p>User guide: <a class="reference internal" href="index.html"><span class="doc std std-doc">Home</span></a></p>
-<div class="section" id="contents">
-<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="input-data">
+<h1>Input data<a class="headerlink" href="#input-data" title="Link to this heading">#</a></h1>
+<p>User guide: <a class="reference internal" href="index.html"><span class="std std-doc">Home</span></a></p>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><a class="reference external" href="#introduction">Introduction</a></p></li>
-<li><p><a class="reference external" href="#data">Data</a></p>
+<li><p><a class="reference internal" href="#introduction">Introduction</a></p></li>
+<li><p><a class="reference internal" href="#data">Data</a></p>
 <ul class="simple">
-<li><p><a class="reference external" href="#general-parameters-parameters">General parameters</a></p></li>
-<li><p><a class="reference external" href="#time-series-profiles-profiles">Timeseries profiles</a></p></li>
-<li><p><a class="reference external" href="#energy-carriers-carriers">Energy carriers</a></p></li>
-<li><p><a class="reference external" href="#network-nodes-nodes">Nodes</a></p></li>
-<li><p><a class="reference external" href="#network-edges-edges">Edges</a></p></li>
-<li><p><a class="reference external" href="#devices-devices">Devices</a></p></li>
+<li><p><a class="reference internal" href="#general-parameters-parameters"><span class="xref myst">General parameters</span></a></p></li>
+<li><p><a class="reference internal" href="#time-series-profiles-profiles"><span class="xref myst">Timeseries profiles</span></a></p></li>
+<li><p><a class="reference internal" href="#energy-carriers-carriers"><span class="xref myst">Energy carriers</span></a></p></li>
+<li><p><a class="reference internal" href="#network-nodes-nodes"><span class="xref myst">Nodes</span></a></p></li>
+<li><p><a class="reference internal" href="#network-edges-edges"><span class="xref myst">Edges</span></a></p></li>
+<li><p><a class="reference internal" href="#devices-devices"><span class="xref myst">Devices</span></a></p></li>
 </ul>
 </li>
-<li><p><a class="reference external" href="#electric-system-only-modelling">Electric system only modelling</a></p></li>
-<li><p><a class="reference external" href="#multi-energy-system-modelling">Multi-energy system modelling</a></p></li>
+<li><p><a class="reference internal" href="#electric-system-only-modelling">Electric system only modelling</a></p></li>
+<li><p><a class="reference internal" href="#multi-energy-system-modelling">Multi-energy system modelling</a></p></li>
 </ol>
-</div>
-<div class="section" id="introduction">
-<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">#</a></h2>
 <p>The Oogeso input is an EnergySytemData object, that may be constructed programmatically, or specified in a YAML. This object or yaml file specifies all
 elements (nodes, edges, devices), how they are connected (network
 topology) and parameters for each element.</p>
 <p>The input data can be specified in a YAML file with the following structure:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">parameters</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span><span class="w"></span>
-<span class="nt">profiles</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">timeseries1</span><span class="w"></span>
-<span class="w">      </span><span class="nt">data</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;list of values&gt;</span><span class="w"></span>
-<span class="w">      </span><span class="nt">data_nowcast</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;list of values&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="nt">carriers</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">el</span><span class="w"></span>
-<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat</span><span class="w"></span>
-<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="nt">devices</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">device1</span><span class="w"></span>
-<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="nt">nodes</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node1</span><span class="w"></span>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">parameters</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span>
+<span class="nt">profiles</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">timeseries1</span>
+<span class="w">      </span><span class="nt">data</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;list of values&gt;</span>
+<span class="w">      </span><span class="nt">data_nowcast</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;list of values&gt;</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="nt">carriers</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">el</span>
+<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat</span>
+<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="nt">devices</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">device1</span>
+<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="nt">nodes</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node1</span>
 <span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span><span class="w">    </span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node2</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="nt">edges</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">edge1</span><span class="w"></span>
-<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">edge2</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node2</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="nt">edges</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">edge1</span>
+<span class="w">      </span><span class="nt">&lt;param&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;value&gt;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">edge2</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
 </pre></div>
 </div>
 <p>The notation <code class="docutils literal notranslate"><span class="pre">&lt;param&gt;:</span> <span class="pre">&lt;value&gt;</span></code> above indicates a set of parameter-value pairs. The relevant parameters are described in the following:</p>
-</div>
-<div class="section" id="data">
-<h2>Data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="general-parameters-parameters">
-<h3>General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)<a class="headerlink" href="#general-parameters-parameters" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="data">
+<h2>Data<a class="headerlink" href="#data" title="Link to this heading">#</a></h2>
+<section id="general-parameters-parameters">
+<h3>General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)<a class="headerlink" href="#general-parameters-parameters" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -700,35 +477,31 @@ topology) and parameters for each element.</p>
 <td><p>int</p></td>
 <td><p>number of timesteps beyond which forecast (instead of nowcast) profile is used</p></td>
 </tr>
-<tr class="row-even"><td><p>co2_tax</p></td>
-<td><p>float</p></td>
-<td><p>CO2 emission costs (NOK/kgCO2)</p></td>
-</tr>
-<tr class="row-odd"><td><p>emission_intensity_max</p></td>
+<tr class="row-even"><td><p>emission_intensity_max</p></td>
 <td><p>float</p></td>
 <td><p>maximum allowed emission intensity (kgCO2/Sm3oe), -1=no limit</p></td>
 </tr>
-<tr class="row-even"><td><p>emission_rate_max</p></td>
+<tr class="row-odd"><td><p>emission_rate_max</p></td>
 <td><p>float</p></td>
 <td><p>maximum allowed emission rate (kgCO2/hour), -1=no limit</p></td>
 </tr>
-<tr class="row-odd"><td><p>objective</p></td>
+<tr class="row-even"><td><p>objective</p></td>
 <td><p>string</p></td>
 <td><p>name of objective function to use (penalty, exportRevenue, costs)</p></td>
 </tr>
-<tr class="row-even"><td><p>piecewise_repn</p></td>
+<tr class="row-odd"><td><p>piecewise_repn</p></td>
 <td><p>string</p></td>
 <td><p>method for impelementation of peicewise linear constraints in pyomo</p></td>
 </tr>
-<tr class="row-odd"><td><p>optimisaion_return_data</p></td>
+<tr class="row-even"><td><p>optimisaion_return_data</p></td>
 <td><p>list</p></td>
 <td><p>(optional) list of variables to return from simulation</p></td>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="time-series-profiles-profiles">
-<h3>Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)<a class="headerlink" href="#time-series-profiles-profiles" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="time-series-profiles-profiles">
+<h3>Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)<a class="headerlink" href="#time-series-profiles-profiles" title="Link to this heading">#</a></h3>
 <p>Multiple time-series profiles can be specified. For each profile there are two separate time-series: One representing forecasted values for planning ahead, and one representing the “nowcast” or an updated forecast relevant for the near-real-time decisions.</p>
 <p>Note that the actual real-time values (e.g. of power demand or of available wind power) is not used in the simulation, as it only concerns up to near real-time operational planning. To address real-time deviations and balancing, reserve power and backup capacity is required.</p>
 <p>Profiles may be specified in the YAML file as indicated above, or they may be read from separate files.</p>
@@ -743,11 +516,11 @@ That means you can choose where to put the units:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">flow_max</span> <span class="pre">=</span> <span class="pre">1</span></code> and the profile is given in absolute units (e.g. MW)</p></li>
 </ul>
 <p>All examples use the first alternative.</p>
-</div>
+</section>
 <hr class="docutils" />
-<div class="section" id="energy-carriers-carriers">
-<h3>Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#energy-carriers-carriers" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+<section id="energy-carriers-carriers">
+<h3>Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#energy-carriers-carriers" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -762,10 +535,10 @@ That means you can choose where to put the units:</p>
 </tbody>
 </table>
 <p>Other data differs for the different carrier types.</p>
-</div>
-<div class="section" id="network-nodes-nodes">
-<h3>Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)<a class="headerlink" href="#network-nodes-nodes" title="Permalink to this headline">¶</a></h3>
-<table class="colwidths-auto table">
+</section>
+<section id="network-nodes-nodes">
+<h3>Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)<a class="headerlink" href="#network-nodes-nodes" title="Link to this heading">#</a></h3>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -780,13 +553,13 @@ That means you can choose where to put the units:</p>
 </tbody>
 </table>
 <p>(No additional data needed)</p>
-</div>
-<div class="section" id="network-edges-edges">
-<h3>Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)<a class="headerlink" href="#network-edges-edges" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="network-edges-edges">
+<h3>Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)<a class="headerlink" href="#network-edges-edges" title="Link to this heading">#</a></h3>
 <p>This consists a set of edges with a set of parameters for each edge
 that depends on the edge type. These are as follows.</p>
 <p>Common parameters for all edges:</p>
-<table class="colwidths-auto table">
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -824,13 +597,13 @@ that depends on the edge type. These are as follows.</p>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="devices-devices">
-<h3>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="devices-devices">
+<h3>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Link to this heading">#</a></h3>
 <p>This consists a set of devices with a set of parameters for each device
 that depends on the device type.</p>
 <p>Common parameters for all device types:</p>
-<table class="colwidths-auto table">
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -912,10 +685,10 @@ that depends on the device type.</p>
 </tbody>
 </table>
 <p>In addition to these parameters there are parameters that depend on the device <em>model</em>.  These are specified further down.</p>
-<div class="section" id="start-and-stop-data-startstopdata">
-<h4>Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)<a class="headerlink" href="#start-and-stop-data-startstopdata" title="Permalink to this headline">¶</a></h4>
+<section id="start-and-stop-data-startstopdata">
+<h4>Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)<a class="headerlink" href="#start-and-stop-data-startstopdata" title="Link to this heading">#</a></h4>
 <p>Start-stop data may be provided if the device is modelled with start/stop constraints and or penalties.</p>
-<table class="colwidths-auto table">
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -956,17 +729,17 @@ that depends on the device type.</p>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-</div>
-<div class="section" id="electric-system-only-modelling">
-<h2>Electric system only modelling<a class="headerlink" href="#electric-system-only-modelling" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+</section>
+<section id="electric-system-only-modelling">
+<h2>Electric system only modelling<a class="headerlink" href="#electric-system-only-modelling" title="Link to this heading">#</a></h2>
 <p>A common use case is to use Oogeso to model only the electricity network. Additional input data needed in this case is shown below.</p>
-<div class="section" id="carriers-electricity">
-<h3>Carriers (electricity)<a class="headerlink" href="#carriers-electricity" title="Permalink to this headline">¶</a></h3>
-<div class="section" id="id-el">
-<h4><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code><a class="headerlink" href="#id-el" title="Permalink to this headline">¶</a></h4>
-<table class="colwidths-auto table">
+<section id="carriers-electricity">
+<h3>Carriers (electricity)<a class="headerlink" href="#carriers-electricity" title="Link to this heading">#</a></h3>
+<section id="id-el">
+<h4><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code><a class="headerlink" href="#id-el" title="Link to this heading">#</a></h4>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -996,14 +769,14 @@ that depends on the device type.</p>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div class="section" id="edges-electric">
-<h3>Edges (electric)<a class="headerlink" href="#edges-electric" title="Permalink to this headline">¶</a></h3>
-<p>The table below shows the electricity line parameters, used in addition to the <a class="reference external" href="#network-edges-edges">generic edge parameters</a>.</p>
-<div class="section" id="carrier-el">
-<h4><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code><a class="headerlink" href="#carrier-el" title="Permalink to this headline">¶</a></h4>
-<table class="colwidths-auto table">
+</section>
+</section>
+<section id="edges-electric">
+<h3>Edges (electric)<a class="headerlink" href="#edges-electric" title="Link to this heading">#</a></h3>
+<p>The table below shows the electricity line parameters, used in addition to the <a class="reference internal" href="#network-edges-edges"><span class="xref myst">generic edge parameters</span></a>.</p>
+<section id="carrier-el">
+<h4><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code><a class="headerlink" href="#carrier-el" title="Link to this heading">#</a></h4>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -1030,22 +803,22 @@ that depends on the device type.</p>
 </tbody>
 </table>
 <p>Note that for the (default) “transport” electricity power flow method, only the optional power_loss_function is relevant.</p>
-</div>
-</div>
-<div class="section" id="devices-electric-only">
-<h3>Devices (electric only)<a class="headerlink" href="#devices-electric-only" title="Permalink to this headline">¶</a></h3>
-<p>The table below shows device models used with electric only modelling, and their additional parameters. These are specified in addition to the <a class="reference external" href="#devices-devices">generic device parameters</a>.</p>
-<div class="section" id="powersource">
-<h4><code class="docutils literal notranslate"><span class="pre">powersource</span></code><a class="headerlink" href="#powersource" title="Permalink to this headline">¶</a></h4>
+</section>
+</section>
+<section id="devices-electric-only">
+<h3>Devices (electric only)<a class="headerlink" href="#devices-electric-only" title="Link to this heading">#</a></h3>
+<p>The table below shows device models used with electric only modelling, and their additional parameters. These are specified in addition to the <a class="reference internal" href="#devices-devices"><span class="xref myst">generic device parameters</span></a>.</p>
+<section id="powersource">
+<h4><code class="docutils literal notranslate"><span class="pre">powersource</span></code><a class="headerlink" href="#powersource" title="Link to this heading">#</a></h4>
 <p>No extra data</p>
-</div>
-<div class="section" id="powersink">
-<h4><code class="docutils literal notranslate"><span class="pre">powersink</span></code><a class="headerlink" href="#powersink" title="Permalink to this headline">¶</a></h4>
+</section>
+<section id="powersink">
+<h4><code class="docutils literal notranslate"><span class="pre">powersink</span></code><a class="headerlink" href="#powersink" title="Link to this heading">#</a></h4>
 <p>No extra data</p>
-</div>
-<div class="section" id="storage-el">
-<h4><code class="docutils literal notranslate"><span class="pre">storage_el</span></code><a class="headerlink" href="#storage-el" title="Permalink to this headline">¶</a></h4>
-<table class="colwidths-auto table">
+</section>
+<section id="storage-el">
+<h4><code class="docutils literal notranslate"><span class="pre">storage_el</span></code><a class="headerlink" href="#storage-el" title="Link to this heading">#</a></h4>
+<table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
@@ -1083,57 +856,146 @@ that depends on the device type.</p>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-</div>
-<div class="section" id="multi-energy-system-modelling">
-<h2>Multi-energy system modelling<a class="headerlink" href="#multi-energy-system-modelling" title="Permalink to this headline">¶</a></h2>
+</section>
+</section>
+</section>
+<section id="multi-energy-system-modelling">
+<h2>Multi-energy system modelling<a class="headerlink" href="#multi-energy-system-modelling" title="Link to this heading">#</a></h2>
 <p>Additional edge data and device data used with multi-energy modelling is provided here:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="input_data_multienergy.html"><span class="doc std std-doc">Read more</span></a></p></li>
+<li><p><a class="reference internal" href="input_data_multienergy.html"><span class="std std-doc">Read more</span></a></p></li>
 </ul>
-</div>
-</div>
+</section>
+</section>
 
 
-              </div>
+                </article>
               
-            
-                <!-- Previous / next buttons -->
-<div class='prev-next-area'> 
-    <a class='left-prev' id="prev-link" href="index.html" title="previous page">
-        <i class="fas fa-angle-left"></i>
-        <div class="prev-next-info">
-            <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">User Guide</p>
-        </div>
+
+              
+              
+              
+              
+                <footer class="prev-next-footer">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">User Guide</p>
+      </div>
     </a>
-    <a class='right-next' id="next-link" href="input_data_multienergy.html" title="next page">
-    <div class="prev-next-info">
+    <a class="right-next"
+       href="input_data_multienergy.html"
+       title="next page">
+      <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
         <p class="prev-next-title">Extra input data with multi-energy modelling</p>
-    </div>
-    <i class="fas fa-angle-right"></i>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
     </a>
 </div>
+                </footer>
+              
+            </div>
             
-        </div>
-    </div>
-    <footer class="footer">
-  <p>
-    
-      By SINTEF<br/>
-    
-        &copy; Copyright 2022, SINTEF.<br/>
-  </p>
-</footer>
-</main>
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#general-parameters-parameters">General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#time-series-profiles-profiles">Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-nodes-nodes">Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-edges-edges">Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#electric-system-only-modelling">Electric system only modelling</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carriers-electricity">Carriers (electricity)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id-el"><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-electric">Edges (electric)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#carrier-el"><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-electric-only">Devices (electric only)</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersource"><code class="docutils literal notranslate"><span class="pre">powersource</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersink"><code class="docutils literal notranslate"><span class="pre">powersink</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-el"><code class="docutils literal notranslate"><span class="pre">storage_el</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-energy-system-modelling">Multi-energy system modelling</a></li>
+</ul>
+  </nav></div>
 
-      </div>
-    </div>
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
   
-  <script src="_static/js/index.be7d3bbb2ef33a8344ce.js"></script>
+  <div class="footer-item">
+    
+<p class="component-author">
+By SINTEF
+</p>
 
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2022, SINTEF.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=5b4479735964841361fd"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=5b4479735964841361fd"></script>
+
+  <footer class="bd-footer">
+  </footer>
   </body>
 </html>
