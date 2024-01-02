@@ -5,10 +5,10 @@ description = "Oogeso documentation"
 authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
-Sphinx = "^4.4.0"
-myst-parser = "^0.16.1"
-sphinx-book-theme = "^0.2.0"
+python = "^3.11"
+Sphinx = "^7.2"
+myst-parser = "^2.0"
+sphinx-book-theme = "^1.1"
 
 [tool.poetry.dev-dependencies]
 
