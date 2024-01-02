@@ -29,3 +29,7 @@ class HeatNetwork(Network):
 
 class HydrogenNetwork(Network):
     pass
+
+
+class CarbonNetwork(Network):
+    pass

@@ -36,7 +36,7 @@ def compute_kpis(
         g.id
         for g in sim_data.devices
         # if isinstance(g, Gasturbine) # why doesn't isinstance work?
-        if g.model == "gasturbine"
+        if (g.include & (g.model == "gasturbine"))
     ]
     mask_gt = res.device_flow.index.get_level_values("device").isin(gasturbines)
     gtflow = res.device_flow[mask_gt]

@@ -73,6 +73,11 @@ class DeviceSinkWaterData(DeviceData):
     model: ModelType = ModelType.SINK_WATER
 
 
+class DeviceSinkCarbonData(DeviceData):
+    price: Dict[str, float] = Field(default_factory=lambda: {})
+    model: ModelType = ModelType.SINK_CARBON
+
+
 class DeviceCompressorElData(DeviceData):
     eta: float = None  # efficiency
     Q0: float = None  # nominal flow rate used in linearisation

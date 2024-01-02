@@ -137,6 +137,9 @@ def test_plot_network(leogo_test_data: dto.EnergySystemData, leogo_expected_resu
     simulator = oogeso.Simulator(data=leogo_test_data)
     simulator.result_object = leogo_expected_result
 
+    # plot input data (no results):
+    op.plot_network(simulator, timestep=None, filename=None)
+
     # use temporary directory rather than file so it works cross-platform
     with tempfile.TemporaryDirectory() as dirname:
         filename = Path(dirname) / "testfile.png"

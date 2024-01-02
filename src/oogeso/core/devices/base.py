@@ -458,7 +458,3 @@ class Device(ABC):
 
         sum_penalty_rate = penalty_rate + start_stop_penalty_rate
         return sum_penalty_rate
-
-    def compute_CO2(self, pyomo_model: pyo.Model, timesteps: List[int]) -> float:
-        """Standard for all devices unless overridden."""
-        return 0

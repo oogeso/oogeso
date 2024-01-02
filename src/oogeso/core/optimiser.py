@@ -317,7 +317,6 @@ class OptimisationModel(pyo.ConcreteModel):
         self.objObjective = pyo.Objective(rule=rule, sense=pyo.minimize)
 
     def _specify_constraints(self):
-
         # 1. Constraints associated with each device:
         for dev in self.all_devices.values():
             list_to_reconstruct = dev.define_constraints(self)
@@ -474,9 +473,7 @@ class OptimisationModel(pyo.ConcreteModel):
         startup_costs = self.compute_startup_penalty(model)  # kr/s
         storage_depletion_costs = self.compute_cost_for_depleted_storage(model)
         op_costs = self.compute_operating_costs(model)  # kr/s
-        co2 = self.compute_CO2(model)  # kgCO2/s
-        co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
-        co2_cost = co2 * co2_tax  # kr/s
+        co2_cost = self.compute_CO2(model, return_cost=True)  # kgCO2/s
 
         return co2_cost + startup_costs + storage_depletion_costs + op_costs
 
@@ -485,9 +482,7 @@ class OptimisationModel(pyo.ConcreteModel):
         operating costs) per second"""
         sum_revenue = self.compute_export_revenue(model)  # kr/s
         startup_costs = self.compute_startup_penalty(model)  # kr/s
-        co2 = self.compute_CO2(model)  # kgCO2/s
-        co2_tax = self.optimisation_parameters.co2_tax  # kr/kgCO2
-        co2_cost = co2 * co2_tax  # kr/s
+        co2_cost = -self.compute_CO2(model, return_cost=True)  # kr/s
         storage_depletion_costs = self.compute_cost_for_depleted_storage(model)
         op_costs = self.compute_operating_costs(model)  # kr/s
 
@@ -550,26 +545,39 @@ class OptimisationModel(pyo.ConcreteModel):
         expr = res_otherdevs - self.varDeviceFlow[dev, "el", "out", t] >= -margin
         return expr
 
-    def compute_CO2(self, model: pyo.Model, devices=None, timesteps=None):
-        """compute CO2 emissions - average per sec (kgCO2/s)"""
-        if devices is None:
-            devices = self.setDevice
+    def compute_CO2(self, model: pyo.Model, timesteps=None, return_cost=False):
+        """compute sum of CO2 emissions - average per sec (kgCO2/s)
+        carbon flow into (sink) devices with a "price" defined are counted"""
+
         if timesteps is None:
             timesteps = self.setHorizon
-        sum_CO2 = 0
-        for d in devices:
-            dev = self.all_devices[d]
-            sum_CO2 += dev.compute_CO2(model, timesteps)
+        value = "volume"
+        if return_cost:
+            value = "revenue"  # i.e. get co2 cost instead of volume
 
-        # Average per s
-        return sum_CO2 / len(timesteps)
+        sum_value = 0
+        for dev in self.setDevice:
+            dev_obj = self.all_devices[dev]
+            sum_value += dev_obj.compute_export(model, value, ["carbon"], timesteps)
+        # average per second (timedelta is not required)
+        sum_value = sum_value / len(timesteps)
+
+        return sum_value
+
+        # sum_CO2 = 0
+        # for d in devices:
+        #     dev = self.all_devices[d]
+        #     sum_CO2 += dev.compute_CO2(model, timesteps)
+
+        # # Average per s
+        # return sum_CO2 / len(timesteps)
 
     def compute_CO2_intensity(self, model: pyo.Model, timesteps=None):
         """CO2 emission per exported oil/gas (kgCO2/Sm3oe)"""
         if timesteps is None:
             timesteps = self.setHorizon
 
-        co2_kg_per_time = self.compute_CO2(model, devices=None, timesteps=timesteps)
+        co2_kg_per_time = self.compute_CO2(model, timesteps=timesteps)
         flow_oil_equivalents_m3_per_time = self.compute_oilgas_export(model, timesteps)
         if pyo.value(flow_oil_equivalents_m3_per_time) != 0:
             return co2_kg_per_time / flow_oil_equivalents_m3_per_time

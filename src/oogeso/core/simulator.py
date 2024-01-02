@@ -125,8 +125,7 @@ class Simulator:
             time_end = time_range[1]
 
         result_object = dto.SimulationResult(
-            profiles_nowcast=self.profiles["nowcast"],
-            profiles_forecast=self.profiles["forecast"],
+            profiles_nowcast=self.profiles["nowcast"], profiles_forecast=self.profiles["forecast"]
         )
         self.result_object = result_object
 
@@ -215,7 +214,11 @@ class Simulator:
             )
             for d in pyomo_instance.setDevice:
                 for t in range(timelimit):
-                    co2_dev = self.optimiser.compute_CO2(pyomo_instance, devices=[d], timesteps=[t])
+                    co2_dev = 0
+                    if "carbon" in self.optimiser.setCarrier:
+                        # carbon output from single device:
+                        co2_dev = self.optimiser.varDeviceFlow[d, "carbon", "out", t]
+                    # co2_dev = self.optimiser.compute_CO2(pyomo_instance, devices=[d], timesteps=[t])
                     df_co2_rate_dev.loc[t + timestep, d] = pyo.value(co2_dev)
             # change to multi-index series
             df_co2_rate_dev = df_co2_rate_dev.stack()

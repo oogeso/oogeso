@@ -13,6 +13,7 @@ def get_network_from_carrier_name(carrier_name: str) -> Callable:
         "wellstream": networks.WellStreamNetwork,
         "heat": networks.HeatNetwork,
         "hydrogen": networks.HydrogenNetwork,
+        "carbon": networks.CarbonNetwork,
     }
     if not carrier_name.lower() in map_carrier_to_model.keys():
         raise NotImplementedError(f"Carrier: {carrier_name} has not implemented a corresponding Network mapping")
@@ -40,6 +41,7 @@ def get_device_from_model_name(model_name: str) -> Callable:
         "sinkgas": devices.SinkGas,
         "sinkoil": devices.SinkOil,
         "sinkwater": devices.SinkWater,
+        "sinkcarbon": devices.SinkCarbon,
         "sourceel": devices.SourceEl,
         "sourcegas": devices.SourceGas,
         "sourceoil": devices.SourceOil,
@@ -76,6 +78,7 @@ def get_device_data_class_from_str(model_name: str) -> Callable:
         "sinkgas": dto.DeviceSinkGasData,
         "sinkoil": dto.DeviceSinkOilData,
         "sinkwater": dto.DeviceSinkWaterData,
+        "sinkcarbon": dto.DeviceSinkCarbonData,
         "sourceel": dto.DeviceSourceElData,
         "sourcegas": dto.DeviceSourceGasData,
         "sourceoil": dto.DeviceSourceOilData,
@@ -97,6 +100,7 @@ def get_carrier_data_class_from_str(model_name: str) -> Callable:
         "oil": dto.CarrierOilData,
         "water": dto.CarrierWaterData,
         "hydrogen": dto.CarrierHydrogenData,
+        "carbon": dto.CarrierCarbonData,
         "heat": dto.CarrierHeatData,
         "wellstream": dto.CarrierWellStreamData,
     }
@@ -113,6 +117,7 @@ def get_edge_data_class_from_str(carrier_name: str) -> Callable:
         "oil": dto.EdgeOilData,
         "water": dto.EdgeWaterData,
         "hydrogen": dto.EdgeHydrogenData,
+        "carbon": dto.EdgeCarbonData,
         "heat": dto.EdgeHeatData,
         "wellstream": dto.EdgeWellstreamData,
     }

@@ -3,7 +3,6 @@ parameters:
   planning_horizon: 8 # timesteps in each rolling optimisation
   optimisation_timesteps: 4 # timesteps between each optimisation
   forecast_timesteps: 4 # timesteps beyond which forecast (instead of nowcast) profile is used
-  co2_tax: 0.04 # $/kgCO2
   emission_intensity_max: -1 # kgCO2/Sm3oe, -1=no limit
   emission_rate_max: -1 # kgCO2/hour, -1=no limit
   objective: exportRevenue # select objective function to use
@@ -40,6 +39,7 @@ carriers:
     darcy_friction: 0.0136
     pressure_method: darcy-weissbach
     rho_density: 5.63 # kg/m3 (dependent on wellstream composition)
+  - id: carbon
 
 nodes:
   - id: node1
@@ -137,6 +137,13 @@ devices:
       penalty_start: 200
     flow_max: 20
     flow_min: 5
+
+  - id: co2
+    include: 1
+    node_id: node1
+    name: "CO2 sink"
+    model: "sink_carbon"
+    price: {"carbon": -0.04}
 
   - id: dem
     include: 1
