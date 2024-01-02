@@ -1,3 +1,5 @@
+import pyomo.environ as pyo
+
 from oogeso import dto
 from oogeso.core import OptimisationModel
 
@@ -22,7 +24,9 @@ startstop_data = dto.StartStopData(
     minimum_time_off_minutes=0,
 )
 data_profile = dto.TimeSeriesData(
-    id="the_profile", data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6], data_nowcast=[1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+    id="the_profile",
+    data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6],
+    data_nowcast=[1.3, 1.4, 1.5, 1.6, 1.7, 1.8],
 )
 
 # These tests, one for each device type, checks that the construction of Pyomo model
@@ -59,24 +63,74 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
         dto.CarrierHydrogenData(id="hydrogen"),
         dto.CarrierCarbonData(id="carbon"),
         dto.CarrierWellStreamData(
-            id="wellstream", darcy_friction=0.01, rho_density=900, viscosity=0.01, water_cut=0.6, gas_oil_ratio=500
+            id="wellstream",
+            darcy_friction=0.01,
+            rho_density=900,
+            viscosity=0.01,
+            water_cut=0.6,
+            gas_oil_ratio=500,
         ),
     ]
 
-    nodes = [dto.NodeData(id="the_node"), dto.NodeData(id="another_node1"), dto.NodeData(id="another_node2")]
+    nodes = [
+        dto.NodeData(id="the_node"),
+        dto.NodeData(id="another_node1"),
+        dto.NodeData(id="another_node2"),
+    ]
     # edges are needed to set nominal pressure, needed for compressor devices
     edges = [
-        dto.EdgeGasData(id="edge1g", node_from="the_node", node_to="another_node1", pressure_from=1, pressure_to=1),
-        dto.EdgeGasData(id="edge2g", node_from="another_node2", node_to="the_node", pressure_from=1, pressure_to=1),
-        dto.EdgeWaterData(id="edge1w", node_from="the_node", node_to="another_node1", pressure_from=1, pressure_to=1),
-        dto.EdgeWaterData(id="edge2w", node_from="another_node2", node_to="the_node", pressure_from=1, pressure_to=1),
-        dto.EdgeOilData(id="edge1o", node_from="the_node", node_to="another_node1", pressure_from=1, pressure_to=1),
-        dto.EdgeOilData(id="edge2o", node_from="another_node2", node_to="the_node", pressure_from=1, pressure_to=1),
+        dto.EdgeGasData(
+            id="edge1g",
+            node_from="the_node",
+            node_to="another_node1",
+            pressure_from=1,
+            pressure_to=1,
+        ),
+        dto.EdgeGasData(
+            id="edge2g",
+            node_from="another_node2",
+            node_to="the_node",
+            pressure_from=1,
+            pressure_to=1,
+        ),
+        dto.EdgeWaterData(
+            id="edge1w",
+            node_from="the_node",
+            node_to="another_node1",
+            pressure_from=1,
+            pressure_to=1,
+        ),
+        dto.EdgeWaterData(
+            id="edge2w",
+            node_from="another_node2",
+            node_to="the_node",
+            pressure_from=1,
+            pressure_to=1,
+        ),
+        dto.EdgeOilData(
+            id="edge1o",
+            node_from="the_node",
+            node_to="another_node1",
+            pressure_from=1,
+            pressure_to=1,
+        ),
+        dto.EdgeOilData(
+            id="edge2o",
+            node_from="another_node2",
+            node_to="the_node",
+            pressure_from=1,
+            pressure_to=1,
+        ),
     ]
     devs = [dev_data]
     profiles = [data_profile]
     energy_system_data = dto.EnergySystemData(
-        parameters=parameters, carriers=carriers, nodes=nodes, edges=edges, devices=devs, profiles=profiles
+        parameters=parameters,
+        carriers=carriers,
+        nodes=nodes,
+        edges=edges,
+        devices=devs,
+        profiles=profiles,
     )
 
     # Create and initialize optimisation model. This will create the constraints
@@ -91,11 +145,17 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
 def _device_method_calls(optimistion_model: OptimisationModel):
     """Calls all common device methods"""
     dev_obj = optimistion_model.all_devices["the_id"]
-    timesteps = [0]
+    timesteps = pyo.Set(initialize=[0])
+    timesteps.construct()
     # Check that these calls don't give errors
     dev_obj.compute_cost_for_depleted_storage(optimistion_model, timesteps)
     dev_obj.compute_el_reserve(optimistion_model, t=0)
-    dev_obj.compute_export(optimistion_model, value="volume", carriers=["oil", "gas", "el"], timesteps=timesteps)
+    dev_obj.compute_export(
+        optimistion_model,
+        value="volume",
+        carriers=["oil", "gas", "el"],
+        timesteps=timesteps,
+    )
     dev_obj.compute_operating_costs(optimistion_model, timesteps)
     dev_obj.compute_penalty(optimistion_model, timesteps)
     dev_obj.compute_startup_penalty(optimistion_model, timesteps)

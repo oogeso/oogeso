@@ -418,9 +418,7 @@ class Device(ABC):
         # average per sec (simulation timestep drops out)
         return sum_cost / len(timesteps)
 
-    def compute_cost_for_depleted_storage(
-        self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None
-    ):
+    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         return 0
 
     def compute_penalty(self, pyomo_model: pyo.Model, timesteps: List[int]):

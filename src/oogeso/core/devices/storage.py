@@ -129,10 +129,7 @@ class StorageEl(StorageDevice):
         # even if Pmax=2 MW)
         return pyomo_model.varDeviceStoragePmax[self.id, t] + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
-    def compute_cost_for_depleted_storage(
-        self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None
-    ):
-
+    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         stor_cost = 0
         dev_data = self.dev_data
         if dev_data.E_cost is not None:
@@ -225,10 +222,7 @@ class StorageHydrogen(StorageDevice):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
-    def compute_cost_for_depleted_storage(
-        self, pyomo_model: pyo.Model, timesteps: Optional[Union[List[int], pyo.Set]] = None
-    ):
-
+    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         return self.compute_cost_for_depleted_storage_alt2(pyomo_model, timesteps)
 
     def compute_cost_for_depleted_storage_alt1(self, pyomo_model: pyo.Model):
@@ -249,7 +243,7 @@ class StorageHydrogen(StorageDevice):
         dev_data = self.dev_data
         # E_target = dev_data.E_max
         E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
-        t_end = timesteps[-1]
+        t_end = timesteps.at(-1)
         var_E = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
         storage_cost = dev_data.E_cost * (E_target - var_E)
         # from cost (kr) to cost rate (kr/s):
