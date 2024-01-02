@@ -8,8 +8,8 @@ try:
     import matplotlib.pyplot as plt
     import plotly
     import plotly.express as px
-    import plotly.subplots
     import plotly.io as pio
+    import plotly.subplots
     import seaborn as sns
 except ImportError:
     raise ImportError("In order to run this plotting module you need to install matplotlib, plotly and seaborn.")
@@ -100,7 +100,7 @@ def plot_device_profile(
         nrows = nrows + 1
     df2 = res.device_is_on.unstack("device")[devs]
     df_prep = res.device_is_prep.unstack("device")[devs]
-    timerange = list(res.device_is_on.index.get_level_values("time"))
+    timerange = (res.device_flow.index.get_level_values("time")).unique()
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=nrows, cols=1, shared_xaxes=True)
         colour = pio.templates[pio.templates.default].layout.colorway
@@ -470,7 +470,6 @@ def plot_CO2_rate_per_device(
     reverse_legend=False,
     device_shareload=None,
 ):
-
     dfco2rate = sim_result.co2_rate_per_dev.unstack("device")
     all_devices = optimisation_model.all_devices
     dfplot = dfco2rate.loc[:, ~(dfco2rate == 0).all()].copy()
