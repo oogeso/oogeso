@@ -9,6 +9,7 @@ python = "^3.11"
 Sphinx = "^7.2"
 myst-parser = "^2.0"
 sphinx-book-theme = "^1.1"
+linkify-it-py = "^2.0"
 
 [tool.poetry.dev-dependencies]
 
