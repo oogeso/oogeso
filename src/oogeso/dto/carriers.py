@@ -24,7 +24,9 @@ class CarrierHydrogenData(dto.CarrierData):
 
 
 class CarrierCarbonData(dto.CarrierData):
-    pass
+    k_heat_capacity_ratio: float = None  #
+    R_individual_gas_constant: float = None  # J/(kg K)
+    Z_compressibility: Optional[float] = None
 
 
 class CarrierFluidData(dto.CarrierData):

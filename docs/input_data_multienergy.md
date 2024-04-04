@@ -29,6 +29,13 @@ k_heat_capacity_ratio   | float | heat capacity ratio
 pressure_method     | string | method used co compute pressure drop in pipe (weymouth/darcy-weissbach)
 rho_density         | float | density (kg/Sm3)
 
+### ```carbon``` (CO2)
+parameter | type | description
+----------|------|-------------
+R_individual_gas_constant | float | individual gas constant (J/(kg K))
+Z_compressibility         | float | gas compressibility
+k_heat_capacity_ratio     | float | heat capacity ratio
+
 
 ## Edges (```edges```)
 These tables shows edgeparameters used in addition to the [generic edge parameters](input_data.md#network-edges-edges).
@@ -122,3 +129,12 @@ f_inj           | float | Ratio of gas injection rate (Sm3/s) to oil production 
 injectionpressure   | float | Gas injection pressure (MPa)
 separatorpressure   | float | Pressure (from well) into separator (MPa)
 
+### ```carbon_capture```
+parameter | type | description
+----------|------|------------
+carbon_capture_rate | float | Carbon capture rate (CCR), typically 0.9
+exhaust_gas_recirculation   | float | Exhaust gas recirculatio rate (EGR), typically in the range 0-0.6
+compressor_pressure_in      | float | Inlet pressure for compression of captured CO2 (MPa)
+compressor_pressure_out     | float | Outlet pressure for compression of captured CO2 (MPa)
+compressor_eta              | float | Efficiency of CO2 compresstion (0-1)
+compressor_temp_in          | float | Inlet gas temperature (K)
