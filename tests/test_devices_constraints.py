@@ -61,12 +61,7 @@ def _build_lp_problem_with_single_dev(dev_data: dto.DeviceData):
         dto.CarrierOilData(id="oil", darcy_friction=0.02, rho_density=900, viscosity=0.002),
         dto.CarrierWaterData(id="water", darcy_friction=0.01, rho_density=900, viscosity=0.01),
         dto.CarrierHydrogenData(id="hydrogen"),
-        dto.CarrierCarbonData(
-            id="carbon",
-            R_individual_gas_constant=188.92,
-            Z_compressibility=0.99,
-            k_heat_capacity_ratio=1.3,
-        ),
+        dto.CarrierCarbonData(id="carbon"),
         dto.CarrierWellStreamData(
             id="wellstream",
             darcy_friction=0.01,
@@ -335,10 +330,7 @@ def test_carbon_capture_constraints():
         **dev_data_generic,
         exhaust_gas_recirculation=0.3,
         carbon_capture_rate=0.5,
-        compressor_eta=0.8,
-        compressor_pressure_in=0.1,
-        compressor_pressure_out=10,
-        compressor_temp_in=300
+        compressor_energy_demand=0.30,
     )
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)

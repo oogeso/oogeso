@@ -178,8 +178,5 @@ class DeviceWellGasLiftData(DeviceData):
 class DeviceCarbonCaptureData(DeviceData):
     carbon_capture_rate: float = None  # ccr
     exhaust_gas_recirculation: float = None  # egr
-    compressor_pressure_in: float = None
-    compressor_pressure_out: float = None
-    compressor_eta: float = None
-    compressor_temp_in: float = None
+    compressor_energy_demand: float = None  # MJ/kgCO2
     model: ModelType = ModelType.CARBON_CAPTURE

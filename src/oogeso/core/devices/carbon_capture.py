@@ -71,27 +71,13 @@ class CarbonCapture(Device):
         return y
 
     def required_electricity_compressor(self, flow_in_co2):
-        carbon_data = self.carrier_data["carbon"]
-        dev_data = self.dev_data
-        k = carbon_data.k_heat_capacity_ratio
-        Z = carbon_data.Z_compressibility
-        R = carbon_data.R_individual_gas_constant * 1e-6  # factor 1e-6 converts R units from J/kgK to MJ/kgK
-        eta = dev_data.compressor_eta  # isentropic efficiency
-        T1 = dev_data.compressor_temp_in  # inlet temperature, Kelvin
-        p1 = dev_data.compressor_pressure_in
-        p2 = dev_data.compressor_pressure_out
         Q_kg_per_s = flow_in_co2  # kg/s
-        a = (k - 1) / k
-        c = 1 / eta * k / (k - 1) * Z * R * T1
-        P = c * ((p2 / p1) ** a - 1) * Q_kg_per_s
-        return P
+        energy_demand_MJ_per_kg = self.dev_data.compressor_energy_demand  # MJ/kg
+        P_MW = Q_kg_per_s * energy_demand_MJ_per_kg
+        return P_MW
 
     def _rules_carbon_capture(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
-        # gas_data = self.carrier_data["gas"]
-        # carbon_data = self.carrier_data["carbon"]
-        # gas_co2_content = gas_data.co2_content  # kg/Sm3 = 2.34 kg/Sm3 natural gas = ca 3.9 kg_CO2/kg_gas (>1 because of O2?)
-
         ccr = self.dev_data.carbon_capture_rate  # 0-1
         egr = self.dev_data.exhaust_gas_recirculation  # 0-0.6
 

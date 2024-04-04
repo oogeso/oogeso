@@ -294,15 +294,12 @@ def test_carbon_capture():
         **dev_data_generic,
         carbon_capture_rate=0.9,
         exhaust_gas_recirculation=0.3,
-        compressor_pressure_in=0.1,
-        compressor_pressure_out=10,
-        compressor_eta=0.8,
-        compressor_temp_in=300,
+        compressor_energy_demand=0.3,
     )
     carrier_data_dict = {}
     obj = devices.CarbonCapture(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.CarbonCapture)
     assert obj.dev_data.flow_max == 20
-    assert obj.dev_data.compressor_eta == 0.8
+    assert obj.dev_data.compressor_energy_demand == 0.3
     assert obj.carrier_in == ["carbon", "el", "heat"]
     assert obj.carrier_out == ["carbon"]
