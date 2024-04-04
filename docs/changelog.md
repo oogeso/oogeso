@@ -6,7 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## Unpublished
-2024-04-02
+
+## v1.2.0
+2024-04-04
 - Add carbon capture and storage (CCS) devices
 
 ## v1.1.0
