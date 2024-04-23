@@ -69,12 +69,7 @@ The *objective* of the optimisation is to minimise the overall penalty. The pena
 
 ## Detailed Oogeso model description
 
-The Oogeso model is described in a paper to be subitted for publication.
-
-Until that paper is available, this (outdated) manual gives some details
-about the modelling framework and the theoretical context of the Oogeso model:
-
-<a href="oogeso_manual.pdf" download>Click to Download old Oogeso Manual PDF</a>
+The Oogeso model is described in more detail in this preprint: <a href="https://arxiv.org/pdf/2202.05072.pdf" >Optimised operation of low-emission offshore oil and gas platform integrated energy systems</a>
 
 
 ## Input data

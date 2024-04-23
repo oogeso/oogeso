@@ -1,3 +1,4 @@
+from .carbon_capture import CarbonCapture
 from .compressor import CompressorEl, CompressorGas
 from .electrolyser import Electrolyser
 from .fuelcell import FuelCell

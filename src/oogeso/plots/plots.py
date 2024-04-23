@@ -16,7 +16,6 @@ except ImportError:
 
 sns.set_style("whitegrid")  # Optional: sns.set_palette("dark")
 
-plotter = "plotly"  # matplotlib
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +50,7 @@ def plot_device_profile(
     include_on_off=False,
     include_prep=False,
     devs_shareload=None,
+    plotter="plotly",
 ):
     """plot forecast and actual profile (available power), and device output
 
@@ -184,41 +184,44 @@ def plot_device_profile(
         if reverse_legend:
             fig.update_layout(legend_traceorder="reversed")
         fig.update_layout(height=600)
-        # fig.show()
+        return fig
     elif plotter == "matplotlib":
-        fig, axs = plt.subplots(nrows=nrows, ncols=1, shared_xaxes=True, figsize=(12, 1 + 3 * nrows))
+        fig, axs = plt.subplots(nrows=nrows, ncols=1, sharex=True, figsize=(12, 1 + 3 * nrows))
+        if nrows == 1:
+            axs = [axs]
         ax = axs[0]
-        labels = []
-        offset_online = 0
-        # df.plot(ax=ax)
-        for dev in devs:
-            dev_data = optimiser.all_devices[dev].dev_data
-            devname = "{}:{}".format(dev, dev_data.name)
-            device_P_max = dev_data.flow_max
-            df[dev].plot(ax=ax)
-            # get the color of the last plotted line (the one just plotted)
-            col = ax.get_lines()[-1].get_color()
-            labels = labels + [devname]
-            if include_forecasts & (dev_data.profile is not None):
-                curve = dev_data.profile
-                (res.profiles_nowcast.loc[timerange, curve] * device_P_max).plot(ax=ax, linestyle="--")
-                # ax.set_prop_cycle(None)
-                (res.profiles_forecast.loc[timerange, curve] * device_P_max).plot(ax=ax, linestyle=":")
-                labels = labels + ["--nowcast", "--forecast"]
-            if include_on_off & (dev_data.start_stop is not None):
-                offset_online += 0.1
-                df2[dev].plot(ax=ax, linestyle="--", color=col)
-                labels = labels + ["--online"]
-        plt.xlim(df.index.min(), df.index.max())
-        ax.legend(labels, loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
+        df.plot.area(alpha=1, linewidth=0, ax=axs[0], ylabel="Power (MW)")
+        axs[0].legend(loc="lower left", bbox_to_anchor=(1.01, 0), frameon=False)
+        nrow = 0
+        if include_on_off:
+            nrow = nrow + 1
+            df2.clip(lower=0).plot.area(alpha=1, linewidth=0, ax=axs[nrow], legend=False, ylabel="On/off")
+        if include_prep:
+            nrow = nrow + 1
+            df_prep.clip(lower=0).plot.area(alpha=1, linewidth=0, ax=axs[nrow], legend=False, ylabel="Prep")
+        if include_forecasts:
+            df_forecast = pd.DataFrame()
+            for dev in devs:
+                dev_data = optimiser.all_devices[dev].dev_data
+                if dev_data.profile is not None:
+                    # df_forecast[dev] = res.profiles_nowcast.loc[timerange, dev_data.profile] * dev_data.flow_max
+                    df_forecast[dev + " forecast"] = (
+                        res.profiles_forecast.loc[timerange, dev_data.profile] * dev_data.flow_max
+                    )
+            df_forecast.plot.area(zorder=0, linewidth=0, ax=axs[0])
+        tmin = df.index.get_level_values("time").min()
+        tmax = df.index.get_level_values("time").max() + 1
+        ax.set_xlim(tmin, tmax)
         if filename is not None:
             plt.savefig(filename, bbox_inches="tight")
+        return fig
     else:
         raise ValueError(f"Plotter: {plotter} has not been implemented for plot device profile.")
-    return fig
 
 
-def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None):
+def plot_device_power_energy(
+    sim_result, optimisation_model: pyo.Model, dev, filename=None, energy_fill_opacity=None, plotter="plotly"
+):
     """Plot power in/out of device and storage level (if any)"""
     res = sim_result
     optimiser = optimisation_model
@@ -236,7 +239,7 @@ def plot_device_power_energy(sim_result, optimisation_model: pyo.Model, dev, fil
         energy_storage_title = "Energy storage (MWh)"
     # Power flow in/out
     df_flow = res.device_flow[dev, carrier].unstack("terminal")
-    if res.device_storage_energy is None:
+    if (res.device_storage_energy is None) or (res.device_storage_energy.empty):
         df_storage_energy = pd.DataFrame()
     else:
         df_storage_energy = res.device_storage_energy.unstack("device")
@@ -313,6 +316,7 @@ def plot_sum_power_mix(
     reverse_legend=True,
     exclude_zero=False,
     devs_shareload=None,
+    plotter="plotly",
 ):
     """
     Plot power mix
@@ -431,7 +435,7 @@ def plot_sum_power_mix(
     return fig
 
 
-def plot_export_revenue(sim_result, filename=None, currency="$"):
+def plot_export_revenue(sim_result, filename=None, currency="$", plotter="plotly"):
     export_revenue = sim_result.export_revenue.unstack("carrier")
     if plotter == "plotly":
         dfplot = export_revenue.loc[:, export_revenue.sum() > 0]
@@ -464,11 +468,7 @@ def plot_CO2_rate(sim_result, filename=None):
 
 
 def plot_CO2_rate_per_device(
-    sim_result,
-    optimisation_model,
-    filename=None,
-    reverse_legend=False,
-    device_shareload=None,
+    sim_result, optimisation_model, filename=None, reverse_legend=False, device_shareload=None, plotter="plotly"
 ):
     dfco2rate = sim_result.co2_rate_per_dev.unstack("device")
     all_devices = optimisation_model.all_devices
@@ -527,7 +527,7 @@ def plot_CO2_rate_per_device(
     return fig
 
 
-def plot_CO2_intensity(sim_result, filename=None):
+def plot_CO2_intensity(sim_result, filename=None, plotter="plotly"):
     title = "CO2 intensity (kgCO2/Sm3oe)"
     x_label = "Timestep"
     y_label = "CO2 intensity (kgCO2/Sm3oe)"
@@ -548,7 +548,7 @@ def plot_CO2_intensity(sim_result, filename=None):
     return fig
 
 
-def plot_profiles(profiles, filename=None):
+def plot_profiles(profiles, filename=None, plotter="plotly"):
     """Plot profiles (forecast and actual)"""
     fig = None
     if isinstance(profiles, list):
@@ -701,6 +701,7 @@ def plot_reserve(
     use_forecast=False,
     include_sum=True,
     devs_shareload=None,
+    plotter="plotly",
 ):
     """Plot unused online capacity by all el devices
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
@@ -802,7 +803,7 @@ def plot_reserve(
     return fig
 
 
-def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=False):
+def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=False, plotter="plotly"):
     """plot reserve capacity vs device power output"""
     res = sim_result
     res_dev = res.el_backup.unstack("device")

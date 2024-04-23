@@ -21,6 +21,7 @@ from oogeso.dto.carriers import (
     CarrierWellStreamData,
 )
 from oogeso.dto.devices import (
+    DeviceCarbonCaptureData,
     DeviceCompressorElData,
     DeviceCompressorGasData,
     DeviceElectrolyserData,

@@ -1,0 +1,112 @@
+parameters:
+  time_delta_minutes: 15 # minutes per timestep
+  planning_horizon: 2 #8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 1 #4 # timesteps between each optimisation
+  forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
+  objective: penalty # select objective function to use
+
+carriers:
+  - id: el
+    el_reserve_margin: 2 # MWm -1=no limit
+    reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
+    powerflow_method: "transport"
+  - id: gas
+    rho_density: 0.8
+    R_individual_gas_constant: 500
+    Pb_basepressure_MPa: 0.101 # MPa
+    Tb_basetemp_K: 288 # K = 15 degC
+    Z_compressibility: 0.9
+    energy_value: 40 # needed by compressor_gas at least
+    k_heat_capacity_ratio: 1.27
+    co2_content: 2.34 # kg/Sm3 
+  - id: carbon
+  - id: heat
+
+nodes:
+  - id: gt
+  - id: ccs
+  - id: sink
+
+edges:
+  - id: el1
+    include: 1
+    carrier: el
+    node_from: gt
+    node_to: ccs
+
+  - id: el2
+    include: 1
+    carrier: el
+    node_from: ccs
+    node_to: sink
+
+  - id: heat1
+    include: 1
+    carrier: heat
+    node_from: gt
+    node_to: ccs
+
+  - id: heat2
+    include: 1
+    carrier: heat
+    node_from: ccs
+    node_to: sink
+
+  - id: c1
+    include: 1
+    carrier: carbon
+    node_from: gt
+    node_to: ccs
+
+  - id: c2
+    include: 1
+    carrier: carbon
+    node_from: ccs
+    node_to: sink
+
+devices:
+  - id: gas
+    include: 1
+    node_id: gt
+    model: source_gas
+    name: gas source
+    naturalpressure: 0.1
+    flow_min: 1
+
+  - id: gtg
+    include: 1
+    node_id: gt
+    model: gasturbine
+    name: GTG
+    fuel_A: 2.35
+    fuel_B: 0.531
+    eta_heat: 0.5    
+    flow_max: 20
+    flow_min: 0
+
+  - id: ccs
+    include: 1
+    node_id: ccs
+    model: carboncapture
+    name: CCS
+    exhaust_gas_recirculation: 0.4
+    carbon_capture_rate: 0.9
+    compressor_energy_demand: 0.30 # MJ/kgCO2
+
+  - id: el_dump
+    include: True
+    node_id: sink
+    model: sink_el
+    name: "el sink"
+
+  - id: heat_dump
+    include: True
+    node_id: sink
+    model: sink_heat
+    name: "heat sink"
+
+  - id: co2_emitted
+    include: True
+    node_id: sink
+    model: sink_carbon
+    name: "CO2 emitted"

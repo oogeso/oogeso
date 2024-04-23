@@ -323,3 +323,14 @@ def test_well_production_constraints():
     dev_data = dto.DeviceWellProductionData(**dev_data_generic, wellhead_pressure=10)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)
     assert isinstance(optimisation_model, OptimisationModel)
+
+
+def test_carbon_capture_constraints():
+    dev_data = dto.DeviceCarbonCaptureData(
+        **dev_data_generic,
+        exhaust_gas_recirculation=0.3,
+        carbon_capture_rate=0.5,
+        compressor_energy_demand=0.30,
+    )
+    optimisation_model = _build_lp_problem_with_single_dev(dev_data)
+    assert isinstance(optimisation_model, OptimisationModel)

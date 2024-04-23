@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## Unpublished
+
+## v1.2.0
+2024-04-04
+- Add carbon capture and storage (CCS) devices
+
 ## v1.1.0
 2023-08-16
 - Add carbon network to keep track of emissions more easily (and allow CCS in the future)
