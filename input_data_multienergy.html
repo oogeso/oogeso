@@ -350,6 +350,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-co2"><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-edges">Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a><ul class="nav section-nav flex-column">
@@ -368,6 +369,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-gas-sink-oil-sink-carbon"><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-capture"><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -464,6 +466,31 @@ document.write(`
 <tr class="row-even"><td><p>rho_density</p></td>
 <td><p>float</p></td>
 <td><p>density (kg/Sm3)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="carbon-co2">
+<h3><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)<a class="headerlink" href="#carbon-co2" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>R_individual_gas_constant</p></td>
+<td><p>float</p></td>
+<td><p>individual gas constant (J/(kg K))</p></td>
+</tr>
+<tr class="row-odd"><td><p>Z_compressibility</p></td>
+<td><p>float</p></td>
+<td><p>gas compressibility</p></td>
+</tr>
+<tr class="row-even"><td><p>k_heat_capacity_ratio</p></td>
+<td><p>float</p></td>
+<td><p>heat capacity ratio</p></td>
 </tr>
 </tbody>
 </table>
@@ -720,6 +747,43 @@ document.write(`
 </tbody>
 </table>
 </section>
+<section id="carbon-capture">
+<h3><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code><a class="headerlink" href="#carbon-capture" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>carbon_capture_rate</p></td>
+<td><p>float</p></td>
+<td><p>Carbon capture rate (CCR), typically 0.9</p></td>
+</tr>
+<tr class="row-odd"><td><p>exhaust_gas_recirculation</p></td>
+<td><p>float</p></td>
+<td><p>Exhaust gas recirculatio rate (EGR), typically in the range 0-0.6</p></td>
+</tr>
+<tr class="row-even"><td><p>compressor_pressure_in</p></td>
+<td><p>float</p></td>
+<td><p>Inlet pressure for compression of captured CO2 (MPa)</p></td>
+</tr>
+<tr class="row-odd"><td><p>compressor_pressure_out</p></td>
+<td><p>float</p></td>
+<td><p>Outlet pressure for compression of captured CO2 (MPa)</p></td>
+</tr>
+<tr class="row-even"><td><p>compressor_eta</p></td>
+<td><p>float</p></td>
+<td><p>Efficiency of CO2 compresstion (0-1)</p></td>
+</tr>
+<tr class="row-odd"><td><p>compressor_temp_in</p></td>
+<td><p>float</p></td>
+<td><p>Inlet gas temperature (K)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 </section>
 
@@ -771,6 +835,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-co2"><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-edges">Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a><ul class="nav section-nav flex-column">
@@ -789,6 +854,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-gas-sink-oil-sink-carbon"><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-capture"><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code></a></li>
 </ul>
 </li>
 </ul>
