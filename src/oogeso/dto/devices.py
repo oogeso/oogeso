@@ -47,6 +47,9 @@ class DeviceSourceWaterData(DeviceData):
     naturalpressure: float = None
     model: ModelType = ModelType.SOURCE_WATER
 
+class DeviceSourceHydrogenData(DeviceData):
+    model: ModelType = ModelType.SOURCE_HYDROGEN
+
 
 class DeviceSinkElData(DeviceData):
     model: ModelType = ModelType.SINK_EL
@@ -113,10 +116,8 @@ class DeviceGasTurbineData(DeviceData):
     fuel_A: float = None
     fuel_B: float = None
     eta_heat: float = None
-    #    is_on_init: bool = False
-    #    startup_cost: float = None
-    #    startup_delay: float = None  # Minutes from activation to power delivery
-    #    shutdown_cost: float = None
+    hydrogen_blend_max: float = 0
+    hydrogen_blend_min: float = 0
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.GAS_TURBINE
 
