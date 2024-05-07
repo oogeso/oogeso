@@ -701,7 +701,7 @@ class OptimisationModel(pyo.ConcreteModel):
         all_values = {}
         for myvar in all_vars:
             # extract the variable index names in the right order
-            indices = [index_set.doc for index_set in myvar._implicit_subsets]
+            indices = [index_set.doc for index_set in myvar.index_set().subsets()]
             var_values = myvar.get_values()
             if not var_values:
                 # empty dictionary, so no variables to store

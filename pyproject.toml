@@ -38,7 +38,7 @@ seaborn = {version = "^0.12", optional = true}
 ipywidgets = {version = "^8", optional = true}
 ipython = {version = "^8", optional = true}
 pydantic = "^1.9"
-fastparquet = "^2022"
+fastparquet = "^2024"
 webencodings = "^0.5.1"
 
 [tool.poetry.group.dev.dependencies]

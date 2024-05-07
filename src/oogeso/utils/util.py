@@ -25,7 +25,7 @@ def create_time_series_data(
     df_orig = pd.concat({"forecast": df_forecast, "nowcast": df_nowcast}, axis=1)
     # 1 resample
     resampled = df_orig.resample(
-        rule="{}T".format(
+        rule="{}min".format(
             timestep_minutes,
         ),
         closed="left",

@@ -571,8 +571,7 @@ def plot_profiles(profiles, filename=None, plotter="plotly"):
     else:
         raise Exception("profiles must be input data format or internal format")
     if plotter == "plotly":
-        df = df.reset_index()
-        df = df.melt(id_vars=["timestep"])
+        df = df.reset_index().melt(id_vars=[("timestep", "")]).rename(columns={("timestep", ""): "timestep"})
         fig = px.line(
             df,
             x="timestep",
