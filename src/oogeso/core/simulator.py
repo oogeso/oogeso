@@ -130,6 +130,7 @@ class Simulator:
         self.result_object = result_object
 
         first = True
+        results_dict = dto.SimulationResult.get_empty_result_dict()
         for step in trange(time_start, time_end, steps):
             if not HAS_TQDM:
                 # no progress bar
@@ -146,9 +147,12 @@ class Simulator:
             )
             # 3. Save results (for later analysis)
             new_results = self._save_optimisation_result(step, return_variables, store_duals)
-            result_object.append_results(new_results)
+            # Dont concatenate within the loop. Append to list and concatenate at the end
+            # result_object.append_results(new_results)
+            results_dict = dto.SimulationResult.append_results(results_dict, new_results)
             first = False
 
+        result_object.concat_results(results_dict)
         return result_object
 
     def _save_optimisation_result(
