@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Self, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 from pydantic import BaseModel, Extra, Field
@@ -181,7 +181,7 @@ class SimulationResult(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=Tr
         return result_dict
 
     @classmethod
-    def append_results(cls, result_dict: Dict[str, List], sim_res: Self) -> Dict[str, List]:
+    def append_results(cls, result_dict: Dict[str, List], sim_res) -> Dict[str, List]:
         """append results to (temporary) lists"""
         result_dict["device_flow"].append(sim_res.device_flow)
         result_dict["device_is_prep"].append(sim_res.device_is_prep)
