@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Self, Tuple
 
 import pandas as pd
 from pydantic import BaseModel, Extra, Field
@@ -139,7 +139,8 @@ class SimulationResult(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=Tr
     profiles_forecast: Optional[pd.DataFrame] = Field(default_factory=pd.DataFrame)
     profiles_nowcast: Optional[pd.DataFrame] = Field(default_factory=pd.DataFrame)
 
-    def append_results(self, sim_res):
+    # This is replaced because concatenating inside loop becomes very slow
+    def OUTDATED_append_results(self, sim_res):
         exclude_list = ["df_profiles_forecast", "df_profiles_forecast"]
         for field_name in self.__fields__:
             if field_name not in exclude_list:
@@ -151,6 +152,79 @@ class SimulationResult(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=Tr
                         new_df.index = pd.MultiIndex.from_tuples(new_df.index)
                     new_df.index.names = other_df.index.names
                     setattr(self, field_name, new_df)
+
+    @classmethod
+    def get_empty_result_dict(cls) -> Dict[str, List]:
+        result_dict = dict()
+        result_dict["device_flow"] = []
+        result_dict["device_is_prep"] = []
+        result_dict["device_is_on"] = []
+        result_dict["device_starting"] = []
+        result_dict["device_stopping"] = []
+        result_dict["device_storage_energy"] = []
+        result_dict["device_storage_pmax"] = []
+        result_dict["penalty"] = []
+        result_dict["edge_flow"] = []
+        result_dict["edge_loss"] = []
+        result_dict["el_voltage_angle"] = []
+        result_dict["terminal_pressure"] = []
+        result_dict["terminal_flow"] = []
+        result_dict["co2_rate"] = []
+        result_dict["co2_rate_per_dev"] = []
+        result_dict["export_revenue"] = []
+        result_dict["co2_intensity"] = []
+        result_dict["el_reserve"] = []
+        result_dict["el_backup"] = []
+        result_dict["duals"] = []
+        # result_dict["profiles_forecast"] = []
+        # result_dict["profiles_nowcast"] = []
+        return result_dict
+
+    @classmethod
+    def append_results(cls, result_dict: Dict[str, List], sim_res: Self) -> Dict[str, List]:
+        """append results to (temporary) lists"""
+        result_dict["device_flow"].append(sim_res.device_flow)
+        result_dict["device_is_prep"].append(sim_res.device_is_prep)
+        result_dict["device_is_on"].append(sim_res.device_is_on)
+        result_dict["device_starting"].append(sim_res.device_starting)
+        result_dict["device_stopping"].append(sim_res.device_stopping)
+        result_dict["device_storage_energy"].append(sim_res.device_storage_energy)
+        result_dict["device_storage_pmax"].append(sim_res.device_storage_pmax)
+        result_dict["penalty"].append(sim_res.penalty)
+        result_dict["edge_flow"].append(sim_res.edge_flow)
+        result_dict["edge_loss"].append(sim_res.edge_loss)
+        result_dict["el_voltage_angle"].append(sim_res.el_voltage_angle)
+        result_dict["terminal_pressure"].append(sim_res.terminal_pressure)
+        result_dict["terminal_flow"].append(sim_res.terminal_flow)
+        result_dict["co2_rate"].append(sim_res.co2_rate)
+        result_dict["co2_rate_per_dev"].append(sim_res.co2_rate_per_dev)
+        result_dict["export_revenue"].append(sim_res.export_revenue)
+        result_dict["co2_intensity"].append(sim_res.co2_intensity)
+        result_dict["el_reserve"].append(sim_res.el_reserve)
+        result_dict["el_backup"].append(sim_res.el_backup)
+        result_dict["duals"].append(sim_res.duals)
+        # result_dict["profiles_forecast"].append(sim_res.profiles_forecast)
+        # result_dict["profiles_nowcast"].append(sim_res.profiles_nowcast)
+        return result_dict
+
+    def concat_results(self, result_dict: Dict[str, List]):
+        # self.device_flow = pd.concat(result_list["device_flow"]).sort_index()
+
+        exclude_list = ["profiles_forecast", "profiles_forecast"]
+        # field_names = [fn for fn in self.__fields__ if fn not in exclude_list]
+        field_names = [fn for fn in result_dict.keys() if fn not in exclude_list]
+        # print(result_dict)
+        for field_name in field_names:
+            # field_name = "device_flow" (example)
+            other_dfs = result_dict[field_name]
+            if other_dfs[0] is not None:
+                df = pd.concat(other_dfs).sort_index()
+                if isinstance(df.index[0], tuple):  # Fix for multi-index DataFrame and Series
+                    df.index = pd.MultiIndex.from_tuples(df.index)
+                df.index.names = other_dfs[0].index.names
+                setattr(self, field_name, df)
+            else:
+                print(f"No data for {field_name}")
 
 
 class EnergySystemData(BaseModel, extra=Extra.forbid):
