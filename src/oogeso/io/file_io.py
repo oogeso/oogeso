@@ -122,18 +122,18 @@ def read_profiles_from_csv(
     df_profiles_forecast = pd.read_csv(
         filename_forecasts,
         index_col=timestamp_col,
-        parse_dates=[timestamp_col],
-        dayfirst=dayfirst,
         usecols=lambda col: col not in exclude_cols,
     )
+    if timestamp_col:
+        df_profiles_forecast.index = pd.to_datetime(df_profiles_forecast.index, dayfirst=dayfirst, format="mixed")
     df_profiles_nowcast = pd.DataFrame()  # empty dataframe
     if filename_nowcasts is not None:
         df_profiles_nowcast = pd.read_csv(
             filename_nowcasts,
             index_col=timestamp_col,
-            parse_dates=[timestamp_col],
-            dayfirst=dayfirst,
             usecols=lambda col: col not in exclude_cols,
         )
+        if timestamp_col:
+            df_profiles_nowcast.index = pd.to_datetime(df_profiles_nowcast.index, dayfirst=dayfirst, format="mixed")
 
     return {"forecast": df_profiles_forecast, "nowcast": df_profiles_nowcast}
