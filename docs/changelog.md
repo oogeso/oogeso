@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## Unpublished
+- Fix: Reading csv profile data with timestamp column
 
 ## v1.2.0
 2024-04-04
