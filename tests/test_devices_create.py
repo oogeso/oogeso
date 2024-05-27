@@ -206,6 +206,14 @@ def test_source_water():
     assert obj.dev_data.naturalpressure == 15
 
 
+def test_source_hydrogen():
+    dev_data = dto.DeviceSourceHydrogenData(**dev_data_generic)
+    carrier_data_dict = {}
+    obj = devices.SourceHydrogen(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.SourceHydrogen)
+    assert obj.dev_data.flow_max == 20
+
+
 def test_source_el():
     # source_el is identical to powersource
     dev_data = dto.DeviceSourceElData(**dev_data_generic, co2em=1.5)

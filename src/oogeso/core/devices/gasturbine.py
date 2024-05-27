@@ -9,7 +9,7 @@ from oogeso.core.devices.base import Device
 class GasTurbine(Device):
     """Gas turbine generator"""
 
-    carrier_in = ["gas"]
+    carrier_in = ["gas","hydrogen"]
     carrier_out = ["el", "heat", "carbon"]
     serial = list()
 
@@ -22,32 +22,39 @@ class GasTurbine(Device):
         self.dev_data = dev_data
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
+        self.hydrogen_blend = (self.dev_data.hydrogen_blend_max > 0)
 
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         gas_data = self.carrier_data["gas"]
         # el_power = model.varDeviceFlow[dev, "el", "out", t]
         gas_energy_content = gas_data.energy_value  # MJ/Sm3
+        if self.hydrogen_blend:
+            hydrogen_data = self.carrier_data["hydrogen"]
+            hydrogen_energy_content = hydrogen_data.energy_value  # MJ/Sm3
         if i == 1:
             """turbine el power out vs gas fuel in"""
-            # fuel consumption (gas in) is a linear function of el power output
+            # fuel consumption (gas+hydrogen in) is a linear function of el power output
             # fuel = B + A*power
             # => efficiency = power/(A+B*power)
             A = self.dev_data.fuel_A
             B = self.dev_data.fuel_B
             P_max = self.dev_data.flow_max
             lhs = model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content / P_max
+            if self.hydrogen_blend:
+                lhs += model.varDeviceFlow[dev, "hydrogen", "in", t] * hydrogen_energy_content / P_max
             rhs = (
                 B * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
                 + A * model.varDeviceFlow[dev, "el", "out", t] / P_max
             )
             return lhs == rhs
         elif i == 2:
-            """heat output = (gas energy in - el power out)* heat efficiency"""
+            """heat output = (energy in - el power out)* heat efficiency"""
+            energy_in = model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content
+            if self.hydrogen_blend:
+                energy_in += model.varDeviceFlow[dev, "hydrogen", "in", t] * hydrogen_energy_content
             lhs = model.varDeviceFlow[dev, "heat", "out", t]
-            rhs = (
-                model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content - model.varDeviceFlow[dev, "el", "out", t]
-            ) * self.dev_data.eta_heat
+            rhs = ( energy_in - model.varDeviceFlow[dev, "el", "out", t]) * self.dev_data.eta_heat
             return lhs == rhs
         elif i == 3:
             """carbon emitted given by gas consumption"""
@@ -55,12 +62,22 @@ class GasTurbine(Device):
             lhs = model.varDeviceFlow[dev, "carbon", "out", t]
             rhs = gasflow_co2 * (model.varDeviceFlow[dev, "gas", "in", t])
             return lhs == rhs
+        elif (i==4) and (self.hydrogen_blend):
+            """hydrogen blend max"""
+            flow_total = model.varDeviceFlow[dev, "gas", "in", t] + model.varDeviceFlow[dev, "hydrogen", "in", t]  # Sm3/s
+            return model.varDeviceFlow[dev, "hydrogen", "in", t] <= self.dev_data.hydrogen_blend_max * flow_total
+        elif (i==5) and (self.hydrogen_blend):
+            """hydrogen blend max"""
+            flow_total = model.varDeviceFlow[dev, "gas", "in", t] + model.varDeviceFlow[dev, "hydrogen", "in", t]  # Sm3/s
+            return model.varDeviceFlow[dev, "hydrogen", "in", t] >= self.dev_data.hydrogen_blend_min * flow_total
+        else:
+            return pyo.Constraint.Skip
 
     def define_constraints(self, pyomo_model: pyo.Model):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 3), rule=self._rules_misc)
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 5), rule=self._rules_misc)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 

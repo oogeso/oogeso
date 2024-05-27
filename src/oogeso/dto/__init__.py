@@ -46,6 +46,7 @@ from oogeso.dto.devices import (
     DeviceSourceGasData,
     DeviceSourceOilData,
     DeviceSourceWaterData,
+    DeviceSourceHydrogenData,
     DeviceStorageElData,
     DeviceStorageHydrogenData,
     DeviceWellGasLiftData,

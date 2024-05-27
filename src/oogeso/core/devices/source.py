@@ -230,3 +230,12 @@ class SourceWater(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "water", "out", t]
+
+class SourceHydrogen(Device):
+    """Generic external source for hydrogen."""
+    carrier_in = []
+    carrier_out = ["hydrogen"]
+    serial = []
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
+        return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]

@@ -299,6 +299,12 @@ def test_source_water_constraints():
     assert isinstance(optimisation_model, OptimisationModel)
 
 
+def test_source_hydrogen_constraints():
+    dev_data = dto.DeviceSourceHydrogenData(**dev_data_generic)
+    optimisation_model = _build_lp_problem_with_single_dev(dev_data)
+    assert isinstance(optimisation_model, OptimisationModel)
+
+
 def test_storage_el_constraints():
     dev_data = dto.DeviceStorageElData(**dev_data_generic)
     optimisation_model = _build_lp_problem_with_single_dev(dev_data)

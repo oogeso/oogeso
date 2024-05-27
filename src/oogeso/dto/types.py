@@ -22,6 +22,7 @@ class ModelType(str, Enum):
     SOURCE_GAS = "sourcegas"
     SOURCE_OIL = "sourceoil"
     SOURCE_WATER = "sourcewater"
+    SOURCE_HYDROGEN = "sourcehydrogen"
     SINK_EL = "sinkel"
     SINK_HEAT = "sinkheat"
     SINK_GAS = "sinkgas"
