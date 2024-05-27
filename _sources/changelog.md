@@ -5,7 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## Unpublished
+## v1.3.0
+2024-05-27
+- allow hydrogen fuel blend for gas turbine
 - Fix: Reading csv profile data with timestamp column
 
 ## v1.2.0

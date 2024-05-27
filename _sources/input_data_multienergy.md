@@ -72,6 +72,8 @@ maxRampDown | float | maximum ramp down rate, relative to capacity per minute (1
 maxRampUp   | float | maximum ramp down rate, relative to capacity per minute (1=100%/min)
 startupCost | float | cost (NOK) for each start-up
 startupDelay    | float | delay (min) from start-up activation to powr output
+hydrogen_blend_max | float | maximum fraction of hydrogen in fuel blend (Sm3 hydrogen vs Sm3 total)
+hydrogen_blend_min | float | minimum fraction of hydrogen in fuel blend (Sm3 hydrogen vs Sm3 total)
 
 ### ```source_el```
 
