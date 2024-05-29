@@ -22,6 +22,29 @@ def test_gasturbine_hydrogen_model(testcase_gasturbine_hydrogen_data: dto.Energy
 
 
 @pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
+def test_gasturbine_nohydrogen(testcase_gasturbine_hydrogen_data: dto.EnergySystemData):
+    # check that gt cannot act as h2 sink,
+    for d in testcase_gasturbine_hydrogen_data.devices:
+        if d.id == "gtg":
+            assert d.hydrogen_blend_max == 0.2
+            d.hydrogen_blend_max = 0
+            assert d.hydrogen_blend_max == 0
+        elif d.id == "hydrogen_source":
+            d.flow_min = 0.1
+            d.flow_max = 0.1
+        elif d.id == "el_demand":
+            d.flow_min = 0
+    my_sim = oogeso.Simulator(testcase_gasturbine_hydrogen_data)
+    print("MAX BLEND", my_sim.optimiser.all_devices["gtg"].dev_data.hydrogen_blend_max)
+    # print("HYDROGEN BLEND",my_sim.optimiser.all_devices["gtg"].hydrogen_blend)
+    my_sim.optimiser.constr_gtg_misc.pprint()
+
+    # this should fail because we are forcing hydrogen into gas turbine that allows no hydrogen...
+    with pytest.raises(Exception):
+        my_sim.run_simulation("cbc", time_range=(0, 4))
+
+
+@pytest.mark.skipif(not pyo.SolverFactory("cbc").available(), reason="Skipping test because CBC is not available.")
 def test_gasturbine_hydrogen_simple_simulation(testcase_gasturbine_hydrogen_data: dto.EnergySystemData):
     my_sim = oogeso.Simulator(testcase_gasturbine_hydrogen_data)
     res = my_sim.run_simulation("cbc", time_range=(0, 4))
