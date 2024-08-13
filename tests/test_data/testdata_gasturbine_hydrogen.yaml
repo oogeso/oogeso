@@ -96,4 +96,4 @@ devices:
     node_id: sink
     model: sink_carbon
     name: "CO2 emitted"
-    price: {"carbon": 1}  # EUR/kg cost
+    price: {"carbon": -1}  # EUR/kg cost
