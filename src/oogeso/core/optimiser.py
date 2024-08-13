@@ -473,7 +473,7 @@ class OptimisationModel(pyo.ConcreteModel):
         startup_costs = self.compute_startup_penalty(model)  # kr/s
         storage_depletion_costs = self.compute_cost_for_depleted_storage(model)
         op_costs = self.compute_operating_costs(model)  # kr/s
-        co2_cost = self.compute_CO2(model, return_cost=True)  # kgCO2/s
+        co2_cost = -self.compute_CO2(model, return_cost=True)  # kgCO2/s
 
         return co2_cost + startup_costs + storage_depletion_costs + op_costs
 
