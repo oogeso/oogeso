@@ -5,6 +5,7 @@ import pyomo.environ as pyo
 
 from oogeso import dto
 from oogeso.core.devices.base import Device
+from oogeso.core.networks.network_node import NetworkNode
 
 
 class StorageDevice(Device):
@@ -249,3 +250,75 @@ class StorageHydrogen(StorageDevice):
         # from cost (kr) to cost rate (kr/s):
         storage_cost = storage_cost / len(timesteps)
         return storage_cost
+
+
+class StorageGasLinepack(StorageDevice):
+    """Gas storage (line pack)"""
+
+    carrier_in = ["gas"]
+    carrier_out = ["gas"]
+    serial = []  # not serial, so pressure_out = pressure_in is guaranteed
+
+    def __init__(
+        self,
+        dev_data: dto.DeviceStorageGasLinepackData,
+        carrier_data_dict: Dict[str, dto.CarrierGasData],
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
+        return pyomo_model.varDeviceFlow[self.id, "gas", "out", t]
+
+    def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
+        """Specifies the list of constraints for the device"""
+
+        list_to_reconstruct = super().define_constraints(pyomo_model)
+
+        # set initial condition for storage
+        R_individual = self.carrier_data["gas"].R_individual_gas_constant
+        rho = self.carrier_data["gas"].rho_density  # kg/Sm3
+        T_kelvin = self.carrier_data["gas"].Tb_basetemp_K
+        vol = self.dev_data.volume_m3
+        self.E_vs_p = vol / (R_individual * T_kelvin * rho) * 1e6  # Pa to MPa
+        # Stored matter when pressure equals nominal pressure ( mass= rho E = pV/RT):
+        self.pressure_nominal = self.node.get_pressure_nominal("gas", "in")
+        self.E_sm3_nominal = self.pressure_nominal * self.E_vs_p
+        # print(f"E_vs_p = {self.E_vs_p}")
+        # print(f"E_sm3_nominal = {self.E_sm3_nominal}")
+        # print(f"E_init = {self.dev_data.E_init}")
+        # print(f"Pipeline volume = {vol} m3")
+
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules)
+        # add constraints to model:
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
+
+    def _rules(self, pyomo_model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        dev = self.id
+        time_delta_minutes = pyomo_model.paramTimestepDeltaMinutes
+        node_obj: NetworkNode = self.node
+        node = node_obj.id
+
+        if i == 1:
+            # matter balance (delta E = in - out) (matter in Sm3)
+            delta_t = time_delta_minutes * 60  # seconds
+            net_inflow = (
+                pyomo_model.varDeviceFlow[dev, "gas", "in", t] - pyomo_model.varDeviceFlow[dev, "gas", "out", t]
+            ) * delta_t
+            if t > 0:
+                E_prev = pyomo_model.varDeviceStorageEnergy[dev, t - 1]
+            else:
+                E_prev = pyomo_model.paramDeviceEnergyInitially[dev]
+            delta_storage = pyomo_model.varDeviceStorageEnergy[dev, t] - E_prev
+            return net_inflow == delta_storage
+        elif i == 2:
+            # matter storage vs pressure (deviation from nominal)
+            pressure = pyomo_model.varPressure[node, "gas", "in", t]
+            mass_stored = pyomo_model.varDeviceStorageEnergy[dev, t]  # Sm3
+            return pressure == self.pressure_nominal + mass_stored / self.E_vs_p
+
+        else:
+            raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
