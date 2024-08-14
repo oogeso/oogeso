@@ -315,9 +315,13 @@ class StorageGasLinepack(StorageDevice):
             delta_storage = pyomo_model.varDeviceStorageEnergy[dev, t] - E_prev
             return net_inflow == delta_storage
         elif i == 2:
+
             # matter storage vs pressure (deviation from nominal)
             pressure = pyomo_model.varPressure[node, "gas", "in", t]
             mass_stored = pyomo_model.varDeviceStorageEnergy[dev, t]  # Sm3
+            if self.E_vs_p == 0:
+                # no storage if pipe volume is set to zero.
+                return mass_stored == 0
             return pressure == self.pressure_nominal + mass_stored / self.E_vs_p
 
         else:

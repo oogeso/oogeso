@@ -81,7 +81,7 @@ devices:
     name: gas source
     naturalpressure: 0.1
     flow_max: 0.55
-    flow_min: 0.55
+    flow_min: 0.45
 
   - id: compressor
     include: True
@@ -97,8 +97,7 @@ devices:
     node_id: linepack
     model: storage_gas_linepack
     name: "gas line pack"
-    volume_m3: 12825 #0000 # m3
-    #pressure_nominal: 25
+    volume_m3: 12825  # m3
 
   - id: gas_sink
     include: True
@@ -138,8 +137,7 @@ devices:
     model: source_el
     name: Wind turbine
     flow_max: 1
-    op_cost: -10
-    #co2em: -1  # producing more than needed is beneficial (forcing linepack)
+    op_cost: -10 # incentive to produce as much as possible (and fill storages)
     profile: "wind"
 
 profiles:
