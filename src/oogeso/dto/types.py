@@ -42,6 +42,7 @@ class ModelType(str, Enum):
     SEPARATOR = "separator"
     SEPARATOR2 = "separator2"
     STORAGE_HYDROGEN = "storagehydrogen"
+    STORAGE_GAS_LINEPACK = "storagegaslinepack"
     WELL_PRODUCTION = "wellproduction"
     WELL_GAS_LIFT = "wellgaslift"
     CARBON_CAPTURE = "carboncapture"

@@ -1,0 +1,145 @@
+parameters:
+  time_delta_minutes: 15 # minutes per timestep
+  planning_horizon: 12 #8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 6 #4 # timesteps between each optimisation
+  forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
+  objective: costs # select objective function to use
+
+carriers:
+  - id: el
+    el_reserve_margin: 2 # MWm -1=no limit
+    reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
+    powerflow_method: "transport"
+  - id: gas
+    rho_density: 0.8
+    R_individual_gas_constant: 500
+    Pb_basepressure_MPa: 0.101 # MPa
+    Tb_basetemp_K: 288 # K = 15 degC
+    Z_compressibility: 0.9
+    energy_value: 40 # needed by compressor_gas at least
+    k_heat_capacity_ratio: 1.27
+    co2_content: 2.34 # kg/Sm3 
+  - id: carbon
+  - id: heat
+
+
+nodes:
+  - id: gt
+  - id: compressor
+  - id: linepack
+  - id: sink
+
+edges:
+  - id: el1
+    include: 1
+    carrier: el
+    node_from: gt
+    node_to: compressor
+
+  - id: heat1
+    include: 1
+    carrier: heat
+    node_from: gt
+    node_to: sink
+
+  - id: c1
+    include: 1
+    carrier: carbon
+    node_from: gt
+    node_to: sink
+
+  - id: gas1
+    carrier: gas
+    node_from: gt
+    node_to: compressor
+    pressure_from: 0.1
+    pressure_to: 0.1
+
+  - id: gas2
+    carrier: gas
+    node_from: compressor
+    node_to: linepack
+    pressure_from: 25
+    pressure_to: 25
+    pressure_from_maxdeviation: 0.1  # 10% of 25 = 2.5   
+    #pressure_to_maxdeviation: 0.0    
+
+  - id: gas3
+    include: True
+    carrier: gas
+    node_from: linepack
+    node_to: sink
+    pressure_from: 25
+    pressure_to: 25
+
+
+devices:
+  - id: gas_source
+    include: True
+    node_id: gt
+    model: source_gas
+    name: gas source
+    naturalpressure: 0.1
+    flow_max: 0.55
+    flow_min: 0.45
+
+  - id: compressor
+    include: True
+    node_id: compressor
+    model: compressor_el
+    name: "compressor"
+    eta: 0.75
+    temp_in: 300
+    Q0: 0.60
+
+  - id: gas_linepack
+    include: True
+    node_id: linepack
+    model: storage_gas_linepack
+    name: "gas line pack"
+    volume_m3: 12825  # m3
+
+  - id: gas_sink
+    include: True
+    node_id: sink
+    model: sink_gas
+    name: "gas export"
+    flow_min: 0.50
+    flow_max: 0.50
+    price: {"gas": 100}  # EUR/Sm3 income
+
+  - id: heat_dump
+    include: True
+    node_id: sink
+    model: sink_heat
+    name: "heat sink"
+
+  - id: co2_emitted
+    include: True
+    node_id: sink
+    model: sink_carbon
+    name: "CO2 emitted"
+    price: {"carbon": 0}  # EUR/kg cost (negative price)
+
+
+  - id: gtg
+    include: 1
+    node_id: gt
+    model: gasturbine
+    name: GTG
+    fuel_A: 2.35
+    fuel_B: 0.531
+    eta_heat: 0.5    
+    flow_max: 20
+
+  - id: wtg
+    node_id: gt
+    model: source_el
+    name: Wind turbine
+    flow_max: 1
+    op_cost: -10 # incentive to produce as much as possible (and fill storages)
+    profile: "wind"
+
+profiles:
+  - id: wind
+    data: [1,1,1,1,1,0.5,0.4,0.3,0.1,0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.3,0.6,1,1,1,1,1,1,1,1,1,1,1,1]

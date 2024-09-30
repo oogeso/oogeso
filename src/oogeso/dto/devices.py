@@ -47,6 +47,7 @@ class DeviceSourceWaterData(DeviceData):
     naturalpressure: float = None
     model: ModelType = ModelType.SOURCE_WATER
 
+
 class DeviceSourceHydrogenData(DeviceData):
     model: ModelType = ModelType.SOURCE_HYDROGEN
 
@@ -160,6 +161,12 @@ class DeviceStorageHydrogenData(DeviceData):
     E_cost: float = 0  # cost for depleting storage
     E_init: float = 0
     model: ModelType = ModelType.STORAGE_HYDROGEN
+
+
+class DeviceStorageGasLinepackData(DeviceData):
+    E_init: float = 0  # Sm3
+    volume_m3: float = 0
+    model: ModelType = ModelType.STORAGE_GAS_LINEPACK
 
 
 class DeviceWellProductionData(DeviceData):
