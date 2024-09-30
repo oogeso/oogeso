@@ -74,7 +74,7 @@ The Oogeso model is described in more detail in this preprint: <a href="https://
 
 ## Input data
 
-There are two main modelling alternatives with Ooges:
+There are two main modelling alternatives with Oogeso:
 * Electricity only modelling (electricity supply, distribution and demand)
 * Integrated multi-energy modelling (multiple energy/matter carriers)
 

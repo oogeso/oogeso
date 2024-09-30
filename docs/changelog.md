@@ -4,6 +4,9 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## v1.4.0
+2024-09-30
+- add gas linepack storage device type (simplified model)
 
 ## v1.3.0
 2024-05-27
