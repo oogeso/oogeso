@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Changelog &#8212; Oogeso Docs</title>
+    <title>Carriers (carriers) &#8212; Oogeso Docs</title>
   
   
   
@@ -40,11 +40,10 @@
     <script src="_static/doctools.js?v=888ff710"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'changelog';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'input_data_carriers';</script>
     <link rel="icon" href="_static/logo_oogeso.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Output data" href="output_data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -177,8 +176,8 @@
 <li class="toctree-l1"><a class="reference internal" href="output_data.html">Output data</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">About the project</span></p>
-<ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Changelog</a></li>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/oogeso/oogeso">GitHub repo</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://pypi.org/project/oogeso/">PyPi</a></li>
 </ul>
@@ -224,7 +223,7 @@
 <div class="article-header-buttons">
 
 
-<a href="https://github.com/oogeso/oogeso/edit/master/docs.yml/changelog.md" target="_blank"
+<a href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data_carriers.md" target="_blank"
    class="btn btn-sm btn-source-edit-button"
    title="Suggest edit"
    data-bs-placement="bottom" data-bs-toggle="tooltip"
@@ -250,7 +249,7 @@
       
       
       
-      <li><a href="_sources/changelog.md" target="_blank"
+      <li><a href="_sources/input_data_carriers.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -334,7 +333,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Changelog</h1>
+    <h1>Carriers (carriers)</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -344,18 +343,16 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-4-0">v1.4.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-3-0">v1.3.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-2-0">v1.2.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-1-0">v1.1.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-0-2">v1.0.2</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-0-1">v1.0.1</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-0">v1.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-5">v0.5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-4">v0.4</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-3">v0.3</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-2">v0.2</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-1">v0.1</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-common-for-all-types">Data common for all types</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-specific-for-each-type">Data specific for each type</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#el"><code class="docutils literal notranslate"><span class="pre">el</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-co2"><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)</a></li>
+</ul>
+</li>
 </ul>
             </nav>
         </div>
@@ -367,102 +364,176 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article" role="main">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="changelog">
-<h1>Changelog<a class="headerlink" href="#changelog" title="Link to this heading">#</a></h1>
-<p><a class="reference external" href="https://pypi.org/project/oogeso/#history">PyPi Release history</a></p>
-<p>The format is based on <a class="reference external" href="http://keepachangelog.com/">Keep a Changelog</a>
-and this project adheres to <a class="reference external" href="http://semver.org/">Semantic Versioning</a>.</p>
-<section id="v1-4-0">
-<h2>v1.4.0<a class="headerlink" href="#v1-4-0" title="Link to this heading">#</a></h2>
-<p>2024-09-30</p>
+  <section class="tex2jax_ignore mathjax_ignore" id="carriers-carriers">
+<h1>Carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#carriers-carriers" title="Link to this heading">#</a></h1>
+<p>User guide: <a class="reference internal" href="index.html"><span class="std std-doc">Home</span></a> / <a class="reference internal" href="input_data.html"><span class="std std-doc">input data</span></a></p>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>add gas linepack storage device type (simplified model)</p></li>
+<li><p><a class="reference internal" href="#data-common-for-all-types">Data common for all types</a></p></li>
+<li><p><a class="reference internal" href="#data-specific-for-each-type">Data specific for each type</a></p></li>
 </ul>
 </section>
-<section id="v1-3-0">
-<h2>v1.3.0<a class="headerlink" href="#v1-3-0" title="Link to this heading">#</a></h2>
-<p>2024-05-27</p>
-<ul class="simple">
-<li><p>allow hydrogen fuel blend for gas turbine</p></li>
-<li><p>Fix: Reading csv profile data with timestamp column</p></li>
-</ul>
+<section id="data-common-for-all-types">
+<h2>Data common for all types<a class="headerlink" href="#data-common-for-all-types" title="Link to this heading">#</a></h2>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>string</p></td>
+<td><p>carrier type (el, heat, hydrogen, gas, oil, water, wellstream)</p></td>
+</tr>
+</tbody>
+</table>
+<p>Other data differs for the different carrier types.</p>
 </section>
-<section id="v1-2-0">
-<h2>v1.2.0<a class="headerlink" href="#v1-2-0" title="Link to this heading">#</a></h2>
-<p>2024-04-04</p>
-<ul class="simple">
-<li><p>Add carbon capture and storage (CCS) devices</p></li>
-</ul>
+<section id="data-specific-for-each-type">
+<h2>Data specific for each type<a class="headerlink" href="#data-specific-for-each-type" title="Link to this heading">#</a></h2>
+<section id="el">
+<h3><code class="docutils literal notranslate"><span class="pre">el</span></code><a class="headerlink" href="#el" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>powerflow_method</p></td>
+<td><p>str</p></td>
+<td><p>“transport”  or “dc_pf”</p></td>
+</tr>
+<tr class="row-odd"><td><p>reference_node</p></td>
+<td><p>str</p></td>
+<td><p>id of node used as reference for voltage angles (with dc_pf method)</p></td>
+</tr>
+<tr class="row-even"><td><p>el_reserve_margin</p></td>
+<td><p>float</p></td>
+<td><p>required globally spinning reserve (MW).</p></td>
+</tr>
+<tr class="row-odd"><td><p>el_backup_margin</p></td>
+<td><p>float</p></td>
+<td><p>(optional) required backup margin in case of genertor failure (MW)</p></td>
+</tr>
+<tr class="row-even"><td><p>reserve_storage_minutes</p></td>
+<td><p>int</p></td>
+<td><p>how long (minutes) stored energy must be sustained to count as reserve</p></td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="v1-1-0">
-<h2>v1.1.0<a class="headerlink" href="#v1-1-0" title="Link to this heading">#</a></h2>
-<p>2023-08-16</p>
-<ul class="simple">
-<li><p>Add carbon network to keep track of emissions more easily (and allow CCS in the future)</p></li>
-<li><p>Fix: Removed redundant gas property (gas gravity)</p></li>
-</ul>
+<section id="heat-hydrogen">
+<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code><a class="headerlink" href="#heat-hydrogen" title="Link to this heading">#</a></h3>
+<p>No additional data required</p>
 </section>
-<section id="v1-0-2">
-<h2>v1.0.2<a class="headerlink" href="#v1-0-2" title="Link to this heading">#</a></h2>
-<p>2022-10-13</p>
-<ul class="simple">
-<li><p>Fix: Corrected bug in compressor power demand expression</p></li>
-<li><p>Modified separator device definition</p></li>
-<li><p>Fix: Post-processing using selected time span</p></li>
-</ul>
+<section id="oil-water-wellstream">
+<h3><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code><a class="headerlink" href="#oil-water-wellstream" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>darcy_friction</p></td>
+<td><p>float</p></td>
+<td><p>Darcy friction factor</p></td>
+</tr>
+<tr class="row-odd"><td><p>pressure_method</p></td>
+<td><p>string</p></td>
+<td><p>method for pressure drop calculation (darcy-weissbach/weymouth)</p></td>
+</tr>
+<tr class="row-even"><td><p>rho_density</p></td>
+<td><p>float</p></td>
+<td><p>density (kg/m3)</p></td>
+</tr>
+<tr class="row-odd"><td><p>viscosity</p></td>
+<td><p>float</p></td>
+<td><p>viscosity (kg/(m s))</p></td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="v1-0-1">
-<h2>v1.0.1<a class="headerlink" href="#v1-0-1" title="Link to this heading">#</a></h2>
-<p>2022-04-06</p>
-<ul class="simple">
-<li><p>Added: device constraints for minimum up and down time</p></li>
-</ul>
+<section id="gas">
+<h3><code class="docutils literal notranslate"><span class="pre">gas</span></code><a class="headerlink" href="#gas" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>co2_content</p></td>
+<td><p>float</p></td>
+<td><p>amount of CO2 per volume (kg/Sm3)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Pb_basepressure_MPa</p></td>
+<td><p>float</p></td>
+<td><p>base pressure (MPa) (1 atm=0.101 MPa)</p></td>
+</tr>
+<tr class="row-even"><td><p>Tb_basetemp_K</p></td>
+<td><p>float</p></td>
+<td><p>base temperature (K) (15 degC=288 K)</p></td>
+</tr>
+<tr class="row-odd"><td><p>R_individual_gas_constant</p></td>
+<td><p>float</p></td>
+<td><p>individual gas constant (J/(kg K))</p></td>
+</tr>
+<tr class="row-even"><td><p>Z_compressibility</p></td>
+<td><p>float</p></td>
+<td><p>gas compressibility</p></td>
+</tr>
+<tr class="row-odd"><td><p>energy_value</p></td>
+<td><p>float</p></td>
+<td><p>energy content, calorific value (MJ/Sm3)</p></td>
+</tr>
+<tr class="row-even"><td><p>k_heat_capacity_ratio</p></td>
+<td><p>float</p></td>
+<td><p>heat capacity ratio</p></td>
+</tr>
+<tr class="row-odd"><td><p>pressure_method</p></td>
+<td><p>string</p></td>
+<td><p>method used co compute pressure drop in pipe (weymouth/darcy-weissbach)</p></td>
+</tr>
+<tr class="row-even"><td><p>rho_density</p></td>
+<td><p>float</p></td>
+<td><p>density (kg/Sm3)</p></td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="v1-0">
-<h2>v1.0<a class="headerlink" href="#v1-0" title="Link to this heading">#</a></h2>
-<p>2022-01-28</p>
-<ul class="simple">
-<li><p>The first official Oogeso release</p></li>
-<li><p>The main changes from earlier versions is code and functionality quality assurance</p></li>
-</ul>
+<section id="carbon-co2">
+<h3><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)<a class="headerlink" href="#carbon-co2" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>R_individual_gas_constant</p></td>
+<td><p>float</p></td>
+<td><p>individual gas constant (J/(kg K))</p></td>
+</tr>
+<tr class="row-odd"><td><p>Z_compressibility</p></td>
+<td><p>float</p></td>
+<td><p>gas compressibility</p></td>
+</tr>
+<tr class="row-even"><td><p>k_heat_capacity_ratio</p></td>
+<td><p>float</p></td>
+<td><p>heat capacity ratio</p></td>
+</tr>
+</tbody>
+</table>
 </section>
-<section id="v0-5">
-<h2>v0.5<a class="headerlink" href="#v0-5" title="Link to this heading">#</a></h2>
-<p><strong>Unreleased</strong></p>
-<ul class="simple">
-<li><p>Decoupled YAML-interface from core code</p></li>
-<li><p>Additional tests</p></li>
-<li><p>Publish Sphinx-documentation</p></li>
-</ul>
-</section>
-<section id="v0-4">
-<h2>v0.4<a class="headerlink" href="#v0-4" title="Link to this heading">#</a></h2>
-<p>2022-01-11</p>
-<ul class="simple">
-<li><p>Code cleanup</p></li>
-<li><p>Improved unit- and integration testing</p></li>
-</ul>
-</section>
-<section id="v0-3">
-<h2>v0.3<a class="headerlink" href="#v0-3" title="Link to this heading">#</a></h2>
-<p>2021-11-26</p>
-<ul class="simple">
-<li><p>initial package publish on PyPi</p></li>
-</ul>
-</section>
-<section id="v0-2">
-<h2>v0.2<a class="headerlink" href="#v0-2" title="Link to this heading">#</a></h2>
-<p>2020-11-01</p>
-<ul class="simple">
-<li><p>complete model</p></li>
-</ul>
-</section>
-<section id="v0-1">
-<h2>v0.1<a class="headerlink" href="#v0-1" title="Link to this heading">#</a></h2>
-<p>2020-05-11</p>
-<ul class="simple">
-<li><p>unfinished development</p></li>
-</ul>
 </section>
 </section>
 
@@ -477,15 +548,6 @@ and this project adheres to <a class="reference external" href="http://semver.or
                 <footer class="prev-next-footer">
                   
 <div class="prev-next-area">
-    <a class="left-prev"
-       href="output_data.html"
-       title="previous page">
-      <i class="fa-solid fa-angle-left"></i>
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Output data</p>
-      </div>
-    </a>
 </div>
                 </footer>
               
@@ -501,18 +563,16 @@ and this project adheres to <a class="reference external" href="http://semver.or
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-4-0">v1.4.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-3-0">v1.3.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-2-0">v1.2.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-1-0">v1.1.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-0-2">v1.0.2</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-0-1">v1.0.1</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1-0">v1.0</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-5">v0.5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-4">v0.4</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-3">v0.3</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-2">v0.2</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v0-1">v0.1</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-common-for-all-types">Data common for all types</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-specific-for-each-type">Data specific for each type</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#el"><code class="docutils literal notranslate"><span class="pre">el</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-co2"><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)</a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 

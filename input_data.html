@@ -46,7 +46,7 @@
     <link rel="icon" href="_static/logo_oogeso.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Extra input data with multi-energy modelling" href="input_data_multienergy.html" />
+    <link rel="next" title="Output data" href="output_data.html" />
     <link rel="prev" title="User Guide" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -174,7 +174,6 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Input Data</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Input data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="input_data_multienergy.html">Extra input data with multi-energy modelling</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Output</span></p>
 <ul class="nav bd-sidenav">
@@ -350,36 +349,8 @@ document.write(`
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#general-parameters-parameters">General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#time-series-profiles-profiles">Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-nodes-nodes">Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-edges-edges">Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#electric-system-only-modelling">Electric system only modelling</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carriers-electricity">Carriers (electricity)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id-el"><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-electric">Edges (electric)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#carrier-el"><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-electric-only">Devices (electric only)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersource"><code class="docutils literal notranslate"><span class="pre">powersource</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersink"><code class="docutils literal notranslate"><span class="pre">powersink</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-el"><code class="docutils literal notranslate"><span class="pre">storage_el</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-energy-system-modelling">Multi-energy system modelling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#general-parameters-parameters">General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#time-series-profiles-profiles">Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)</a></li>
 </ul>
             </nav>
         </div>
@@ -398,18 +369,15 @@ document.write(`
 <h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><a class="reference internal" href="#introduction">Introduction</a></p></li>
-<li><p><a class="reference internal" href="#data">Data</a></p>
+<li><p><a class="reference internal" href="#general-parameters-parameters">General parameters</a></p></li>
+<li><p><a class="reference internal" href="#time-series-profiles-profiles">Timeseries profiles</a></p></li>
+<li><p>Other data:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#general-parameters-parameters"><span class="xref myst">General parameters</span></a></p></li>
-<li><p><a class="reference internal" href="#time-series-profiles-profiles"><span class="xref myst">Timeseries profiles</span></a></p></li>
-<li><p><a class="reference internal" href="#energy-carriers-carriers"><span class="xref myst">Energy carriers</span></a></p></li>
-<li><p><a class="reference internal" href="#network-nodes-nodes"><span class="xref myst">Nodes</span></a></p></li>
-<li><p><a class="reference internal" href="#network-edges-edges"><span class="xref myst">Edges</span></a></p></li>
-<li><p><a class="reference internal" href="#devices-devices"><span class="xref myst">Devices</span></a></p></li>
+<li><p><a class="reference internal" href="input_data_carriers.html"><span class="std std-doc">Energy carriers</span></a></p></li>
+<li><p><a class="reference internal" href="input_data_networks.html"><span class="std std-doc">Networks</span></a> (nodes, edges)</p></li>
+<li><p><a class="reference internal" href="input_data_devices.html"><span class="std std-doc">Devices</span></a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#electric-system-only-modelling">Electric system only modelling</a></p></li>
-<li><p><a class="reference internal" href="#multi-energy-system-modelling">Multi-energy system modelling</a></p></li>
 </ol>
 </section>
 <section id="introduction">
@@ -449,10 +417,8 @@ topology) and parameters for each element.</p>
 </div>
 <p>The notation <code class="docutils literal notranslate"><span class="pre">&lt;param&gt;:</span> <span class="pre">&lt;value&gt;</span></code> above indicates a set of parameter-value pairs. The relevant parameters are described in the following:</p>
 </section>
-<section id="data">
-<h2>Data<a class="headerlink" href="#data" title="Link to this heading">#</a></h2>
 <section id="general-parameters-parameters">
-<h3>General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)<a class="headerlink" href="#general-parameters-parameters" title="Link to this heading">#</a></h3>
+<h2>General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)<a class="headerlink" href="#general-parameters-parameters" title="Link to this heading">#</a></h2>
 <table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
@@ -501,7 +467,7 @@ topology) and parameters for each element.</p>
 </table>
 </section>
 <section id="time-series-profiles-profiles">
-<h3>Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)<a class="headerlink" href="#time-series-profiles-profiles" title="Link to this heading">#</a></h3>
+<h2>Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)<a class="headerlink" href="#time-series-profiles-profiles" title="Link to this heading">#</a></h2>
 <p>Multiple time-series profiles can be specified. For each profile there are two separate time-series: One representing forecasted values for planning ahead, and one representing the “nowcast” or an updated forecast relevant for the near-real-time decisions.</p>
 <p>Note that the actual real-time values (e.g. of power demand or of available wind power) is not used in the simulation, as it only concerns up to near real-time operational planning. To address real-time deviations and balancing, reserve power and backup capacity is required.</p>
 <p>Profiles may be specified in the YAML file as indicated above, or they may be read from separate files.</p>
@@ -516,355 +482,7 @@ That means you can choose where to put the units:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">flow_max</span> <span class="pre">=</span> <span class="pre">1</span></code> and the profile is given in absolute units (e.g. MW)</p></li>
 </ul>
 <p>All examples use the first alternative.</p>
-</section>
 <hr class="docutils" />
-<section id="energy-carriers-carriers">
-<h3>Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#energy-carriers-carriers" title="Link to this heading">#</a></h3>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>id</p></td>
-<td><p>string</p></td>
-<td><p>carrier type (el, heat, hydrogen, gas, oil, water, wellstream)</p></td>
-</tr>
-</tbody>
-</table>
-<p>Other data differs for the different carrier types.</p>
-</section>
-<section id="network-nodes-nodes">
-<h3>Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)<a class="headerlink" href="#network-nodes-nodes" title="Link to this heading">#</a></h3>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>id</p></td>
-<td><p>string</p></td>
-<td><p>unique node identifier</p></td>
-</tr>
-</tbody>
-</table>
-<p>(No additional data needed)</p>
-</section>
-<section id="network-edges-edges">
-<h3>Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)<a class="headerlink" href="#network-edges-edges" title="Link to this heading">#</a></h3>
-<p>This consists a set of edges with a set of parameters for each edge
-that depends on the edge type. These are as follows.</p>
-<p>Common parameters for all edges:</p>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>id</p></td>
-<td><p>string</p></td>
-<td><p>unique edge identifier</p></td>
-</tr>
-<tr class="row-odd"><td><p>carrier</p></td>
-<td><p>string</p></td>
-<td><p>edge carrier type (el, heat, gas, oil, wellstream, water, hydrogen)</p></td>
-</tr>
-<tr class="row-even"><td><p>node_from</p></td>
-<td><p>string</p></td>
-<td><p>identifier of “from” node</p></td>
-</tr>
-<tr class="row-odd"><td><p>node_to</p></td>
-<td><p>string</p></td>
-<td><p>identifier of “from” node</p></td>
-</tr>
-<tr class="row-even"><td><p>include</p></td>
-<td><p>int</p></td>
-<td><p>wheter to include edge or not (1=yes, 0=no)</p></td>
-</tr>
-<tr class="row-odd"><td><p>length_km</p></td>
-<td><p>float</p></td>
-<td><p>distance (km)</p></td>
-</tr>
-<tr class="row-even"><td><p>flow_max</p></td>
-<td><p>float</p></td>
-<td><p>(optional) maximum power flow allowed (MW or Sm3/s)</p></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="devices-devices">
-<h3>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Link to this heading">#</a></h3>
-<p>This consists a set of devices with a set of parameters for each device
-that depends on the device type.</p>
-<p>Common parameters for all device types:</p>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>default</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>id</p></td>
-<td><p>string</p></td>
-<td><p></p></td>
-<td><p>unique device identifier</p></td>
-</tr>
-<tr class="row-odd"><td><p>node_id</p></td>
-<td><p>string</p></td>
-<td><p></p></td>
-<td><p>identifier of node where it is connected</p></td>
-</tr>
-<tr class="row-even"><td><p>name</p></td>
-<td><p>string</p></td>
-<td><p>“”</p></td>
-<td><p>display name</p></td>
-</tr>
-<tr class="row-odd"><td><p>model</p></td>
-<td><p>string</p></td>
-<td><p></p></td>
-<td><p>name of device model type (see below)</p></td>
-</tr>
-<tr class="row-even"><td><p>include</p></td>
-<td><p>bool</p></td>
-<td><p>True</p></td>
-<td><p>wether to include the node</p></td>
-</tr>
-<tr class="row-odd"><td><p>profile</p></td>
-<td><p>string</p></td>
-<td><p>None</p></td>
-<td><p>name of time series profile to use for scaling  (flow_max)</p></td>
-</tr>
-<tr class="row-even"><td><p>flow_max</p></td>
-<td><p>float</p></td>
-<td><p>None</p></td>
-<td><p>maximum flow allowed (MW or Sm3/s)</p></td>
-</tr>
-<tr class="row-odd"><td><p>flow_min</p></td>
-<td><p>float</p></td>
-<td><p>None</p></td>
-<td><p>minimum flow allowed (MW or Sm3/s)</p></td>
-</tr>
-<tr class="row-even"><td><p>max_ramp_up</p></td>
-<td><p>float</p></td>
-<td><p>None</p></td>
-<td><p>maximum ramping (% of flow_max per min)</p></td>
-</tr>
-<tr class="row-odd"><td><p>max_ramp_down</p></td>
-<td><p>float</p></td>
-<td><p>None</p></td>
-<td><p>maximum ramping (% of flow_max per min)</p></td>
-</tr>
-<tr class="row-even"><td><p>start_stop</p></td>
-<td><p>StartStopData</p></td>
-<td><p>None</p></td>
-<td><p>see below</p></td>
-</tr>
-<tr class="row-odd"><td><p>reserve_factor</p></td>
-<td><p>float</p></td>
-<td><p>None</p></td>
-<td><p>how much of electric power counts towards the reserve (1=all, 0=none)</p></td>
-</tr>
-<tr class="row-even"><td><p>op_cost</p></td>
-<td><p>float</p></td>
-<td><p>None</p></td>
-<td><p>Operating cost</p></td>
-</tr>
-<tr class="row-odd"><td><p>penalty_function</p></td>
-<td><p>tuple</p></td>
-<td><p>None</p></td>
-<td><p>flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
-</tr>
-</tbody>
-</table>
-<p>In addition to these parameters there are parameters that depend on the device <em>model</em>.  These are specified further down.</p>
-<section id="start-and-stop-data-startstopdata">
-<h4>Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)<a class="headerlink" href="#start-and-stop-data-startstopdata" title="Link to this heading">#</a></h4>
-<p>Start-stop data may be provided if the device is modelled with start/stop constraints and or penalties.</p>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>default</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>is_on_init</p></td>
-<td><p>bool</p></td>
-<td><p>False</p></td>
-<td><p>device is initially on (True) or off (False)</p></td>
-</tr>
-<tr class="row-odd"><td><p>penalty_start</p></td>
-<td><p>float</p></td>
-<td><p>0</p></td>
-<td><p>startup penalty (cost)</p></td>
-</tr>
-<tr class="row-even"><td><p>penalty_stop</p></td>
-<td><p>float</p></td>
-<td><p>0</p></td>
-<td><p>shutdown penalty (cost)</p></td>
-</tr>
-<tr class="row-odd"><td><p>delay_start_minutes</p></td>
-<td><p>int</p></td>
-<td><p>0</p></td>
-<td><p>minutes delay from activation to being online</p></td>
-</tr>
-<tr class="row-even"><td><p>minimum_time_on_minutes</p></td>
-<td><p>int</p></td>
-<td><p>0</p></td>
-<td><p>time device must be on once started (min)</p></td>
-</tr>
-<tr class="row-odd"><td><p>minimum_time_off_minutes</p></td>
-<td><p>int</p></td>
-<td><p>0</p></td>
-<td><p>time device must be off once stopped (min)</p></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-</section>
-<section id="electric-system-only-modelling">
-<h2>Electric system only modelling<a class="headerlink" href="#electric-system-only-modelling" title="Link to this heading">#</a></h2>
-<p>A common use case is to use Oogeso to model only the electricity network. Additional input data needed in this case is shown below.</p>
-<section id="carriers-electricity">
-<h3>Carriers (electricity)<a class="headerlink" href="#carriers-electricity" title="Link to this heading">#</a></h3>
-<section id="id-el">
-<h4><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code><a class="headerlink" href="#id-el" title="Link to this heading">#</a></h4>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>powerflow_method</p></td>
-<td><p>str</p></td>
-<td><p>“transport”  or “dc_pf”</p></td>
-</tr>
-<tr class="row-odd"><td><p>reference_node</p></td>
-<td><p>str</p></td>
-<td><p>id of node used as reference for voltage angles (with dc_pf method)</p></td>
-</tr>
-<tr class="row-even"><td><p>el_reserve_margin</p></td>
-<td><p>float</p></td>
-<td><p>required globally spinning reserve (MW).</p></td>
-</tr>
-<tr class="row-odd"><td><p>el_backup_margin</p></td>
-<td><p>float</p></td>
-<td><p>(optional) required backup margin in case of genertor failure (MW)</p></td>
-</tr>
-<tr class="row-even"><td><p>reserve_storage_minutes</p></td>
-<td><p>int</p></td>
-<td><p>how long (minutes) stored energy must be sustained to count as reserve</p></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="edges-electric">
-<h3>Edges (electric)<a class="headerlink" href="#edges-electric" title="Link to this heading">#</a></h3>
-<p>The table below shows the electricity line parameters, used in addition to the <a class="reference internal" href="#network-edges-edges"><span class="xref myst">generic edge parameters</span></a>.</p>
-<section id="carrier-el">
-<h4><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code><a class="headerlink" href="#carrier-el" title="Link to this heading">#</a></h4>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>reactance</p></td>
-<td><p>float</p></td>
-<td><p>reactance (ohm/km) (used only with method “dc_pf”)</p></td>
-</tr>
-<tr class="row-odd"><td><p>resistance</p></td>
-<td><p>float</p></td>
-<td><p>resistance (ohm/km) (used only with method “dc_pf”)</p></td>
-</tr>
-<tr class="row-even"><td><p>voltage</p></td>
-<td><p>float</p></td>
-<td><p>voltage (kV) of line (single value) or transformer (tuple) (used only with method “dc_pf”)</p></td>
-</tr>
-<tr class="row-odd"><td><p>power_loss_function</p></td>
-<td><p>tuple</p></td>
-<td><p>(optional) piecewise linear function/table of power transfer (MW) vs loss (MW). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
-</tr>
-</tbody>
-</table>
-<p>Note that for the (default) “transport” electricity power flow method, only the optional power_loss_function is relevant.</p>
-</section>
-</section>
-<section id="devices-electric-only">
-<h3>Devices (electric only)<a class="headerlink" href="#devices-electric-only" title="Link to this heading">#</a></h3>
-<p>The table below shows device models used with electric only modelling, and their additional parameters. These are specified in addition to the <a class="reference internal" href="#devices-devices"><span class="xref myst">generic device parameters</span></a>.</p>
-<section id="powersource">
-<h4><code class="docutils literal notranslate"><span class="pre">powersource</span></code><a class="headerlink" href="#powersource" title="Link to this heading">#</a></h4>
-<p>No extra data</p>
-</section>
-<section id="powersink">
-<h4><code class="docutils literal notranslate"><span class="pre">powersink</span></code><a class="headerlink" href="#powersink" title="Link to this heading">#</a></h4>
-<p>No extra data</p>
-</section>
-<section id="storage-el">
-<h4><code class="docutils literal notranslate"><span class="pre">storage_el</span></code><a class="headerlink" href="#storage-el" title="Link to this heading">#</a></h4>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>E_max</p></td>
-<td><p>float</p></td>
-<td><p>Energy capacity (MWh)</p></td>
-</tr>
-<tr class="row-odd"><td><p>E_min</p></td>
-<td><p>float</p></td>
-<td><p>Energy capacity (MWh)</p></td>
-</tr>
-<tr class="row-even"><td><p>E_init</p></td>
-<td><p>float</p></td>
-<td><p>Storage level initially (MWh)</p></td>
-</tr>
-<tr class="row-odd"><td><p>E_end</p></td>
-<td><p>float</p></td>
-<td><p>(optional) Required storage level at end of each  optimisation (MWh)</p></td>
-</tr>
-<tr class="row-even"><td><p>E_cost</p></td>
-<td><p>float</p></td>
-<td><p>Cost for deviation from target storage</p></td>
-</tr>
-<tr class="row-odd"><td><p>eta</p></td>
-<td><p>float</p></td>
-<td><p>Round-trip charge/discharge efficiency</p></td>
-</tr>
-<tr class="row-even"><td><p>target_profile</p></td>
-<td><p>string</p></td>
-<td><p>(optional) name of profile used for desired storage filling level</p></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-</section>
-<section id="multi-energy-system-modelling">
-<h2>Multi-energy system modelling<a class="headerlink" href="#multi-energy-system-modelling" title="Link to this heading">#</a></h2>
-<p>Additional edge data and device data used with multi-energy modelling is provided here:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="input_data_multienergy.html"><span class="std std-doc">Read more</span></a></p></li>
-</ul>
 </section>
 </section>
 
@@ -889,11 +507,11 @@ that depends on the device type.</p>
       </div>
     </a>
     <a class="right-next"
-       href="input_data_multienergy.html"
+       href="output_data.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Extra input data with multi-energy modelling</p>
+        <p class="prev-next-title">Output data</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -914,36 +532,8 @@ that depends on the device type.</p>
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data">Data</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#general-parameters-parameters">General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#time-series-profiles-profiles">Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-nodes-nodes">Network nodes (<code class="docutils literal notranslate"><span class="pre">nodes</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#network-edges-edges">Network edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#electric-system-only-modelling">Electric system only modelling</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carriers-electricity">Carriers (electricity)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id-el"><code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">el</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-electric">Edges (electric)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#carrier-el"><code class="docutils literal notranslate"><span class="pre">carrier:</span> <span class="pre">el</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-electric-only">Devices (electric only)</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersource"><code class="docutils literal notranslate"><span class="pre">powersource</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#powersink"><code class="docutils literal notranslate"><span class="pre">powersink</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-el"><code class="docutils literal notranslate"><span class="pre">storage_el</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-energy-system-modelling">Multi-energy system modelling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#general-parameters-parameters">General parameters (<code class="docutils literal notranslate"><span class="pre">parameters</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#time-series-profiles-profiles">Time-series profiles (<code class="docutils literal notranslate"><span class="pre">profiles</span></code>)</a></li>
 </ul>
   </nav></div>
 

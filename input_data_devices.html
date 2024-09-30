@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Extra input data with multi-energy modelling &#8212; Oogeso Docs</title>
+    <title>Devices (devices) &#8212; Oogeso Docs</title>
   
   
   
@@ -40,12 +40,10 @@
     <script src="_static/doctools.js?v=888ff710"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'input_data_multienergy';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'input_data_devices';</script>
     <link rel="icon" href="_static/logo_oogeso.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Output data" href="output_data.html" />
-    <link rel="prev" title="Input data" href="input_data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -170,9 +168,8 @@
 <li class="toctree-l1"><a class="reference internal" href="index.html">User Guide</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Input Data</span></p>
-<ul class="current nav bd-sidenav">
+<ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="input_data.html">Input data</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Extra input data with multi-energy modelling</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Output</span></p>
 <ul class="nav bd-sidenav">
@@ -226,7 +223,7 @@
 <div class="article-header-buttons">
 
 
-<a href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data_multienergy.md" target="_blank"
+<a href="https://github.com/oogeso/oogeso/edit/master/docs.yml/input_data_devices.md" target="_blank"
    class="btn btn-sm btn-source-edit-button"
    title="Suggest edit"
    data-bs-placement="bottom" data-bs-toggle="tooltip"
@@ -252,7 +249,7 @@
       
       
       
-      <li><a href="_sources/input_data_multienergy.md" target="_blank"
+      <li><a href="_sources/input_data_devices.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -336,7 +333,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Extra input data with multi-energy modelling</h1>
+    <h1>Devices (devices)</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -346,19 +343,15 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-co2"><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-common-for-all-types">Data common for all types</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-edges">Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen-carbon"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen,</span> <span class="pre">carbon</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas-oil-water"><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-specific-for-each-type">Data specific for each type</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#powersource"><code class="docutils literal notranslate"><span class="pre">powersource</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#powersink"><code class="docutils literal notranslate"><span class="pre">powersink</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-el"><code class="docutils literal notranslate"><span class="pre">storage_el</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gasturbine"><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-el"><code class="docutils literal notranslate"><span class="pre">source_el</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-el-sink-heat-sink-water"><code class="docutils literal notranslate"><span class="pre">sink_el,</span> <span class="pre">sink_heat,</span> <span class="pre">sink_water</span></code></a></li>
@@ -370,6 +363,8 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-capture"><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-hydrogen"><code class="docutils literal notranslate"><span class="pre">storage_hydrogen</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-gas-linepack"><code class="docutils literal notranslate"><span class="pre">storage_gas_linepack</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -383,95 +378,161 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article" role="main">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="extra-input-data-with-multi-energy-modelling">
-<h1>Extra input data with multi-energy modelling<a class="headerlink" href="#extra-input-data-with-multi-energy-modelling" title="Link to this heading">#</a></h1>
-<p>This page summarises input data used with multi-energy moddeling with Oogeso. This data is in addition to the data described in</p>
-<section id="energy-carriers-carriers">
-<h2>Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)<a class="headerlink" href="#energy-carriers-carriers" title="Link to this heading">#</a></h2>
-<section id="heat-hydrogen">
-<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code><a class="headerlink" href="#heat-hydrogen" title="Link to this heading">#</a></h3>
-<p>No additional data required</p>
-</section>
-<section id="oil-water-wellstream">
-<h3><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code><a class="headerlink" href="#oil-water-wellstream" title="Link to this heading">#</a></h3>
+  <section class="tex2jax_ignore mathjax_ignore" id="devices-devices">
+<h1>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Link to this heading">#</a></h1>
+<p>User guide: <a class="reference internal" href="index.html"><span class="std std-doc">Home</span></a> / <a class="reference internal" href="input_data.html"><span class="std std-doc">input data</span></a></p>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="#data-common-for-all-types"><span class="xref myst">Data common for all types</span></a></p></li>
+<li><p><a class="reference internal" href="#data-specific-for-each-type"><span class="xref myst">Data specific for each type</span></a></p></li>
+</ul>
+<section id="data-common-for-all-types">
+<h3>Data common for all types<a class="headerlink" href="#data-common-for-all-types" title="Link to this heading">#</a></h3>
+<p>This consists a set of devices with a set of parameters for each device
+that depends on the device type.</p>
+<p>Common parameters for all device types:</p>
 <table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
 <th class="head"><p>type</p></th>
+<th class="head"><p>default</p></th>
 <th class="head"><p>description</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>darcy_friction</p></td>
-<td><p>float</p></td>
-<td><p>Darcy friction factor</p></td>
-</tr>
-<tr class="row-odd"><td><p>pressure_method</p></td>
+<tr class="row-even"><td><p>id</p></td>
 <td><p>string</p></td>
-<td><p>method for pressure drop calculation (darcy-weissbach/weymouth)</p></td>
+<td><p></p></td>
+<td><p>unique device identifier</p></td>
 </tr>
-<tr class="row-even"><td><p>rho_density</p></td>
-<td><p>float</p></td>
-<td><p>density (kg/m3)</p></td>
-</tr>
-<tr class="row-odd"><td><p>viscosity</p></td>
-<td><p>float</p></td>
-<td><p>viscosity (kg/(m s))</p></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="gas">
-<h3><code class="docutils literal notranslate"><span class="pre">gas</span></code><a class="headerlink" href="#gas" title="Link to this heading">#</a></h3>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>co2_content</p></td>
-<td><p>float</p></td>
-<td><p>amount of CO2 per volume (kg/Sm3)</p></td>
-</tr>
-<tr class="row-odd"><td><p>Pb_basepressure_MPa</p></td>
-<td><p>float</p></td>
-<td><p>base pressure (MPa) (1 atm=0.101 MPa)</p></td>
-</tr>
-<tr class="row-even"><td><p>Tb_basetemp_K</p></td>
-<td><p>float</p></td>
-<td><p>base temperature (K) (15 degC=288 K)</p></td>
-</tr>
-<tr class="row-odd"><td><p>R_individual_gas_constant</p></td>
-<td><p>float</p></td>
-<td><p>individual gas constant (J/(kg K))</p></td>
-</tr>
-<tr class="row-even"><td><p>Z_compressibility</p></td>
-<td><p>float</p></td>
-<td><p>gas compressibility</p></td>
-</tr>
-<tr class="row-odd"><td><p>energy_value</p></td>
-<td><p>float</p></td>
-<td><p>energy content, calorific value (MJ/Sm3)</p></td>
-</tr>
-<tr class="row-even"><td><p>k_heat_capacity_ratio</p></td>
-<td><p>float</p></td>
-<td><p>heat capacity ratio</p></td>
-</tr>
-<tr class="row-odd"><td><p>pressure_method</p></td>
+<tr class="row-odd"><td><p>node_id</p></td>
 <td><p>string</p></td>
-<td><p>method used co compute pressure drop in pipe (weymouth/darcy-weissbach)</p></td>
+<td><p></p></td>
+<td><p>identifier of node where it is connected</p></td>
 </tr>
-<tr class="row-even"><td><p>rho_density</p></td>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>string</p></td>
+<td><p>“”</p></td>
+<td><p>display name</p></td>
+</tr>
+<tr class="row-odd"><td><p>model</p></td>
+<td><p>string</p></td>
+<td><p></p></td>
+<td><p>name of device model type (see below)</p></td>
+</tr>
+<tr class="row-even"><td><p>include</p></td>
+<td><p>bool</p></td>
+<td><p>True</p></td>
+<td><p>wether to include the node</p></td>
+</tr>
+<tr class="row-odd"><td><p>profile</p></td>
+<td><p>string</p></td>
+<td><p>None</p></td>
+<td><p>name of time series profile to use for scaling  (flow_max)</p></td>
+</tr>
+<tr class="row-even"><td><p>flow_max</p></td>
 <td><p>float</p></td>
-<td><p>density (kg/Sm3)</p></td>
+<td><p>None</p></td>
+<td><p>maximum flow allowed (MW or Sm3/s)</p></td>
+</tr>
+<tr class="row-odd"><td><p>flow_min</p></td>
+<td><p>float</p></td>
+<td><p>None</p></td>
+<td><p>minimum flow allowed (MW or Sm3/s)</p></td>
+</tr>
+<tr class="row-even"><td><p>max_ramp_up</p></td>
+<td><p>float</p></td>
+<td><p>None</p></td>
+<td><p>maximum ramping (% of flow_max per min)</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_ramp_down</p></td>
+<td><p>float</p></td>
+<td><p>None</p></td>
+<td><p>maximum ramping (% of flow_max per min)</p></td>
+</tr>
+<tr class="row-even"><td><p>start_stop</p></td>
+<td><p>StartStopData</p></td>
+<td><p>None</p></td>
+<td><p>see below</p></td>
+</tr>
+<tr class="row-odd"><td><p>reserve_factor</p></td>
+<td><p>float</p></td>
+<td><p>None</p></td>
+<td><p>how much of electric power counts towards the reserve (1=all, 0=none)</p></td>
+</tr>
+<tr class="row-even"><td><p>op_cost</p></td>
+<td><p>float</p></td>
+<td><p>None</p></td>
+<td><p>Operating cost</p></td>
+</tr>
+<tr class="row-odd"><td><p>penalty_function</p></td>
+<td><p>tuple</p></td>
+<td><p>None</p></td>
+<td><p>flow vs penalty function (piecewise linear). A tuple containing a list of x values and a list of y values <code class="docutils literal notranslate"><span class="pre">([x1,x2,..],[y1,y2,...])</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>In addition to these parameters there are parameters that depend on the device <em>model</em>.  These are specified further down.</p>
+<section id="start-and-stop-data-startstopdata">
+<h4>Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)<a class="headerlink" href="#start-and-stop-data-startstopdata" title="Link to this heading">#</a></h4>
+<p>Start-stop data may be provided if the device is modelled with start/stop constraints and or penalties.</p>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>default</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>is_on_init</p></td>
+<td><p>bool</p></td>
+<td><p>False</p></td>
+<td><p>device is initially on (True) or off (False)</p></td>
+</tr>
+<tr class="row-odd"><td><p>penalty_start</p></td>
+<td><p>float</p></td>
+<td><p>0</p></td>
+<td><p>startup penalty (cost)</p></td>
+</tr>
+<tr class="row-even"><td><p>penalty_stop</p></td>
+<td><p>float</p></td>
+<td><p>0</p></td>
+<td><p>shutdown penalty (cost)</p></td>
+</tr>
+<tr class="row-odd"><td><p>delay_start_minutes</p></td>
+<td><p>int</p></td>
+<td><p>0</p></td>
+<td><p>minutes delay from activation to being online</p></td>
+</tr>
+<tr class="row-even"><td><p>minimum_time_on_minutes</p></td>
+<td><p>int</p></td>
+<td><p>0</p></td>
+<td><p>time device must be on once started (min)</p></td>
+</tr>
+<tr class="row-odd"><td><p>minimum_time_off_minutes</p></td>
+<td><p>int</p></td>
+<td><p>0</p></td>
+<td><p>time device must be off once stopped (min)</p></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="carbon-co2">
-<h3><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)<a class="headerlink" href="#carbon-co2" title="Link to this heading">#</a></h3>
+</section>
+<section id="data-specific-for-each-type">
+<h3>Data specific for each type<a class="headerlink" href="#data-specific-for-each-type" title="Link to this heading">#</a></h3>
+</section>
+<section id="powersource">
+<h3><code class="docutils literal notranslate"><span class="pre">powersource</span></code><a class="headerlink" href="#powersource" title="Link to this heading">#</a></h3>
+<p>No extra data</p>
+</section>
+<section id="powersink">
+<h3><code class="docutils literal notranslate"><span class="pre">powersink</span></code><a class="headerlink" href="#powersink" title="Link to this heading">#</a></h3>
+<p>No extra data</p>
+</section>
+<section id="storage-el">
+<h3><code class="docutils literal notranslate"><span class="pre">storage_el</span></code><a class="headerlink" href="#storage-el" title="Link to this heading">#</a></h3>
 <table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>parameter</p></th>
@@ -480,67 +541,37 @@ document.write(`
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>R_individual_gas_constant</p></td>
+<tr class="row-even"><td><p>E_max</p></td>
 <td><p>float</p></td>
-<td><p>individual gas constant (J/(kg K))</p></td>
+<td><p>Energy capacity (MWh)</p></td>
 </tr>
-<tr class="row-odd"><td><p>Z_compressibility</p></td>
+<tr class="row-odd"><td><p>E_min</p></td>
 <td><p>float</p></td>
-<td><p>gas compressibility</p></td>
+<td><p>Energy capacity (MWh)</p></td>
 </tr>
-<tr class="row-even"><td><p>k_heat_capacity_ratio</p></td>
+<tr class="row-even"><td><p>E_init</p></td>
 <td><p>float</p></td>
-<td><p>heat capacity ratio</p></td>
+<td><p>Storage level initially (MWh)</p></td>
+</tr>
+<tr class="row-odd"><td><p>E_end</p></td>
+<td><p>float</p></td>
+<td><p>(optional) Required storage level at end of each  optimisation (MWh)</p></td>
+</tr>
+<tr class="row-even"><td><p>E_cost</p></td>
+<td><p>float</p></td>
+<td><p>Cost for deviation from target storage</p></td>
+</tr>
+<tr class="row-odd"><td><p>eta</p></td>
+<td><p>float</p></td>
+<td><p>Round-trip charge/discharge efficiency</p></td>
+</tr>
+<tr class="row-even"><td><p>target_profile</p></td>
+<td><p>string</p></td>
+<td><p>(optional) name of profile used for desired storage filling level</p></td>
 </tr>
 </tbody>
 </table>
 </section>
-</section>
-<section id="edges-edges">
-<h2>Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)<a class="headerlink" href="#edges-edges" title="Link to this heading">#</a></h2>
-<p>These tables shows edgeparameters used in addition to the <a class="reference internal" href="input_data.html#network-edges-edges"><span class="std std-ref">generic edge parameters</span></a>.</p>
-<p>Additional edge data specific to edge type:</p>
-<section id="heat-hydrogen-carbon">
-<h3><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen,</span> <span class="pre">carbon</span></code><a class="headerlink" href="#heat-hydrogen-carbon" title="Link to this heading">#</a></h3>
-<p>No additional data used.</p>
-</section>
-<section id="gas-oil-water">
-<h3><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code><a class="headerlink" href="#gas-oil-water" title="Link to this heading">#</a></h3>
-<table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>parameter</p></th>
-<th class="head"><p>type</p></th>
-<th class="head"><p>description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>height_m</p></td>
-<td><p>float</p></td>
-<td><p>height difference (metres) endpoint vs startpoint</p></td>
-</tr>
-<tr class="row-odd"><td><p>pressure.from</p></td>
-<td><p>float</p></td>
-<td><p>nominal pressure (MPa) at start point (required if it is not given by device parameter)</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference external" href="http://pressure.to">pressure.to</a></p></td>
-<td><p>float</p></td>
-<td><p>nominal pressure (MPa) at start point (required if it is not given by device parameter)</p></td>
-</tr>
-<tr class="row-odd"><td><p>diameter_mm</p></td>
-<td><p>float</p></td>
-<td><p>pipe internal diameter (mm)</p></td>
-</tr>
-<tr class="row-even"><td><p>temperature_K</p></td>
-<td><p>float</p></td>
-<td><p>fluid temperature (K)</p></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="devices-devices">
-<h2>Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)<a class="headerlink" href="#devices-devices" title="Link to this heading">#</a></h2>
-<p>These tables shows additional devices and device parameters used in addition to the <a class="reference internal" href="input_data.html#devices-devices"><span class="std std-ref">generic device parameters</span></a> in multi-energy modelling.</p>
 <section id="gasturbine">
 <h3><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code><a class="headerlink" href="#gasturbine" title="Link to this heading">#</a></h3>
 <table class="table">
@@ -792,6 +823,65 @@ document.write(`
 </tbody>
 </table>
 </section>
+<section id="storage-hydrogen">
+<h3><code class="docutils literal notranslate"><span class="pre">storage_hydrogen</span></code><a class="headerlink" href="#storage-hydrogen" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>E_max</p></td>
+<td><p>float</p></td>
+<td><p>Energy capacity (MWh)</p></td>
+</tr>
+<tr class="row-odd"><td><p>E_min</p></td>
+<td><p>float</p></td>
+<td><p>Energy capacity (MWh)</p></td>
+</tr>
+<tr class="row-even"><td><p>E_init</p></td>
+<td><p>float</p></td>
+<td><p>Storage level initially (MWh)</p></td>
+</tr>
+<tr class="row-odd"><td><p>E_cost</p></td>
+<td><p>float</p></td>
+<td><p>Cost for deviation from target storage</p></td>
+</tr>
+<tr class="row-even"><td><p>eta</p></td>
+<td><p>float</p></td>
+<td><p>Round-trip charge/discharge efficiency</p></td>
+</tr>
+<tr class="row-odd"><td><p>target_profile</p></td>
+<td><p>string</p></td>
+<td><p>(optional) name of profile used for desired storage filling level</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="storage-gas-linepack">
+<h3><code class="docutils literal notranslate"><span class="pre">storage_gas_linepack</span></code><a class="headerlink" href="#storage-gas-linepack" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>E_init</p></td>
+<td><p>float</p></td>
+<td><p>Storage level initially (Sm3)</p></td>
+</tr>
+<tr class="row-odd"><td><p>volume_m3</p></td>
+<td><p>float</p></td>
+<td><p>Volume of pipeline</p></td>
+</tr>
+</tbody>
+</table>
+<p>Maximum storage can be specified by setting pressure limits on associated terminals (done via edge parameters)</p>
+</section>
 </section>
 </section>
 
@@ -806,24 +896,6 @@ document.write(`
                 <footer class="prev-next-footer">
                   
 <div class="prev-next-area">
-    <a class="left-prev"
-       href="input_data.html"
-       title="previous page">
-      <i class="fa-solid fa-angle-left"></i>
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Input data</p>
-      </div>
-    </a>
-    <a class="right-next"
-       href="output_data.html"
-       title="next page">
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Output data</p>
-      </div>
-      <i class="fa-solid fa-angle-right"></i>
-    </a>
 </div>
                 </footer>
               
@@ -839,19 +911,15 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-carriers-carriers">Energy carriers (<code class="docutils literal notranslate"><span class="pre">carriers</span></code>)</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#oil-water-wellstream"><code class="docutils literal notranslate"><span class="pre">oil,</span> <span class="pre">water,</span> <span class="pre">wellstream</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas"><code class="docutils literal notranslate"><span class="pre">gas</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-co2"><code class="docutils literal notranslate"><span class="pre">carbon</span></code> (CO2)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-common-for-all-types">Data common for all types</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#start-and-stop-data-startstopdata">Start and stop data (<code class="docutils literal notranslate"><span class="pre">StartStopData</span></code>)</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#edges-edges">Edges (<code class="docutils literal notranslate"><span class="pre">edges</span></code>)</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#heat-hydrogen-carbon"><code class="docutils literal notranslate"><span class="pre">heat,</span> <span class="pre">hydrogen,</span> <span class="pre">carbon</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gas-oil-water"><code class="docutils literal notranslate"><span class="pre">gas,</span> <span class="pre">oil,</span> <span class="pre">water</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#devices-devices">Devices (<code class="docutils literal notranslate"><span class="pre">devices</span></code>)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-specific-for-each-type">Data specific for each type</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#powersource"><code class="docutils literal notranslate"><span class="pre">powersource</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#powersink"><code class="docutils literal notranslate"><span class="pre">powersink</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-el"><code class="docutils literal notranslate"><span class="pre">storage_el</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#gasturbine"><code class="docutils literal notranslate"><span class="pre">gasturbine</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-el"><code class="docutils literal notranslate"><span class="pre">source_el</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-el-sink-heat-sink-water"><code class="docutils literal notranslate"><span class="pre">sink_el,</span> <span class="pre">sink_heat,</span> <span class="pre">sink_water</span></code></a></li>
@@ -863,6 +931,8 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-capture"><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-hydrogen"><code class="docutils literal notranslate"><span class="pre">storage_hydrogen</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-gas-linepack"><code class="docutils literal notranslate"><span class="pre">storage_gas_linepack</span></code></a></li>
 </ul>
 </li>
 </ul>
