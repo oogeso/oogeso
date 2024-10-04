@@ -27,79 +27,54 @@ class CarbonCapture(Device):
         self.carrier_data = carrier_data_dict
 
     @classmethod
-    def co2frac(cls, egr):
-        """The %CO2 is a function of the GT load and of the EGR rate selected.
-        In a first approximation we can make it only a function of the EGR with
-        a piecewise linear relationship:"""
-        # TODO: compare this with gas_co2_content - two parameters for the same thing?
-        # 3.3% if no recirculation.
-        # compare with default co2_content = 2.34 # kg_co2/Sm3_gas (SSB 2016 report)
-        if egr < 0.3:
-            y = (4.96 * egr + 3.3358) / 100
-        else:
-            y = (12.88 * egr + 0.7874) / 100
+    def required_heat(cls, flow_in_co2, ccr, specific_demand_MW_per_kgCO2):
+        # f_co2 = cls.co2frac(egr)
+        # y = flow_in_co2 * (1 - egr) * ccr * cls.specific_heat_demand(f_co2)
+        y = flow_in_co2 * ccr * specific_demand_MW_per_kgCO2
         return y
 
     @classmethod
-    def specific_heat_demand(cls, frac_co2):
-        y = 0
-        if frac_co2 < 0.0489:
-            y = -3.57 * frac_co2 + 4.1551
-        else:
-            y = -2.11 * frac_co2 + 4.0837
+    def required_electricity(self, flow_in_co2, ccr, specific_demand_MW_per_kgCO2):
+        # f_co2 = cls.co2frac(egr)
+        # y = flow_in_co2 * (1 - egr) * ccr * cls.specific_electricity_demand(f_co2)
+        y = flow_in_co2 * ccr * specific_demand_MW_per_kgCO2
         return y
 
     @classmethod
-    def specific_electricity_demand(cls, frac_co2):
-        y = 0
-        if frac_co2 < 0.0489:
-            y = 0.16 * frac_co2 + 0.0232
-        else:
-            y = 0.009 * frac_co2 + 0.0305
-        return y
-
-    @classmethod
-    def required_heat(cls, flow_in_co2, egr, ccr):
-        f_co2 = cls.co2frac(egr)
-        y = flow_in_co2 * (1 - egr) * ccr * cls.specific_heat_demand(f_co2)
-        return y
-
-    @classmethod
-    def required_electricity(cls, flow_in_co2, egr, ccr):
-        f_co2 = cls.co2frac(egr)
-        y = flow_in_co2 * (1 - egr) * ccr * cls.specific_electricity_demand(f_co2)
-        return y
-
-    def required_electricity_compressor(self, flow_in_co2):
+    def required_electricity_compressor(cls, flow_in_co2, energy_demand_MJ_per_kg):
         Q_kg_per_s = flow_in_co2  # kg/s
-        energy_demand_MJ_per_kg = self.dev_data.compressor_energy_demand  # MJ/kg
         P_MW = Q_kg_per_s * energy_demand_MJ_per_kg
         return P_MW
 
     def _rules_carbon_capture(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         ccr = self.dev_data.carbon_capture_rate  # 0-1
-        egr = self.dev_data.exhaust_gas_recirculation  # 0-0.6
+        ccs_el_demand = self.dev_data.capture_el_demand_MJ_per_kgCO2
+        ccs_heat_demand = self.dev_data.capture_heat_demand_MJ_per_kgCO2
+        compressor_el_demand = self.dev_data.compressor_el_demand_MJ_per_kgCO2
 
         co2_flow_in = model.varDeviceFlow[dev, "carbon", "in", t]  # kg/s
+        carbon_captured = co2_flow_in * ccr
 
         if i == 1:
             # heat consumption (heat in) is a linear function of carbon flow
             lhs = model.varDeviceFlow[dev, "heat", "in", t]
-            rhs = self.required_heat(co2_flow_in, egr=egr, ccr=ccr)
+            rhs = self.required_heat(co2_flow_in, ccr=ccr, specific_demand_MW_per_kgCO2=ccs_heat_demand)
             return lhs == rhs
         elif i == 2:
             # electricity consumption for carbon capture process and co2 compression
             lhs = model.varDeviceFlow[dev, "el", "in", t]
-            electricity_carbon_capture = self.required_electricity(co2_flow_in, egr=egr, ccr=ccr)
+            electricity_carbon_capture = self.required_electricity(
+                co2_flow_in, ccr=ccr, specific_demand_MW_per_kgCO2=ccs_el_demand
+            )
             # compression:
-            carbon_captured = co2_flow_in * (1 - egr) * ccr
-            electricity_compressor = self.required_electricity_compressor(carbon_captured)
+            carbon_captured = co2_flow_in * ccr
+            electricity_compressor = self.required_electricity_compressor(carbon_captured, compressor_el_demand)
             rhs = electricity_carbon_capture + electricity_compressor
             return lhs == rhs
         elif i == 3:
             # carbon emitted
-            co2_emitted = co2_flow_in * (1 - egr) * (1 - ccr)
+            co2_emitted = co2_flow_in * (1 - ccr)
             lhs = model.varDeviceFlow[dev, "carbon", "out", t]
             rhs = co2_emitted
             return lhs == rhs

@@ -3,7 +3,7 @@ from .compressor import CompressorEl, CompressorGas
 from .electrolyser import Electrolyser
 from .fuelcell import FuelCell
 from .gasheater import GasHeater
-from .gasturbine import GasTurbine
+from .gasturbine import GasTurbine, SteamCycle
 from .heatpump import HeatPump
 from .pump import PumpOil, PumpWater, PumpWellStream
 from .separator import Separator, Separator2

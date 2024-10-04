@@ -119,6 +119,7 @@ class DeviceGasTurbineData(DeviceData):
     eta_heat: float = None
     hydrogen_blend_max: float = 0
     hydrogen_blend_min: float = 0
+    exhaust_gas_recirculation: float = 0  # egr
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.GAS_TURBINE
 
@@ -185,6 +186,13 @@ class DeviceWellGasLiftData(DeviceData):
 
 class DeviceCarbonCaptureData(DeviceData):
     carbon_capture_rate: float = None  # ccr
-    exhaust_gas_recirculation: float = None  # egr
-    compressor_energy_demand: float = None  # MJ/kgCO2
+    capture_el_demand_MJ_per_kgCO2: float = None
+    capture_heat_demand_MJ_per_kgCO2: float = None
+    compressor_el_demand_MJ_per_kgCO2: float = None
     model: ModelType = ModelType.CARBON_CAPTURE
+
+
+class DeviceSteamCycleData(DeviceData):
+    exhaust_gas_recirculation: float = 0  # egr
+    alpha: float = None
+    model: ModelType = ModelType.STEAM_CYCLE

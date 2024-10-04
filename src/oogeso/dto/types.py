@@ -46,6 +46,7 @@ class ModelType(str, Enum):
     WELL_PRODUCTION = "wellproduction"
     WELL_GAS_LIFT = "wellgaslift"
     CARBON_CAPTURE = "carboncapture"
+    STEAM_CYCLE = "steamcycle"
 
 
 class PressureMethodType(str, Enum):
