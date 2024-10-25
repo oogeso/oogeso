@@ -4,6 +4,7 @@ import pyomo.environ as pyo
 
 from oogeso import dto
 from oogeso.core.devices.base import Device
+from oogeso.core.devices.storage import StorageDevice
 
 
 class PowerSink(Device):
@@ -103,7 +104,7 @@ class SinkOil(Device):
         return pyomo_model.varDeviceFlow[self.id, "oil", "in", t]
 
 
-class SinkWater(Device):
+class SinkWater(StorageDevice):
     """
     Generic water consumption
     """
