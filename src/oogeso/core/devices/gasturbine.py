@@ -59,7 +59,9 @@ class GasTurbine(Device):
             """carbon emitted given by gas consumption and EGR. The value is co2 after recirculation"""
             gasflow_co2 = gas_data.co2_content  # kgCO2/Sm3gas
             egr = self.dev_data.exhaust_gas_recirculation
-            if 0 <= egr <= 0.3:
+            if egr == 0:
+                y_egr = 1  # to not break with previous test cases
+            elif 0 <= egr <= 0.3:
                 y_egr = 1.411 * egr + 0.9838
             elif 0.3 < egr <= 0.6:
                 y_egr = 3.5142 * egr + 0.3089

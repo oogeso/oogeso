@@ -54,7 +54,6 @@ class CarbonCapture(Device):
         compressor_el_demand = self.dev_data.compressor_el_demand_MJ_per_kgCO2
 
         co2_flow_in = model.varDeviceFlow[dev, "carbon", "in", t]  # kg/s
-        carbon_captured = co2_flow_in * ccr
 
         if i == 1:
             # heat consumption (heat in) is a linear function of carbon flow
