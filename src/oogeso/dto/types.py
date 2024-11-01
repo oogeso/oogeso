@@ -29,6 +29,7 @@ class ModelType(str, Enum):
     SINK_OIL = "sinkoil"
     SINK_WATER = "sinkwater"
     SINK_CARBON = "sinkcarbon"
+    WATER_INJECTION = "waterinjection"
     COMPRESSOR_EL = "compressorel"
     COMPRESSOR_GAS = "compressorgas"
     ELECTROLYSER = "electrolyser"

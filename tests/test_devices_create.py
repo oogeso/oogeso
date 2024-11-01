@@ -156,11 +156,20 @@ def test_sink_oil():
 
 
 def test_sink_water():
-    dev_data = dto.DeviceSinkWaterData(**dev_data_generic, flow_avg=None, E_max=None, E_min=None)
+    dev_data = dto.DeviceSinkWaterData(**dev_data_generic)
     carrier_data_dict = {}
     obj = devices.SinkWater(dev_data, carrier_data_dict)
     assert isinstance(obj, devices.SinkWater)
     assert obj.dev_data.flow_max == 20
+
+
+def test_water_injection():
+    dev_data = dto.DeviceWaterInjectionData(**dev_data_generic, flow_avg=None, E_max=10, E_min=30)
+    carrier_data_dict = {}
+    obj = devices.WaterInjection(dev_data, carrier_data_dict)
+    assert isinstance(obj, devices.WaterInjection)
+    assert obj.dev_data.flow_max == 20
+    assert obj.dev_data.E_min == 30
 
 
 def test_sink_heat():
@@ -312,3 +321,10 @@ def test_carbon_capture():
     assert obj.dev_data.compressor_el_demand_MJ_per_kgCO2 == 0.3
     assert obj.carrier_in == ["carbon", "el", "heat"]
     assert obj.carrier_out == ["carbon"]
+
+
+def test_steamcycle():
+    dev_data = dto.DeviceSteamCycleData(**dev_data_generic, exhaust_gas_recirculation=0.3, alpha=0.5)
+    obj = devices.SteamCycle(dev_data, {})
+    assert isinstance(obj, devices.SteamCycle)
+    assert obj.dev_data.exhaust_gas_recirculation == 0.3

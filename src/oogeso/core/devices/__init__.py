@@ -9,5 +9,5 @@ from .pump import PumpOil, PumpWater, PumpWellStream
 from .separator import Separator, Separator2
 from .sink import PowerSink, SinkCarbon, SinkEl, SinkGas, SinkHeat, SinkOil, SinkWater
 from .source import PowerSource, SourceEl, SourceGas, SourceHydrogen, SourceOil, SourceWater
-from .storage import StorageEl, StorageGasLinepack, StorageHydrogen
+from .storage import StorageEl, StorageGasLinepack, StorageHydrogen, WaterInjection
 from .well import WellGasLift, WellProduction

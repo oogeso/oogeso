@@ -171,3 +171,14 @@ E_init   | float | Storage level initially (Sm3)
 volume_m3 | float | Volume of pipeline
 
 Maximum storage can be specified by setting pressure limits on associated terminals (done via edge parameters)
+
+### ```water_injection```
+parameter | type | description
+----------|------|------------
+flow_avg | float | Baseline injection rate (Sm3/s)
+E_max    | float | Max positive deviation from baseline, positive value (Sm3)
+E_min    | float | Max negative deviation from baselinem, negative value (Sm3)
+E_init   | float | Baseline value (typically 0) (Sm3)
+E_cost   | float | Cost for deviation from baseline
+target_profile | string | (optional) name of profile used for desired injection rate
+

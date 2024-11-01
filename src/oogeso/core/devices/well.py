@@ -106,11 +106,12 @@ class WellGasLift(Device):
             else:
                 return pyo.Constraint.Skip  # noqa
         elif i == 4:
-            # gas injection pressure is fixed
-            if carrier == "gas":
+            # gas injection pressure must be larger than minimum value
+            # TODO: This constraint is not really needed, possible to specify pressure deviation bound on edge instead - all tests are ok
+            if (carrier == "gas") & (dev_data.injection_pressure is not None):
                 lhs = pyomo_model.varPressure[(node, carrier, "in", t)]
                 rhs = dev_data.injection_pressure
-                return lhs == rhs
+                return lhs >= rhs
             else:
                 return pyo.Constraint.Skip  # noqa
         else:

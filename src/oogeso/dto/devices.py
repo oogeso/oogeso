@@ -72,9 +72,16 @@ class DeviceSinkOilData(DeviceData):
 
 class DeviceSinkWaterData(DeviceData):
     price: Dict[str, float] = Field(default_factory=lambda: {})
-    flow_avg: Optional[float] = None  # required average flow
-    max_accumulated_deviation: Optional[float] = None  # buffer size (max accumulated deviation from average)
     model: ModelType = ModelType.SINK_WATER
+
+
+class DeviceWaterInjectionData(DeviceData):
+    flow_avg: Optional[float] = None  # required average flow
+    target_profile: Optional[str] = None  # target profile
+    E_max: Optional[float] = None  # buffer size (max positive accumulated deviation from average)
+    E_min: Optional[float] = None  # buffer size (max negative accumulated deviation from average)
+    E_cost: float = 0  # cost for deviating from baseline
+    model: ModelType = ModelType.WATER_INJECTION
 
 
 class DeviceSinkCarbonData(DeviceData):
@@ -167,6 +174,7 @@ class DeviceStorageHydrogenData(DeviceData):
 class DeviceStorageGasLinepackData(DeviceData):
     E_init: float = 0  # Sm3
     volume_m3: float = 0
+    E_cost: Optional[float] = None
     model: ModelType = ModelType.STORAGE_GAS_LINEPACK
 
 
