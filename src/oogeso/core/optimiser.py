@@ -296,6 +296,7 @@ class OptimisationModel(pyo.ConcreteModel):
             self.setTerminal,
             self.setHorizon,
             within=pyo.Reals,
+            initialize=0,
         )
 
     def _specify_objective(self):

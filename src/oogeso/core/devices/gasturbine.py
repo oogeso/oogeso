@@ -102,8 +102,8 @@ class SteamCycle(Device):
     """Steam cycle generator"""
 
     carrier_in = ["heat"]
-    carrier_out = ["el"]
-    serial = list()
+    carrier_out = ["el", "heat"]
+    serial = ["heat"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -120,28 +120,36 @@ class SteamCycle(Device):
 
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
+        alpha = self.dev_data.alpha
+        egr = self.dev_data.exhaust_gas_recirculation
+        p_sc_nominal = self.dev_data.flow_max
+        p_gt_nominal = self.dev_data.gt_nominal_power
         if i == 1:
-            """power out vs heat in"""
-            # fuel consumption (gas+hydrogen in) is a linear function of el power output
+            """power out vs heat in, expressed in normalised variables"""
+            # heat consumption is a linear function of el power output
             # fuel = B + A*power
             # => efficiency = power/(A+B*power)
-            linA = 1.67331669
-            linB = -0.31770491
-            alpha = self.dev_data.alpha
-            p_el_max = self.dev_data.flow_max
-            egr = self.dev_data.exhaust_gas_recirculation
-            p_heat_max = p_el_max
-            heat_input = model.varDeviceFlow[dev, "heat", "in", t] / p_heat_max
-            el_output = model.varDeviceFlow[dev, "el", "out", t] / p_el_max
+            (linA, linB) = (4.4, -0.96)
+            heat_input_norm = model.varDeviceFlow[dev, "heat", "in", t] / p_gt_nominal
+            heat_extracted_norm = model.varDeviceFlow[dev, "heat", "out", t] / p_sc_nominal
+            el_output_norm = model.varDeviceFlow[dev, "el", "out", t] / p_sc_nominal
 
             # normalised equation
-            y_heat = linA * heat_input + linB
+            y_heat = linA * heat_input_norm + linB
+            # egr dependency (piecewise linear factor):
             if egr < 0.1:
                 y_egr = 0.1763 * egr + 1.0
             else:
                 y_egr = 0.0225 * egr + 1.0153
-            power_computed = y_heat * y_egr * alpha
-            return el_output == power_computed
+            power_computed_norm = y_heat * y_egr
+            # power equivalent of steam extracted for CCS
+            power_extracted_norm = heat_extracted_norm / alpha
+            return el_output_norm == power_computed_norm - power_extracted_norm
+        elif i == 2:
+            # heat out <= heat in
+            heat_input = model.varDeviceFlow[dev, "heat", "in", t]
+            heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
+            return heat_extracted <= heat_input
         else:
             return pyo.Constraint.Skip
 
@@ -149,7 +157,7 @@ class SteamCycle(Device):
         """Specifies the list of constraints for the device"""
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 1), rule=self._rules_misc)
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_misc)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
