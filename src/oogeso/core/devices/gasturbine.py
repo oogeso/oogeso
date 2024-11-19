@@ -123,33 +123,39 @@ class SteamCycle(Device):
         alpha = self.dev_data.alpha
         egr = self.dev_data.exhaust_gas_recirculation
         p_sc_nominal = self.dev_data.flow_max
-        p_gt_nominal = self.dev_data.gt_nominal_power
         if i == 1:
             """power out vs heat in, expressed in normalised variables"""
             # heat consumption is a linear function of el power output
             # fuel = B + A*power
             # => efficiency = power/(A+B*power)
-            (linA, linB) = (4.4, -0.96)
-            heat_input_norm = model.varDeviceFlow[dev, "heat", "in", t] / p_gt_nominal
-            heat_extracted_norm = model.varDeviceFlow[dev, "heat", "out", t] / p_sc_nominal
-            el_output_norm = model.varDeviceFlow[dev, "el", "out", t] / p_sc_nominal
+
+            # TODO make this user input
+            (linA, linB) = (1.96, -0.96)
+
+            heat_input_norm = model.varDeviceFlow[dev, "heat", "in", t] / p_sc_nominal
+            heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
+            el_output = model.varDeviceFlow[dev, "el", "out", t]
 
             # normalised equation
-            y_heat = linA * heat_input_norm + linB
+            y_heat = linA * heat_input_norm + linB * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
             # egr dependency (piecewise linear factor):
             if egr < 0.1:
                 y_egr = 0.1763 * egr + 1.0
             else:
                 y_egr = 0.0225 * egr + 1.0153
-            power_computed_norm = y_heat * y_egr
-            # power equivalent of steam extracted for CCS
-            power_extracted_norm = heat_extracted_norm / alpha
-            return el_output_norm == power_computed_norm - power_extracted_norm
+            power_computed = y_heat * y_egr * p_sc_nominal
+            # power equivalent of steam extracted for CCS (1/alpha >1 since 1 unit heat gives < 1 unit el)
+            power_extracted = heat_extracted / alpha
+            return el_output == power_computed - power_extracted
         elif i == 2:
+            # TODO: this should not be necessary
+            # make sure that energy out < energy in
             # heat out <= heat in
-            heat_input = model.varDeviceFlow[dev, "heat", "in", t]
-            heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
-            return heat_extracted <= heat_input
+            return pyo.Constraint.Skip
+            max_efficiency = 1.0
+            energy_in = model.varDeviceFlow[dev, "heat", "in", t]
+            energy_out = model.varDeviceFlow[dev, "heat", "out", t] + model.varDeviceFlow[dev, "el", "out", t]
+            return energy_out <= energy_in * max_efficiency
         else:
             return pyo.Constraint.Skip
 

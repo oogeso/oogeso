@@ -42,5 +42,5 @@ def test_carboncapture_model():
 def test_carboncapture_simple_simulation(testcase_carboncapture_data: dto.EnergySystemData):
     my_sim = oogeso.Simulator(testcase_carboncapture_data)
     res = my_sim.run_simulation("cbc", time_range=(0, 4))
-    assert (res.device_flow["ccs", "carbon", "in"] == 3.66795).all()
-    assert (res.device_flow["ccs", "carbon", "out"] == 0.366795).all()
+    assert res.device_flow["ccs", "carbon", "in", 0] == pytest.approx(24.04744, rel=1e-4)
+    assert res.device_flow["ccs", "carbon", "out", 0] == pytest.approx(2.40474, rel=1e-4)

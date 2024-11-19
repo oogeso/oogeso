@@ -105,7 +105,6 @@ devices:
     name: "steam cycle"
     alpha: 0.238
     flow_max: 93
-    gt_nominal_power: 209 # sum of flow_max for connected gas turbines 
     exhaust_gas_recirculation: 0.0
 
   - id: ccs
