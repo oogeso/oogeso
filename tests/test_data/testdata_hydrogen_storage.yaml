@@ -1,0 +1,35 @@
+parameters:
+  time_delta_minutes: 15 # minutes per timestep
+  planning_horizon: 4 #8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 4 #4 # timesteps between each optimisation
+  forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
+  objective: costs # select objective function to use
+
+carriers:
+  - id: el
+    el_reserve_margin: -1 # MWm -1=no limit
+    reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
+    powerflow_method: "transport"
+  - id: hydrogen
+  - id: heat
+
+nodes:
+  - id: source
+  - id: storage
+  - id: sink
+
+edges:
+  - {id: el1, carrier: el, node_from: source, node_to: storage}
+  - {id: el2, carrier: el, node_from: source, node_to: sink}
+  - {id: hy1, carrier: hydrogen, node_from: source, node_to: storage, bidirectional: True}
+
+devices:
+  - {id: generator, node_id: source, model: source_el, name: Wind turbine, flow_max: 15, op_cost: 0, profile: wind}
+  - {id: consumer, node_id: sink, model: sink_el, name: Consumer, flow_max: 10, flow_min: 10}
+  - {id: electrolyser, node_id: source, model: electrolyser, name: Electrolyser, flow_max: 10, eta: 0.6, eta_heat: 0}
+  - {id: fuelcell, node_id: source, model: fuelcell, name: Fuel cells, flow_max: 10, eta: 0.6, eta_heat: 0}
+  - {id: h2tank, node_id: storage, model: storage_hydrogen, name: H2 tank, E_max: 40e3, E_init: 30e3, eta: 1, E_cost: 1}
+
+profiles:
+  - id: wind
+    data: [1,1,1,1,1,0.5,0.4,0.3,0.1,0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.3,0.6,1,1,1,1,1,1,1,1,1,1,1,1]
