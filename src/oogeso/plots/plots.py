@@ -709,6 +709,7 @@ def plot_reserve(
     devs_shareload=None,
     plotter="plotly",
     time_slice=None,
+    return_devs=False,
 ):
     """Plot unused online capacity by all el devices
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
@@ -813,7 +814,10 @@ def plot_reserve(
         fig = plt.gcf()
     else:
         raise ValueError(f"Plotter: {plotter} has not been implemented for plot reserve.")
-    return fig, df_devs
+    if return_devs:
+        return fig, df_devs
+    else:
+        return fig
 
 
 def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=False, plotter="plotly"):
