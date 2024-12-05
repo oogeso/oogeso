@@ -362,9 +362,11 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-gas-sink-oil-sink-carbon"><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#steam-cycle"><code class="docutils literal notranslate"><span class="pre">steam_cycle</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-capture"><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-hydrogen"><code class="docutils literal notranslate"><span class="pre">storage_hydrogen</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-gas-linepack"><code class="docutils literal notranslate"><span class="pre">storage_gas_linepack</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#water-injection"><code class="docutils literal notranslate"><span class="pre">water_injection</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -622,6 +624,10 @@ that depends on the device type.</p>
 <td><p>float</p></td>
 <td><p>minimum fraction of hydrogen in fuel blend (Sm3 hydrogen vs Sm3 total)</p></td>
 </tr>
+<tr class="row-even"><td><p>exhaust_gas_recirculation</p></td>
+<td><p>float</p></td>
+<td><p>Exhaust gas recirculation (EGR) rate (default=0)</p></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -786,6 +792,27 @@ that depends on the device type.</p>
 </tbody>
 </table>
 </section>
+<section id="steam-cycle">
+<h3><code class="docutils literal notranslate"><span class="pre">steam_cycle</span></code><a class="headerlink" href="#steam-cycle" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>exhaust_gas_recirculation</p></td>
+<td><p>float</p></td>
+<td><p>Exhaust gas recirculation (EGR) rate, typically in the range 0-0.6</p></td>
+</tr>
+<tr class="row-odd"><td><p>alpha</p></td>
+<td><p>float</p></td>
+<td><p>Factorspecifying how much steam is extracted for CCS (e.g. 0.238)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 <section id="carbon-capture">
 <h3><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code><a class="headerlink" href="#carbon-capture" title="Link to this heading">#</a></h3>
 <table class="table">
@@ -800,25 +827,17 @@ that depends on the device type.</p>
 <td><p>float</p></td>
 <td><p>Carbon capture rate (CCR), typically 0.9</p></td>
 </tr>
-<tr class="row-odd"><td><p>exhaust_gas_recirculation</p></td>
+<tr class="row-odd"><td><p>capture_el_demand_MJ_per_kgCO2</p></td>
 <td><p>float</p></td>
-<td><p>Exhaust gas recirculatio rate (EGR), typically in the range 0-0.6</p></td>
+<td><p>Electricity demand per CO2 captured (MJ/kg)</p></td>
 </tr>
-<tr class="row-even"><td><p>compressor_pressure_in</p></td>
+<tr class="row-even"><td><p>capture_heat_demand_MJ_per_kgCO2</p></td>
 <td><p>float</p></td>
-<td><p>Inlet pressure for compression of captured CO2 (MPa)</p></td>
+<td><p>Heat demand per CO2 captured (MJ/kg)</p></td>
 </tr>
-<tr class="row-odd"><td><p>compressor_pressure_out</p></td>
+<tr class="row-odd"><td><p>compressor_el_demand_MJ_per_kgCO2</p></td>
 <td><p>float</p></td>
-<td><p>Outlet pressure for compression of captured CO2 (MPa)</p></td>
-</tr>
-<tr class="row-even"><td><p>compressor_eta</p></td>
-<td><p>float</p></td>
-<td><p>Efficiency of CO2 compresstion (0-1)</p></td>
-</tr>
-<tr class="row-odd"><td><p>compressor_temp_in</p></td>
-<td><p>float</p></td>
-<td><p>Inlet gas temperature (K)</p></td>
+<td><p>CO2 compressor demand per CO2 captured (MJ/kg)</p></td>
 </tr>
 </tbody>
 </table>
@@ -882,6 +901,43 @@ that depends on the device type.</p>
 </table>
 <p>Maximum storage can be specified by setting pressure limits on associated terminals (done via edge parameters)</p>
 </section>
+<section id="water-injection">
+<h3><code class="docutils literal notranslate"><span class="pre">water_injection</span></code><a class="headerlink" href="#water-injection" title="Link to this heading">#</a></h3>
+<table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>parameter</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>flow_avg</p></td>
+<td><p>float</p></td>
+<td><p>Baseline injection rate (Sm3/s)</p></td>
+</tr>
+<tr class="row-odd"><td><p>E_max</p></td>
+<td><p>float</p></td>
+<td><p>Max positive deviation from baseline, positive value (Sm3)</p></td>
+</tr>
+<tr class="row-even"><td><p>E_min</p></td>
+<td><p>float</p></td>
+<td><p>Max negative deviation from baselinem, negative value (Sm3)</p></td>
+</tr>
+<tr class="row-odd"><td><p>E_init</p></td>
+<td><p>float</p></td>
+<td><p>Baseline value (typically 0) (Sm3)</p></td>
+</tr>
+<tr class="row-even"><td><p>E_cost</p></td>
+<td><p>float</p></td>
+<td><p>Cost for deviation from baseline</p></td>
+</tr>
+<tr class="row-odd"><td><p>target_profile</p></td>
+<td><p>string</p></td>
+<td><p>(optional) name of profile used for desired injection rate</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 </section>
 
@@ -930,9 +986,11 @@ that depends on the device type.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sink-gas-sink-oil-sink-carbon"><code class="docutils literal notranslate"><span class="pre">sink_gas,</span> <span class="pre">sink_oil,</span> <span class="pre">sink_carbon</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#source-water"><code class="docutils literal notranslate"><span class="pre">source_water</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#well-gaslift"><code class="docutils literal notranslate"><span class="pre">well_gaslift</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#steam-cycle"><code class="docutils literal notranslate"><span class="pre">steam_cycle</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#carbon-capture"><code class="docutils literal notranslate"><span class="pre">carbon_capture</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-hydrogen"><code class="docutils literal notranslate"><span class="pre">storage_hydrogen</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#storage-gas-linepack"><code class="docutils literal notranslate"><span class="pre">storage_gas_linepack</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#water-injection"><code class="docutils literal notranslate"><span class="pre">water_injection</span></code></a></li>
 </ul>
 </li>
 </ul>

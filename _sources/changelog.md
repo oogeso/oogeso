@@ -4,6 +4,10 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## v1.5.0
+2024-12-05
+- Add steam cycle and modified CCS (allowing improved modelling of Gas turbine / steam-cycle /CCS setup)
+
 ## v1.4.0
 2024-09-30
 - add gas linepack storage device type (simplified model)
