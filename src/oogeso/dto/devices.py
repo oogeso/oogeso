@@ -2,7 +2,7 @@ from typing import Dict, Optional
 
 from pydantic import Field
 
-from oogeso.dto import DeviceData
+from oogeso.dto import DeviceData, StartStopData
 from oogeso.dto.types import ModelType
 
 
@@ -72,9 +72,16 @@ class DeviceSinkOilData(DeviceData):
 
 class DeviceSinkWaterData(DeviceData):
     price: Dict[str, float] = Field(default_factory=lambda: {})
-    flow_avg: Optional[float] = None  # required average flow
-    max_accumulated_deviation: Optional[float] = None  # buffer size (max accumulated deviation from average)
     model: ModelType = ModelType.SINK_WATER
+
+
+class DeviceWaterInjectionData(DeviceData):
+    flow_avg: Optional[float] = None  # required average flow
+    target_profile: Optional[str] = None  # target profile
+    E_max: Optional[float] = None  # buffer size (max positive accumulated deviation from average)
+    E_min: Optional[float] = None  # buffer size (max negative accumulated deviation from average)
+    E_cost: float = 0  # cost for deviating from baseline
+    model: ModelType = ModelType.WATER_INJECTION
 
 
 class DeviceSinkCarbonData(DeviceData):
@@ -119,6 +126,7 @@ class DeviceGasTurbineData(DeviceData):
     eta_heat: float = None
     hydrogen_blend_max: float = 0
     hydrogen_blend_min: float = 0
+    exhaust_gas_recirculation: float = 0  # egr
     reserve_factor: float = 1  # not used capacity contributes fully to spinning reserve
     model: ModelType = ModelType.GAS_TURBINE
 
@@ -166,6 +174,7 @@ class DeviceStorageHydrogenData(DeviceData):
 class DeviceStorageGasLinepackData(DeviceData):
     E_init: float = 0  # Sm3
     volume_m3: float = 0
+    E_cost: Optional[float] = None
     model: ModelType = ModelType.STORAGE_GAS_LINEPACK
 
 
@@ -185,6 +194,14 @@ class DeviceWellGasLiftData(DeviceData):
 
 class DeviceCarbonCaptureData(DeviceData):
     carbon_capture_rate: float = None  # ccr
-    exhaust_gas_recirculation: float = None  # egr
-    compressor_energy_demand: float = None  # MJ/kgCO2
+    capture_el_demand_MJ_per_kgCO2: float = None
+    capture_heat_demand_MJ_per_kgCO2: float = None
+    compressor_el_demand_MJ_per_kgCO2: float = None
     model: ModelType = ModelType.CARBON_CAPTURE
+
+
+class DeviceSteamCycleData(DeviceData):
+    exhaust_gas_recirculation: float = 0  # egr
+    alpha: float = None
+    model: ModelType = ModelType.STEAM_CYCLE
+    start_stop: StartStopData = StartStopData()

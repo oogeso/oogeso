@@ -29,6 +29,7 @@ class ModelType(str, Enum):
     SINK_OIL = "sinkoil"
     SINK_WATER = "sinkwater"
     SINK_CARBON = "sinkcarbon"
+    WATER_INJECTION = "waterinjection"
     COMPRESSOR_EL = "compressorel"
     COMPRESSOR_GAS = "compressorgas"
     ELECTROLYSER = "electrolyser"
@@ -46,6 +47,7 @@ class ModelType(str, Enum):
     WELL_PRODUCTION = "wellproduction"
     WELL_GAS_LIFT = "wellgaslift"
     CARBON_CAPTURE = "carboncapture"
+    STEAM_CYCLE = "steamcycle"
 
 
 class PressureMethodType(str, Enum):

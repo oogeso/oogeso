@@ -13,6 +13,21 @@ class StorageDevice(Device):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         pass
 
+    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: pyo.Set):
+        # cost rate CURRENCY/s
+        # Cost associated with deviation from max value at end of horizon
+        dev_data = self.dev_data
+        if dev_data.E_cost is None:
+            return 0
+        if dev_data.E_max is None:
+            return 0
+        t_end = timesteps.at(-1)
+        var_E = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
+        storage_cost = dev_data.E_cost * (dev_data.E_max - var_E)
+        # from cost (CURRENCY) to cost rate (CURRENCY/s):
+        # storage_cost = storage_cost / len(timesteps)  # 2024-11-01: No, don't divide - that means E_cost parameter must be changed if horizon length is changed.
+        return storage_cost
+
 
 class StorageEl(StorageDevice):
     """Electric storage (battery)"""
@@ -130,7 +145,7 @@ class StorageEl(StorageDevice):
         # even if Pmax=2 MW)
         return pyomo_model.varDeviceStoragePmax[self.id, t] + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
-    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
+    def OBSOLETE_compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         stor_cost = 0
         dev_data = self.dev_data
         if dev_data.E_cost is not None:
@@ -223,10 +238,10 @@ class StorageHydrogen(StorageDevice):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
-    def compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
+    def OBSOLETE_compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
         return self.compute_cost_for_depleted_storage_alt2(pyomo_model, timesteps)
 
-    def compute_cost_for_depleted_storage_alt1(self, pyomo_model: pyo.Model):
+    def OBSOLETE_compute_cost_for_depleted_storage_alt1(self, pyomo_model: pyo.Model):
         # cost if storage level at end of optimisation deviates from
         # target profile (user input based on expectations)
         # absolute value of deviation (filling too much also a cost)
@@ -237,7 +252,7 @@ class StorageHydrogen(StorageDevice):
         stor_cost = dev_data.E_cost * deviation
         return stor_cost
 
-    def compute_cost_for_depleted_storage_alt2(self, pyomo_model: pyo.Model, timesteps: pyo.Set):
+    def OBSOLOETE_compute_cost_for_depleted_storage_alt2(self, pyomo_model: pyo.Model, timesteps: pyo.Set):
         # cost rate kr/s
         # Cost associated with deviation from target value
         # below target = cost, above target = benefit   => gives signal to fill storage
@@ -326,3 +341,69 @@ class StorageGasLinepack(StorageDevice):
 
         else:
             raise ValueError(f"Argument i must be 1 or 2. {i} was given.")
+
+
+class WaterInjection(StorageDevice):
+    """
+    Water injection - flexible water sink
+    """
+
+    carrier_in = ["water"]
+    carrier_out = []
+    serial = []
+
+    def __init__(
+        self,
+        dev_data: dto.DeviceWaterInjectionData,
+        carrier_data_dict: Dict[str, dto.CarrierWaterData],
+    ):
+        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
+        self.dev_data = dev_data
+        self.id = dev_data.id
+        self.carrier_data = carrier_data_dict
+
+    def rule_devmodel_sink_water(self, model: pyo.Model, t: int, i: int):
+        dev = self.id
+        dev_data = self.dev_data
+        time_delta_minutes = model.paramTimestepDeltaMinutes
+
+        if dev_data.flow_avg is None:
+            return pyo.Constraint.Skip
+        if dev_data.E_max is None:
+            return pyo.Constraint.Skip
+        if dev_data.E_max == 0:
+            return pyo.Constraint.Skip
+        if i == 1:
+            # FLEXIBILITY
+            # (water_in-water_avg)*dt = delta buffer
+            delta_t = time_delta_minutes / 60  # hours
+            lhs = (model.varDeviceFlow[dev, "water", "in", t] - dev_data.flow_avg) * delta_t
+            if t > 0:
+                E_prev = model.varDeviceStorageEnergy[dev, t - 1]
+            else:
+                E_prev = model.paramDeviceEnergyInitially[dev]
+            rhs = model.varDeviceStorageEnergy[dev, t] - E_prev
+            return lhs == rhs
+        elif i == 2:
+            # energy buffer limit
+            E_max = dev_data.E_max
+            E_min = dev_data.E_min
+            return pyo.inequality(E_min, model.varDeviceStorageEnergy[dev, t], E_max)
+        else:
+            raise Exception("impossible")
+
+    def define_constraints(self, pyomo_model: pyo.Model):
+        """Specifies the list of constraints for the device"""
+        list_to_reconstruct = super().define_constraints(pyomo_model)
+
+        constr = pyo.Constraint(
+            pyomo_model.setHorizon,
+            pyo.RangeSet(1, 2),
+            rule=self.rule_devmodel_sink_water,
+        )
+        # add constraints to model:
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "flex"), constr)
+        return list_to_reconstruct
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
+        return pyomo_model.varDeviceFlow[self.id, "water", "in", t]

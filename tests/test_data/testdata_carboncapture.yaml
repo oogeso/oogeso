@@ -3,11 +3,11 @@ parameters:
   planning_horizon: 2 #8 # timesteps in each rolling optimisation
   optimisation_timesteps: 1 #4 # timesteps between each optimisation
   forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
-  objective: penalty # select objective function to use
+  objective: costs # select objective function to use
 
 carriers:
   - id: el
-    el_reserve_margin: 2 # MWm -1=no limit
+    el_reserve_margin: -1 #2 # MWm -1=no limit
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
     powerflow_method: "transport"
   - id: gas
@@ -24,6 +24,7 @@ carriers:
 
 nodes:
   - id: gt
+  - id: sc
   - id: ccs
   - id: sink
 
@@ -40,17 +41,29 @@ edges:
     node_from: ccs
     node_to: sink
 
+  - id: el3
+    include: 1
+    carrier: el
+    node_from: sc
+    node_to: ccs
+
   - id: heat1
     include: 1
     carrier: heat
     node_from: gt
-    node_to: ccs
+    node_to: sink
 
   - id: heat2
     include: 1
     carrier: heat
-    node_from: ccs
-    node_to: sink
+    node_from: sc
+    node_to: ccs
+
+  - id: heat3
+    include: 1
+    carrier: heat
+    node_from: gt
+    node_to: sc
 
   - id: c1
     include: 1
@@ -78,26 +91,38 @@ devices:
     node_id: gt
     model: gasturbine
     name: GTG
-    fuel_A: 2.35
-    fuel_B: 0.531
-    eta_heat: 0.5    
-    flow_max: 20
+    fuel_A: 3.6
+    fuel_B: 0.3
+    eta_heat: 1    
+    flow_max: 209
     flow_min: 0
+    exhaust_gas_recirculation: 0.0
+
+  - id: sc
+    include: 1
+    node_id: sc
+    model: steamcycle
+    name: "steam cycle"
+    alpha: 0.238
+    flow_max: 93
+    exhaust_gas_recirculation: 0.0
 
   - id: ccs
     include: 1
     node_id: ccs
     model: carboncapture
     name: CCS
-    exhaust_gas_recirculation: 0.4
     carbon_capture_rate: 0.9
-    compressor_energy_demand: 0.30 # MJ/kgCO2
+    capture_heat_demand_MJ_per_kgCO2: 0.4 # MJ/kgCO2
+    capture_el_demand_MJ_per_kgCO2: 0.032 # MJ/kgCO2
+    compressor_el_demand_MJ_per_kgCO2: 0.30 # MJ/kgCO2
 
   - id: el_dump
     include: True
     node_id: sink
     model: sink_el
     name: "el sink"
+    flow_min: 200
 
   - id: heat_dump
     include: True
@@ -110,3 +135,4 @@ devices:
     node_id: sink
     model: sink_carbon
     name: "CO2 emitted"
+    op_cost: 5

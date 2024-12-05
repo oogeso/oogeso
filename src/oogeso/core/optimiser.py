@@ -263,7 +263,7 @@ class OptimisationModel(pyo.ConcreteModel):
         self.varDeviceIsOn = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=1)
         self.varDeviceStarting = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=None)
         self.varDeviceStopping = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Binary, initialize=None)
-        self.varDeviceStorageEnergy = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Reals)
+        self.varDeviceStorageEnergy = pyo.Var(self.setDevice, self.setHorizon, within=pyo.Reals, initialize=0)
         # available reserve power from storage (linked to power rating and storage level):
         self.varDeviceStoragePmax = pyo.Var(self.setDevice, self.setHorizon, within=pyo.NonNegativeReals, initialize=0)
         # binary variable related to available powr from storage:
@@ -296,6 +296,7 @@ class OptimisationModel(pyo.ConcreteModel):
             self.setTerminal,
             self.setHorizon,
             within=pyo.Reals,
+            initialize=0,
         )
 
     def _specify_objective(self):

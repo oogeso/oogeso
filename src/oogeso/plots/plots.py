@@ -51,6 +51,7 @@ def plot_device_profile(
     include_prep=False,
     devs_shareload=None,
     plotter="plotly",
+    time_slice=None,
 ):
     """plot forecast and actual profile (available power), and device output
 
@@ -76,11 +77,13 @@ def plot_device_profile(
     """
     res = sim_result
     optimiser = optimisation_model
+    if time_slice is None:
+        time_slice = slice(None)
     if type(devs) is not list:
         devs = [devs]
     if include_forecasts & (len(devs) > 1):
         raise ValueError("Can only plot a single device when showing forecasts")
-    df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device")
+    df = res.device_flow.unstack(["carrier", "terminal"])[("el", "out")].unstack("device").loc[time_slice]
     if devs_shareload is None:
         # gas turbines:
         devs_shareload = [d for d, d_obj in optimiser.all_devices.items() if d_obj.dev_data.model == "gasturbine"]
@@ -93,14 +96,18 @@ def plot_device_profile(
             df.loc[mask, c] = devs_mean[mask]
     df.columns.name = "devices"
     df = df[devs]
+    if df.min().min() < 0:
+        print(f"Setting negative values to zero. (min={df.min().min():g})")
+        df = df.clip(lower=0)
     nrows = 1
     if include_on_off:
         nrows = nrows + 1
     if include_prep:
         nrows = nrows + 1
-    df2 = res.device_is_on.unstack("device")[devs]
-    df_prep = res.device_is_prep.unstack("device")[devs]
-    timerange = (res.device_flow.index.get_level_values("time")).unique()
+    df2 = res.device_is_on.unstack("device")[devs].loc[time_slice]
+    df_prep = res.device_is_prep.unstack("device")[devs].loc[time_slice]
+    # timerange = (res.device_flow.index.get_level_values("time")).unique()
+    timerange = df.index  # time_slice
     if plotter == "plotly":
         fig = plotly.subplots.make_subplots(rows=nrows, cols=1, shared_xaxes=True)
         colour = pio.templates[pio.templates.default].layout.colorway
@@ -208,7 +215,7 @@ def plot_device_profile(
                     df_forecast[dev + " forecast"] = (
                         res.profiles_forecast.loc[timerange, dev_data.profile] * dev_data.flow_max
                     )
-            df_forecast.plot.area(zorder=0, linewidth=0, ax=axs[0])
+            df_forecast.plot(zorder=0, ax=axs[0], linestyle="-")
         tmin = df.index.get_level_values("time").min()
         tmax = df.index.get_level_values("time").max() + 1
         ax.set_xlim(tmin, tmax)
@@ -701,6 +708,8 @@ def plot_reserve(
     include_sum=True,
     devs_shareload=None,
     plotter="plotly",
+    time_slice=None,
+    return_devs=False,
 ):
     """Plot unused online capacity by all el devices
     devs_shareload : list ([]=ignore, None=do it for gas turbines)
@@ -711,9 +720,11 @@ def plot_reserve(
         this is included in the plots.
     """
     df_devs = pd.DataFrame()
+    if time_slice is None:
+        time_slice = slice(None)
     res = sim_result
     optimiser = optimisation_model
-    timerange = list(res.el_reserve.index)
+    timerange = list(res.el_reserve.index[time_slice])
     margin_incr = pd.DataFrame(0, index=timerange, columns=["margin"])
     if devs_shareload is None:
         # split load evently amongst gas turbines:
@@ -760,6 +771,10 @@ def plot_reserve(
             reserv = cap_avail - p_generating
             df_devs[d] = reserv
     df_devs.columns.name = "device"
+    if df_devs.min().min() < 0:
+        print(f"Setting negative values to zero. (min={df_devs.min().min():g})")
+        df_devs = df_devs.clip(lower=0)
+    df_devs = df_devs.loc[time_slice]
     if plotter == "plotly":
         fig = px.area(df_devs, line_shape="hv")
         if include_sum:
@@ -799,7 +814,10 @@ def plot_reserve(
         fig = plt.gcf()
     else:
         raise ValueError(f"Plotter: {plotter} has not been implemented for plot reserve.")
-    return fig
+    if return_devs:
+        return fig, df_devs
+    else:
+        return fig
 
 
 def plot_el_backup(sim_result, filename=None, show_margin=False, return_margin=False, plotter="plotly"):

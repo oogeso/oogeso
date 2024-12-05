@@ -86,6 +86,7 @@ startupCost | float | cost (NOK) for each start-up
 startupDelay    | float | delay (min) from start-up activation to powr output
 hydrogen_blend_max | float | maximum fraction of hydrogen in fuel blend (Sm3 hydrogen vs Sm3 total)
 hydrogen_blend_min | float | minimum fraction of hydrogen in fuel blend (Sm3 hydrogen vs Sm3 total)
+exhaust_gas_recirculation   | float | Exhaust gas recirculation (EGR) rate (default=0)
 
 ### ```source_el```
 
@@ -143,15 +144,19 @@ f_inj           | float | Ratio of gas injection rate (Sm3/s) to oil production 
 injectionpressure   | float | Gas injection pressure (MPa)
 separatorpressure   | float | Pressure (from well) into separator (MPa)
 
+### ```steam_cycle```
+parameter | type | description
+----------|------|------------
+exhaust_gas_recirculation | float | Exhaust gas recirculation (EGR) rate, typically in the range 0-0.6
+alpha                     | float | Factorspecifying how much steam is extracted for CCS (e.g. 0.238)
+
 ### ```carbon_capture```
 parameter | type | description
 ----------|------|------------
-carbon_capture_rate | float | Carbon capture rate (CCR), typically 0.9
-exhaust_gas_recirculation   | float | Exhaust gas recirculatio rate (EGR), typically in the range 0-0.6
-compressor_pressure_in      | float | Inlet pressure for compression of captured CO2 (MPa)
-compressor_pressure_out     | float | Outlet pressure for compression of captured CO2 (MPa)
-compressor_eta              | float | Efficiency of CO2 compresstion (0-1)
-compressor_temp_in          | float | Inlet gas temperature (K)
+carbon_capture_rate                 | float | Carbon capture rate (CCR), typically 0.9
+capture_el_demand_MJ_per_kgCO2      | float | Electricity demand per CO2 captured (MJ/kg)
+capture_heat_demand_MJ_per_kgCO2    | float | Heat demand per CO2 captured (MJ/kg)
+compressor_el_demand_MJ_per_kgCO2   | float | CO2 compressor demand per CO2 captured (MJ/kg)
 
 ### ```storage_hydrogen```
 parameter | type | description
@@ -171,3 +176,14 @@ E_init   | float | Storage level initially (Sm3)
 volume_m3 | float | Volume of pipeline
 
 Maximum storage can be specified by setting pressure limits on associated terminals (done via edge parameters)
+
+### ```water_injection```
+parameter | type | description
+----------|------|------------
+flow_avg | float | Baseline injection rate (Sm3/s)
+E_max    | float | Max positive deviation from baseline, positive value (Sm3)
+E_min    | float | Max negative deviation from baselinem, negative value (Sm3)
+E_init   | float | Baseline value (typically 0) (Sm3)
+E_cost   | float | Cost for deviation from baseline
+target_profile | string | (optional) name of profile used for desired injection rate
+

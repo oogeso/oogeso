@@ -49,9 +49,11 @@ def get_device_from_model_name(model_name: str) -> Callable:
         "sourcehydrogen": devices.SourceHydrogen,
         "storagehydrogen": devices.StorageHydrogen,
         "storagegaslinepack": devices.StorageGasLinepack,
+        "waterinjection": devices.WaterInjection,
         "wellgaslift": devices.WellGasLift,
         "wellproduction": devices.WellProduction,
         "carboncapture": devices.CarbonCapture,
+        "steamcycle": devices.SteamCycle,
     }
     if model_name in map_device_name_to_class:
         return map_device_name_to_class[model_name]
@@ -89,9 +91,11 @@ def get_device_data_class_from_str(model_name: str) -> Callable:
         "sourcehydrogen": dto.DeviceSourceHydrogenData,
         "storagehydrogen": dto.DeviceStorageHydrogenData,
         "storagegaslinepack": dto.DeviceStorageGasLinepackData,
+        "waterinjection": dto.DeviceWaterInjectionData,
         "wellgaslift": dto.DeviceWellGasLiftData,
         "wellproduction": dto.DeviceWellProductionData,
         "carboncapture": dto.DeviceCarbonCaptureData,
+        "steamcycle": dto.DeviceSteamCycleData,
     }
     if model_name in map_device_name_to_class:
         return map_device_name_to_class[model_name]
