@@ -29,11 +29,10 @@ edges:
   - {id: hy1, carrier: hydrogen, node_from: source, node_to: storage, bidirectional: True}
 
 devices:
-  - {id: generator, node_id: source, model: source_el, name: Wind turbine, flow_max: 35, op_cost: 0, profile: wind}
+  - {id: generator, node_id: source, model: source_el, name: Wind turbine, flow_max: 15, op_cost: 0, profile: wind}
   - {id: consumer, node_id: sink, model: sink_el, name: Consumer, flow_max: 10, flow_min: 10}
-  - {id: electrolyser, node_id: source, model: electrolyser, name: Electrolyser, flow_max: 40, eta: 0.6, eta_heat: 0}
+  - {id: electrolyser, node_id: source, model: electrolyser, name: Electrolyser, flow_max: 10, eta: 0.6, eta_heat: 0}
   - {id: fuelcell, node_id: source, model: fuelcell, name: Fuel cells, flow_max: 10, eta: 0.6, eta_heat: 0}
-  #- {id: h2tank, node_id: storage, model: storage_hydrogen, name: H2 tank, E_max: 40e3, E_init: 30e3, eta: 1, E_cost: 1, include: 1}
   - id: h2tank
     include: 1
     node_id: storage
@@ -44,7 +43,7 @@ devices:
     eta: 1
     E_cost: 1
     compressor_include: 1
-    #compressor_eta: 1
+    compressor_eta: 1
     #compressor_eta_heat: 0
     compressor_temperature: 300  # K
     compressor_isothermal_adiabatic: 0
