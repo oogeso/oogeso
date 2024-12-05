@@ -1,7 +1,7 @@
 parameters:
   time_delta_minutes: 15 # minutes per timestep
-  planning_horizon: 4 #8 # timesteps in each rolling optimisation
-  optimisation_timesteps: 4 #4 # timesteps between each optimisation
+  planning_horizon: 3 #8 # timesteps in each rolling optimisation
+  optimisation_timesteps: 2 #4 # timesteps between each optimisation
   forecast_timesteps: 1 #4 # timesteps beyond which forecast (instead of nowcast) profile is used
   objective: costs # select objective function to use
 
@@ -11,6 +11,11 @@ carriers:
     reserve_storage_minutes: 30 # minutes, how long stored energy must be sustained to count as reserve
     powerflow_method: "transport"
   - id: hydrogen
+    rho_density: 0.5
+    energy_value: 13  # MJ/Sm3 (calorific value) -> 13 MJ/Sm3
+    R_individual_gas_constant: 4120  # J/kgK
+    Z_compressibility: 1.0
+    adiabatic_index: 1.41
   - id: heat
 
 nodes:
@@ -24,11 +29,28 @@ edges:
   - {id: hy1, carrier: hydrogen, node_from: source, node_to: storage, bidirectional: True}
 
 devices:
-  - {id: generator, node_id: source, model: source_el, name: Wind turbine, flow_max: 15, op_cost: 0, profile: wind}
+  - {id: generator, node_id: source, model: source_el, name: Wind turbine, flow_max: 35, op_cost: 0, profile: wind}
   - {id: consumer, node_id: sink, model: sink_el, name: Consumer, flow_max: 10, flow_min: 10}
-  - {id: electrolyser, node_id: source, model: electrolyser, name: Electrolyser, flow_max: 10, eta: 0.6, eta_heat: 0}
+  - {id: electrolyser, node_id: source, model: electrolyser, name: Electrolyser, flow_max: 40, eta: 0.6, eta_heat: 0}
   - {id: fuelcell, node_id: source, model: fuelcell, name: Fuel cells, flow_max: 10, eta: 0.6, eta_heat: 0}
-  - {id: h2tank, node_id: storage, model: storage_hydrogen, name: H2 tank, E_max: 40e3, E_init: 30e3, eta: 1, E_cost: 1}
+  #- {id: h2tank, node_id: storage, model: storage_hydrogen, name: H2 tank, E_max: 40e3, E_init: 30e3, eta: 1, E_cost: 1, include: 1}
+  - id: h2tank
+    include: 1
+    node_id: storage
+    model: storage_hydrogen
+    name: H2 tank
+    E_max: 40e3
+    E_init: 30e3
+    eta: 1
+    E_cost: 1
+    compressor_include: 1
+    #compressor_eta: 1
+    #compressor_eta_heat: 0
+    compressor_temperature: 300  # K
+    compressor_isothermal_adiabatic: 0
+    compressor_pressure_max: 35  # MPa
+    compressor_pressure_in: 0.1  # MPa, 0.1 MPa = 1 bar = 1 atm   
+
 
 profiles:
   - id: wind
