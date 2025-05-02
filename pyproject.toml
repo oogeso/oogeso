@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "oogeso"
-version = "1.5.0"
+version = "1.6.0"
 description = "Offshore Oil and Gas Field Energy System Operational Optimisation (OOGESO)"
 authors = ["Harald Svendsen <harald.svendsen@sintef.no>"]
 license = "MIT License (http://opensource.org/licenses/MIT)"
@@ -13,16 +13,16 @@ classifiers=[
     "Operating System :: Microsoft :: Windows",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Natural Language :: English",
     "License :: OSI Approved :: MIT License",
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9,<3.14"
 networkx = "^2.8"
 numpy = "^1.26"
 pandas = "^2.2"
