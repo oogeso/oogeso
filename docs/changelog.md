@@ -4,6 +4,10 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## v1.6.0
+2025-05-02
+- Improved modelling of hydrogen storage compression
+
 ## v1.5.0
 2024-12-05
 - Add steam cycle and modified CCS (allowing improved modelling of Gas turbine / steam-cycle /CCS setup)
