@@ -169,6 +169,13 @@ class DeviceStorageHydrogenData(DeviceData):
     E_cost: float = 0  # cost for depleting storage
     E_init: float = 0
     model: ModelType = ModelType.STORAGE_HYDROGEN
+    compressor_include = False
+    compressor_eta: Optional[float] = 1
+    compressor_eta_heat: Optional[float] = 1
+    compressor_temperature: Optional[float] = 300
+    compressor_isothermal_adiabatic: Optional[float] = 0
+    compressor_pressure_max: Optional[float] = 0
+    compressor_pressure_in: Optional[float] = 1
 
 
 class DeviceStorageGasLinepackData(DeviceData):

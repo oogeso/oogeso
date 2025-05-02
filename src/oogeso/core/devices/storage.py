@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import pyomo.environ as pyo
 
@@ -145,23 +145,11 @@ class StorageEl(StorageDevice):
         # even if Pmax=2 MW)
         return pyomo_model.varDeviceStoragePmax[self.id, t] + pyomo_model.varDeviceFlow[self.id, "el", "in", t]
 
-    def OBSOLETE_compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
-        stor_cost = 0
-        dev_data = self.dev_data
-        if dev_data.E_cost is not None:
-            stor_cost = dev_data.E_cost
-        E_max = dev_data.E_max
-        store_cost = 0
-        for t in timesteps:
-            var_E = pyomo_model.varDeviceStorageEnergy[self.id, t]
-            store_cost += stor_cost * (E_max - var_E)
-        return store_cost
-
 
 class StorageHydrogen(StorageDevice):
     """Hydrogen storage"""
 
-    carrier_in = ["hydrogen"]
+    carrier_in = ["hydrogen", "el"]
     carrier_out = ["hydrogen"]
     serial = []
 
@@ -202,35 +190,25 @@ class StorageHydrogen(StorageDevice):
             lb = dev_data.E_min
             return pyo.inequality(lb, pyomo_model.varDeviceStorageEnergy[dev, t], ub)
         elif i == 3:
-            # Constraint 3 and 4: to represent absolute value in obj.function
-            # see e.g. http://lpsolve.sourceforge.net/5.1/absolute.htm
-            #
-            # deviation from target and absolute value at the end of horizon
-            if t != pyomo_model.setHorizon.last():
-                return pyo.Constraint.Skip  # noqa
-            X_prime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
-            # profile = model.paramDevice[dev]['target_profile']
-            target_value = pyomo_model.paramDeviceEnergyTarget[dev]
-            deviation = pyomo_model.varDeviceStorageEnergy[dev, t] - target_value
-            return X_prime >= deviation  # noqa
-        elif i == 4:
-            # deviation from target and absolute value at the end of horizon
-            if t != pyomo_model.setHorizon.last():
-                return pyo.Constraint.Skip  # noqa
-            X_prime = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
-            # profile = model.paramDevice[dev]['target_profile']
-            target_value = pyomo_model.paramDeviceEnergyTarget[dev]
-            deviation = pyomo_model.varDeviceStorageEnergy[dev, t] - target_value
-            return X_prime >= -deviation  # noqa
+            # electricity demand for hydrogen compression
+            lhs = pyomo_model.varDeviceFlow[dev, "el", "in", t]
+            if not dev_data.compressor_include:
+                # No compressor el demand
+                rhs = 0
+            else:
+                isothermal_adiabatic = dev_data.compressor_isothermal_adiabatic
+                power_demand = compute_hydrogen_compressor_demand(pyomo_model, self, isothermal_adiabatic, t=t)
+                rhs = power_demand / dev_data.compressor_eta
+            return lhs == rhs
         else:
-            raise ValueError(f"Argument i must be 1, 2, 3 or 4. {i} was given.")
+            raise ValueError(f"Argument i must be 1, 2, 3. {i} was given.")
 
     def define_constraints(self, pyomo_model: pyo.Model) -> List[pyo.Constraint]:
         """Specifies the list of constraints for the device"""
 
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
-        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules)
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 3), rule=self._rules)
         # add constraints to model:
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
@@ -238,33 +216,121 @@ class StorageHydrogen(StorageDevice):
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "hydrogen", "out", t]
 
-    def OBSOLETE_compute_cost_for_depleted_storage(self, pyomo_model: pyo.Model, timesteps: Optional[pyo.Set] = None):
-        return self.compute_cost_for_depleted_storage_alt2(pyomo_model, timesteps)
+    def get_tank_state(self, pyomo_model, t=None):
+        hydrogen_data = self.carrier_data["hydrogen"]
+        Z = hydrogen_data.Z_compressibility
+        Rspec = hydrogen_data.R_individual_gas_constant
+        rho = hydrogen_data.rho_density
+        T_in = self.dev_data.compressor_temperature
 
-    def OBSOLETE_compute_cost_for_depleted_storage_alt1(self, pyomo_model: pyo.Model):
-        # cost if storage level at end of optimisation deviates from
-        # target profile (user input based on expectations)
-        # absolute value of deviation (filling too much also a cost)
-        # - avoids over-filling storage
-        dev = self.id
-        dev_data = self.dev_data
-        deviation = pyomo_model.varDeviceStorageDeviationFromTarget[dev]
-        stor_cost = dev_data.E_cost * deviation
-        return stor_cost
+        tank_p_max_MPa = self.dev_data.compressor_pressure_max
+        tank_E_max_Sm3 = self.dev_data.E_max
+        tank_volume_m3 = tank_E_max_Sm3 * rho * Rspec * T_in * Z / (tank_p_max_MPa * 1e6)
 
-    def OBSOLOETE_compute_cost_for_depleted_storage_alt2(self, pyomo_model: pyo.Model, timesteps: pyo.Set):
-        # cost rate kr/s
-        # Cost associated with deviation from target value
-        # below target = cost, above target = benefit   => gives signal to fill storage
-        dev_data = self.dev_data
-        # E_target = dev_data.E_max
-        E_target = pyomo_model.paramDeviceEnergyTarget[self.id]
-        t_end = timesteps.at(-1)
-        var_E = pyomo_model.varDeviceStorageEnergy[self.id, t_end]
-        storage_cost = dev_data.E_cost * (E_target - var_E)
-        # from cost (kr) to cost rate (kr/s):
-        storage_cost = storage_cost / len(timesteps)
-        return storage_cost
+        if t is not None:
+            tank_E_Sm3 = pyomo_model.varDeviceStorageEnergy[self.id, t]
+        else:
+            tank_E_Sm3 = pyomo_model.paramDeviceEnergyInitially[self.id]
+
+        p_tank_MPa = tank_E_Sm3 * rho * Rspec * T_in * Z / tank_volume_m3 * 1e-6
+        dct = {}
+        dct["pressure_MPa"] = pyo.value(p_tank_MPa)
+        dct["volume_m3"] = tank_volume_m3
+        dct["E_Sm3"] = pyo.value(tank_E_Sm3)
+        dct["E_max_Sm3"] = tank_E_max_Sm3
+        dct["filling_level"] = pyo.value(tank_E_Sm3 / tank_E_max_Sm3)
+        return dct
+
+
+def compute_hydrogen_compressor_demand(
+    model: pyo.Model, device_obj: StorageHydrogen, isothermal_adiabatic: float, t: int
+) -> float:
+    """Compute hydrogen compressor energy demand
+
+    NOTE: We use the initial storage level to compute the pressure. This is an approzimation since the pressure
+    changes during the planning horizon. It works OK if the storage is large compared to the planning horizon.
+    """
+
+    hydrogen_data = device_obj.carrier_data["hydrogen"]
+    gamma = hydrogen_data.adiabatic_index
+    Z = hydrogen_data.Z_compressibility
+    Rspec = hydrogen_data.R_individual_gas_constant
+    rho = hydrogen_data.rho_density  # kg/Sm3
+    p_in = device_obj.dev_data.compressor_pressure_in  # MPa
+    T_in = device_obj.dev_data.compressor_temperature  # K
+
+    tank_p_max_MPa = device_obj.dev_data.compressor_pressure_max
+    tank_E_max_Sm3 = device_obj.dev_data.E_max
+    # tank_volume_m3 = tank_E_max_Sm3 * rho * Rspec * T_in * Z / (tank_p_max_MPa*1e6)
+
+    # H2 tank is derived from stored energy
+    # tank_E_Sm3 = model.varDeviceStorageEnergy[device_obj.id,t] #variable -> nonlinear terms
+    tank_E_Sm3 = model.paramDeviceEnergyInitially[device_obj.id]  # parameter
+    # pressure_init_MPa = tank_E_Sm3 * rho * Rspec * T_in * Z / tank_volume  # this is the same as next line
+    pressure_init_MPa = tank_p_max_MPa * tank_E_Sm3 / tank_E_max_Sm3
+    # print(f"storage.py:356 tank_p_max={tank_p_max_MPa} MPa, tank_vol={tank_volume_m3:g} m3, tank_E_Sm3={pyo.value(tank_E_Sm3)}, t={t}")
+
+    dE = model.varDeviceFlow[device_obj.id, "hydrogen", "in", t]
+
+    if (isothermal_adiabatic > 1) or (isothermal_adiabatic < 0):
+        raise ValueError("isothermal_adiabatic paramater must be in the range 0-1")
+    if isothermal_adiabatic == 0:
+        # isothermal
+        dW = isothermal_work(dE, pressure_init_MPa, rho, Rspec, T_in, Z, p_in)
+    elif isothermal_adiabatic == 1:
+        # adiabatic
+        dW = adiabatic_work(dE, pressure_init_MPa, rho, Rspec, T_in, Z, p_in, gamma)
+    else:
+        # interpolate between the two:
+        dW_iso = isothermal_work(dE, pressure_init_MPa, rho, Rspec, T_in, Z, p_in)
+        dW_ad = adiabatic_work(dE, pressure_init_MPa, rho, Rspec, T_in, Z, p_in, gamma)
+        dW = (1 - isothermal_adiabatic) * dW_iso + isothermal_adiabatic * dW_ad
+    P = dW * 1e-6  # W to MW
+    return P
+
+
+def isothermal_work(dE_extra, pressure_init, rho, Rspec, T_in, Z, p_in):
+    """Return the work required to compress the E_extra isothermally from p_initial to p_final
+
+    Ref Sondre Wennberg master thesis, 2022 (eq.2.36)
+    Here: Ignoring changes in compressibility with pressure
+    """
+    dW = dE_extra * rho * Rspec * T_in * Z * pyo.log(pressure_init / p_in)
+    return dW
+
+
+def adiabatic_work(dE_extra, pressure_init, rho, Rspec, T_in, Z, p_in, gamma):
+    """Return the work required to compress the E_extra adiabatically from p_initial to p_final
+
+    Ref Sondre Wennberg master thesis, 2022 (eq.2.36)
+    Here: Ignoring changes in compressibility with pressure
+    """
+    dW = dE_extra * rho * Rspec * T_in * Z * gamma / (gamma - 1) * ((pressure_init / p_in) ** ((gamma - 1) / gamma) - 1)
+    return dW
+
+
+def NOT_USED_compressibility_factor(p: float, T: float):
+    """Return the compressibility factor of hydrogen given the pressure (in MPa) and temperature (in K)
+
+    ref Sondre Wennberg master thesis, 2022
+    """
+    a = [
+        0.05888460,
+        -0.06136111,
+        -0.002650473,
+        0.002731125,
+        0.001802374,
+        -0.001150707,
+        0.9588528e-4,
+        -0.1109040e-6,
+        0.1264403e-9,
+    ]
+    b = [1.325, 1.87, 2.5, 2.8, 2.938, 3.14, 3.37, 3.75, 4.0]
+    c = [1.0, 1.0, 2.0, 2.0, 2.42, 2.63, 3.0, 4.0, 5.0]
+    Z = 1.0
+    for i in range(len(a)):
+        Z += a[i] * (100 / T) ** b[i] * p ** c[i]
+    return Z
 
 
 class StorageGasLinepack(StorageDevice):

@@ -51,7 +51,10 @@ class OptimisationModel(pyo.ConcreteModel):
     def solve(self, solver="cbc", solver_executable=None, solver_options=None, write_yaml=False, time_limit=None):
         """Solve problem for planning horizon at a single timestep"""
 
-        opt = pyo.SolverFactory(solver, executable=solver_executable)
+        if solver_executable is not None:
+            opt = pyo.SolverFactory(solver, executable=solver_executable)
+        else:
+            opt = pyo.SolverFactory(solver)
         if solver_options is not None:
             for k in solver_options:
                 opt.options[k] = solver_options[k]
@@ -206,7 +209,8 @@ class OptimisationModel(pyo.ConcreteModel):
         # WARNING:
         # From Gurobi: "Shadow prices are not well-defined in mixed-integer
         # problems, so we don't provide dual values for an integer program."
-        self.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+        # HGS disable to check if HIGHS behaves
+        # self.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
     def _specify_sets_and_parameters(self, profiles_in_use):
         """specify pyomo model sets and parameters"""

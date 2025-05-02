@@ -21,6 +21,10 @@ class CarrierHeatData(dto.CarrierData):
 
 class CarrierHydrogenData(dto.CarrierData):
     energy_value: float = 13  # MJ/Sm3 (calorific value) -> 13 MJ/Sm3
+    rho_density: Optional[float] = 0.5  # kg/m3 Used with compressed storage
+    R_individual_gas_constant: Optional[float] = 4120  # J/(kg K) -> 4120 J/kgK
+    Z_compressibility: Optional[float] = 1.0
+    adiabatic_index: Optional[float] = 1.41
 
 
 class CarrierCarbonData(dto.CarrierData):
