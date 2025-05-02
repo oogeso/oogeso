@@ -167,7 +167,13 @@ E_init   | float | Storage level initially (MWh)
 E_cost    | float | Cost for deviation from target storage
 eta     | float | Round-trip charge/discharge efficiency
 target_profile | string | (optional) name of profile used for desired storage filling level
-
+compressor_include  | boolean   | Include compressor electricity demand or not (default=False)
+compressor_eta      | float     | Compressor efficiency (0-1)
+compressor_eta_heat | float     | Compressor waste heat efficiency (0-1) (default=0)
+compressor_temperature  | float | Inlet gas temperature (K)
+compressor_pressure_in  | float | Inlet gas pressure (MPa)
+compressor_pressure_max | float | Maximum pressure in storage tank (MPa)
+compressor_isothermal_adiabatic | float | Weighing factor between isothermal (0) and adiabatic (1) compression
 
 ### ```storage_gas_linepack```
 parameter | type | description
