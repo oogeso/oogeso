@@ -210,5 +210,7 @@ class DeviceCarbonCaptureData(DeviceData):
 class DeviceSteamCycleData(DeviceData):
     exhaust_gas_recirculation: float = 0  # egr
     alpha: float = None
+    linA: float = None
+    linB: float = None
     model: ModelType = ModelType.STEAM_CYCLE
     start_stop: StartStopData = StartStopData()

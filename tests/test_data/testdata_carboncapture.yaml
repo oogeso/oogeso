@@ -104,6 +104,8 @@ devices:
     model: steamcycle
     name: "steam cycle"
     alpha: 0.238
+    linA: 1.96
+    linB: -0.96
     flow_max: 93
     exhaust_gas_recirculation: 0.0
 

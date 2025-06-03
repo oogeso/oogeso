@@ -121,6 +121,8 @@ class SteamCycle(Device):
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         alpha = self.dev_data.alpha
+        linA = self.dev_data.linA
+        linB = self.dev_data.linB
         egr = self.dev_data.exhaust_gas_recirculation
         p_sc_nominal = self.dev_data.flow_max
         if i == 1:
@@ -130,7 +132,7 @@ class SteamCycle(Device):
             # => efficiency = power/(A+B*power)
 
             # TODO make this user input
-            (linA, linB) = (1.96, -0.96)
+            # (linA, linB) = (1.96, -0.96)
 
             heat_input_norm = model.varDeviceFlow[dev, "heat", "in", t] / p_sc_nominal
             heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
