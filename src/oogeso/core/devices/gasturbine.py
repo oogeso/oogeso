@@ -40,12 +40,12 @@ class GasTurbine(Device):
             B = self.dev_data.fuel_B
             P_max = self.dev_data.flow_max
             lhs = model.varDeviceFlow[dev, "gas", "in", t] * gas_energy_content / P_max
+            is_online = 1
+            if self.dev_data.start_stop:
+                is_online = model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t]
             if has_hydrogen:
                 lhs += model.varDeviceFlow[dev, "hydrogen", "in", t] * hydrogen_energy_content / P_max
-            rhs = (
-                B * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
-                + A * model.varDeviceFlow[dev, "el", "out", t] / P_max
-            )
+            rhs = B * is_online + A * model.varDeviceFlow[dev, "el", "out", t] / P_max
             return lhs == rhs
         elif i == 2:
             """heat output = (energy in - el power out)* heat efficiency"""
@@ -108,38 +108,68 @@ class SteamCycle(Device):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    #    def __init__(
-    #        self,
-    #        dev_data: dto.DeviceSteamCycleData,
-    #        carrier_data_dict: Dict[str, dto.CarrierData],
-    #    ):
-    #        super().__init__(dev_data=dev_data, carrier_data_dict=carrier_data_dict)
-    #        self.dev_data = dev_data
-    #        self.id = dev_data.id
-    #        self.carrier_data = carrier_data_dict
+    def get_ref_gasturbine(self):
+        return self.dev_data.gt_ref
+
+    def set_link_to_gasturbine(self, gt_dev: GasTurbine):
+        self.gt_dev = gt_dev
 
     def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
         dev = self.id
         alpha = self.dev_data.alpha
         linA = self.dev_data.linA
         linB = self.dev_data.linB
-        egr = self.dev_data.exhaust_gas_recirculation
+        # egr = self.dev_data.exhaust_gas_recirculation
+        egr = self.gt_dev.dev_data.exhaust_gas_recirculation
+        dev_gt_ref = self.dev_data.gt_ref
         p_sc_nominal = self.dev_data.flow_max
         if i == 1:
+            # Electricity output is given by GAS TURBINE loading (ref Riboldi)
+
+            heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
+            el_output = model.varDeviceFlow[dev, "el", "out", t]
+
+            # output linked to GT loading
+            gt_pmax = self.gt_dev.dev_data.flow_max
+            gt_load = model.varDeviceFlow[dev_gt_ref, "el", "out", t] / gt_pmax
+            is_online = 1
+            if self.dev_data.start_stop:
+                is_online = model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t]
+            y_heat = 1.1361 * gt_load - 0.1142 * is_online
+            # egr dependency (piecewise linear factor):
+            if egr < 0.1:
+                y_egr = 0.1763 * egr + 1.0
+            else:
+                y_egr = 0.0225 * egr + 1.0153
+            power_computed = y_heat * y_egr * p_sc_nominal
+            # extracting high temperature steam. X unit of heat extracted reducecs el output by X/alpha
+            # power equivalent of steam extracted for CCS (1/alpha >1 since 1 unit heat gives < 1 unit el)
+            # TODO: Check: should be alpha or 1/alpha
+            power_extracted = heat_extracted * alpha
+            return el_output == power_computed - power_extracted
+        elif i == 2:
+            return model.varDeviceFlow[dev, "heat", "out", t] <= model.varDeviceFlow[dev, "heat", "in", t]
+        elif i == 12:
+            # TODO: this is old code - remove
             """power out vs heat in, expressed in normalised variables"""
             # heat consumption is a linear function of el power output
             # fuel = B + A*power
             # => efficiency = power/(A+B*power)
 
-            # TODO make this user input
-            # (linA, linB) = (1.96, -0.96)
-
             heat_input_norm = model.varDeviceFlow[dev, "heat", "in", t] / p_sc_nominal
             heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
             el_output = model.varDeviceFlow[dev, "el", "out", t]
 
+            # If no start-stop logic is specified, default to status=ON
+            # Otherwise, determine by binary variables that are linked to GT status
+            is_online = 1
+            if self.dev_data.start_stop:
+                is_online = model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t]
             # normalised equation
-            y_heat = linA * heat_input_norm + linB * (model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t])
+            # TODO: This equation may give non-zero y_heat (i.e. el output) even for zero heat input
+            # saved by linB<0?
+            #
+            y_heat = linA * heat_input_norm + linB * is_online
             # egr dependency (piecewise linear factor):
             if egr < 0.1:
                 y_egr = 0.1763 * egr + 1.0
@@ -149,15 +179,10 @@ class SteamCycle(Device):
             # power equivalent of steam extracted for CCS (1/alpha >1 since 1 unit heat gives < 1 unit el)
             power_extracted = heat_extracted / alpha
             return el_output == power_computed - power_extracted
-        elif i == 2:
-            # TODO: this should not be necessary
-            # make sure that energy out < energy in
-            # heat out <= heat in
-            return pyo.Constraint.Skip
-            max_efficiency = 1.0
-            energy_in = model.varDeviceFlow[dev, "heat", "in", t]
-            energy_out = model.varDeviceFlow[dev, "heat", "out", t] + model.varDeviceFlow[dev, "el", "out", t]
-            return energy_out <= energy_in * max_efficiency
+        # elif i == 2:
+        #    return model.varDeviceIsOn[dev, t] == model.varDeviceIsOn[dev_gt_ref, t]
+        # elif i == 3:
+        #    return model.varDeviceIsPrep[dev, t] == model.varDeviceIsPrep[dev_gt_ref, t]
         else:
             return pyo.Constraint.Skip
 
