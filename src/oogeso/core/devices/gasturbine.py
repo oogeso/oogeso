@@ -98,7 +98,7 @@ class GasTurbine(Device):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
 
 
-class SteamCycle(Device):
+class SteamCycle_OBSOLETE(Device):
     """Steam cycle generator"""
 
     carrier_in = ["heat"]
@@ -191,6 +191,74 @@ class SteamCycle(Device):
         list_to_reconstruct = super().define_constraints(pyomo_model)
 
         constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 2), rule=self._rules_misc)
+        setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
+        return list_to_reconstruct
+
+    def get_flow_var(self, pyomo_model: pyo.Model, t: int):
+        return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+
+
+class SteamCycle(Device):
+    """Steam cycle generator - using heat input and linA, linB parameters"""
+
+    carrier_in = ["heat"]
+    carrier_out = ["el", "heat"]
+    serial = ["heat"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_ref_gasturbine(self):
+        return self.dev_data.gt_ref
+
+    def set_link_to_gasturbine(self, gt_dev: GasTurbine):
+        self.gt_dev = gt_dev
+
+    def _rules_misc(self, model: pyo.Model, t: int, i: int) -> Union[pyo.Expression, pyo.Constraint.Skip]:
+        dev = self.id
+        alpha = self.dev_data.alpha
+        # (linA,linB) = (3.366,2.066) <= to get the same as Riboldi: y_heat = 1.1361 * gt_load - 0.1142 * is_online
+        linA = self.dev_data.linA
+        linB = self.dev_data.linB
+        egr = self.gt_dev.dev_data.exhaust_gas_recirculation
+        # dev_gt_ref = self.dev_data.gt_ref
+        p_sc_nominal = self.dev_data.flow_max
+        if i == 1:
+            """power out vs heat in, expressed in normalised variables"""
+            # heat consumption is a linear function of el power output
+            # heat_used = B + A*power0
+            # el_out = power0*y(egr)-alpha*Q_extracted => power0 = (el_out + alpha*Q_extracted)/y(egr)
+            heat_input_norm = model.varDeviceFlow[dev, "heat", "in", t] / p_sc_nominal
+            heat_extracted = model.varDeviceFlow[dev, "heat", "out", t]
+            el_output = model.varDeviceFlow[dev, "el", "out", t]
+
+            if egr < 0.1:
+                y_egr = 0.1763 * egr + 1.0
+            else:
+                y_egr = 0.0225 * egr + 1.0153
+            power0 = (el_output + alpha * heat_extracted) / (y_egr * p_sc_nominal)
+
+            is_online = 1
+            if self.dev_data.start_stop:
+                is_online = model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t]
+
+            lhs = heat_input_norm
+            rhs = linA * power0 + linB * is_online
+            return lhs == rhs
+        # elif i == 2:
+        #    return model.varDeviceFlow[dev, "heat", "out", t] <= model.varDeviceFlow[dev, "heat", "in", t]
+        # elif i == 3:
+        #   return model.varDeviceIsOn[dev, t] == model.varDeviceIsOn[dev_gt_ref, t]
+        # elif i == 4:
+        #   return model.varDeviceIsPrep[dev, t] == model.varDeviceIsPrep[dev_gt_ref, t]
+        else:
+            return pyo.Constraint.Skip
+
+    def define_constraints(self, pyomo_model: pyo.Model):
+        """Specifies the list of constraints for the device"""
+        list_to_reconstruct = super().define_constraints(pyomo_model)
+
+        constr = pyo.Constraint(pyomo_model.setHorizon, pyo.RangeSet(1, 4), rule=self._rules_misc)
         setattr(pyomo_model, "constr_{}_{}".format(self.id, "misc"), constr)
         return list_to_reconstruct
 
