@@ -199,7 +199,7 @@ class SteamCycle_OBSOLETE(Device):
 
 
 class SteamCycle(Device):
-    """Steam cycle generator - using heat input and linA, linB parameters"""
+    """Steam cycle generator - using heat input and Ast, Bst parameters relating heat input and el ouptut"""
 
     carrier_in = ["heat"]
     carrier_out = ["el", "heat"]
@@ -218,8 +218,8 @@ class SteamCycle(Device):
         dev = self.id
         alpha = self.dev_data.alpha
         # (linA,linB) = (3.366,2.066) <= to get the same as Riboldi: y_heat = 1.1361 * gt_load - 0.1142 * is_online
-        linA = self.dev_data.linA
-        linB = self.dev_data.linB
+        A_st = self.dev_data.A_st
+        B_st = self.dev_data.B_st
         egr = self.gt_dev.dev_data.exhaust_gas_recirculation
         # dev_gt_ref = self.dev_data.gt_ref
         p_sc_nominal = self.dev_data.flow_max
@@ -243,7 +243,7 @@ class SteamCycle(Device):
                 is_online = model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t]
 
             lhs = heat_input_norm
-            rhs = linA * power0 + linB * is_online
+            rhs = A_st * power0 + B_st * is_online
             return lhs == rhs
         # elif i == 2:
         #    return model.varDeviceFlow[dev, "heat", "out", t] <= model.varDeviceFlow[dev, "heat", "in", t]

@@ -210,6 +210,6 @@ class DeviceCarbonCaptureData(DeviceData):
 class DeviceSteamCycleData(DeviceData):
     gt_ref: str = None
     alpha: float = None
-    linA: float = None
-    linB: float = None
+    A_st: float = None
+    B_st: float = None
     model: ModelType = ModelType.STEAM_CYCLE
