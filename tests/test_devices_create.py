@@ -324,7 +324,7 @@ def test_carbon_capture():
 
 
 def test_steamcycle():
-    dev_data = dto.DeviceSteamCycleData(**dev_data_generic, exhaust_gas_recirculation=0.3, alpha=0.5)
+    dev_data = dto.DeviceSteamCycleData(**dev_data_generic, A_st=1, B_st=0.2, alpha=0.5)
     obj = devices.SteamCycle(dev_data, {})
     assert isinstance(obj, devices.SteamCycle)
-    assert obj.dev_data.exhaust_gas_recirculation == 0.3
+    assert obj.dev_data.B_st == 0.2
