@@ -128,7 +128,7 @@ devices:
     model: gasturbine
     name: GTG
     fuel_A: 2.35
-    fuel_B: 0.531
+    fuel_B: 0 #0.531
     eta_heat: 0.5    
     flow_max: 20
 
