@@ -208,7 +208,7 @@ class SteamCycle(Device):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def get_ref_gasturbine(self):
+    def get_ref_gasturbine(self) -> str:
         return self.dev_data.gt_ref
 
     def set_link_to_gasturbine(self, gt_dev: GasTurbine):
@@ -221,7 +221,7 @@ class SteamCycle(Device):
         A_st = self.dev_data.A_st
         B_st = self.dev_data.B_st
         egr = self.gt_dev.dev_data.exhaust_gas_recirculation
-        # dev_gt_ref = self.dev_data.gt_ref
+        dev_gt_ref = self.get_ref_gasturbine()
         p_sc_nominal = self.dev_data.flow_max
         if i == 1:
             """power out vs heat in, expressed in normalised variables"""
@@ -239,18 +239,20 @@ class SteamCycle(Device):
             power0 = (el_output + alpha * heat_extracted) / (y_egr * p_sc_nominal)
 
             is_online = 1
-            if self.dev_data.start_stop:
-                is_online = model.varDeviceIsOn[dev, t] + model.varDeviceIsPrep[dev, t]
+            if self.gt_dev.dev_data.start_stop:
+                # consider online status only if on/off logic is included for GT
+                is_online = model.varDeviceIsOn[dev, t]  # + model.varDeviceIsPrep[dev, t]
 
             lhs = heat_input_norm
             rhs = A_st * power0 + B_st * is_online
             return lhs == rhs
-        # elif i == 2:
-        #    return model.varDeviceFlow[dev, "heat", "out", t] <= model.varDeviceFlow[dev, "heat", "in", t]
+        elif i == 2:
+            # same status as linked GT
+            return model.varDeviceIsOn[dev, t] == model.varDeviceIsOn[dev_gt_ref, t]
         # elif i == 3:
-        #   return model.varDeviceIsOn[dev, t] == model.varDeviceIsOn[dev_gt_ref, t]
-        # elif i == 4:
-        #   return model.varDeviceIsPrep[dev, t] == model.varDeviceIsPrep[dev_gt_ref, t]
+        #    # same status as linked GT
+        #    return model.varDeviceIsPrep[dev, t] == model.varDeviceIsPrep[dev_gt_ref, t]
+
         else:
             return pyo.Constraint.Skip
 
@@ -264,3 +266,21 @@ class SteamCycle(Device):
 
     def get_flow_var(self, pyomo_model: pyo.Model, t: int):
         return pyomo_model.varDeviceFlow[self.id, "el", "out", t]
+
+    def get_max_flow(self, pyomo_model: pyo.Model, t: int) -> float:
+        """
+        Return available capacity at given time-step.
+        This is given by the "flow_max" input parameter, profile value (if any), and
+        whether device is on/off.
+        """
+        # Overwrite default method defined in base.py, since we start_stop status of
+        # linked GT instead of independent logic
+        max_value = self.dev_data.flow_max
+        if self.dev_data.profile is not None:
+            ext_profile = self.dev_data.profile
+            max_value = max_value * pyomo_model.paramProfiles[ext_profile, t]
+        # Note: using self.gt_dev instead of self.dev:
+        if self.gt_dev.dev_data.start_stop is not None:
+            is_on = pyomo_model.varDeviceIsOn[self.id, t]
+            max_value = is_on * max_value
+        return max_value
