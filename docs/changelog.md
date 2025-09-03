@@ -4,6 +4,9 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## v1.7.0
+- Modified modelling of CCGT steam turbine. Modified input parameters required
+
 ## v1.6.0
 2025-05-02
 - Improved modelling of hydrogen storage compression

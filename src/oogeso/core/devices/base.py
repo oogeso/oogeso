@@ -6,7 +6,8 @@ import pyomo.environ as pyo
 from pyomo.core import Constraint
 
 from oogeso import dto
-from oogeso.core.networks.network_node import NetworkNode
+
+# from oogeso.core.networks.network_node import NetworkNode
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,10 @@ class Device(ABC):
         self.dev_data = dev_data
         self.id = dev_data.id
         self.carrier_data = carrier_data_dict
-        self.node: Optional[NetworkNode] = None
+        self.node: Optional["NetworkNode"] = None  # noqa: F821
         self._flow_upper_bound: Optional[pyo.Constraint] = None
 
-    def add_node(self, node: NetworkNode) -> None:
+    def add_node(self, node: "NetworkNode") -> None:  # noqa: F821
         """associate node with device"""
         self.node = node
 

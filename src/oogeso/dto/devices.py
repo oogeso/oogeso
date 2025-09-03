@@ -2,7 +2,7 @@ from typing import Dict, Optional
 
 from pydantic import Field
 
-from oogeso.dto import DeviceData, StartStopData
+from oogeso.dto import DeviceData
 from oogeso.dto.types import ModelType
 
 
@@ -208,7 +208,8 @@ class DeviceCarbonCaptureData(DeviceData):
 
 
 class DeviceSteamCycleData(DeviceData):
-    exhaust_gas_recirculation: float = 0  # egr
+    gt_ref: str = None
     alpha: float = None
+    A_st: float = None
+    B_st: float = None
     model: ModelType = ModelType.STEAM_CYCLE
-    start_stop: StartStopData = StartStopData()

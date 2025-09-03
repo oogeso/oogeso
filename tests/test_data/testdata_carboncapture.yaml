@@ -92,7 +92,7 @@ devices:
     model: gasturbine
     name: GTG
     fuel_A: 3.6
-    fuel_B: 0.3
+    fuel_B: 0 #0.3
     eta_heat: 1    
     flow_max: 209
     flow_min: 0
@@ -104,8 +104,12 @@ devices:
     model: steamcycle
     name: "steam cycle"
     alpha: 0.238
+    #linA: 1.96
+    #linB: -0.96
+    A_st: 3.5
+    B_st: 1.0
     flow_max: 93
-    exhaust_gas_recirculation: 0.0
+    gt_ref: "gtg"
 
   - id: ccs
     include: 1

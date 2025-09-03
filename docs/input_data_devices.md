@@ -149,6 +149,8 @@ parameter | type | description
 ----------|------|------------
 exhaust_gas_recirculation | float | Exhaust gas recirculation (EGR) rate, typically in the range 0-0.6
 alpha                     | float | Factorspecifying how much steam is extracted for CCS (e.g. 0.238)
+A_st                      | float | Parameter relating heat input and power output (heat = A*power + B)
+B_st                      | float | Parameter relating heat input and power output (heat = A*power + B)
 
 ### ```carbon_capture```
 parameter | type | description

@@ -6,7 +6,7 @@ import pyomo.environ as pyo
 import pyomo.opt as pyopt
 
 from oogeso import dto
-from oogeso.core import networks
+from oogeso.core import devices, networks
 from oogeso.core.devices.base import Device
 from oogeso.core.devices.storage import StorageDevice
 from oogeso.core.networks import ElNetwork, Network
@@ -186,6 +186,16 @@ class OptimisationModel(pyo.ConcreteModel):
             node_to = self.all_nodes[edge.edge_data.node_to]
             node_to.add_edge(edge, "to")
             edge.add_nodes(node_from, node_to)
+
+        # Link SteamCycle devices to their associated GasTurbine device
+        for dev_id, dev in self.all_devices.items():
+            get_device_from_model_name("steamcycle")
+            if isinstance(dev, devices.SteamCycle):
+                gt_ref = dev.get_ref_gasturbine()
+                if gt_ref is None:
+                    raise ValueError(f"Device {dev_id}: Missing value for 'gt_ref'")
+                gt_dev = self.all_devices[gt_ref]
+                dev.set_link_to_gasturbine(gt_dev)
 
     def _create_pyomo_model(self, profiles_in_use):
         """Create pyomo MILP model
